@@ -1,0 +1,60 @@
+# Laravel / PHP
+/.phpunit.cache
+/.phpunit.result.cache
+/vendor
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*.php
+.env
+.env.backup
+.env.production
+auth.json
+Homestead.json
+Homestead.yaml
+composer.phar
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+ENV/
+
+# Project-local Python service artifacts
+python/.venv/
+python/__pycache__/
+python/**/*.pyc
+python/logs/
+python/tmp/
+
+# IDE / editor
+/.fleet
+/.idea
+/.vscode
+
+# OS files
+.DS_Store
+Thumbs.db
