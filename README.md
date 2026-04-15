@@ -1,540 +1,599 @@
-# OSCA Senior Citizen Profiling & QoL Analytics System
-### Pagsanjan, Laguna — Office of Senior Citizens Affairs
+# AgeSense
 
-A full-stack Laravel 11 + Python ML system for collecting senior citizen profile and quality-of-life survey data, running KMeans clustering (validated K=3), predicting WHO domain risk scores, and generating actionable recommendations.
+AgeSense is an explainable machine learning framework and decision-support system for profiling senior citizens and generating healthy ageing recommendations using indicators aligned with the World Health Organization Healthy Ageing Framework.
 
----
+This repository combines a Laravel 11 web application, Livewire-based survey workflows, SQLite/MySQL-backed data storage, and Python machine learning services for preprocessing, clustering, risk estimation, and recommendation generation. The project is designed for community-level use cases such as Offices for Senior Citizens Affairs (OSCA), local government units, and academic research on ageing populations.
 
 ## Table of Contents
 
-1. [System Architecture](#system-architecture)
-2. [Tech Stack](#tech-stack)
-3. [Project Structure](#project-structure)
-4. [Quick Start](#quick-start)
-5. [ML Pipeline](#ml-pipeline)
-6. [Modules](#modules)
-7. [Database Schema](#database-schema)
-8. [API Reference (Python Services)](#api-reference)
-9. [Configuration](#configuration)
-10. [Deployment](#deployment)
+1. [Project Overview](#project-overview)
+2. [Purpose](#purpose)
+3. [Objectives](#objectives)
+4. [Key Features](#key-features)
+5. [System Architecture](#system-architecture)
+6. [Technology Stack](#technology-stack)
+7. [Repository Structure](#repository-structure)
+8. [Dataset Coverage](#dataset-coverage)
+9. [Setup Guide](#setup-guide)
+10. [Running the System](#running-the-system)
+11. [Machine Learning Workflow](#machine-learning-workflow)
+12. [Application Modules](#application-modules)
+13. [Important Routes](#important-routes)
+14. [Configuration Notes](#configuration-notes)
+15. [Outputs and Reports](#outputs-and-reports)
+16. [Fallback Behavior](#fallback-behavior)
+17. [Target Beneficiaries](#target-beneficiaries)
+18. [References](#references)
 
----
+## Project Overview
+
+Population ageing increases the need for data-driven, transparent, and practical tools that can help organizations understand the conditions of older adults beyond simple administrative records. AgeSense addresses this gap by organizing senior citizen profile data and quality-of-life survey responses into a system that can:
+
+- capture multidimensional ageing indicators
+- group senior citizens into meaningful profile clusters
+- estimate quality-of-life and domain-level risk patterns
+- generate interpretable recommendations for intervention planning
+
+The study and system are grounded in the WHO Healthy Ageing Framework, which emphasizes the interaction of:
+
+- intrinsic capacity
+- environmental support
+- functional ability
+
+## Purpose
+
+The main purpose of this project is to transform OSCA-style senior citizen records and survey responses into actionable insights for healthy ageing assessment. Instead of using records only for documentation, the system supports deeper analysis for planning, prioritization, and evidence-based service design.
+
+Specifically, AgeSense helps answer questions such as:
+
+- What are the demographic, socioeconomic, health, and environmental characteristics of senior citizens in the study area?
+- What meaningful senior citizen profiles can be discovered using clustering techniques?
+- Which factors most strongly influence quality of life and ageing-related vulnerability?
+- What recommendations can be generated from interpretable model outputs?
+
+## Objectives
+
+### General Objective
+
+To apply machine learning techniques to assess and profile senior citizens using indicators aligned with the WHO Healthy Ageing Framework in order to identify meaningful patterns and support targeted healthy ageing interventions.
+
+### Specific Objectives
+
+- Collect and manage senior citizen profile and quality-of-life data.
+- Preprocess the dataset through cleaning, handling missing values, encoding, normalization, and feature transformation.
+- Identify senior citizen profiles using clustering methods such as K-Means, Hierarchical Clustering, and Gaussian Mixture Models.
+- Evaluate clustering quality using validation metrics such as Silhouette Score, Davies-Bouldin Index, and Calinski-Harabasz Index.
+- Estimate quality-of-life and domain-level risks using machine learning models.
+- Generate explainable outputs and prescriptive recommendations for program planning and case-level support.
+
+## Key Features
+
+- Senior citizen profiling and record management
+- Multi-step survey collection for profile and quality-of-life indicators
+- WHO-aligned domain scoring
+- Python preprocessing and inference services
+- Cluster assignment and risk stratification
+- Explainable recommendation generation
+- Dashboard and analytics reporting
+- PDF and spreadsheet export support
+- Fallback heuristic scoring when remote ML services are unavailable
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Laravel 11 + Livewire 3                  │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
-│  │ Profile  │  │   QoL    │  │Dashboard │  │  Reports  │  │
-│  │  Survey  │  │  Survey  │  │ (Charts) │  │ Cluster / │  │
-│  │  Form    │  │  Form    │  │          │  │   Risk    │  │
-│  └────┬─────┘  └────┬─────┘  └──────────┘  └───────────┘  │
-│       │              │                                       │
-│  ┌────▼──────────────▼──────────────────────────────────┐  │
-│  │              MlService (PHP)                          │  │
-│  │     Orchestrates: preprocess → infer → persist       │  │
-│  └────────────┬──────────────────────────┬──────────────┘  │
-└───────────────┼──────────────────────────┼─────────────────┘
-                │ HTTP (JSON)               │ HTTP (JSON)
-                ▼                           ▼
-   ┌────────────────────┐    ┌────────────────────────┐
-   │  Preprocessing     │    │   Inference Service    │
-   │  Service :5001     │    │   :5002                │
-   │                    │    │                        │
-   │  • Ordinal encode  │    │  • KMeans K=3 cluster  │
-   │  • Asset scoring   │    │  • GBR + RFR ensemble  │
-   │  • QoL reverse-    │    │  • WHO domain risks    │
-   │    score           │    │  • Risk stratification │
-   │  • Section scores  │    │  • Recommendations     │
-   │  • UMAP reduction  │    │    engine              │
-   └────────────────────┘    └────────────────────────┘
-                │                           │
-                └───────────┬───────────────┘
-                            ▼
-                  ┌──────────────────┐
-                  │  MySQL Database  │
-                  │                  │
-                  │  senior_citizens │
-                  │  qol_surveys     │
-                  │  ml_results      │
-                  │  recommendations │
-                  │  cluster_snap..  │
-                  └──────────────────┘
+```text
+Laravel 11 + Livewire UI
+    |
+    |-- Senior citizen profile management
+    |-- QoL survey data collection
+    |-- Dashboard, reports, and recommendations
+    |
+    v
+App\Services\MlService
+    |
+    |-- Preprocess request -> Python service on port 5001
+    |-- Inference request  -> Python service on port 5002
+    |-- Local Python runner fallback
+    |-- Heuristic fallback if Python services are unavailable
+    |
+    v
+Database
+    |
+    |-- senior_citizens
+    |-- qol_surveys
+    |-- ml_results
+    |-- recommendations
+    |-- cluster_snapshots
 ```
 
----
-
-## Tech Stack
+## Technology Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Backend framework | Laravel 11 |
-| Reactive UI | Livewire 3 + Alpine.js |
+|---|---|
+| Web framework | Laravel 11 |
+| Reactive components | Livewire 3, Volt |
+| Frontend utilities | Alpine.js |
 | Styling | Tailwind CSS 3 |
 | Charts | Chart.js 4 |
-| Database | MySQL 8 |
-| ML pipeline | Python 3.11+ |
-| Clustering | scikit-learn KMeans (K=3) |
-| Risk prediction | GradientBoostingRegressor + RandomForestRegressor (60/40 ensemble) |
-| Dimensionality reduction | UMAP |
-| Python API | Flask |
-| PDF export | barryvdh/laravel-dompdf |
-| Excel export | maatwebsite/excel |
+| Backend language | PHP 8.2+ |
+| ML services | Python 3.11+ |
+| Python API | Flask, Flask-CORS |
+| Machine learning | scikit-learn, UMAP, pandas, numpy, scipy |
+| Export tools | `barryvdh/laravel-dompdf`, `maatwebsite/excel` |
+| Auth/session/cache queue support | Laravel database drivers |
+| Current local database option | SQLite |
+| Supported configured database option | MySQL |
 
----
+## Repository Structure
 
-## Project Structure
-
-```
+```text
 osca-system/
-├── app/
-│   ├── Http/Controllers/
-│   │   ├── DashboardController.php       # Dashboard invokable
-│   │   ├── SeniorCitizenController.php   # CRUD + export
-│   │   ├── SurveyController.php          # Profile + QoL survey pages
-│   │   ├── MlController.php              # ML status + batch run
-│   │   ├── ReportController.php          # Cluster + risk reports
-│   │   └── RecommendationController.php  # Recommendations management
-│   │
-│   ├── Livewire/
-│   │   ├── Dashboard/
-│   │   │   └── MainDashboard.php         # Live KPI + chart data
-│   │   ├── Surveys/
-│   │   │   ├── ProfileSurvey.php         # 6-step profile form
-│   │   │   └── QolSurveyForm.php         # 8-section QoL form
-│   │   └── Reports/
-│   │       ├── ClusterAnalysis.php       # Interactive cluster table
-│   │       └── RiskReport.php            # Filterable risk table
-│   │
-│   ├── Models/
-│   │   ├── SeniorCitizen.php             # Core profile model
-│   │   ├── QolSurvey.php                 # QoL survey + domain scoring
-│   │   │                                 # (also contains MlResult + Recommendation)
-│   │   └── SeniorCitizen.php
-│   │
-│   └── Services/
-│       └── MlService.php                 # PHP ↔ Python HTTP bridge
-│
-├── database/
-│   ├── migrations/
-│   │   └── 2024_01_01_000001_create_osca_tables.php
-│   └── seeders/
-│       ├── DatabaseSeeder.php
-│       └── OscaSeeder.php                # 60 demo senior records
-│
-├── python/
-│   ├── services/
-│   │   ├── preprocess_service.py         # Flask API :5001
-│   │   └── inference_service.py          # Flask API :5002
-│   ├── models/                           # .pkl model files go here
-│   │   ├── kmeans_k3.pkl
-│   │   ├── scaler.pkl
-│   │   ├── umap_reducer.pkl
-│   │   ├── gbr_ic_risk.pkl
-│   │   ├── rfr_ic_risk.pkl
-│   │   ├── gbr_env_risk.pkl
-│   │   ├── rfr_env_risk.pkl
-│   │   ├── gbr_func_risk.pkl
-│   │   └── rfr_func_risk.pkl
-│   ├── requirements.txt
-│   └── start_services.sh
-│
-├── resources/
-│   ├── css/app.css                       # Tailwind + custom utilities
-│   ├── js/
-│   │   ├── app.js                        # Alpine + Chart.js setup
-│   │   └── bootstrap.js
-│   └── views/
-│       ├── layouts/app.blade.php         # Main shell with sidebar
-│       ├── dashboard.blade.php
-│       ├── seniors/                      # index, show, create, edit
-│       ├── surveys/qol/                  # index, create, results
-│       ├── reports/                      # cluster, risk (static + Livewire)
-│       ├── recommendations/              # index, show
-│       ├── ml/                           # status, batch
-│       └── livewire/                     # Livewire component views
-│
-└── routes/web.php
+|-- app/
+|   |-- Http/
+|   |-- Livewire/
+|   |-- Models/
+|   |-- Providers/
+|   `-- Services/
+|-- bootstrap/
+|-- config/
+|-- database/
+|   |-- migrations/
+|   |-- seeders/
+|   `-- database.sqlite
+|-- docs/
+|-- public/
+|-- python/
+|   |-- models/
+|   |-- services/
+|   |-- requirements.txt
+|   |-- start_services.ps1
+|   `-- start_services.sh
+|-- resources/
+|   |-- css/
+|   |-- js/
+|   `-- views/
+|-- routes/
+|-- storage/
+|-- tests/
+|-- artisan
+|-- composer.json
+|-- package.json
+`-- README.md
 ```
 
----
+### Important Directories
 
-## Quick Start
+- `app/Models` contains the core domain models such as senior citizens, QoL surveys, ML results, and recommendations.
+- `app/Services` contains the PHP orchestration layer, including `MlService.php`.
+- `app/Livewire` contains interactive survey, dashboard, and report components.
+- `database/migrations` defines the application schema.
+- `database/seeders` contains data import and seeding logic, including CSV-based population of records.
+- `python/services` contains the preprocessing and inference services used by the Laravel app.
+- `python/models` is the expected location for trained model artifacts when stored inside the project.
+- `resources/views` contains Blade and Livewire UI templates.
+- `routes/web.php` defines the main web routes for dashboards, surveys, ML actions, reports, and recommendations.
 
-### 1. Laravel Setup
+## Dataset Coverage
+
+The project is based on two main data collection instruments:
+
+### 1. Senior Citizen Profile Data
+
+This includes:
+
+- demographic information
+- contact and barangay information
+- family composition and social support
+- education and skills
+- community participation
+- living arrangement and dependency profile
+- economic status and assets
+- health conditions and sensory concerns
+- psychosocial concerns
+- healthcare access and preventive behavior
+
+### 2. Quality-of-Life Questionnaire
+
+The quality-of-life instrument is organized into eight domains:
+
+- overall quality of life
+- physical health
+- psychological and emotional well-being
+- independence and autonomy
+- social relationships and participation
+- home and neighborhood environment
+- financial situation
+- spirituality and personal beliefs
+
+These variables are later mapped into the WHO Healthy Ageing domains:
+
+- Intrinsic Capacity
+- Environment
+- Functional Ability
+
+## Setup Guide
+
+## Prerequisites
+
+Before setting up the project, make sure the following tools are installed:
+
+- PHP 8.2 or later
+- Composer
+- Node.js and npm
+- Python 3.11 or later
+- Git
+
+Optional depending on your database choice:
+
+- SQLite
+- MySQL 8+
+
+## Clone the Repository
 
 ```bash
-git clone <repo>
+git clone <your-repository-url>
 cd osca-system
+```
 
-# Install PHP dependencies
+If your downloaded folder contains another nested `osca-system` application directory, enter that folder before running Laravel commands:
+
+```bash
+cd osca-system
+```
+
+## Install PHP Dependencies
+
+```bash
 composer install
+```
 
-# Install JS dependencies
+## Install Frontend Dependencies
+
+```bash
 npm install
+```
 
-# Environment
+## Create the Environment File
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+On Git Bash or Linux/macOS:
+
+```bash
 cp .env.example .env
+```
+
+Then generate the application key:
+
+```bash
 php artisan key:generate
+```
 
-# Edit .env — set DB_DATABASE, DB_USERNAME, DB_PASSWORD
+## Configure the Database
 
-# Database
+This project currently works well with SQLite for local development.
+
+### Option A: SQLite
+
+1. Ensure `database/database.sqlite` exists.
+2. Update `.env`:
+
+```env
+DB_CONNECTION=sqlite
+DB_DATABASE=database/database.sqlite
+```
+
+Recommended local values for session and cache:
+
+```env
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=database
+```
+
+### Option B: MySQL
+
+Update `.env` with your MySQL connection:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=osca_db
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+## Run Migrations
+
+```bash
 php artisan migrate
-php artisan db:seed --class=OscaSeeder
+```
 
-# Build assets
-npm run build
-# or for development:
+## Seed the Database
+
+The default `DatabaseSeeder` calls `OscaCsvSeeder`, which imports data from the root-level `osca.csv` file and also triggers ML processing for imported records.
+
+```bash
+php artisan db:seed
+```
+
+If you want a simpler seed path for demo records, inspect or run other available seeders manually as needed.
+
+## Install Python Dependencies
+
+Create a Python virtual environment inside the `python` directory if needed:
+
+### Windows PowerShell
+
+```powershell
+cd python
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cd ..
+```
+
+### Git Bash or Linux/macOS
+
+```bash
+cd python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+```
+
+## Build Frontend Assets
+
+For development:
+
+```bash
 npm run dev
 ```
 
-### 2. Python ML Services
+For production build:
 
 ```bash
-# Install and start both services (ports 5001 + 5002)
-bash python/start_services.sh
-
-# Or individually:
-cd python
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# Preprocessing service (port 5001)
-PREPROCESS_PORT=5001 python services/preprocess_service.py &
-
-# Inference service (port 5002)
-INFERENCE_PORT=5002 python services/inference_service.py &
+npm run build
 ```
 
-### 3. Load ML Models
+## Running the System
 
-Copy trained `.pkl` files from your notebook's `osca_output/model/` directory into `storage/app/ml_models/`:
-
-```bash
-cp osca_output/model/*.pkl storage/app/ml_models/
-```
-
-Expected files:
-- `kmeans_k3.pkl` — KMeans model (K=3)
-- `scaler.pkl` — StandardScaler
-- `umap_reducer.pkl` — UMAP reducer
-- `gbr_ic_risk.pkl`, `rfr_ic_risk.pkl` — IC risk ensemble
-- `gbr_env_risk.pkl`, `rfr_env_risk.pkl` — Environment risk ensemble
-- `gbr_func_risk.pkl`, `rfr_func_risk.pkl` — Functional risk ensemble
-- `cluster_map.pkl` — `{raw_id: named_id}` mapping dict
-
-> **Note:** If `.pkl` files are missing, both Python services fall back gracefully to heuristic scoring using WHO domain score inversion. All features remain functional.
-
-### 4. Start Laravel
+Start the Laravel app:
 
 ```bash
 php artisan serve
 ```
 
-Visit: `http://localhost:8000`
+By default, the app will be available at:
 
----
-
-## ML Pipeline
-
-The ML pipeline runs automatically when a QoL survey is submitted:
-
-```
-1. QolSurveyForm::submitSurvey()
-        │
-        ├── QolSurvey::computeScores()      ← PHP: domain scores (0-1)
-        │
-        └── MlService::runPipeline()
-                │
-                ├── POST :5001/preprocess    ← Python: encode, scale, UMAP
-                │        Returns: scaled_features, reduced_features,
-                │                 section_scores, who_domain_scores
-                │
-                ├── POST :5002/infer         ← Python: KMeans + ensemble
-                │        Returns: cluster, risk_scores, risk_levels,
-                │                 recommendations[]
-                │
-                └── Persist to MySQL:
-                         ml_results table
-                         recommendations table
+```text
+http://127.0.0.1:8000
 ```
 
-### Risk Level Thresholds
+## Start the Python ML Services
 
-| Level | Composite Score | Action |
-|-------|----------------|--------|
-| CRITICAL | > 0.75 | Immediate intervention |
-| HIGH | 0.65 – 0.75 | Urgent intervention |
-| MODERATE | 0.45 – 0.65 | Planned intervention |
-| LOW | < 0.45 | Maintenance care |
+### Windows PowerShell
 
-### Cluster Profiles (K=3)
-
-| Cluster | Name | Profile | Typical Risk |
-|---------|------|---------|-------------|
-| 1 | High Functioning | Independent, financially stable, socially engaged | LOW |
-| 2 | Moderate / Mixed Needs | Mixed domain performance | MODERATE |
-| 3 | Low Functioning / Multi-Domain Risk | Multi-domain vulnerabilities | HIGH |
-
----
-
-## Modules
-
-### 1. Senior Record Management (`/seniors`)
-- Full CRUD with soft deletes
-- OSCA ID auto-generation (e.g., `SAN-2024-0001`)
-- Search by name, OSCA ID, barangay, risk level
-- PDF profile export
-
-### 2. Profile Survey Form (`/seniors/create`)
-- 6-step Livewire wizard:
-  1. Identifying Information
-  2. Family Composition
-  3. Education / HR Profile
-  4. Dependency Profile
-  5. Economic Profile
-  6. Health Profile
-- Real-time validation
-- Draft save support
-
-### 3. QoL Survey Form (`/surveys/qol/create/{senior}`)
-- 8-section Livewire form (30 items total)
-- Sections: QoL, Physical, Psychological, Independence, Social, Environment, Financial, Spirituality
-- Reverse-scored items (B2, B3, C3, D4) handled automatically
-- Domain scores computed server-side on submit
-- Triggers ML pipeline on submission
-
-### 4. Preprocessing Service (Python :5001)
-- Ordinal encoding (education, income levels)
-- Multi-select asset/income weighted scoring
-- Household risk scoring
-- QoL reverse-score normalization
-- Section score computation (6 sections → wellbeing score)
-- Feature scaling (StandardScaler)
-- UMAP dimensionality reduction
-
-### 5. ML Inference Service (Python :5002)
-- KMeans cluster assignment (K=3, validated)
-- GBR + RFR ensemble risk prediction (60/40)
-- WHO domain risks: IC, Environment, Functional
-- Composite risk scoring
-- Risk level stratification
-- Recommendations generation (cluster + domain + section triggers)
-
-### 6. Risk Scoring Service
-- Composite = 0.40×IC + 0.30×Env + 0.30×Func
-- Section score triggers for age 80+, housing risk, low family support
-- HC access recommendation always included
-
-### 7. Recommendation Engine
-- Priority-ranked action list
-- Categories: health, financial, social, functional, hc_access, general
-- Urgency: immediate → urgent → planned → maintenance
-- Status tracking: pending → in_progress → completed → dismissed
-
-### 8. Dashboard (`/dashboard`)
-- Live KPI cards (total seniors, surveyed, critical/high risk, pending recs)
-- Risk distribution doughnut chart
-- Cluster distribution chart
-- WHO domain score radar
-- Age group bar chart
-- Barangay breakdown table
-- Urgent pending recommendations panel
-- ML service health indicator
-- Auto-refreshes every 60 seconds
-
-### 9. Cluster Analysis (`/reports/cluster`)
-- Cluster validation metrics (Silhouette, Davies-Bouldin, Calinski-Harabasz)
-- Per-cluster summary cards with WHO domain bars
-- Domain risk grouped bar chart
-- Risk level stacked distribution per cluster
-- Interactive sortable member table with CSV export
-
-### 10. Risk Reports (`/reports/risk`)
-- Filter by risk level, barangay, cluster
-- Sortable composite risk table
-- Risk level summary cards (click-to-filter)
-- CSV export
-
-### 11. Recommendations Management (`/recommendations`)
-- Filter by status, urgency, category, barangay
-- Status update (pending → in_progress → completed)
-- Senior-specific recommendation page
-
----
-
-## Database Schema
-
-```
-senior_citizens          qol_surveys              ml_results
-─────────────────        ─────────────────        ─────────────────
-id (PK)                  id (PK)                  id (PK)
-osca_id (UNIQUE)         senior_citizen_id (FK)   senior_citizen_id (FK)
-first/middle/last_name   survey_date              qol_survey_id (FK)
-barangay                 a1..h2 (30 items)        cluster_id / named_id
-date_of_birth            score_qol..overall       cluster_name
-gender / marital_status  status                   ic_risk / env_risk
-educational_attainment   created_at               func_risk
-monthly_income_range     updated_at               composite_risk
-income_source (JSON)                              overall_risk_level
-real_assets (JSON)       recommendations          section_scores (JSON)
-medical_concern (JSON)   ─────────────────        processed_at
-... (all OSCA fields)    id (PK)
-status                   ml_result_id (FK)        cluster_snapshots
-created_at               senior_citizen_id (FK)   ─────────────────
-deleted_at               priority                 id (PK)
-                         type / domain            snapshot_date
-                         category / action        cluster_id / name
-                         urgency / risk_level     member_count
-                         status / notes           avg_* scores
-                         target_date              barangay_distribution
+```powershell
+.\python\start_services.ps1
 ```
 
----
+This script starts:
 
-## API Reference
+- preprocessing service on port `5001`
+- inference service on port `5002`
 
-### Preprocessing Service `:5001`
+### Linux/macOS or Git Bash
 
-**`POST /preprocess`**
-```json
-Request:
-{
-  "age": 72,
-  "gender": "Female",
-  "educational_attainment": "High School Graduate",
-  "monthly_income_range": "5,000 - 10,000",
-  "income_source": ["Own pension"],
-  "real_assets": ["House and Lot"],
-  "medical_concern": ["Hypertension", "Diabetes"],
-  "qol_responses": {
-    "a1_enjoy_life": 4, "b2_pain_discomfort": 3, ...
-  }
-}
-
-Response:
-{
-  "status": "success",
-  "encoded_features": { "age": 72, "education_enc": 4, ... },
-  "scaled_features": [0.45, -0.23, ...],
-  "reduced_features": [0.32, 0.45, ...],
-  "section_scores": {
-    "sec1_age_risk": 0.3, "sec5_eco_stability": 0.65,
-    "overall_wellbeing": 0.58
-  },
-  "who_domain_scores": {
-    "ic_score": 3.2, "env_score": 3.5, "func_score": 3.1, "qol_score": 3.4
-  }
-}
+```bash
+bash python/start_services.sh
 ```
 
-### Inference Service `:5002`
+### Run Services Individually
 
-**`POST /infer`**
-```json
-Request: (output from /preprocess)
+Preprocessing service:
 
-Response:
-{
-  "status": "success",
-  "cluster": { "named_id": 2, "name": "Moderate / Mixed Needs", ... },
-  "risk_scores": {
-    "ic_risk": 0.42, "env_risk": 0.51, "func_risk": 0.38, "composite_risk": 0.44
-  },
-  "risk_levels": {
-    "ic": "moderate", "env": "moderate", "func": "low", "overall": "MODERATE"
-  },
-  "recommendations": [
-    { "priority": 1, "type": "cluster", "action": "...", "urgency": "planned" },
-    ...
-  ]
-}
+```bash
+python python/services/preprocess_service.py
 ```
 
-**`POST /batch_infer`** — accepts JSON array of preprocessed records.
+Inference service:
 
----
+```bash
+python python/services/inference_service.py
+```
 
-## Configuration
+## Model Files
 
-### `.env` Key Settings
+The Python layer may use trained artifacts such as:
+
+- `scaler.pkl`
+- `umap_nd.pkl` or `umap_reducer.pkl`
+- `kmeans.pkl` or `kmeans_k3.pkl`
+- `cluster_mapping.json` or similar mapping files
+- ensemble/regression model files for domain risk estimation
+
+Depending on your environment, model artifacts may be loaded from:
+
+- `python/models/`
+- a configured `ML_MODELS_PATH`
+- a stable application data directory used by the local service scripts
+
+If trained models are unavailable, the application can still operate using local or heuristic fallback behavior.
+
+## Machine Learning Workflow
+
+The system follows this high-level workflow:
+
+1. A senior citizen profile is encoded and stored.
+2. A quality-of-life survey is submitted.
+3. Laravel computes QoL-related scores and prepares the payload.
+4. The preprocessing service transforms the raw profile into model-ready features.
+5. The inference service performs clustering and risk estimation.
+6. Results are stored in `ml_results`.
+7. Generated recommendations are stored in `recommendations`.
+8. Dashboards and reports display profile groups, risk summaries, and intervention guidance.
+
+### Core Analytical Methods
+
+- K-Means clustering as the primary clustering approach
+- Hierarchical clustering and Gaussian Mixture Models as comparison methods in the study design
+- dimensionality reduction through PCA and or UMAP
+- supervised learning for quality-of-life or risk estimation
+- explainable analysis using feature importance and interpretable profile summaries
+
+### WHO-Aligned Analytical Domains
+
+- Intrinsic Capacity
+- Environment
+- Functional Ability
+
+## Application Modules
+
+### Senior Citizen Records
+
+- create, view, update, and archive senior citizen records
+- maintain profile and barangay-level information
+- support PDF or data export workflows
+
+### Profile Survey
+
+- collect demographic, socioeconomic, environmental, and health indicators
+- organize records into structured sections for consistent preprocessing
+
+### Quality-of-Life Survey
+
+- collect Likert-scale responses across eight domains
+- compute normalized domain and summary scores
+- trigger the ML pipeline after submission
+
+### Dashboard
+
+- display total seniors, survey coverage, and risk summaries
+- visualize cluster and barangay distributions
+- surface pending recommendations and service alerts
+
+### Reports
+
+- cluster analysis summaries
+- risk reports
+- barangay-level reporting
+- exportable outputs for administration and research use
+
+### Recommendations
+
+- list intervention suggestions per senior citizen or risk group
+- track recommendation status and urgency
+
+## Important Routes
+
+The main web routes currently include:
+
+- `/dashboard`
+- `/seniors`
+- `/surveys/profile/create/{senior?}`
+- `/surveys/qol`
+- `/ml/status`
+- `/ml/batch`
+- `/reports/cluster`
+- `/reports/risk`
+- `/recommendations`
+
+Note that these routes are placed inside the `auth` middleware group, so authentication must be available before accessing them.
+
+## Configuration Notes
+
+Relevant `.env` settings include:
 
 ```env
-# Database
-DB_CONNECTION=mysql
-DB_DATABASE=osca_db
+APP_NAME="OSCA Senior Citizen System"
+APP_TIMEZONE=Asia/Manila
+APP_URL=http://localhost
 
-# Python ML services
-PYTHON_SERVICE_URL=http://127.0.0.1:5000
+DB_CONNECTION=sqlite
+DB_DATABASE=database/database.sqlite
+
+PYTHON_SERVICE_URL=http://127.0.0.1
+PYTHON_PREPROCESS_PORT=5001
+PYTHON_INFERENCE_PORT=5002
+PYTHON_TIMEOUT=120
+PYTHON_COLD_START_TIMEOUT=120
+
 ML_MODELS_PATH=storage/app/ml_models
-
-# Municipality
 MUNICIPALITY_NAME="Pagsanjan"
 PROVINCE_NAME="Laguna"
 ```
 
-### `config/services.php` — Add:
+Important note: the code reads Python service ports from `config/services.php`, so using `PYTHON_PREPROCESS_PORT` and `PYTHON_INFERENCE_PORT` is more accurate than relying on a single `PYTHON_SERVICE_URL` with port `5000`.
 
-```php
-'python' => [
-    'base_url' => env('PYTHON_SERVICE_URL', 'http://127.0.0.1'),
-],
-```
+## Outputs and Reports
 
----
+Expected outputs of the system include:
 
-## Deployment
+- clustered senior citizen profiles
+- domain-level risk scores
+- overall risk levels
+- recommendation lists
+- dashboard summaries
+- exported reports for planning and documentation
 
-### Production with Supervisor (Python services)
+These outputs support:
 
-```ini
-; /etc/supervisor/conf.d/osca-ml.conf
-[program:osca-preprocessor]
-command=/var/www/osca-system/python/venv/bin/gunicorn
-        --bind 127.0.0.1:5001 --workers 2 preprocess_service:app
-directory=/var/www/osca-system/python/services
-environment=ML_MODELS_PATH="/var/www/osca-system/storage/app/ml_models"
-autostart=true
-autorestart=true
-
-[program:osca-inference]
-command=/var/www/osca-system/python/venv/bin/gunicorn
-        --bind 127.0.0.1:5002 --workers 2 inference_service:app
-directory=/var/www/osca-system/python/services
-environment=ML_MODELS_PATH="/var/www/osca-system/storage/app/ml_models"
-autostart=true
-autorestart=true
-```
-
-### Laravel Production Checklist
-
-```bash
-composer install --optimize-autoloader --no-dev
-npm run build
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan migrate --force
-```
-
----
+- community-level analysis
+- service prioritization
+- targeting of interventions
+- academic research and validation
 
 ## Fallback Behavior
 
-Both Python services fail gracefully — if they are unreachable, `MlService.php` uses heuristic scoring:
-- Cluster assignment based on `overall_wellbeing` section score
-- Risk scores computed by inverting normalized WHO domain averages
-- A warning is stored in `ml_results.raw_output.warnings[]`
-- Users see a warning banner; all data is persisted normally
+The application is designed to remain usable even when the Python HTTP services are unavailable.
 
----
+Fallback sequence:
 
-## Credits
+1. Try the HTTP preprocessing and inference services.
+2. If unavailable, try the local Python runner.
+3. If that also fails, use heuristic preprocessing and inference in PHP.
 
-- **Survey instrument:** Adapted WHOQOL-BREF and WHO Integrated Care for Older People (ICOPE) framework
-- **ML methodology:** Notebook `osca5.ipynb` — KMeans K=3 with UMAP reduction, validated via Silhouette (0.412), Davies-Bouldin (1.198), Calinski-Harabasz (84.3)
-- **Risk scoring:** WHO Healthy Ageing domains: Intrinsic Capacity, Environment, Functional Capacity
-- **System built for:** OSCA Pagsanjan, Laguna — Municipal Social Welfare and Development Office
+This means the system can still:
+
+- save survey responses
+- produce approximate risk outputs
+- generate placeholder recommendations
+- preserve continuity for testing and offline development
+
+## Target Beneficiaries
+
+The main beneficiaries of the project are:
+
+- Offices for Senior Citizens Affairs
+- local government units
+- senior citizens and their families
+- researchers and academic institutions
+- public health and social welfare planners
+
+## References
+
+The conceptual and methodological basis of this project draws from the following themes and studies:
+
+- World Health Organization Healthy Ageing Framework
+- OSCA-related records management and senior citizen information systems
+- clustering-based elderly profiling studies
+- explainable machine learning studies in ageing and health research
+
+Selected references from the concept paper:
+
+- Andrade, S. C. V., Marcucci, R. M. B., Faria, L. F. C., Paschoal, S. M. P., Rebustini, F., and Melo, R. C. (2020). Health profile of older adults assisted by the Elderly Caregiver Program of the Health Care Network of the City of Sao Paulo.
+- Bandeen-Roche, K. et al. (2006). Phenotype of frailty: Characterization in the women�s health and aging studies.
+- Goh, C. H. et al. (2022). Development of an effective clustering algorithm for older fallers.
+- Sarah, M. B., Lasekan, O., and Godoy, M. (2024). Identifying elderly health-risk profiles in Kerala using machine learning.
+- World Health Organization. (2020). Decade of healthy ageing: Baseline report.
+- World Health Organization. (2022). Ageing and health.
+
+## Summary
+
+AgeSense is both a research-driven and implementation-ready system. It combines survey-based community data, WHO-aligned healthy ageing domains, explainable analytics, and web-based records management into one integrated platform for senior citizen profiling and prescriptive recommendations.
