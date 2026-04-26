@@ -1,134 +1,184 @@
 {{-- resources/views/recommendations/index.blade.php --}}
 @extends('layouts.app')
 @section('page-title', 'Recommendations Management')
-@section('page-subtitle', 'Track, assign, and update care action items for senior citizens')
+@section('page-subtitle', 'Navigate by senior citizen to view and update care action items')
 
 @section('content')
-<div class="space-y-4">
+<div class="space-y-5">
 
-    {{-- ── Filters ── --}}
-    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <form method="GET" class="flex flex-wrap gap-3 items-end">
+    {{-- ── Summary Stats ── --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        @foreach ([
+            ['Seniors with Recs',  $stats['seniors'],   'teal',   '👥'],
+            ['Total Actions',      $stats['total'],     'slate',  '📋'],
+            ['Pending Actions',    $stats['pending'],   'amber',  '⏳'],
+            ['Immediate / Urgent', $stats['immediate'], 'red',    '🚨'],
+        ] as [$label, $val, $color, $icon])
+        <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3">
+            <span class="text-xl">{{ $icon }}</span>
             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
-                <select name="status" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                    <option value="">All Statuses</option>
-                    @foreach (['pending','in_progress','completed','dismissed'] as $s)
-                    <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$s)) }}</option>
-                    @endforeach
-                </select>
+                <p class="text-2xl font-bold text-{{ $color }}-600 leading-none">{{ number_format($val) }}</p>
+                <p class="text-xs text-slate-500 mt-0.5">{{ $label }}</p>
             </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Urgency</label>
-                <select name="urgency" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                    <option value="">All Urgencies</option>
-                    @foreach ($urgencies as $u)
-                    <option value="{{ $u }}" {{ request('urgency') === $u ? 'selected' : '' }}>{{ ucfirst($u) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Category</label>
-                <select name="category" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                    <option value="">All Categories</option>
-                    @foreach ($categories as $cat)
-                    <option value="{{ $cat }}" {{ request('category') === $cat ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$cat)) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex gap-2">
-                <button type="submit" class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-sm">
-                    Filter
-                </button>
-                @if (request()->hasAny(['status','urgency','category','barangay']))
-                <a href="{{ route('recommendations.index') }}"
-                   class="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50">
-                    Clear
-                </a>
-                @endif
-            </div>
-        </form>
+        </div>
+        @endforeach
     </div>
 
-    {{-- ── Table ── --}}
+    {{-- ── Filters ── --}}
+    <form method="GET" class="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-sm flex flex-wrap items-end gap-4">
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Barangay</label>
+            <select name="barangay" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="">All Barangays</option>
+                @foreach ($barangays as $brgy)
+                <option value="{{ $brgy }}" {{ request('barangay') === $brgy ? 'selected' : '' }}>{{ $brgy }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Risk Level</label>
+            <select name="risk" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="">All Levels</option>
+                @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $r)
+                <option value="{{ $r }}" {{ strtoupper(request('risk')) === $r ? 'selected' : '' }}>{{ $r }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="flex items-center gap-2 mt-4">
+            <input type="checkbox" name="has_urgent" value="1" id="has_urgent"
+                   class="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                   {{ request('has_urgent') ? 'checked' : '' }}>
+            <label for="has_urgent" class="text-sm text-slate-600 cursor-pointer">Has pending urgent actions</label>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit"
+                    class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-sm">
+                Filter
+            </button>
+            @if (request()->hasAny(['barangay','risk','has_urgent']))
+            <a href="{{ route('recommendations.index') }}"
+               class="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50">
+                Clear
+            </a>
+            @endif
+        </div>
+    </form>
+
+    {{-- ── Seniors Table ── --}}
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-700">Seniors with Recommendations</h3>
+            <span class="text-xs text-slate-400">{{ $seniors->total() }} senior(s)</span>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50 border-b border-slate-200">
                     <tr class="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-                        <th class="px-4 py-3 text-left w-8">
-                            <input type="checkbox" class="rounded border-slate-300" id="select-all">
-                        </th>
                         <th class="px-4 py-3 text-left">Senior Citizen</th>
-                        <th class="px-4 py-3 text-left">Action</th>
-                        <th class="px-4 py-3 text-left">Category</th>
-                        <th class="px-4 py-3 text-left">Urgency</th>
-                        <th class="px-4 py-3 text-left">Status</th>
-                        <th class="px-4 py-3 text-right">Update</th>
+                        <th class="px-4 py-3 text-left">Barangay</th>
+                        <th class="px-4 py-3 text-center">Risk</th>
+                        <th class="px-4 py-3 text-center">Cluster</th>
+                        <th class="px-4 py-3 text-center">Total</th>
+                        <th class="px-4 py-3 text-center">Pending</th>
+                        <th class="px-4 py-3 text-center">Urgent / Immediate</th>
+                        <th class="px-4 py-3 text-center">Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100" x-data="{ selected: [] }">
-                    @forelse ($recs as $rec)
-                    <tr class="hover:bg-slate-25 transition-colors">
+                <tbody class="divide-y divide-slate-50">
+                    @forelse ($seniors as $senior)
+                    @php $ml = $senior->latestMlResult; @endphp
+                    <tr class="hover:bg-slate-25 transition-colors group">
+
+                        {{-- Name --}}
                         <td class="px-4 py-3">
-                            <input type="checkbox" class="rounded border-slate-300 rec-checkbox" value="{{ $rec->id }}">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-teal-700">{{ substr($senior->first_name, 0, 1) }}</span>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-slate-800">{{ $senior->full_name }}</p>
+                                    <p class="text-xs text-slate-400">Age {{ $senior->age }}</p>
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-4 py-3">
-                            <a href="{{ route('seniors.show', $rec->senior_citizen_id) }}"
-                               class="font-medium text-teal-600 hover:text-teal-700 hover:underline">
-                                {{ $rec->seniorCitizen?->full_name }}
-                            </a>
-                            <div class="text-xs text-slate-400">{{ $rec->seniorCitizen?->barangay }}</div>
-                        </td>
-                        <td class="px-4 py-3 max-w-xs">
-                            <p class="text-slate-700 text-xs leading-relaxed line-clamp-2">{{ $rec->action }}</p>
-                            @if ($rec->domain && $rec->domain !== 'general')
-                            <span class="text-xs text-slate-400">{{ str_replace('_',' ', $rec->domain) }}</span>
+
+                        {{-- Barangay --}}
+                        <td class="px-4 py-3 text-slate-600 text-xs">{{ $senior->barangay }}</td>
+
+                        {{-- Risk --}}
+                        <td class="px-4 py-3 text-center">
+                            @if ($ml?->overall_risk_level)
+                            <span class="text-xs font-bold px-2 py-1 rounded-full
+                                {{ match($ml->overall_risk_level) {
+                                    'CRITICAL' => 'bg-red-100 text-red-700',
+                                    'HIGH'     => 'bg-orange-100 text-orange-700',
+                                    'MODERATE' => 'bg-amber-100 text-amber-700',
+                                    'LOW'      => 'bg-emerald-100 text-emerald-700',
+                                    default    => 'bg-slate-100 text-slate-500',
+                                } }}">{{ $ml->overall_risk_level }}</span>
+                            @else
+                            <span class="text-xs text-slate-300">—</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3">
-                            @php $catIcons = ['health'=>'🏥','financial'=>'💰','social'=>'👥','functional'=>'🦾','hc_access'=>'🏨','general'=>'📌']; @endphp
-                            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                {{ $catIcons[$rec->category] ?? '📌' }} {{ ucfirst(str_replace('_',' ',$rec->category)) }}
+
+                        {{-- Cluster --}}
+                        <td class="px-4 py-3 text-center">
+                            @if ($ml?->cluster_named_id)
+                            <span class="text-xs font-semibold px-2 py-1 rounded-full
+                                {{ match($ml->cluster_named_id) {
+                                    1 => 'bg-emerald-100 text-emerald-700',
+                                    2 => 'bg-amber-100 text-amber-700',
+                                    3 => 'bg-rose-100 text-rose-700',
+                                    default => 'bg-slate-100 text-slate-500',
+                                } }}">C{{ $ml->cluster_named_id }}</span>
+                            @else
+                            <span class="text-xs text-slate-300">—</span>
+                            @endif
+                        </td>
+
+                        {{-- Total recs --}}
+                        <td class="px-4 py-3 text-center">
+                            <span class="text-sm font-semibold text-slate-700">{{ $senior->recommendations_count }}</span>
+                        </td>
+
+                        {{-- Pending --}}
+                        <td class="px-4 py-3 text-center">
+                            @if ($senior->pending_count > 0)
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                {{ $senior->pending_count }}
                             </span>
+                            @else
+                            <span class="text-xs text-emerald-600 font-medium">✓ All done</span>
+                            @endif
                         </td>
-                        <td class="px-4 py-3">
-                            <span class="{{ $rec->urgency_badge }} text-xs px-2 py-0.5 rounded-full font-medium">
-                                {{ ucfirst($rec->urgency) }}
+
+                        {{-- Immediate / Urgent --}}
+                        <td class="px-4 py-3 text-center">
+                            @if ($senior->immediate_count > 0)
+                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                🚨 {{ $senior->immediate_count }}
                             </span>
+                            @else
+                            <span class="text-xs text-slate-300">—</span>
+                            @endif
                         </td>
-                        <td class="px-4 py-3">
-                            <form method="POST" action="{{ route('recommendations.status', $rec) }}">
-                                @csrf @method('PATCH')
-                                <select name="status" onchange="this.form.submit()"
-                                        class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:ring-1 focus:ring-teal-500 focus:outline-none
-                                            {{ match($rec->status) {
-                                                'pending'     => 'text-amber-700',
-                                                'in_progress' => 'text-blue-700',
-                                                'completed'   => 'text-emerald-700',
-                                                'dismissed'   => 'text-slate-500',
-                                                default       => '',
-                                            } }}">
-                                    @foreach (['pending','in_progress','completed','dismissed'] as $s)
-                                    <option value="{{ $s }}" {{ $rec->status === $s ? 'selected' : '' }}>
-                                        {{ ucfirst(str_replace('_',' ',$s)) }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                            <a href="{{ route('recommendations.show', $rec) }}"
-                               class="text-xs text-slate-400 hover:text-teal-600 transition-colors">
-                                Details →
+
+                        {{-- View button --}}
+                        <td class="px-4 py-3 text-center">
+                            <a href="{{ route('recommendations.show', $senior) }}"
+                               class="inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 font-medium transition-colors">
+                                View →
                             </a>
                         </td>
+
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-slate-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-slate-400">
                             <div class="text-3xl mb-2">✅</div>
-                            No recommendations match your filters.
+                            <p class="font-medium">No seniors match the selected filters.</p>
                         </td>
                     </tr>
                     @endforelse
@@ -136,49 +186,12 @@
             </table>
         </div>
 
-        {{-- Bulk Actions --}}
-        <div class="border-t border-slate-100 px-4 py-3 flex items-center gap-3 bg-slate-50" id="bulk-bar" style="display:none!important">
-            <span class="text-sm text-slate-600" id="selected-count">0 selected</span>
-            <form method="POST" action="{{ route('recommendations.index') }}">
-                @csrf
-                <input type="hidden" name="ids" id="bulk-ids">
-                <select name="status" class="text-sm border border-slate-200 rounded-lg px-2 py-1 mr-2">
-                    @foreach (['pending','in_progress','completed','dismissed'] as $s)
-                    <option value="{{ $s }}">Mark as {{ ucfirst(str_replace('_',' ',$s)) }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700">Apply</button>
-            </form>
-        </div>
-
-        @if ($recs->hasPages())
-        <div class="border-t border-slate-100 px-4 py-3">
-            {{ $recs->links() }}
+        @if ($seniors->hasPages())
+        <div class="border-t border-slate-100 px-5 py-3">
+            {{ $seniors->links() }}
         </div>
         @endif
+
     </div>
 </div>
-
-@push('scripts')
-<script>
-const checkboxes = document.querySelectorAll('.rec-checkbox');
-const selectAll  = document.getElementById('select-all');
-const bulkBar    = document.getElementById('bulk-bar');
-const bulkIds    = document.getElementById('bulk-ids');
-const selCount   = document.getElementById('selected-count');
-
-function updateBulk() {
-    const checked = [...checkboxes].filter(c => c.checked).map(c => c.value);
-    bulkIds.value = JSON.stringify(checked);
-    selCount.textContent = checked.length + ' selected';
-    bulkBar.style.display = checked.length > 0 ? 'flex' : 'none';
-}
-
-selectAll.addEventListener('change', function() {
-    checkboxes.forEach(c => c.checked = this.checked);
-    updateBulk();
-});
-checkboxes.forEach(c => c.addEventListener('change', updateBulk));
-</script>
-@endpush
 @endsection

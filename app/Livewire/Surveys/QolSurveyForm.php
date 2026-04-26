@@ -78,8 +78,32 @@ class QolSurveyForm extends Component
 
     public function nextStep(): void
     {
+        $this->validateSection();
         if ($this->step < $this->totalSteps) {
             $this->step++;
+            $this->dispatch('qol-step-changed');
+        }
+    }
+
+    private function validateSection(): void
+    {
+        $required = match ($this->step) {
+            1 => ['a1' => $this->a1, 'a2' => $this->a2, 'a3' => $this->a3, 'a4' => $this->a4],
+            2 => ['b1' => $this->b1, 'b2' => $this->b2, 'b3' => $this->b3, 'b4' => $this->b4, 'b5' => $this->b5],
+            3 => ['c1' => $this->c1, 'c2' => $this->c2, 'c3' => $this->c3, 'c4' => $this->c4],
+            4 => ['d1' => $this->d1, 'd2' => $this->d2, 'd3' => $this->d3, 'd4' => $this->d4],
+            5 => ['e1' => $this->e1, 'e2' => $this->e2, 'e3' => $this->e3, 'e4' => $this->e4, 'e5' => $this->e5],
+            6 => ['f1' => $this->f1, 'f2' => $this->f2, 'f3' => $this->f3, 'f4' => $this->f4],
+            7 => ['g1' => $this->g1, 'g2' => $this->g2, 'g3' => $this->g3],
+            default => [],  // Section H is optional
+        };
+
+        $rules = array_fill_keys(array_keys($required), 'required|integer|min:1|max:5');
+        if ($rules) {
+            $this->validate($rules, array_fill_keys(
+                array_map(fn($k) => "{$k}.required", array_keys($rules)),
+                'Please answer all questions in this section before continuing.'
+            ));
         }
     }
 
@@ -87,7 +111,14 @@ class QolSurveyForm extends Component
     {
         if ($this->step > 1) {
             $this->step--;
+            $this->dispatch('qol-step-changed');
         }
+    }
+
+    public function goToStep(int $step): void
+    {
+        $this->step = max(1, min($step, $this->totalSteps));
+        $this->dispatch('qol-step-changed');
     }
 
     public function confirmSubmit(): void

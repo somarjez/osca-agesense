@@ -877,8 +877,13 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     raw_context = preprocessed.get("raw_context", {}) or {}
 
     # 1. Cluster assignment
+    # In batch mode (OSCA_BATCH_MODE=1) skip UMAP entirely: reducer.transform()
+    # calls numba JIT per senior which accumulates to several minutes for large batches.
+    # Risk scores (GBR/RFR models) are unaffected; cluster falls back to the
+    # wellbeing-heuristic path that already exists below.
+    batch_mode = bool(os.environ.get("OSCA_BATCH_MODE"))
     scaler = _load_model("scaler.pkl")
-    reducer = _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
+    reducer = None if batch_mode else _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
     kmeans = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl"])
     cluster_map = _load_cluster_mapping()
 

@@ -10,33 +10,36 @@ class RecommendationController extends Controller
 {
     public function index(Request $request)
     {
-        $urgencies = ['immediate', 'urgent', 'planned', 'maintenance'];
-        $categories = Recommendation::query()
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
+        $stats = [
+            'total'     => Recommendation::count(),
+            'pending'   => Recommendation::where('status', 'pending')->count(),
+            'immediate' => Recommendation::where('urgency', 'immediate')->where('status', 'pending')->count(),
+            'seniors'   => SeniorCitizen::active()->whereHas('recommendations')->count(),
+        ];
 
-        $recs = Recommendation::with(['seniorCitizen'])
-            ->when($request->status,   fn($q) => $q->where('status', $request->status))
-            ->when($request->urgency,  fn($q) => $q->where('urgency', $request->urgency))
-            ->when($request->category, fn($q) => $q->byCategory($request->category))
-            ->when($request->barangay, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($q) => $q->where('barangay', $request->barangay))
+        $seniors = SeniorCitizen::active()
+            ->whereHas('recommendations')
+            ->withCount([
+                'recommendations',
+                'recommendations as pending_count'   => fn($q) => $q->where('status', 'pending'),
+                'recommendations as immediate_count' => fn($q) => $q->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending'),
+            ])
+            ->with(['latestMlResult'])
+            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
+            ->when($request->risk,     fn($q) => $q->byRiskLevel($request->risk))
+            ->when($request->has_urgent, fn($q) =>
+                $q->whereHas('recommendations', fn($r) =>
+                    $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
+                )
             )
-            ->orderByRaw("
-                CASE urgency
-                    WHEN 'immediate' THEN 1
-                    WHEN 'urgent' THEN 2
-                    WHEN 'planned' THEN 3
-                    WHEN 'maintenance' THEN 4
-                    ELSE 5
-                END
-            ")
-            ->orderBy('priority')
-            ->paginate(30)->withQueryString();
+            ->orderByDesc('immediate_count')
+            ->orderByDesc('pending_count')
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('recommendations.index', compact('recs', 'urgencies', 'categories'));
+        $barangays = SeniorCitizen::barangayList();
+
+        return view('recommendations.index', compact('seniors', 'barangays', 'stats'));
     }
 
     public function show(SeniorCitizen $senior)

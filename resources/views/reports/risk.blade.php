@@ -53,11 +53,16 @@
         <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <h3 class="text-sm font-semibold text-slate-700 mb-4">Average Domain Risk Scores</h3>
             @foreach ([
-                ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0, 'bg-red-400'],
-                ['Environment',             $domainAvgs?->env       ?? 0, 'bg-orange-400'],
-                ['Functional',              $domainAvgs?->func      ?? 0, 'bg-amber-400'],
-                ['Composite',               $domainAvgs?->composite ?? 0, 'bg-slate-500'],
-            ] as [$label, $val, $barColor])
+                ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0],
+                ['Environment',             $domainAvgs?->env       ?? 0],
+                ['Functional',              $domainAvgs?->func      ?? 0],
+                ['Composite',               $domainAvgs?->composite ?? 0],
+            ] as [$label, $val])
+            @php
+                $barColor = $val >= 0.65 ? 'bg-critical-500'
+                          : ($val >= 0.45 ? 'bg-high-500'
+                          : ($val >= 0.25 ? 'bg-moderate-500' : 'bg-low-500'));
+            @endphp
             <div class="mb-3">
                 <div class="flex justify-between text-sm mb-1">
                     <span class="text-slate-600">{{ $label }}</span>
@@ -69,12 +74,12 @@
             </div>
             @endforeach
 
-            {{-- Risk threshold legend --}}
+            {{-- Risk threshold legend (mirrors osca5.ipynb thresholds) --}}
             <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-4 gap-1 text-center text-xs">
-                <div class="bg-red-50 text-red-700 px-1 py-1 rounded">Critical &gt;75%</div>
-                <div class="bg-orange-50 text-orange-700 px-1 py-1 rounded">High 65–75%</div>
-                <div class="bg-amber-50 text-amber-700 px-1 py-1 rounded">Moderate 45–65%</div>
-                <div class="bg-emerald-50 text-emerald-700 px-1 py-1 rounded">Low &lt;45%</div>
+                <div class="bg-red-50 text-red-700 px-1 py-1 rounded">Critical ≥65%</div>
+                <div class="bg-orange-50 text-orange-700 px-1 py-1 rounded">High 45–65%</div>
+                <div class="bg-amber-50 text-amber-700 px-1 py-1 rounded">Moderate 25–45%</div>
+                <div class="bg-emerald-50 text-emerald-700 px-1 py-1 rounded">Low &lt;25%</div>
             </div>
         </div>
 

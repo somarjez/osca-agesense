@@ -76,6 +76,13 @@
         </div>
         @endif
 
+        {{-- Validation errors --}}
+        @if ($errors->any())
+        <div class="px-5 py-3 bg-amber-50 border-b border-amber-200">
+            <p class="text-sm font-medium text-amber-800">Please answer all questions in this section before continuing.</p>
+        </div>
+        @endif
+
         <div class="p-5">
 
             {{-- Section title --}}
@@ -149,7 +156,8 @@
 
             <div class="space-y-5">
                 @foreach ($questions as $prop => $q)
-                <div class="border border-slate-100 rounded-xl p-4 hover:border-teal-200 transition-colors"
+                <div class="border rounded-xl p-4 transition-colors
+                     {{ $errors->has($prop) ? 'border-amber-300 bg-amber-50' : 'border-slate-100 hover:border-teal-200' }}"
                      x-data="{}">
                     <div class="flex items-start gap-3 mb-3">
                         <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
@@ -164,8 +172,14 @@
                     </div>
                     <div class="grid grid-cols-5 gap-2">
                         @foreach ([1,2,3,4,5] as $val)
-                        <label class="cursor-pointer">
-                            <input type="radio" wire:model="{{ $prop }}" value="{{ $val }}" class="sr-only peer">
+                        <label class="relative cursor-pointer">
+                            <input type="radio"
+                                   id="q_{{ $prop }}_{{ $val }}"
+                                   name="q_{{ $prop }}"
+                                   wire:model.defer="{{ $prop }}"
+                                   value="{{ $val }}"
+                                   tabindex="-1"
+                                   class="sr-only peer">
                             <div class="text-center py-2 rounded-lg border-2 text-sm font-semibold transition-all
                                 border-slate-200 text-slate-500
                                 peer-checked:border-teal-500 peer-checked:bg-teal-500 peer-checked:text-white

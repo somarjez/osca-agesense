@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
-use App\Services\MlService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
@@ -81,30 +80,53 @@ class SeniorCitizenController extends Controller
         return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
     }
 
-    public function restore(SeniorCitizen $senior)
+    public function archives(Request $request)
     {
-        SeniorCitizen::withTrashed()->findOrFail($senior->id)->restore();
-        return back()->with('success', 'Senior record restored.');
+        $seniors = SeniorCitizen::onlyTrashed()
+            ->when($request->search, fn($q) =>
+                $q->where(fn($q) =>
+                    $q->where('first_name', 'like', "%{$request->search}%")
+                      ->orWhere('last_name',  'like', "%{$request->search}%")
+                      ->orWhere('osca_id',    'like', "%{$request->search}%")
+                ))
+            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
+            ->latest('deleted_at')
+            ->paginate(20)->withQueryString();
+
+        $barangays = SeniorCitizen::barangayList();
+
+        return view('seniors.archives', compact('seniors', 'barangays'));
     }
 
-    public function runAnalysis(SeniorCitizen $senior)
+    public function restore(int $id)
     {
-        $survey = $senior->latestQolSurvey;
-        if (!$survey) {
-            return back()->with('error', 'No QoL survey found. Please complete a survey first.');
-        }
-        try {
-            $result = app(MlService::class)->runPipeline($senior, $survey);
-            return back()->with('success', "ML analysis complete. Risk level: {$result->overall_risk_level}");
-        } catch (\Exception $e) {
-            return back()->with('error', 'ML analysis failed: ' . $e->getMessage());
-        }
+        SeniorCitizen::withTrashed()->findOrFail($id)->restore();
+        return redirect()->route('seniors.archives')->with('success', 'Senior record restored to active.');
     }
 
-    public function exportPdf(SeniorCitizen $senior)
+    public function forceDestroy(int $id)
+    {
+        $senior = SeniorCitizen::withTrashed()->findOrFail($id);
+
+        foreach ($senior->qolSurveys()->get() as $survey) {
+            if ($survey->mlResult) {
+                $survey->mlResult->recommendations()->delete();
+                $survey->mlResult->delete();
+            }
+            $survey->delete();
+        }
+
+        $senior->mlResults()->delete();
+        $senior->forceDelete();
+
+        return redirect()->route('seniors.archives')->with('success', 'Senior record and all related data permanently deleted.');
+    }
+
+    public function export(SeniorCitizen $senior)
     {
         $senior->load(['latestMlResult.recommendations', 'latestQolSurvey']);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('seniors.pdf', compact('senior'));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('seniors.pdf', compact('senior'))
+            ->setPaper('a4', 'portrait');
         return $pdf->download("osca-profile-{$senior->osca_id}.pdf");
     }
 }

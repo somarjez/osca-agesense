@@ -5,84 +5,225 @@
 @section('content')
 <div class="space-y-5">
 
-    {{-- Run form --}}
-    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex items-center gap-5">
-        <div class="text-3xl">🔄</div>
-        <div class="flex-1">
-            <p class="font-semibold text-slate-800">Run Full Batch Analysis</p>
-            <p class="text-sm text-slate-500">Processes all seniors with a submitted QoL survey through the full pipeline: preprocess → cluster → risk score → recommendations.</p>
-        </div>
-        <form method="POST" action="{{ route('ml.batch.run') }}">
-            @csrf
-            <button type="submit"
-                    onclick="return confirm('Run batch ML analysis for {{ $pending->count() }} senior(s)?')"
-                    class="px-5 py-2 bg-teal-600 text-white font-semibold text-sm rounded-lg hover:bg-teal-700 shadow-sm">
-                Run Batch ({{ $pending->count() }})
+    {{-- Run panel --}}
+    <div x-data="{
+            running: false,
+            done: false,
+            showConfirm: false,
+            errMsg: '',
+            resultMsg: '',
+            elapsed: 0,
+            timer: null,
+            csrfToken: '{{ csrf_token() }}',
+            batchUrl: '{{ route('ml.batch.run') }}',
+            start() {
+                this.showConfirm = false;
+                this.running = true; this.done = false; this.errMsg = ''; this.resultMsg = '';
+                this.elapsed = 0;
+                this.timer = setInterval(() => this.elapsed++, 1000);
+                fetch(this.batchUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(d => {
+                    clearInterval(this.timer);
+                    this.running = false; this.done = true;
+                    this.resultMsg = d.message || (d.success ? 'Batch complete.' : 'Batch finished with errors.');
+                    if (!d.success) this.errMsg = d.message;
+                    setTimeout(() => location.reload(), 2000);
+                })
+                .catch(() => {
+                    clearInterval(this.timer);
+                    this.running = false;
+                    this.errMsg = 'Request failed or timed out. Check server logs.';
+                });
+            },
+            fmt(s) {
+                const m = Math.floor(s / 60), sec = s % 60;
+                return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+            }
+        }"
+         class="card">
+        <div class="card-body flex items-start gap-5">
+
+            {{-- Idle / running indicator --}}
+            <div class="w-8 h-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg x-show="!running"
+                     xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <svg x-show="running" x-cloak
+                     class="animate-spin h-5 w-5 text-forest-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+            </div>
+
+            <div class="flex-1 min-w-0">
+                <p class="font-semibold text-ink-900">Run Full Batch Analysis</p>
+                <p class="text-sm text-ink-500 mb-3">Processes all seniors with a QoL survey through the full pipeline: preprocess → cluster → risk score → recommendations.</p>
+
+                {{-- Result / error banners --}}
+                <p x-show="resultMsg && !running" x-text="resultMsg"
+                   :class="errMsg ? 'text-critical-700 bg-critical-50 border border-critical-100' : 'text-low-700 bg-low-50 border border-low-100'"
+                   class="text-sm px-3 py-2 rounded-lg mb-2" x-cloak></p>
+                <p x-show="errMsg && !running" x-text="errMsg"
+                   class="text-xs text-critical-700" x-cloak></p>
+
+                {{-- Progress bar while running --}}
+                <div x-show="running" class="space-y-1.5" x-cloak>
+                    <div class="flex items-center gap-2 text-sm text-forest-700 font-medium">
+                        <span>Processing {{ $totalEligible }} seniors…</span>
+                        <span x-text="fmt(elapsed)" class="text-ink-400 font-normal text-xs"></span>
+                    </div>
+                    <div class="bar">
+                        <div class="bar-fill bg-forest-600 animate-pulse" style="width:100%"></div>
+                    </div>
+                    <p class="text-xs text-ink-400">Do not close this tab. The page will refresh automatically when done.</p>
+                </div>
+            </div>
+
+            <button @click="showConfirm = true" :disabled="running"
+                    class="btn btn-primary flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span x-show="!running">Run Full Batch ({{ $totalEligible }})</span>
+                <span x-show="running" x-cloak>Running…</span>
             </button>
-        </form>
+        </div>
+
+        {{-- Confirm modal --}}
+        <div x-show="showConfirm" x-cloak
+             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             @keydown.escape.window="showConfirm = false">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+                 @click.outside="showConfirm = false">
+                <div class="flex items-start gap-4 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-forest-50 flex items-center justify-center flex-shrink-0">
+                        <svg class="h-5 w-5 text-forest-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 text-base">Run Batch ML Analysis?</h3>
+                        <p class="text-sm text-slate-500 mt-1">
+                            This will process <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong> through the full pipeline: preprocess → cluster → risk score → recommendations.
+                        </p>
+                        <p class="text-xs text-slate-400 mt-2">Estimated time: 1–3 minutes. Progress is shown inline — the page will not hang.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
+                    <button @click="showConfirm = false" class="btn">Cancel</button>
+                    <button @click="start()" class="btn btn-primary">Start Batch</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Queue table --}}
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100">
-            <h3 class="text-sm font-semibold text-slate-700">Eligible Seniors (have QoL survey)</h3>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Eligible Seniors</div>
+                <div class="card-sub">Seniors with at least one QoL survey · {{ $totalEligible }} total</div>
+            </div>
         </div>
-        <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <table class="w-full">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left">Senior</th>
-                    <th class="px-4 py-3 text-left">Barangay</th>
-                    <th class="px-4 py-3 text-center">Last Survey</th>
-                    <th class="px-4 py-3 text-center">Last ML Run</th>
-                    <th class="px-4 py-3 text-center">Current Risk</th>
-                    <th class="px-4 py-3 text-center">Action</th>
+                    <th class="th">Senior</th>
+                    <th class="th">Barangay</th>
+                    <th class="th text-center">Last Survey</th>
+                    <th class="th text-center">Last ML Run</th>
+                    <th class="th text-center">Current Risk</th>
+                    <th class="th text-center">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-50">
+            <tbody>
                 @forelse ($pending as $senior)
                 @php $ml = $senior->latestMlResult; $survey = $senior->latestQolSurvey; @endphp
-                <tr class="hover:bg-slate-25">
-                    <td class="px-4 py-3 font-medium text-slate-800">{{ $senior->full_name }}</td>
-                    <td class="px-4 py-3 text-slate-500">{{ $senior->barangay }}</td>
-                    <td class="px-4 py-3 text-center text-xs text-slate-500">
+                <tr class="hover:bg-paper-2 transition-colors group">
+                    <td class="td font-medium text-ink-900">{{ $senior->full_name }}</td>
+                    <td class="td text-ink-500">{{ $senior->barangay }}</td>
+                    <td class="td text-center text-ink-400">
                         {{ $survey?->survey_date?->format('M j, Y') ?? '—' }}
                     </td>
-                    <td class="px-4 py-3 text-center text-xs text-slate-500">
-                        {{ $ml?->processed_at?->diffForHumans() ?? '<span class="text-amber-500">Never</span>' }}
+                    <td class="td text-center text-ink-400">
+                        {!! $ml?->processed_at?->diffForHumans() ?? '<span class="text-high-700 font-semibold text-xs">Never</span>' !!}
                     </td>
-                    <td class="px-4 py-3 text-center">
+                    <td class="td text-center" data-risk-badge>
                         @if ($ml)
-                        <span class="text-xs font-bold px-2 py-0.5 rounded-full
-                            {{ match($ml->overall_risk_level) {
-                                'CRITICAL'=>'bg-red-100 text-red-700',
-                                'HIGH'=>'bg-orange-100 text-orange-700',
-                                'MODERATE'=>'bg-amber-100 text-amber-700',
-                                default=>'bg-emerald-100 text-emerald-700',
-                            } }}">{{ $ml->overall_risk_level }}</span>
+                        <span class="badge {{ match($ml->overall_risk_level) {
+                            'CRITICAL' => 'badge-critical',
+                            'HIGH'     => 'badge-high',
+                            'MODERATE' => 'badge-moderate',
+                            'LOW'      => 'badge-low',
+                            default    => 'badge-neutral',
+                        } }}">{{ $ml->overall_risk_level }}</span>
                         @else
-                        <span class="text-xs text-slate-300">No data</span>
+                        <span class="text-ink-300 text-xs">No data</span>
                         @endif
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <form method="POST" action="{{ route('ml.run.single', $senior) }}">
-                            @csrf
-                            <button type="submit"
-                                    class="text-xs px-3 py-1 bg-teal-50 text-teal-700 rounded-md hover:bg-teal-100 font-medium transition-colors">
-                                Re-run
-                            </button>
-                        </form>
+                    <td class="td text-center"
+                        x-data="{
+                            loading: false, done: false, err: '',
+                            riskLevel: '{{ $ml?->overall_risk_level ?? '' }}',
+                            clusterName: '{{ $ml?->cluster_name ?? '' }}',
+                            run() {
+                                this.loading = true; this.err = '';
+                                fetch('{{ route('ml.run.single', $senior) }}', {
+                                    method: 'POST',
+                                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                                })
+                                .then(r => r.json())
+                                .then(d => {
+                                    this.loading = false;
+                                    if (d.success) {
+                                        this.done = true;
+                                        this.riskLevel = d.risk_level;
+                                        this.clusterName = d.cluster_name;
+                                        this.$el.closest('tr').querySelector('[data-risk-badge]').innerHTML = d.risk_level;
+                                    } else {
+                                        this.err = d.error || 'Failed';
+                                    }
+                                })
+                                .catch(() => { this.loading = false; this.err = 'Request failed'; });
+                            }
+                        }">
+                        <button @click="run()" :disabled="loading"
+                                class="btn btn-ghost text-xs px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                :class="done ? 'text-low-700' : ''">
+                            <template x-if="loading">
+                                <span class="flex items-center gap-1">
+                                    <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                    </svg>
+                                    Running
+                                </span>
+                            </template>
+                            <template x-if="!loading && done"><span>Done</span></template>
+                            <template x-if="!loading && !done"><span>Re-run</span></template>
+                        </button>
+                        <p x-show="err" x-text="err" x-cloak class="text-xs text-critical-700 mt-1"></p>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-12 text-center text-slate-400">
-                        <div class="text-3xl mb-2">✅</div>
-                        <p>No seniors with QoL surveys found.</p>
+                    <td colspan="6" class="td text-center py-16">
+                        <p class="font-serif text-lg text-ink-700">No eligible seniors found.</p>
+                        <p class="text-sm text-ink-400 mt-1">Add a QoL survey to a senior citizen to include them in batch analysis.</p>
                     </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
+
+        @if ($pending->hasPages())
+        <div class="border-t border-paper-rule px-5 py-3">{{ $pending->links() }}</div>
+        @endif
     </div>
+
 </div>
 @endsection

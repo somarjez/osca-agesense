@@ -92,7 +92,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Barangay <span class="text-red-500">*</span></label>
                     <select wire:model="barangay"
-                            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
+                            class="w-full text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 {{ $errors->has('barangay') ? 'border-red-400 bg-red-50' : 'border-slate-200' }}">
                         <option value="">Select barangay…</option>
                         @foreach (\App\Models\SeniorCitizen::barangayList() as $b)
                             <option value="{{ $b }}">{{ $b }}</option>
@@ -102,8 +102,8 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-                    <input type="date" wire:model="dateOfBirth"
-                           class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
+                    <input type="date" wire:model="dateOfBirth" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
+                           class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 {{ $errors->has('dateOfBirth') ? 'border-red-400' : '' }}">
                     @error('dateOfBirth') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
@@ -119,7 +119,7 @@
                     <select wire:model="maritalStatus"
                             class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
                         <option value="">Select…</option>
-                        @foreach (['Single','Married','Widowed','Separated','Divorced','Annulled'] as $ms)
+                        @foreach (['Single','Married','Widowed','Separated'] as $ms)
                             <option>{{ $ms }}</option>
                         @endforeach
                     </select>
@@ -205,7 +205,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-2">Educational Attainment</label>
                     <div class="grid grid-cols-3 gap-2">
-                        @foreach (['Not Attended School','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post-Graduate'] as $edu)
+                        @foreach (['Not Attended School','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'] as $edu)
                         <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors {{ $educationalAttainment === $edu ? 'border-teal-400 bg-teal-50' : '' }}">
                             <input type="radio" wire:model="educationalAttainment" value="{{ $edu }}" class="accent-teal-600">
                             <span class="text-xs text-slate-700">{{ $edu }}</span>
@@ -260,6 +260,7 @@
                             'No privacy','Overcrowded in home','Informal settler','No permanent house',
                             'High cost of rent','Longing for independent living quiet atmosphere',
                             'House is owned','Land is not owned','Shared with relatives',
+                            'Government-Provided',
                         ] as $opt)
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="householdCondition" value="{{ $opt }}" class="accent-teal-600 rounded">
@@ -321,6 +322,38 @@
                         </div>
                     </div>
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-2">Problems / Needs Commonly Encountered</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach ([
+                            'Lack of income/resources',
+                            'Loss of income/resources',
+                            'Skills/Capability Training',
+                            'Livelihood opportunities',
+                            'Health Related Issues',
+                            'Lack of access to healthcare services',
+                            'High cost of medicines',
+                            'Lack of social support',
+                            'Limited Mobility/Transportation difficulty',
+                            'Housing/Shelter',
+                            'Food insecurity',
+                            'Limited problems encountered',
+                            'Others',
+                        ] as $opt)
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="problemsNeeds" value="{{ $opt }}" class="accent-teal-600 rounded">
+                            <span class="text-xs text-slate-700">{{ $opt }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @if (in_array('Others', $problemsNeeds))
+                    <div class="mt-2">
+                        <input type="text" wire:model="problemsNeedsOther"
+                               placeholder="Please specify..."
+                               class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    </div>
+                    @endif
+                </div>
             </div>
             @endif
 
@@ -339,46 +372,61 @@
                         @endforeach
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-2">Social / Emotional Concerns (check all applicable)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach ($this->socialEmotionalConcernOptions() as $opt)
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="socialEmotionalConcern" value="{{ $opt }}" class="accent-teal-600 rounded">
+                            <span class="text-xs text-slate-700">{{ $opt }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-5">
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Dental Concern</label>
-                        <select wire:model="dentalConcern"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
-                            <option value="">Select…</option>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Dental Concern (check all applicable)</label>
+                        <div class="space-y-1">
                             @foreach (['Needs dental care','Tooth decay/cavities','Gum disease','Tooth loss/missing teeth','Healthy Teeth'] as $opt)
-                                <option>{{ $opt }}</option>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="dentalConcern" value="{{ $opt }}" class="accent-teal-600 rounded">
+                                <span class="text-xs text-slate-700">{{ $opt }}</span>
+                            </label>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Optical / Vision</label>
-                        <select wire:model="opticalConcern"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
-                            <option value="">Select…</option>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Optical / Vision (check all applicable)</label>
+                        <div class="space-y-1">
                             @foreach (['Eye impairment','Needs eye care','Blurred vision','Cataract','Glaucoma','Healthy Eyes'] as $opt)
-                                <option>{{ $opt }}</option>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="opticalConcern" value="{{ $opt }}" class="accent-teal-600 rounded">
+                                <span class="text-xs text-slate-700">{{ $opt }}</span>
+                            </label>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Hearing</label>
-                        <select wire:model="hearingConcern"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
-                            <option value="">Select…</option>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Hearing (check all applicable)</label>
+                        <div class="space-y-1">
                             @foreach (['Hearing impairment','Partial hearing loss','Difficulty hearing conversations','Uses hearing aid','Healthy Hearing'] as $opt)
-                                <option>{{ $opt }}</option>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="hearingConcern" value="{{ $opt }}" class="accent-teal-600 rounded">
+                                <span class="text-xs text-slate-700">{{ $opt }}</span>
+                            </label>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Healthcare Access Difficulty</label>
-                        <select wire:model="healthcareDifficulty"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
-                            <option value="">Select…</option>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Healthcare Access Difficulty (check all applicable)</label>
+                        <div class="space-y-1">
                             @foreach (['High cost of medicines','Lack of medicines','Lack of medical attention','Difficulty accessing health facilities','Lack of transportation to clinics','Long waiting time','Healthcare is accessible'] as $opt)
-                                <option>{{ $opt }}</option>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="healthcareDifficulty" value="{{ $opt }}" class="accent-teal-600 rounded">
+                                <span class="text-xs text-slate-700">{{ $opt }}</span>
+                            </label>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                 </div>
                 <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -388,15 +436,22 @@
                     </label>
                     @if ($hasMedicalCheckup)
                     <div class="mt-3 ml-7">
-                        <label class="block text-xs text-slate-500 mb-1">How often?</label>
-                        <div class="flex gap-4">
-                            @foreach (['Yearly','Every 6 months','Quarterly'] as $sch)
+                        <label class="block text-xs text-slate-500 mb-2">How often?</label>
+                        <div class="flex flex-wrap gap-4">
+                            @foreach (['Every 3 months', 'Every 6 months', 'Others'] as $sch)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="radio" wire:model="checkupSchedule" value="{{ $sch }}" class="accent-teal-600">
                                 <span class="text-sm text-slate-700">{{ $sch }}</span>
                             </label>
                             @endforeach
                         </div>
+                        @if ($checkupSchedule === 'Others')
+                        <div class="mt-2">
+                            <input type="text" wire:model="checkupScheduleOther"
+                                   placeholder="Please specify schedule..."
+                                   class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        </div>
+                        @endif
                     </div>
                     @endif
                 </div>

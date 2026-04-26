@@ -2,99 +2,278 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Custom base styles ─────────────────────────────────────────────────── */
+/* ── Base ─────────────────────────────────────────────────────────────── */
 @layer base {
   html {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'ss01', 'cv11';
   }
-
-  .font-display {
-    font-family: 'DM Serif Display', Georgia, serif;
-  }
+  body { background: theme('colors.paper.DEFAULT'); color: theme('colors.ink.900'); }
+  .font-serif, .font-display { font-family: 'Source Serif 4', Georgia, serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
 }
 
-/* ── Custom component utilities ─────────────────────────────────────────── */
+/* ── Components ───────────────────────────────────────────────────────── */
 @layer components {
 
-  /* Risk level badges */
-  .badge-critical { @apply bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-xs font-bold; }
-  .badge-high     { @apply bg-orange-100 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full text-xs font-semibold; }
-  .badge-moderate { @apply bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-xs font-medium; }
-  .badge-low      { @apply bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-xs font-medium; }
-
-  /* Cluster badges */
-  .badge-cluster-1 { @apply bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold; }
-  .badge-cluster-2 { @apply bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-semibold; }
-  .badge-cluster-3 { @apply bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-xs font-semibold; }
-
-  /* Form input base */
-  .form-input {
-    @apply w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-           focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
-           transition-colors placeholder:text-slate-400;
+  /* Eyebrow — small caps section label */
+  .eyebrow {
+    @apply text-[11px] uppercase tracking-[0.12em] font-semibold text-ink-500;
   }
 
-  /* Section header strip */
-  .section-header {
-    @apply px-6 py-4 text-white font-semibold text-base;
-  }
-
-  /* Card base */
+  /* Cards */
   .card {
-    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
+    @apply bg-white border border-paper-rule rounded-lg shadow-sm;
+  }
+  .card-head {
+    @apply px-5 py-4 border-b border-paper-rule flex items-center justify-between gap-3;
+  }
+  .card-title {
+    @apply font-serif text-base font-semibold tracking-tightish text-ink-900;
+  }
+  .card-sub {
+    @apply text-xs text-ink-500 mt-0.5;
+  }
+  .card-body { @apply p-5; }
+
+  /* KPI */
+  .kpi {
+    @apply bg-white border border-paper-rule rounded-lg p-5 relative overflow-hidden;
+  }
+  .kpi-label {
+    @apply text-[11.5px] uppercase tracking-[0.08em] font-semibold text-ink-500;
+  }
+  .kpi-value {
+    @apply font-serif text-[38px] font-semibold tracking-snug text-ink-900 mt-1.5 leading-none tnum;
+  }
+  .kpi-rule {
+    @apply absolute left-0 top-0 bottom-0 w-[3px] bg-forest-600;
+  }
+  .kpi-delta {
+    @apply inline-flex items-center gap-1 text-xs font-medium mt-2 text-ink-500;
   }
 
-  /* Stat card */
-  .stat-card {
-    @apply bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow;
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold border;
+  }
+  .badge-critical { @apply bg-critical-50 text-critical-700 border-critical-100; }
+  .badge-high     { @apply bg-high-50     text-high-700     border-high-100; }
+  .badge-moderate { @apply bg-moderate-50 text-moderate-700 border-moderate-100; }
+  .badge-low      { @apply bg-low-50      text-low-700      border-low-100; }
+  .badge-info     { @apply bg-info-100    text-info-700     border-info-100; }
+  .badge-neutral  { @apply bg-paper-2     text-ink-700      border-paper-rule; }
+
+  /* Cluster badges (legacy) */
+  .badge-cluster-1 { @apply bg-low-50      text-low-700      border border-low-100      px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
+  .badge-cluster-2 { @apply bg-moderate-50 text-moderate-700 border border-moderate-100 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
+  .badge-cluster-3 { @apply bg-critical-50 text-critical-700 border border-critical-100 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
+
+  /* Risk badges (compat with old names) */
+  .badge-risk-critical { @apply badge badge-critical; }
+  .badge-risk-high     { @apply badge badge-high; }
+  .badge-risk-moderate { @apply badge badge-moderate; }
+  .badge-risk-low      { @apply badge badge-low; }
+
+  /* Framework chip */
+  .framework-tag {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-forest-200 bg-forest-50 text-forest-800 rounded-full text-[11px] font-semibold tracking-wide;
+  }
+  .framework-tag::before {
+    content: '';
+    @apply w-1.5 h-1.5 rounded-full bg-forest-600;
   }
 
-  /* Nav link active */
-  .nav-link-active {
-    @apply bg-teal-50 text-teal-700 shadow-sm;
+  /* Form inputs */
+  .form-input, .form-select {
+    @apply w-full border border-paper-rule rounded-md px-3 py-2 text-sm bg-white text-ink-900
+           focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500
+           transition-colors placeholder:text-ink-400;
   }
 
-  /* Table header */
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border
+           border-paper-rule bg-white text-ink-700 hover:border-ink-300 hover:text-ink-900 transition-all;
+  }
+  .btn-primary {
+    @apply bg-forest-800 text-paper border-forest-800 hover:bg-forest-900 hover:border-forest-900 hover:text-paper;
+  }
+  .btn-ghost {
+    @apply bg-transparent border-transparent text-ink-500 hover:text-ink-900 hover:bg-ink-100/40;
+  }
+
+  /* Section header (legacy) */
+  .section-header {
+    @apply px-5 py-4 text-paper bg-forest-800 font-serif font-semibold text-base tracking-tightish;
+  }
+
+  /* Table */
   .th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide;
+    @apply px-4 py-3 text-left text-[11px] font-semibold text-ink-500 uppercase tracking-[0.08em] bg-paper-2 border-b border-paper-rule whitespace-nowrap;
   }
-
   .td {
-    @apply px-4 py-3 text-sm text-slate-700;
+    @apply px-4 py-3 text-sm text-ink-700 border-b border-paper-rule;
   }
 
-  /* Progress bar */
-  .progress-bar {
-    @apply w-full bg-slate-100 rounded-full h-2 overflow-hidden;
+  /* Bars */
+  .bar {
+    @apply w-full bg-paper-2 rounded-full h-1.5 overflow-hidden;
+  }
+  .bar-thick {
+    @apply h-2.5;
+  }
+  .bar-fill { @apply h-full rounded-full transition-all duration-500; }
+  .bar-fill-low      { @apply bg-low-500; }
+  .bar-fill-moderate { @apply bg-moderate-500; }
+  .bar-fill-high     { @apply bg-high-500; }
+  .bar-fill-critical { @apply bg-critical-500; }
+  .bar-fill-forest   { @apply bg-forest-500; }
+
+  /* Legacy progress aliases */
+  .progress-bar      { @apply bar; }
+  .progress-fill-green { @apply bar-fill bar-fill-low; }
+  .progress-fill-amber { @apply bar-fill bar-fill-moderate; }
+  .progress-fill-red   { @apply bar-fill bar-fill-critical; }
+
+  /* Cluster swatch */
+  .cluster-swatch {
+    @apply w-2.5 h-2.5 rounded-sm inline-block;
+  }
+  .cluster-swatch-1 { background: theme('colors.cluster.1'); }
+  .cluster-swatch-2 { background: theme('colors.cluster.2'); }
+  .cluster-swatch-3 { background: theme('colors.cluster.3'); }
+
+  /* Service status dot */
+  .status-dot { @apply w-1.5 h-1.5 rounded-full inline-block; }
+  .status-dot-ok   { @apply bg-low-500   ring-2 ring-low-100; }
+  .status-dot-warn { @apply bg-high-500  ring-2 ring-high-100; }
+  .status-dot-err  { @apply bg-critical-500 ring-2 ring-critical-100; }
+
+  /* Segmented control */
+  .segmented {
+    @apply inline-flex bg-paper-2 border border-paper-rule rounded-md p-0.5 gap-0.5;
+  }
+  .segmented button {
+    @apply text-xs px-2.5 py-1 rounded text-ink-500 font-medium border-0 bg-transparent;
+  }
+  .segmented button.on {
+    @apply bg-white text-ink-900 shadow-sm;
   }
 
-  .progress-fill-green  { @apply bg-emerald-500 h-2 rounded-full transition-all duration-500; }
-  .progress-fill-amber  { @apply bg-amber-500 h-2 rounded-full transition-all duration-500; }
-  .progress-fill-red    { @apply bg-red-500 h-2 rounded-full transition-all duration-500; }
+  /* Sidebar nav link */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-1.5 rounded-md text-[13.5px] text-ink-700 font-medium transition-colors relative;
+  }
+  .nav-link:hover { @apply bg-forest-100/40 text-ink-900; }
+  .nav-link-active {
+    @apply bg-forest-100 text-forest-800 font-semibold;
+  }
+  .nav-link-active::before {
+    content: '';
+    @apply absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-forest-700 rounded-full;
+  }
+  .nav-link-collapsed {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    justify-content: center;
+  }
 }
 
-/* ── Custom utility classes ──────────────────────────────────────────────── */
-@layer utilities {
-  .bg-slate-25  { background-color: #f8fafc; }
+/* ── Dark Mode ────────────────────────────────────────────────────────── */
 
-  /* Livewire loading states */
+/* Remap ink palette utilities so every view gets correct contrast without
+   needing dark: variants on every element. */
+.dark body { background-color: #131917; color: #e4e1d8; }
+
+.dark .text-ink-900, .dark .text-ink-800 { color: #e4e1d8; }
+.dark .text-ink-700                       { color: #c8c4bc; }
+.dark .text-ink-500                       { color: #8a9087; }
+.dark .text-ink-400                       { color: #6b7570; }
+.dark .text-ink-300                       { color: #4a5550; }
+
+/* Remap slate utilities (used in QoL form, survey views, etc.) */
+.dark .text-slate-900, .dark .text-slate-800 { color: #e4e1d8; }
+.dark .text-slate-700, .dark .text-slate-600  { color: #c8c4bc; }
+.dark .text-slate-500                         { color: #8a9087; }
+.dark .text-slate-400                         { color: #6b7570; }
+.dark .text-slate-300                         { color: #4a5550; }
+
+/* Remap bg utilities */
+.dark .bg-white        { background-color: #1a201d; }
+.dark .bg-slate-50     { background-color: #1e2822; }
+.dark .bg-slate-100    { background-color: #252e2a; }
+.dark .bg-slate-200    { background-color: #2a3430; }
+.dark .bg-amber-50     { background-color: #2a2518; }
+.dark .bg-teal-50      { background-color: #0f2420; }
+
+/* Remap border utilities */
+.dark .border-slate-200 { border-color: #2b3530; }
+.dark .border-slate-100 { border-color: #222a27; }
+.dark .border-paper-rule { border-color: #2b3530; }
+
+.dark .card        { background-color: #1a201d; border-color: #2b3530; }
+.dark .card-title  { color: #e4e1d8; }
+.dark .card-sub    { color: #6b7570; }
+
+.dark .kpi         { background-color: #1a201d; border-color: #2b3530; }
+.dark .kpi-label   { color: #6b7570; }
+.dark .kpi-value   { color: #e4e1d8; }
+
+.dark .th          { background-color: #202a26; color: #6b7570; border-color: #2b3530; }
+.dark .td          { color: #b0b5b2; border-color: #2b3530; }
+
+.dark .btn         { background-color: #1a201d; border-color: #2b3530; color: #b0b5b2; }
+.dark .btn:hover   { border-color: #3d4d46; color: #e4e1d8; background-color: #202a26; }
+.dark .btn-primary { background-color: #2f6552; border-color: #2f6552; color: #e4e1d8; }
+.dark .btn-primary:hover { background-color: #3a7a65; border-color: #3a7a65; }
+.dark .btn-ghost   { background-color: transparent; border-color: transparent; color: #6b7570; }
+.dark .btn-ghost:hover { background-color: rgba(47,101,82,0.15); color: #e4e1d8; }
+
+.dark .form-input,
+.dark .form-select { background-color: #1a201d; border-color: #2b3530; color: #e4e1d8; }
+.dark .form-input::placeholder { color: #4a5550; }
+
+.dark .badge-neutral { background-color: #202a26; color: #b0b5b2; border-color: #2b3530; }
+
+.dark .eyebrow { color: #6b7570; }
+
+.dark .bar { background-color: #202a26; }
+
+.dark .segmented       { background-color: #202a26; border-color: #2b3530; }
+.dark .segmented button       { color: #6b7570; }
+.dark .segmented button.on    { background-color: #2a3530; color: #e4e1d8; }
+
+.dark .framework-tag {
+  background-color: rgba(47,101,82,0.15);
+  border-color: rgba(47,101,82,0.3);
+  color: #7fbfa5;
+}
+.dark .framework-tag::before { background-color: #5fa088; }
+
+.dark .nav-link          { color: #b0b5b2; }
+.dark .nav-link:hover    { background-color: rgba(47,101,82,0.15); color: #e4e1d8; }
+.dark .nav-link-active   { background-color: rgba(47,101,82,0.25); color: #7fbfa5; }
+.dark .nav-link-active::before { background-color: #5fa088; }
+
+.dark .status-dot-ok   { background-color: #4a8a68; box-shadow: 0 0 0 2px rgba(74,138,104,0.2); }
+.dark .status-dot-warn { background-color: #c47832; box-shadow: 0 0 0 2px rgba(196,120,50,0.2); }
+.dark .status-dot-err  { background-color: #b94a3a; box-shadow: 0 0 0 2px rgba(185,74,58,0.2); }
+
+/* ── Utilities ────────────────────────────────────────────────────────── */
+@layer utilities {
+  .bg-slate-25 { background: #f8fafc; }
   [wire\:loading] { opacity: 0.6; pointer-events: none; }
 
-  /* Smooth wire transitions */
-  .wire-transition { transition: opacity 150ms ease-in-out; }
-
-  /* Scrollbar styling */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-color: theme('colors.paper.rule') transparent;
   }
   .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
-  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: theme('colors.paper.rule'); border-radius: 2px; }
 
-  /* Print helpers */
   @media print {
     .no-print { display: none !important; }
     .print-break { page-break-before: always; }
