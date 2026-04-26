@@ -1,129 +1,184 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en"
+      x-data="appLayout"
+      :class="{ 'dark': dark }"
+      class="h-full overflow-hidden">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'OSCA System') — Pagsanjan, Laguna</title>
+    <title>@yield('title', 'AgeSense') — OSCA · Pagsanjan, Laguna</title>
+    {{-- Apply dark class immediately from localStorage to prevent flash --}}
+    <script>
+        try { if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark'); } catch(e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     @livewireStyles
-    <style>
-        body { font-family: 'DM Sans', system-ui, sans-serif; }
-        .font-display { font-family: 'DM Serif Display', Georgia, serif; }
-        [x-cloak] { display: none !important; }
-    </style>
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
-<body class="h-full">
-<div class="flex h-screen overflow-hidden bg-slate-50">
+<body class="h-full overflow-hidden bg-paper dark:bg-[#131917]">
+<div class="flex h-screen overflow-hidden">
 
     {{-- ── Sidebar ── --}}
-    <aside class="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+    <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
+           class="flex-shrink-0 flex flex-col bg-paper-2 dark:bg-[#1a201d] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
 
-        {{-- Logo --}}
-        <div class="px-5 py-4 border-b border-slate-100">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-sm">
-                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-slate-800 leading-none">OSCA System</p>
-                    <p class="text-xs text-slate-500 mt-0.5">Pagsanjan, Laguna</p>
+        {{-- Hamburger toggle (always at top) --}}
+        <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] flex items-center"
+             :class="sidebarOpen ? 'px-3 py-2.5 gap-3' : 'py-2.5 justify-center'">
+            <button @click="toggleSidebar()"
+                    class="btn btn-ghost p-1.5 flex-shrink-0"
+                    :title="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'">
+                <x-heroicon-o-bars-3 class="w-5 h-5" />
+            </button>
+            <div x-show="sidebarOpen" x-cloak class="flex items-center gap-2.5 min-w-0 overflow-hidden">
+                <div class="w-7 h-7 rounded-md bg-forest-800 text-forest-100 grid place-items-center font-serif font-semibold text-[15px] flex-shrink-0">A</div>
+                <div class="min-w-0">
+                    <div class="font-serif text-[17px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
+                    <div class="text-[10px] tracking-[0.08em] uppercase text-ink-500 dark:text-[#4a5550] font-medium whitespace-nowrap">Healthy Ageing Analytics</div>
                 </div>
             </div>
         </div>
 
+        {{-- Deployment (expanded only) --}}
+        <div x-show="sidebarOpen" x-cloak
+             class="px-4 py-2.5 border-b border-paper-rule dark:border-[#2b3530] flex-shrink-0">
+            <div class="text-[10px] tracking-[0.1em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold">Deployment</div>
+            <div class="font-serif text-[13px] font-medium mt-0.5 text-ink-900 dark:text-[#b0b5b2]">OSCA · Pagsanjan, Laguna</div>
+        </div>
+
         {{-- Nav --}}
-        <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav class="flex-1 py-3 overflow-y-auto scrollbar-thin" :class="sidebarOpen ? 'px-3' : 'px-2'">
+
+            <div x-show="sidebarOpen" x-cloak
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-2 pb-2">Workspace</div>
+            <div x-show="!sidebarOpen" x-cloak class="h-2"></div>
+
             @php
             $navItems = [
-                ['route'=>'dashboard',          'label'=>'Dashboard',         'emoji'=>'🏠'],
-                ['route'=>'seniors.index',       'label'=>'Senior Records',    'emoji'=>'👥'],
-                ['route'=>'seniors.create',      'label'=>'New Profile',       'emoji'=>'➕'],
-                ['route'=>'surveys.qol.index',   'label'=>'QoL Surveys',       'emoji'=>'📋'],
-                ['route'=>'reports.cluster',     'label'=>'Cluster Analysis',  'emoji'=>'📊'],
-                ['route'=>'reports.risk',        'label'=>'Risk Reports',      'emoji'=>'🛡️'],
-                ['route'=>'recommendations.index','label'=>'Recommendations',  'emoji'=>'💡'],
+                ['route'=>'dashboard',            'label'=>'Dashboard',         'icon'=>'home'],
+                ['route'=>'seniors.index',        'label'=>'Senior Records',    'icon'=>'users'],
+                ['route'=>'seniors.create',       'label'=>'New Profile',       'icon'=>'user-plus'],
+                ['route'=>'seniors.archives',     'label'=>'Archives',          'icon'=>'archive-box'],
+                ['route'=>'surveys.qol.index',    'label'=>'QoL Surveys',       'icon'=>'clipboard-document-list'],
+                ['route'=>'reports.cluster',      'label'=>'Cluster Analysis',  'icon'=>'squares-2x2'],
+                ['route'=>'reports.risk',         'label'=>'Risk Reports',      'icon'=>'shield-check'],
+                ['route'=>'recommendations.index','label'=>'Recommendations',   'icon'=>'light-bulb'],
             ];
             @endphp
+
             @foreach ($navItems as $item)
             <a href="{{ route($item['route']) }}"
-               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
-                      {{ request()->routeIs($item['route'].'*')
-                         ? 'bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-100'
-                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                <span class="text-base leading-none">{{ $item['emoji'] }}</span>
-                {{ $item['label'] }}
+               class="nav-link {{ request()->routeIs($item['route'].'*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : '{{ $item['label'] }}'">
+                <x-dynamic-component :component="'heroicon-o-'.$item['icon']" class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">{{ $item['label'] }}</span>
             </a>
             @endforeach
 
-            <div class="pt-3 mt-3 border-t border-slate-100">
-                <p class="px-3 mb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">ML Pipeline</p>
-                <a href="{{ route('ml.status') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all {{ request()->routeIs('ml.status') ? 'bg-teal-50 text-teal-700' : '' }}">
-                    <span class="text-base">⚙️</span> Service Status
-                </a>
-                <a href="{{ route('ml.batch') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all {{ request()->routeIs('ml.batch') ? 'bg-teal-50 text-teal-700' : '' }}">
-                    <span class="text-base">🔄</span> Batch Analysis
-                </a>
-            </div>
+            <div x-show="sidebarOpen" x-cloak
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">ML Pipeline</div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
+
+            <a href="{{ route('ml.status') }}"
+               class="nav-link {{ request()->routeIs('ml.status') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Service Status'">
+                <x-heroicon-o-bolt class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Service Status</span>
+            </a>
+            <a href="{{ route('ml.batch') }}"
+               class="nav-link {{ request()->routeIs('ml.batch') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Batch Analysis'">
+                <x-heroicon-o-arrow-path class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Batch Analysis</span>
+            </a>
+
+            <div x-show="sidebarOpen" x-cloak
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Reference</div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
+
+            <a class="nav-link cursor-default"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'WHO Framework'">
+                <x-heroicon-o-document-text class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">WHO Framework</span>
+            </a>
         </nav>
 
-        {{-- User footer --}}
-        <div class="border-t border-slate-100 px-4 py-3">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                    <span class="text-xs font-bold text-teal-700">
-                        {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 1)) }}
-                    </span>
+        {{-- Footer --}}
+        <div class="border-t border-paper-rule dark:border-[#2b3530] flex-shrink-0 px-3 py-2">
+            <div class="flex items-center gap-2" :class="sidebarOpen ? '' : 'flex-col'">
+
+                {{-- Avatar --}}
+                <div class="w-7 h-7 rounded-full bg-forest-200 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-xs flex-shrink-0">
+                    {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-slate-700 truncate">{{ auth()->user()?->name ?? 'Admin' }}</p>
-                    <p class="text-xs text-slate-400">OSCA Staff</p>
+
+                {{-- Name/role (expanded only) --}}
+                <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
+                    <div class="text-[12px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                    <div class="text-[10px] text-ink-500 dark:text-[#4a5550]">OSCA Officer</div>
                 </div>
+
+                {{-- Dark mode toggle --}}
+                <button @click="toggleDark()"
+                        class="btn btn-ghost p-1.5 flex-shrink-0"
+                        :title="dark ? 'Light mode' : 'Dark mode'">
+                    <x-heroicon-o-sun  class="w-4 h-4" x-show="dark"  x-cloak />
+                    <x-heroicon-o-moon class="w-4 h-4" x-show="!dark" />
+                </button>
+
+                {{-- Logout --}}
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="text-slate-400 hover:text-slate-700 transition-colors" title="Logout">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"/>
-                        </svg>
+                    <button type="submit" class="btn btn-ghost p-1.5 flex-shrink-0" title="Sign out">
+                        <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4" />
                     </button>
                 </form>
             </div>
         </div>
     </aside>
 
-    {{-- ── Main Content ── --}}
-    <div class="flex-1 flex flex-col overflow-hidden">
+    {{-- ── Main ── --}}
+    <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
+        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-9 py-5 flex items-center justify-between flex-shrink-0">
             <div>
-                <h1 class="text-lg font-semibold text-slate-800">@yield('page-title', 'Dashboard')</h1>
+                <div class="flex items-center gap-3">
+                    <h1 class="font-serif text-[26px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-tight">@yield('page-title', 'Dashboard')</h1>
+                    <span class="framework-tag">WHO Healthy Ageing</span>
+                </div>
                 @hasSection('page-subtitle')
-                    <p class="text-sm text-slate-500 mt-0.5">@yield('page-subtitle')</p>
+                    <p class="text-[13px] text-ink-500 dark:text-[#6b7570] mt-1">@yield('page-subtitle')</p>
                 @endif
             </div>
-            <div class="flex items-center gap-3 text-sm">
-                @foreach (['success'=>'emerald','warning'=>'amber','info'=>'blue','error'=>'red'] as $type => $color)
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 text-xs text-ink-500 dark:text-[#6b7570]">
+                    <span class="status-dot status-dot-ok"></span>
+                    <span>Preprocess <span class="text-ink-700 dark:text-[#b0b5b2] font-semibold">:5001</span></span>
+                    <span class="text-ink-300 dark:text-[#2b3530]">·</span>
+                    <span class="status-dot status-dot-ok"></span>
+                    <span>Inference <span class="text-ink-700 dark:text-[#b0b5b2] font-semibold">:5002</span></span>
+                </div>
+                @foreach (['success'=>'low','warning'=>'moderate','info'=>'info','error'=>'critical'] as $type => $variant)
                     @if (session($type))
-                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border
-                                bg-{{ $color }}-50 border-{{ $color }}-200 text-{{ $color }}-700">
-                        {{ session($type) }}
-                    </div>
+                    <div class="badge badge-{{ $variant }}">{{ session($type) }}</div>
                     @endif
                 @endforeach
-                <span class="text-slate-400 text-xs">{{ now()->format('D, M j, Y') }}</span>
+                <button class="btn"><x-heroicon-o-bell class="w-3.5 h-3.5" /></button>
+                <span class="text-ink-400 dark:text-[#4a5550] text-[11px] tnum">{{ now()->format('D, M j, Y') }}</span>
             </div>
         </header>
 
-        {{-- Page --}}
-        <main class="flex-1 overflow-y-auto p-6">
+        {{-- Page content --}}
+        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-7">
             @yield('content')
         </main>
     </div>

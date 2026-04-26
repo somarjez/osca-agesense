@@ -1,10 +1,24 @@
 import './bootstrap'
-import Alpine from 'alpinejs'
 import Chart from 'chart.js/auto'
 
-// ── Alpine.js setup ──────────────────────────────────────────────────────────
-window.Alpine = Alpine
-Alpine.start()
+// Alpine.js is managed by Livewire 3's bundled copy — do NOT import or start it
+// here. Importing a second Alpine instance breaks wire:click / wire:model.
+
+// ── App layout state (sidebar collapse + dark mode) ───────────────────────────
+document.addEventListener('alpine:init', () => {
+    Alpine.data('appLayout', () => ({
+        sidebarOpen: localStorage.getItem('sidebarCollapsed') !== 'true',
+        dark: localStorage.getItem('darkMode') === 'true',
+        toggleSidebar() {
+            this.sidebarOpen = !this.sidebarOpen
+            localStorage.setItem('sidebarCollapsed', String(!this.sidebarOpen))
+        },
+        toggleDark() {
+            this.dark = !this.dark
+            localStorage.setItem('darkMode', String(this.dark))
+        },
+    }))
+})
 
 // ── Chart.js global defaults ─────────────────────────────────────────────────
 Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif"
@@ -22,12 +36,29 @@ Chart.defaults.scale.ticks.color              = '#94a3b8'
 // Make Chart.js available globally for Blade scripts
 window.Chart = Chart
 
-// ── Livewire chart re-init hook ───────────────────────────────────────────────
-// Destroy and re-create charts after Livewire re-renders
-document.addEventListener('livewire:navigated', () => {
-    Chart.helpers.each(Chart.instances, (instance) => {
-        instance.destroy()
-    })
+// ── Livewire scroll preservation ─────────────────────────────────────────────
+// The layout uses <main class="overflow-y-auto"> as the scroll container.
+// Livewire only preserves window scroll — not custom overflow containers.
+// Capture scroll before each DOM morph and restore it after, so Livewire
+// re-renders don't snap the user back to the top.
+document.addEventListener('livewire:before-update', function () {
+    const main = document.querySelector('main')
+    if (main) window.__livewireMainScroll = main.scrollTop
+})
+
+document.addEventListener('livewire:updated', function () {
+    const main = document.querySelector('main')
+    if (main && window.__livewireMainScroll !== undefined) {
+        main.scrollTop = window.__livewireMainScroll
+        delete window.__livewireMainScroll
+    }
+})
+
+// Dispatched by QolSurveyForm when the step changes — intentionally scroll top.
+document.addEventListener('qol-step-changed', function () {
+    const main = document.querySelector('main')
+    if (main) main.scrollTop = 0
+    delete window.__livewireMainScroll  // cancel any pending restoration
 })
 
 // ── OSCA Helper utilities ─────────────────────────────────────────────────────

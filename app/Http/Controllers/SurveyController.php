@@ -38,9 +38,28 @@ class SurveyController extends Controller
         return view('surveys.qol.create', ['senior' => $survey->seniorCitizen, 'surveyId' => $survey->id]);
     }
 
+    public function qolDestroy(QolSurvey $survey)
+    {
+        $seniorId = $survey->senior_citizen_id;
+        $survey->delete();
+
+        if (request()->headers->get('referer') && str_contains(request()->headers->get('referer'), '/seniors/')) {
+            return redirect()->route('seniors.show', $seniorId)
+                ->with('success', 'QoL survey deleted.');
+        }
+
+        return redirect()->route('surveys.qol.index')
+            ->with('success', 'QoL survey deleted.');
+    }
+
     public function qolResults(QolSurvey $survey)
     {
-        $survey->load(['seniorCitizen', 'mlResult.recommendations']);
+        $survey->load(['mlResult.recommendations']);
+        // Include soft-deleted seniors so results remain readable after archiving
+        $survey->setRelation(
+            'seniorCitizen',
+            \App\Models\SeniorCitizen::withTrashed()->find($survey->senior_citizen_id)
+        );
         return view('surveys.qol.results', compact('survey'));
     }
 }

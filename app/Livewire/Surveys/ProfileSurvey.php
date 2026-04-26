@@ -51,16 +51,18 @@ class ProfileSurvey extends Component
     public array $movableAssets = [];
     public string $monthlyIncomeRange = '';
     public array $problemsNeeds = [];
+    public string $problemsNeedsOther = '';
 
     // ── VI. Health Profile ────────────────────────────────────────────────────
     public array $medicalConcern = [];
-    public string $dentalConcern = '';
-    public string $opticalConcern = '';
-    public string $hearingConcern = '';
+    public array $dentalConcern = [];
+    public array $opticalConcern = [];
+    public array $hearingConcern = [];
     public array $socialEmotionalConcern = [];
-    public string $healthcareDifficulty = '';
+    public array $healthcareDifficulty = [];
     public bool $hasMedicalCheckup = false;
     public string $checkupSchedule = '';
+    public string $checkupScheduleOther = '';
 
     public function mount(?int $seniorId = null): void
     {
@@ -122,7 +124,7 @@ class ProfileSurvey extends Component
             'real_assets'             => $this->realAssets ?: null,
             'movable_assets'          => $this->movableAssets ?: null,
             'monthly_income_range'    => $this->monthlyIncomeRange ?: null,
-            'problems_needs'          => $this->problemsNeeds ?: null,
+            'problems_needs'          => $this->buildProblemsNeeds(),
             'medical_concern'         => $this->medicalConcern ?: null,
             'dental_concern'          => $this->dentalConcern ?: null,
             'optical_concern'         => $this->opticalConcern ?: null,
@@ -130,7 +132,7 @@ class ProfileSurvey extends Component
             'social_emotional_concern'=> $this->socialEmotionalConcern ?: null,
             'healthcare_difficulty'   => $this->healthcareDifficulty ?: null,
             'has_medical_checkup'     => $this->hasMedicalCheckup,
-            'checkup_schedule'        => $this->checkupSchedule ?: null,
+            'checkup_schedule'        => $this->buildCheckupSchedule(),
             'encoded_by'              => Auth::user()?->name,
         ];
 
@@ -188,15 +190,62 @@ class ProfileSurvey extends Component
         $this->realAssets            = $s->real_assets ?? [];
         $this->movableAssets         = $s->movable_assets ?? [];
         $this->monthlyIncomeRange    = $s->monthly_income_range ?? '';
-        $this->problemsNeeds         = $s->problems_needs ?? [];
+        [$this->problemsNeeds, $this->problemsNeedsOther] = $this->parseProblemsNeeds($s->problems_needs ?? []);
         $this->medicalConcern        = $s->medical_concern ?? [];
-        $this->dentalConcern         = $s->dental_concern ?? '';
-        $this->opticalConcern        = $s->optical_concern ?? '';
-        $this->hearingConcern        = $s->hearing_concern ?? '';
+        $this->dentalConcern         = $s->dental_concern ?? [];
+        $this->opticalConcern        = $s->optical_concern ?? [];
+        $this->hearingConcern        = $s->hearing_concern ?? [];
         $this->socialEmotionalConcern= $s->social_emotional_concern ?? [];
-        $this->healthcareDifficulty  = $s->healthcare_difficulty ?? '';
+        $this->healthcareDifficulty  = $s->healthcare_difficulty ?? [];
         $this->hasMedicalCheckup     = $s->has_medical_checkup;
-        $this->checkupSchedule       = $s->checkup_schedule ?? '';
+        [$this->checkupSchedule, $this->checkupScheduleOther] = $this->parseCheckupSchedule($s->checkup_schedule ?? '');
+    }
+
+    private function buildCheckupSchedule(): ?string
+    {
+        if (!$this->hasMedicalCheckup || $this->checkupSchedule === '') {
+            return null;
+        }
+        if ($this->checkupSchedule === 'Others') {
+            return $this->checkupScheduleOther !== ''
+                ? 'Others: ' . trim($this->checkupScheduleOther)
+                : 'Others';
+        }
+        return $this->checkupSchedule;
+    }
+
+    private function parseCheckupSchedule(string $raw): array
+    {
+        if (str_starts_with($raw, 'Others:')) {
+            return ['Others', trim(substr($raw, 7))];
+        }
+        return [$raw, ''];
+    }
+
+    private function buildProblemsNeeds(): ?array
+    {
+        $arr = array_filter($this->problemsNeeds, fn($v) => $v !== 'Others');
+        if (in_array('Others', $this->problemsNeeds)) {
+            $arr[] = $this->problemsNeedsOther !== ''
+                ? 'Others: ' . trim($this->problemsNeedsOther)
+                : 'Others';
+        }
+        return array_values($arr) ?: null;
+    }
+
+    private function parseProblemsNeeds(array $raw): array
+    {
+        $other = '';
+        $normalized = [];
+        foreach ($raw as $v) {
+            if (str_starts_with($v, 'Others:')) {
+                $other = trim(substr($v, 7));
+                $normalized[] = 'Others';
+            } else {
+                $normalized[] = $v;
+            }
+        }
+        return [$normalized, $other];
     }
 
     public static function specializationOptions(): array
@@ -237,6 +286,19 @@ class ProfileSurvey extends Component
             'Asthma','Stroke','Osteoporosis','Parkinson\'s Disease','Cancer',
             'Tuberculosis (TB)','UTI','Anemia','Physical Disability',
             'Mental Health Condition (Depression / Anxiety)','Physically Healthy',
+        ];
+    }
+
+    public static function socialEmotionalConcernOptions(): array
+    {
+        return [
+            'Feeling Neglect/Rejection',
+            'Feeling Helplessness/Worthlessness',
+            'Feeling/Loneliness/Isolation',
+            'Feeling Depressed/Anxiety',
+            'Lack social support',
+            'Lack leisure activities',
+            'Living in a healthy environment',
         ];
     }
 

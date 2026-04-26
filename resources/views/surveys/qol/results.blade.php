@@ -20,7 +20,11 @@
 <div class="space-y-5">
 
     {{-- Back --}}
+    @if ($senior && !$senior->trashed())
     <a href="{{ route('seniors.show', $senior) }}" class="text-sm text-slate-500 hover:text-slate-700">← Back to {{ $senior->full_name }}</a>
+    @else
+    <a href="{{ route('surveys.qol.index') }}" class="text-sm text-slate-500 hover:text-slate-700">← Back to QoL Surveys</a>
+    @endif
 
     {{-- Summary header --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -61,7 +65,7 @@
                 <div class="flex items-center gap-3">
                     <span class="text-xs text-slate-500 w-20 flex-shrink-0">{{ $label }}</span>
                     <div class="flex-1 bg-slate-200 rounded-full h-1.5">
-                        <div class="h-1.5 rounded-full {{ $score > 0.65 ? 'bg-red-500' : ($score > 0.45 ? 'bg-amber-400' : 'bg-emerald-500') }}"
+                        <div class="h-1.5 rounded-full {{ $score >= 0.65 ? 'bg-critical-500' : ($score >= 0.45 ? 'bg-high-500' : ($score >= 0.25 ? 'bg-moderate-500' : 'bg-low-500')) }}"
                              style="width: {{ round($score * 100) }}%"></div>
                     </div>
                     <span class="text-xs font-semibold w-12 text-right text-slate-700">{{ round($score * 100, 1) }}%</span>
@@ -128,7 +132,9 @@
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-slate-700">Generated Recommendations ({{ $ml->recommendations->count() }})</h3>
+            @if ($senior && !$senior->trashed())
             <a href="{{ route('recommendations.show', $senior) }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium">Manage →</a>
+            @endif
         </div>
         <div class="divide-y divide-slate-50">
             @foreach ($ml->recommendations->sortBy('priority') as $rec)
@@ -158,35 +164,43 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
     const labels = @json(array_values($domainLabels));
-    const data = @json(collect($domainLabels)->keys()->map(fn($k) => round(($survey->{$k} ?? 0) * 100, 1))->values());
+    const data   = @json(collect($domainLabels)->keys()->map(fn($k) => round(($survey->{$k} ?? 0) * 100, 1))->values());
 
-    new Chart(document.getElementById('domainRadar'), {
-        type: 'radar',
-        data: {
-            labels,
-            datasets: [{
-                data,
-                backgroundColor: 'rgba(20,184,166,0.15)',
-                borderColor: 'rgb(20,184,166)',
-                pointBackgroundColor: 'rgb(20,184,166)',
-                pointRadius: 3,
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                r: {
-                    min: 0, max: 100,
-                    ticks: { stepSize: 25, font: { size: 8 } },
-                    pointLabels: { font: { size: 8 } },
+    function initDomainRadar() {
+        const canvas = document.getElementById('domainRadar');
+        if (!canvas) return;
+        const existing = Object.values(Chart.instances).find(c => c.canvas === canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'radar',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: 'rgba(20,184,166,0.15)',
+                    borderColor: 'rgb(20,184,166)',
+                    pointBackgroundColor: 'rgb(20,184,166)',
+                    pointRadius: 3,
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    r: {
+                        min: 0, max: 100,
+                        ticks: { stepSize: 25, font: { size: 8 } },
+                        pointLabels: { font: { size: 8 } },
+                    }
                 }
             }
-        }
-    });
-});
+        });
+    }
+
+    document.addEventListener('livewire:navigated', () => setTimeout(initDomainRadar, 0));
+})();
 </script>
 @endpush

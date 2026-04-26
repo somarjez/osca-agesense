@@ -7,14 +7,12 @@ use App\Models\SeniorCitizen;
 use App\Services\MlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MlController extends Controller
 {
     public function __construct(protected MlService $ml) {}
 
-    /**
-     * ML service status page.
-     */
     public function status()
     {
         $health = $this->ml->healthCheck();
@@ -33,25 +31,37 @@ class MlController extends Controller
         return view('ml.status', compact('health', 'stats'));
     }
 
-    /**
-     * Batch analysis index page.
-     */
+    public function startServices()
+    {
+        $success = $this->ml->startServices();
+        return back()->with(
+            $success ? 'success' : 'error',
+            $success
+                ? 'Python ML services started successfully.'
+                : 'Failed to start ML services. Check storage/logs/preprocess.err.log for details.'
+        );
+    }
+
     public function batchIndex()
     {
+        $totalEligible = SeniorCitizen::active()->whereHas('latestQolSurvey')->count();
+
         $pending = SeniorCitizen::active()
             ->whereHas('latestQolSurvey')
             ->with(['latestQolSurvey', 'latestMlResult'])
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
 
-        return view('ml.batch', compact('pending'));
+        return view('ml.batch', compact('pending', 'totalEligible'));
     }
 
     /**
-     * Run batch ML analysis for all seniors with a processed QoL survey.
+     * Batch ML analysis — processes all eligible seniors in bulk.
+     * Uses runBatchPipeline() to spawn one Python process per chunk
+     * instead of two processes per senior.
      */
     public function batchRun(Request $request)
     {
-        // Batch inference may take >30s for large datasets.
         @set_time_limit(0);
         @ini_set('max_execution_time', '0');
         @ignore_user_abort(true);
@@ -64,31 +74,53 @@ class MlController extends Controller
             ->whereHas('latestQolSurvey', fn($q) => $q->where('status', 'processed'))
             ->with(['latestQolSurvey'])
             ->orderBy('id')
-            ->chunk(20, function ($seniors) use (&$success, &$failed, &$errors) {
-                foreach ($seniors as $senior) {
-                    try {
-                        $this->ml->runPipeline($senior, $senior->latestQolSurvey);
+            ->chunk(100, function ($seniors) use (&$success, &$failed, &$errors) {
+                // Build items array for batch pipeline
+                $items = $seniors->map(fn($s) => [
+                    'senior' => $s,
+                    'survey' => $s->latestQolSurvey,
+                ])->all();
+
+                $results = $this->ml->runBatchPipeline($items);
+
+                foreach ($results as $i => $entry) {
+                    if ($entry['success']) {
                         $success++;
-                    } catch (\Exception $e) {
+                    } else {
                         $failed++;
-                        if (count($errors) < 3) {
-                            $errors[] = "{$senior->full_name}: {$e->getMessage()}";
+                        if (count($errors) < 5) {
+                            $name = $items[$i]['senior']->full_name ?? "Senior #{$i}";
+                            $errors[] = "{$name}: " . ($entry['error'] ?? 'Unknown error');
                         }
                     }
                 }
             });
 
-        return back()->with('success',
-            "Batch complete. Processed: {$success}. Failed: {$failed}."
-            . ($errors ? " Errors: " . implode('; ', $errors) : '')
-        );
+        $message = "Batch complete. Processed: {$success}. Failed: {$failed}."
+            . ($errors ? ' Errors: ' . implode('; ', $errors) : '');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success'   => $failed === 0,
+                'processed' => $success,
+                'failed'    => $failed,
+                'message'   => $message,
+            ]);
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
      * Run ML inference for a single senior citizen.
+     * Uses combined local mode (one subprocess) to prevent timeout errors.
      */
     public function runSingle(SeniorCitizen $senior)
     {
+        // Prevent PHP from killing the process mid-run while Python loads models
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+
         $survey = $senior->latestQolSurvey;
 
         if (!$survey) {
@@ -104,6 +136,10 @@ class MlController extends Controller
                 'composite_risk' => $result->composite_risk,
             ]);
         } catch (\Exception $e) {
+            Log::error('ML runSingle failed', [
+                'senior_id' => $senior->id,
+                'error'     => $e->getMessage(),
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

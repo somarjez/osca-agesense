@@ -19,16 +19,16 @@ class MlService
     protected int $timeout;
     protected int $coldStartTimeout;
     protected ?bool $preprocessAvailable = null;
-    protected ?bool $inferenceAvailable = null;
+    protected ?bool $inferenceAvailable  = null;
     protected ?string $localPythonExecutable;
     protected string $localPythonRunner;
 
     public function __construct()
     {
-        $base = config('services.python.base_url', 'http://127.0.0.1');
-        $preprocessPort = (int) config('services.python.preprocess_port', 5001);
-        $inferencePort  = (int) config('services.python.inference_port', 5002);
-        $this->timeout  = (int) config('services.python.timeout', 120);
+        $base               = config('services.python.base_url', 'http://127.0.0.1');
+        $preprocessPort     = (int) config('services.python.preprocess_port', 5001);
+        $inferencePort      = (int) config('services.python.inference_port', 5002);
+        $this->timeout      = (int) config('services.python.timeout', 120);
         $this->coldStartTimeout = (int) config('services.python.cold_start_timeout', 120);
 
         $this->preprocessUrl = $base . ':' . $preprocessPort;
@@ -38,24 +38,74 @@ class MlService
     }
 
     /**
-     * Run the full pipeline for a senior citizen:
-     *   1. Preprocess raw profile + QoL survey
-     *   2. Run ML inference (cluster + risk)
-     *   3. Persist MlResult + Recommendations
+     * Run the full pipeline for a single senior citizen.
+     * Uses combined local mode (1 subprocess instead of 2) when Flask is unavailable.
      */
     public function runPipeline(SeniorCitizen $senior, QolSurvey $survey): MlResult
     {
-        // ── Step 1: Build raw payload ─────────────────────────────────────────
         $raw = $this->buildRawPayload($senior, $survey);
 
-        // ── Step 2: Preprocess ────────────────────────────────────────────────
-        $preprocessed = $this->callPreprocess($raw);
+        if ($this->isPreprocessAvailable()) {
+            // HTTP mode: two separate service calls
+            $preprocessed = $this->callPreprocess($raw);
+            $inferResult  = $this->callInfer($preprocessed);
+        } else {
+            // Local mode: combined preprocess+infer in ONE subprocess (no double cold-start)
+            $inferResult  = $this->localCombinedOrFallback($raw);
+            $preprocessed = [];
+        }
 
-        // ── Step 3: Infer ─────────────────────────────────────────────────────
-        $inferResult = $this->callInfer($preprocessed);
-
-        // ── Step 4: Persist ───────────────────────────────────────────────────
         return $this->persistResults($senior, $survey, $preprocessed, $inferResult);
+    }
+
+    /**
+     * Run the pipeline for a batch of seniors in one Python subprocess.
+     * Eliminates per-senior subprocess cold-start overhead for batch runs.
+     *
+     * @param array<array{senior: SeniorCitizen, survey: QolSurvey}> $items
+     * @return array<array{success: bool, result: MlResult|null, error: string|null}>
+     */
+    public function runBatchPipeline(array $items): array
+    {
+        if (empty($items)) {
+            return [];
+        }
+
+        $payloads = array_map(
+            fn($item) => $this->buildRawPayload($item['senior'], $item['survey']),
+            $items
+        );
+
+        // Choose batch strategy based on service availability
+        if ($this->isPreprocessAvailable() && $this->isInferenceAvailable()) {
+            $rawResults = $this->callBatchHttp($payloads);
+        } else {
+            $rawResults = $this->callBatchLocal($payloads);
+        }
+
+        $output = [];
+        foreach ($items as $i => $item) {
+            $entry = $rawResults[$i] ?? ['success' => false, 'error' => 'No result returned'];
+
+            if (!($entry['success'] ?? false)) {
+                $output[] = [
+                    'success' => false,
+                    'result'  => null,
+                    'error'   => $entry['error'] ?? 'Unknown error',
+                ];
+                continue;
+            }
+
+            try {
+                $inferResult = $entry['data'] ?? $entry;
+                $result = $this->persistResults($item['senior'], $item['survey'], [], $inferResult);
+                $output[] = ['success' => true, 'result' => $result, 'error' => null];
+            } catch (\Exception $e) {
+                $output[] = ['success' => false, 'result' => null, 'error' => $e->getMessage()];
+            }
+        }
+
+        return $output;
     }
 
     /**
@@ -67,7 +117,7 @@ class MlService
     }
 
     /**
-     * Check if Python services are reachable.
+     * Check if Python services are reachable, and whether local fallbacks are available.
      */
     public function healthCheck(): array
     {
@@ -77,13 +127,48 @@ class MlService
             'inference'    => $this->inferenceUrl  . '/health',
         ] as $name => $url) {
             try {
-                $resp = Http::timeout(max(3, $this->timeout))->get($url);
+                $resp = Http::timeout(3)->connectTimeout(2)->get($url);
                 $results[$name] = $resp->successful() ? 'ok' : 'error';
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 $results[$name] = 'unreachable';
             }
         }
+
+        $results['local_runner'] = $this->canUseLocalPython() ? 'available' : 'unavailable';
+        $results['mode'] = ($results['preprocessor'] === 'ok' && $results['inference'] === 'ok')
+            ? 'http'
+            : ($results['local_runner'] === 'available' ? 'local_python' : 'php_fallback');
+
         return $results;
+    }
+
+    /**
+     * Start Python HTTP services as background processes.
+     */
+    public function startServices(): bool
+    {
+        $startScript = base_path('python/start_services.ps1');
+        if (!is_file($startScript)) {
+            return false;
+        }
+
+        try {
+            $process = new Process(['powershell.exe', '-NoProfile', '-File', $startScript], base_path());
+            $process->setTimeout(20);
+            $process->run();
+        } catch (\Throwable) {
+            // best-effort
+        }
+
+        foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
+            try {
+                $resp = Http::timeout(4)->connectTimeout(3)->get($url);
+                if (!$resp->successful()) return false;
+            } catch (\Exception) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // ── Private Helpers ───────────────────────────────────────────────────────
@@ -91,7 +176,6 @@ class MlService
     private function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
     {
         return [
-            // Profile fields
             'first_name'              => $senior->first_name,
             'last_name'               => $senior->last_name,
             'barangay'                => $senior->barangay,
@@ -113,16 +197,156 @@ class MlService
             'community_service'       => $senior->community_service ?? [],
             'specialization'          => $senior->specialization ?? [],
             'medical_concern'         => $senior->medical_concern ?? [],
-            'dental_concern'          => $senior->dental_concern,
-            'optical_concern'         => $senior->optical_concern,
-            'hearing_concern'         => $senior->hearing_concern,
+            'dental_concern'          => $senior->dental_concern ?? [],
+            'optical_concern'         => $senior->optical_concern ?? [],
+            'hearing_concern'         => $senior->hearing_concern ?? [],
             'social_emotional_concern'=> $senior->social_emotional_concern ?? [],
-            'healthcare_difficulty'   => $senior->healthcare_difficulty,
-            'has_medical_checkup'     => $senior->has_medical_checkup,
-
-            // QoL survey responses
+            'healthcare_difficulty'   => $senior->healthcare_difficulty ?? [],
+            'has_medical_checkup'     => $senior->has_medical_checkup && $senior->checkup_schedule !== 'No Follow-up',
             'qol_responses'           => $survey->toFeatureArray(),
         ];
+    }
+
+    /**
+     * Combined local mode: one subprocess for preprocess + infer.
+     */
+    private function localCombinedOrFallback(array $raw): array
+    {
+        $result = $this->runLocalPythonStage('combined', $raw);
+
+        if ($result !== null) {
+            return $result;
+        }
+
+        // Full PHP fallback
+        $preprocessed = $this->fallbackPreprocess($raw);
+        return $this->fallbackInfer($preprocessed);
+    }
+
+    /**
+     * HTTP batch: call /batch_preprocess then /batch_infer (2 HTTP calls for N seniors).
+     */
+    private function callBatchHttp(array $payloads): array
+    {
+        try {
+            $preResp = Http::connectTimeout(5)
+                ->timeout($this->timeout)
+                ->post($this->preprocessUrl . '/batch_preprocess', $payloads);
+
+            if ($preResp->failed()) {
+                throw new \RuntimeException('Batch preprocess HTTP error: ' . $preResp->status());
+            }
+
+            $preprocessedList = $preResp->json('results') ?? [];
+
+            $infResp = Http::connectTimeout(5)
+                ->timeout($this->timeout)
+                ->post($this->inferenceUrl . '/batch_infer', $preprocessedList);
+
+            if ($infResp->failed()) {
+                throw new \RuntimeException('Batch infer HTTP error: ' . $infResp->status());
+            }
+
+            $inferResults = $infResp->json('results') ?? [];
+
+            return array_map(
+                fn($r) => ['success' => true, 'data' => $r],
+                $inferResults
+            );
+        } catch (\Exception $e) {
+            Log::warning('Batch HTTP pipeline failed, falling back to local batch', ['error' => $e->getMessage()]);
+            return $this->callBatchLocal($payloads);
+        }
+    }
+
+    /**
+     * Local batch: one Python subprocess processes all seniors, models loaded once.
+     * Falls back to sequential combined calls if the batch subprocess fails.
+     */
+    private function callBatchLocal(array $payloads): array
+    {
+        if (!$this->canUseLocalPython()) {
+            return $this->batchFallback($payloads);
+        }
+
+        try {
+            $batchEnv = $this->pythonEnvironment();
+            $batchEnv['OSCA_BATCH_MODE'] = '1'; // skips per-senior UMAP in preprocess + infer
+
+            $process = new Process(
+                [$this->localPythonExecutable, $this->localPythonRunner, 'batch'],
+                base_path(),
+                $batchEnv
+            );
+
+            $process->setInput(json_encode($payloads, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+            // Cold-start once + ~2s per senior for computation
+            $process->setTimeout(max($this->timeout, $this->coldStartTimeout) + count($payloads) * 2);
+            $process->mustRun();
+
+            $decoded = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+
+            if (!is_array($decoded)) {
+                throw new \RuntimeException('Batch Python runner returned non-array.');
+            }
+
+            // If more than half the items failed, assume a systemic subprocess issue
+            // and fall back to sequential combined calls (which spawn fresh processes).
+            $failCount = count(array_filter($decoded, fn($r) => !($r['success'] ?? false)));
+            if ($failCount > count($decoded) / 2) {
+                Log::warning('Batch Python: majority of items failed, switching to sequential combined mode', [
+                    'failed' => $failCount,
+                    'total'  => count($decoded),
+                    'sample_error' => collect($decoded)->first(fn($r) => !($r['success'] ?? false))['error'] ?? '',
+                ]);
+                return $this->callSequentialCombined($payloads);
+            }
+
+            return $decoded;
+        } catch (ProcessFailedException $e) {
+            Log::warning('Local Python batch failed, switching to sequential combined mode', [
+                'error' => trim($e->getProcess()->getErrorOutput()) ?: $e->getMessage(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Local Python batch failed, switching to sequential combined mode', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->callSequentialCombined($payloads);
+    }
+
+    /**
+     * Sequential fallback: run combined mode per senior (1 subprocess each).
+     * Slower than true batch but avoids repeated-UMAP-in-one-process issues.
+     */
+    private function callSequentialCombined(array $payloads): array
+    {
+        return array_map(function ($raw) {
+            try {
+                $result = $this->runLocalPythonStage('combined', $raw);
+                if ($result !== null) {
+                    return ['success' => true, 'data' => $result];
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Sequential combined failed for one senior', ['error' => $e->getMessage()]);
+            }
+
+            // Last resort: PHP heuristic fallback
+            $preprocessed = $this->fallbackPreprocess($raw);
+            return ['success' => true, 'data' => $this->fallbackInfer($preprocessed)];
+        }, $payloads);
+    }
+
+    /**
+     * When even local Python fails: PHP-heuristic fallback for every item.
+     */
+    private function batchFallback(array $payloads): array
+    {
+        return array_map(function ($raw) {
+            $preprocessed = $this->fallbackPreprocess($raw);
+            return ['success' => true, 'data' => $this->fallbackInfer($preprocessed)];
+        }, $payloads);
     }
 
     private function callPreprocess(array $raw): array
@@ -144,7 +368,6 @@ class MlService
 
             return $response->json();
         } catch (ConnectionException $e) {
-            // Cold start can exceed default timeout while model artifacts are loaded.
             if (str_contains(strtolower($e->getMessage()), 'timed out')) {
                 try {
                     $response = Http::connectTimeout(5)
@@ -155,8 +378,7 @@ class MlService
                         $this->preprocessAvailable = true;
                         return $response->json();
                     }
-                } catch (\Exception $retryException) {
-                    Log::warning('Preprocess service retry failed after timeout', ['error' => $retryException->getMessage()]);
+                } catch (\Exception) {
                 }
             }
 
@@ -199,8 +421,7 @@ class MlService
                         $this->inferenceAvailable = true;
                         return $response->json();
                     }
-                } catch (\Exception $retryException) {
-                    Log::warning('Inference service retry failed after timeout', ['error' => $retryException->getMessage()]);
+                } catch (\Exception) {
                 }
             }
 
@@ -240,40 +461,22 @@ class MlService
                 return true;
             }
 
-            Log::warning("{$serviceName} service health check failed; using fallback mode", [
-                'status' => $resp->status(),
-            ]);
-
+            Log::warning("{$serviceName} health check failed; using fallback", ['status' => $resp->status()]);
             return false;
         } catch (\Exception $e) {
-            Log::warning("{$serviceName} service unreachable; using fallback mode", [
-                'error' => $e->getMessage(),
-            ]);
-
+            Log::warning("{$serviceName} unreachable; using fallback", ['error' => $e->getMessage()]);
             return false;
         }
     }
 
     private function localPreprocessOrFallback(array $raw): array
     {
-        $result = $this->runLocalPythonStage('preprocess', $raw);
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        return $this->fallbackPreprocess($raw);
+        return $this->runLocalPythonStage('preprocess', $raw) ?? $this->fallbackPreprocess($raw);
     }
 
     private function localInferOrFallback(array $preprocessed): array
     {
-        $result = $this->runLocalPythonStage('infer', $preprocessed);
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        return $this->fallbackInfer($preprocessed);
+        return $this->runLocalPythonStage('infer', $preprocessed) ?? $this->fallbackInfer($preprocessed);
     }
 
     private function runLocalPythonStage(string $stage, array $payload): ?array
@@ -299,10 +502,12 @@ class MlService
                 throw new \RuntimeException('Local Python stage returned a non-array payload.');
             }
 
-            $decoded['warnings'] = array_values(array_unique(array_merge(
-                $decoded['warnings'] ?? [],
-                ['Served by local Python runner because HTTP ML services were unavailable.']
-            )));
+            if ($stage !== 'batch') {
+                $decoded['warnings'] = array_values(array_unique(array_merge(
+                    $decoded['warnings'] ?? [],
+                    ['Served by local Python runner because HTTP ML services were unavailable.']
+                )));
+            }
 
             return $decoded;
         } catch (ProcessFailedException $e) {
@@ -332,12 +537,10 @@ class MlService
             return trim($configured);
         }
 
-        $candidates = [
+        foreach ([
             base_path('python/venv/Scripts/python.exe'),
             base_path('python/venv/bin/python'),
-        ];
-
-        foreach ($candidates as $candidate) {
+        ] as $candidate) {
             if (is_file($candidate)) {
                 return $candidate;
             }
@@ -348,9 +551,13 @@ class MlService
 
     private function pythonEnvironment(): array
     {
-        $env = [];
-        $modelsPath = env('ML_MODELS_PATH');
+        // Inherit the full parent process environment so Windows DLLs, Winsock,
+        // TEMP dirs, and PATH are all available inside the subprocess.
+        // Passing a sparse array would strip those variables and cause WinError 10106
+        // (Winsock provider init failure) and numba/asyncio corruption.
+        $env = getenv() ?: [];
 
+        $modelsPath = env('ML_MODELS_PATH');
         if (is_string($modelsPath) && trim($modelsPath) !== '') {
             $env['ML_MODELS_PATH'] = trim($modelsPath);
         }
@@ -359,6 +566,14 @@ class MlService
         if ($enableNotebookOverrides !== null) {
             $env['ENABLE_NOTEBOOK_OVERRIDES'] = (string) $enableNotebookOverrides;
         }
+
+        // Force numba to use the workqueue threading layer (pure-Python threads)
+        // instead of the default omp/tbb layer, which uses Windows socket-based IPC.
+        // This prevents WinError 10106 and asyncio state corruption when UMAP's
+        // reducer.transform() is called multiple times inside one subprocess.
+        $env['NUMBA_THREADING_LAYER'] = $env['NUMBA_THREADING_LAYER'] ?? 'workqueue';
+        $env['NUMBA_NUM_THREADS']     = $env['NUMBA_NUM_THREADS']     ?? '1';
+        $env['OMP_NUM_THREADS']       = $env['OMP_NUM_THREADS']       ?? '1';
 
         return $env;
     }
@@ -369,73 +584,79 @@ class MlService
         array $preprocessed,
         array $inferResult
     ): MlResult {
-        $cluster   = $inferResult['cluster'] ?? [];
-        $scores    = $inferResult['risk_scores'] ?? [];
-        $levels    = $inferResult['risk_levels'] ?? [];
+        $cluster = $inferResult['cluster']      ?? [];
+        $scores  = $inferResult['risk_scores']  ?? [];
+        $levels  = $inferResult['risk_levels']  ?? [];
+
+        // section_scores come from preprocessed in HTTP mode, or forwarded in inferResult in combined/batch mode
+        $sectionScores = $preprocessed['section_scores'] ?? $inferResult['section_scores'] ?? null;
 
         /** @var MlResult $mlResult */
         $mlResult = MlResult::updateOrCreate(
             ['senior_citizen_id' => $senior->id, 'qol_survey_id' => $survey->id],
             [
-                'model_version'    => 'v1',
-                'cluster_id'       => $cluster['raw_id'] ?? null,
-                'cluster_named_id' => $cluster['named_id'] ?? null,
-                'cluster_name'     => $cluster['name'] ?? null,
-                'ic_risk'          => $scores['ic_risk'] ?? null,
-                'env_risk'         => $scores['env_risk'] ?? null,
-                'func_risk'        => $scores['func_risk'] ?? null,
-                'composite_risk'   => $scores['composite_risk'] ?? null,
-                'wellbeing_score'  => $scores['wellbeing_score'] ?? null,
-                'ic_risk_level'    => $levels['ic'] ?? null,
-                'env_risk_level'   => $levels['env'] ?? null,
-                'func_risk_level'  => $levels['func'] ?? null,
+                'model_version'      => 'v1',
+                'cluster_id'         => $cluster['raw_id']   ?? null,
+                'cluster_named_id'   => $cluster['named_id'] ?? null,
+                'cluster_name'       => $cluster['name']     ?? null,
+                'ic_risk'            => $scores['ic_risk']         ?? null,
+                'env_risk'           => $scores['env_risk']        ?? null,
+                'func_risk'          => $scores['func_risk']       ?? null,
+                'composite_risk'     => $scores['composite_risk']  ?? null,
+                'wellbeing_score'    => $scores['wellbeing_score'] ?? null,
+                'ic_risk_level'      => $levels['ic']   ?? null,
+                'env_risk_level'     => $levels['env']  ?? null,
+                'func_risk_level'    => $levels['func'] ?? null,
                 'overall_risk_level' => $levels['overall'] ?? null,
-                'section_scores'   => $preprocessed['section_scores'] ?? null,
-                'raw_output'       => $inferResult,
-                'processed_at'     => now(),
+                'section_scores'     => $sectionScores,
+                'raw_output'         => $inferResult,
+                'processed_at'       => now(),
             ]
         );
 
-        // Persist recommendations
-        $mlResult->recommendations()->delete(); // clear old ones
+        // Clear old recommendations and insert fresh ones
+        $mlResult->recommendations()->delete();
+        $recs = [];
         foreach ($inferResult['recommendations'] ?? [] as $rec) {
-            Recommendation::create([
+            $recs[] = [
                 'ml_result_id'      => $mlResult->id,
                 'senior_citizen_id' => $senior->id,
                 'priority'          => $rec['priority'],
                 'type'              => $rec['type'],
-                'domain'            => $rec['domain'] ?? null,
-                'category'          => $rec['category'] ?? null,
+                'domain'            => $rec['domain']      ?? null,
+                'category'          => $rec['category']    ?? null,
                 'action'            => $rec['action'],
-                'urgency'           => $rec['urgency'] ?? null,
-                'risk_level'        => $rec['risk_level'] ?? null,
-            ]);
+                'urgency'           => $rec['urgency']     ?? null,
+                'risk_level'        => $rec['risk_level']  ?? null,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ];
+        }
+        if ($recs) {
+            Recommendation::insert($recs); // single INSERT for all rows
         }
 
         return $mlResult->fresh(['recommendations']);
     }
 
-    /**
-     * Heuristic fallback when Python service is unavailable.
-     */
     private function fallbackPreprocess(array $raw): array
     {
-        $age = (int) ($raw['age'] ?? 70);
+        $age      = (int) ($raw['age'] ?? 70);
         $wellbeing = 0.5;
 
         return [
-            'status'          => 'success_fallback',
-            'encoded_features'=> ['age' => $age],
-            'scaled_features' => array_fill(0, 35, 0.0),
-            'reduced_features'=> array_fill(0, 10, 0.0),
-            'section_scores'  => [
-                'sec1_age_risk'       => max(0, ($age - 60) / 40),
-                'sec2_family_support' => 0.5,
-                'sec3_hr_score'       => 0.5,
-                'sec4_dependency_risk'=> 0.3,
-                'sec5_eco_stability'  => 0.5,
-                'sec6_health_score'   => 0.5,
-                'overall_wellbeing'   => $wellbeing,
+            'status'           => 'success_fallback',
+            'encoded_features' => ['age' => $age],
+            'scaled_features'  => array_fill(0, 35, 0.0),
+            'reduced_features' => array_fill(0, 10, 0.0),
+            'section_scores'   => [
+                'sec1_age_risk'        => max(0, ($age - 60) / 40),
+                'sec2_family_support'  => 0.5,
+                'sec3_hr_score'        => 0.5,
+                'sec4_dependency_risk' => 0.3,
+                'sec5_eco_stability'   => 0.5,
+                'sec6_health_score'    => 0.5,
+                'overall_wellbeing'    => $wellbeing,
             ],
             'who_domain_scores' => [
                 'ic_score' => 3.0, 'env_score' => 3.0,
@@ -448,14 +669,15 @@ class MlService
     {
         $wellbeing = $preprocessed['section_scores']['overall_wellbeing'] ?? 0.5;
         $composite = round(1 - $wellbeing, 4);
-        $level = $composite > 0.75 ? 'CRITICAL' : ($composite > 0.65 ? 'HIGH' : ($composite > 0.45 ? 'MODERATE' : 'LOW'));
-        $clusterId = $composite > 0.65 ? 3 : ($composite > 0.45 ? 2 : 1);
+        // Thresholds mirror osca5.ipynb: CRITICAL>=0.65, HIGH>=0.45, MODERATE>=0.25, LOW<0.25
+        $level     = $composite >= 0.65 ? 'CRITICAL' : ($composite >= 0.45 ? 'HIGH' : ($composite >= 0.25 ? 'MODERATE' : 'LOW'));
+        $clusterId = $composite >= 0.45 ? 3 : ($composite >= 0.25 ? 2 : 1);
 
         return [
             'status'  => 'success_fallback',
             'cluster' => [
                 'raw_id' => $clusterId - 1, 'named_id' => $clusterId,
-                'name'   => ['','High Functioning','Moderate / Mixed Needs','Low Functioning / Multi-Domain Risk'][$clusterId],
+                'name'   => ['', 'High Functioning', 'Moderate / Mixed Needs', 'Low Functioning / Multi-Domain Risk'][$clusterId],
                 'ic' => 'Unknown', 'env' => 'Unknown', 'func' => 'Unknown',
             ],
             'risk_scores' => [
@@ -467,10 +689,13 @@ class MlService
                 'ic' => strtolower($level), 'env' => strtolower($level),
                 'func' => strtolower($level), 'overall' => $level,
             ],
+            'section_scores' => $preprocessed['section_scores'] ?? [],
             'recommendations' => [
-                ['priority' => 1, 'type' => 'general', 'category' => 'general',
-                 'action' => 'ML service unavailable. Please re-run analysis when service is restored.',
-                 'urgency' => 'planned', 'domain' => 'general'],
+                [
+                    'priority' => 1, 'type' => 'general', 'category' => 'general',
+                    'action'   => 'ML service unavailable. Please re-run analysis when service is restored.',
+                    'urgency'  => 'planned', 'domain' => 'general',
+                ],
             ],
             'warnings' => ['Python ML services are currently unreachable. Fallback heuristics used.'],
         ];

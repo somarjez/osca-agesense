@@ -40,9 +40,13 @@ class SeniorCitizen extends Model
         'income_source'          => 'array',
         'real_assets'            => 'array',
         'movable_assets'         => 'array',
-        'medical_concern'        => 'array',
+        'medical_concern'          => 'array',
+        'dental_concern'           => 'array',
+        'optical_concern'          => 'array',
+        'hearing_concern'          => 'array',
+        'healthcare_difficulty'    => 'array',
         'social_emotional_concern' => 'array',
-        'problems_needs'         => 'array',
+        'problems_needs'           => 'array',
     ];
 
     // ── Accessors ─────────────────────────────────────────────────────────────

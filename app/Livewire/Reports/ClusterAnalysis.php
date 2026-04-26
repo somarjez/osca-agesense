@@ -4,9 +4,12 @@ namespace App\Livewire\Reports;
 
 use App\Services\ClusterAnalyticsService;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class ClusterAnalysis extends Component
 {
+    use WithPagination;
+
     private ClusterAnalyticsService $clusterAnalytics;
 
     public string $selectedBarangay = '';
@@ -20,10 +23,16 @@ class ClusterAnalysis extends Component
 
     public function render()
     {
-        $results = $this->clusterAnalytics
-            ->latestResultsQuery($this->selectedBarangay ?: null)
+        $baseQuery = $this->clusterAnalytics
+            ->latestResultsQuery($this->selectedBarangay ?: null);
+
+        // Full collection for aggregate computations (charts, summaries)
+        $results = (clone $baseQuery)->get();
+
+        // Paginated records for the member table
+        $records = $baseQuery
             ->orderBy($this->sortBy, $this->sortDir)
-            ->get();
+            ->paginate(25);
 
         // Cluster summaries
         $clusterSummaries = $results->groupBy('cluster_named_id')->map(function ($group, $clusterId) {
@@ -79,7 +88,7 @@ class ClusterAnalysis extends Component
         ];
 
         return view('livewire.reports.cluster-analysis', compact(
-            'results', 'clusterSummaries', 'domainChart', 'riskByCluster', 'evalMetrics'
+            'results', 'records', 'clusterSummaries', 'domainChart', 'riskByCluster', 'evalMetrics'
         ));
     }
 
@@ -91,5 +100,11 @@ class ClusterAnalysis extends Component
             $this->sortBy  = $col;
             $this->sortDir = 'desc';
         }
+        $this->resetPage();
+    }
+
+    public function updatedSelectedBarangay(): void
+    {
+        $this->resetPage();
     }
 }
