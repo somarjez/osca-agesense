@@ -121,7 +121,7 @@
                         <td class="px-4 py-3 text-center">
                             <div class="flex items-center justify-center gap-1.5">
                                 <div class="w-14 bg-slate-100 rounded-full h-1.5">
-                                    <div class="h-1.5 rounded-full {{ $result->composite_risk > 0.65 ? 'bg-red-500' : ($result->composite_risk > 0.45 ? 'bg-amber-500' : 'bg-emerald-500') }}"
+                                    <div class="h-1.5 rounded-full {{ $result->composite_risk >= 0.65 ? 'bg-critical-500' : ($result->composite_risk >= 0.45 ? 'bg-high-500' : ($result->composite_risk >= 0.25 ? 'bg-moderate-500' : 'bg-low-500')) }}"
                                          style="width: {{ round($result->composite_risk * 100) }}%"></div>
                                 </div>
                                 <span class="text-xs font-mono text-slate-700">{{ number_format($result->composite_risk, 3) }}</span>

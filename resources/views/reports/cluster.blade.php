@@ -157,75 +157,85 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
     const clusterLabels  = ['C1: High Functioning', 'C2: Moderate/Mixed', 'C3: Low Functioning'];
     const clusterColors  = ['rgb(16,185,129)', 'rgb(245,158,11)', 'rgb(244,63,94)'];
     const clusterBgAlpha = ['rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)', 'rgba(244,63,94,0.2)'];
-
-    // Domain risk per cluster (grouped bar)
     const domainByCluster = @json($domainByCluster);
-    new Chart(document.getElementById('domainByClusterChart'), {
-        type: 'bar',
-        data: {
-            labels: ['IC Risk', 'Env Risk', 'Func Risk'],
-            datasets: [1,2,3].map((cid, i) => ({
-                label: clusterLabels[i],
-                data: [
-                    domainByCluster[cid]?.ic   ?? 0,
-                    domainByCluster[cid]?.env  ?? 0,
-                    domainByCluster[cid]?.func ?? 0,
-                ].map(v => +(v * 100).toFixed(1)),
-                backgroundColor: clusterBgAlpha[i],
-                borderColor: clusterColors[i],
-                borderWidth: 2,
-                borderRadius: 4,
-            }))
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { font: { size: 11 } } } },
-            scales: {
-                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } } },
-                x: { ticks: { font: { size: 10 } } },
-            }
-        }
-    });
+    const qolByCluster    = @json($qolByCluster);
 
-    // QoL domain scores per cluster (radar)
-    const qolByCluster = @json($qolByCluster);
-    new Chart(document.getElementById('qolByClusterChart'), {
-        type: 'radar',
-        data: {
-            labels: ['Physical','Psychological','Social','Financial','Environment','Overall'],
-            datasets: [1,2,3].map((cid, i) => ({
-                label: clusterLabels[i],
-                data: [
-                    qolByCluster[cid]?.physical        ?? 0,
-                    qolByCluster[cid]?.psychological    ?? 0,
-                    qolByCluster[cid]?.social           ?? 0,
-                    qolByCluster[cid]?.financial        ?? 0,
-                    qolByCluster[cid]?.environment      ?? 0,
-                    qolByCluster[cid]?.overall          ?? 0,
-                ].map(v => +(v * 100).toFixed(1)),
-                backgroundColor: clusterBgAlpha[i],
-                borderColor: clusterColors[i],
-                pointBackgroundColor: clusterColors[i],
-                borderWidth: 2,
-                pointRadius: 3,
-            }))
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { font: { size: 10 } } } },
-            scales: {
-                r: {
-                    min: 0, max: 100,
-                    ticks: { stepSize: 25, font: { size: 9 } },
-                    pointLabels: { font: { size: 9 } },
+    function upsert(id, config) {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const existing = Object.values(Chart.instances).find(c => c.canvas === canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, config);
+    }
+
+    function initClusterCharts() {
+        upsert('domainByClusterChart', {
+            type: 'bar',
+            data: {
+                labels: ['IC Risk', 'Env Risk', 'Func Risk'],
+                datasets: [1,2,3].map((cid, i) => ({
+                    label: clusterLabels[i],
+                    data: [
+                        domainByCluster[cid]?.ic   ?? 0,
+                        domainByCluster[cid]?.env  ?? 0,
+                        domainByCluster[cid]?.func ?? 0,
+                    ].map(v => +(v * 100).toFixed(1)),
+                    backgroundColor: clusterBgAlpha[i],
+                    borderColor: clusterColors[i],
+                    borderWidth: 2,
+                    borderRadius: 4,
+                }))
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { font: { size: 11 } } } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } } },
+                    x: { ticks: { font: { size: 10 } } },
                 }
             }
-        }
-    });
-});
+        });
+
+        upsert('qolByClusterChart', {
+            type: 'radar',
+            data: {
+                labels: ['Physical','Psychological','Social','Financial','Environment','Overall'],
+                datasets: [1,2,3].map((cid, i) => ({
+                    label: clusterLabels[i],
+                    data: [
+                        qolByCluster[cid]?.physical        ?? 0,
+                        qolByCluster[cid]?.psychological    ?? 0,
+                        qolByCluster[cid]?.social           ?? 0,
+                        qolByCluster[cid]?.financial        ?? 0,
+                        qolByCluster[cid]?.environment      ?? 0,
+                        qolByCluster[cid]?.overall          ?? 0,
+                    ].map(v => +(v * 100).toFixed(1)),
+                    backgroundColor: clusterBgAlpha[i],
+                    borderColor: clusterColors[i],
+                    pointBackgroundColor: clusterColors[i],
+                    borderWidth: 2,
+                    pointRadius: 3,
+                }))
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { font: { size: 10 } } } },
+                scales: {
+                    r: {
+                        min: 0, max: 100,
+                        ticks: { stepSize: 25, font: { size: 9 } },
+                        pointLabels: { font: { size: 9 } },
+                    }
+                }
+            }
+        });
+    }
+
+    document.addEventListener('livewire:navigated', () => setTimeout(initClusterCharts, 0));
+})();
 </script>
 @endpush

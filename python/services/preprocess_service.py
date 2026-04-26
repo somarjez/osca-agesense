@@ -122,6 +122,8 @@ HOUSEHOLD_RISK_WEIGHTS = {
     "high cost of rent": 0.80, "overcrowded": 0.70,
     "overcrowded in home": 0.70, "no privacy": 0.55,
     "longing for independent": 0.45, "longing for independent living": 0.45,
+    "shared with relatives": 0.25,
+    "government-provided": 0.20,
 }
 
 DISEASE_WEIGHTS = {
@@ -192,13 +194,13 @@ INCOME_RISK = {
 EDU_ORDER = [
     "Not Attended School", "Elementary Level", "Elementary Graduate",
     "High School Level", "High School Graduate", "Vocational",
-    "College Level", "College Graduate", "Post-Graduate"
+    "College Level", "College Graduate", "Post Graduate"
 ]
 
 INCOME_ORDER = [
     "Below 1,000", "1,000 - 5,000", "5,000 - 10,000",
     "10,000 - 20,000", "20,000 - 30,000", "30,000 - 40,000",
-    "40,000 - 50,000", "50,000 - 60,000", "60, 000 and above"
+    "40,000 - 50,000", "50,000 - 60,000", "60,000 and above"
 ]
 
 SECTION_WEIGHTS = {
@@ -225,7 +227,28 @@ QOL_FEATURE_COLS = [
 
 HEALTHY_FLAGS = {
     "none", "physically healthy", "healthy eyes", "healthy hearing",
-    "healthy teeth", "", "n/a", "nan"
+    "healthy teeth", "living in healthy environment",
+    "living in a healthy environment", "", "n/a", "nan"
+}
+
+SOCIAL_EMOTIONAL_WEIGHTS = {
+    "depressed":           0.80,
+    "depression":          0.80,
+    "anxiety":             0.70,
+    "helplessness":        0.70,
+    "worthlessness":       0.70,
+    "neglect":             0.65,
+    "rejection":           0.65,
+    "loneliness":          0.60,
+    "lonliness":           0.60,
+    "isolation":           0.60,
+    "lack social support": 0.55,
+    "lack leisure":        0.45,
+}
+
+SOCIAL_EMOTIONAL_HEALTHY = {
+    "living in healthy environment",
+    "living in a healthy environment",
 }
 
 
@@ -369,6 +392,35 @@ def _disease_severity_score(concern_value: Any) -> float:
     return min(score, 1.0)
 
 
+def _social_emotional_score(concern_value: Any) -> float:
+    if concern_value is None:
+        return 0.0
+    items = _as_list(concern_value)
+    if not items:
+        return 0.0
+
+    matched: List[float] = []
+    for item in items:
+        text = item.strip().lower()
+        if text in SOCIAL_EMOTIONAL_HEALTHY or text in HEALTHY_FLAGS:
+            continue
+        for kw, w in SOCIAL_EMOTIONAL_WEIGHTS.items():
+            if kw in text:
+                matched.append(w)
+                break
+        else:
+            matched.append(0.30)
+
+    if not matched:
+        return 0.0
+
+    matched.sort(reverse=True)
+    score = 0.0
+    for idx, w in enumerate(matched):
+        score += w * (0.4 ** idx)
+    return min(score, 1.0)
+
+
 def _health_concern_count(raw: Dict[str, Any]) -> int:
     groups = [
         _as_list(raw.get("medical_concern")),
@@ -395,7 +447,7 @@ def _domain_avg(enc: Dict[str, Any], keys: List[str]) -> float:
 def _compute_rule_based_risk(raw: Dict[str, Any], enc: Dict[str, Any], section_scores: Dict[str, float]) -> Dict[str, Any]:
     med_score = _disease_severity_score(raw.get("medical_concern", ""))
     den_score = _disease_severity_score(raw.get("dental_concern", ""))
-    soc_emo = _disease_severity_score(raw.get("social_emotional_concern", ""))
+    soc_emo = _social_emotional_score(raw.get("social_emotional_concern", ""))
     medical_domain = min(med_score * 0.65 + den_score * 0.15 + soc_emo * 0.20, 1.0)
 
     opt_score = _disease_severity_score(raw.get("optical_concern", ""))
@@ -820,13 +872,17 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
         scaled = ((arr - arr.mean()) / std).tolist()
 
     # 12. UMAP reduction
-    # `scaled` follows the exact order chosen for scaler input above.
-    reducer = _load_pickle_if_exists("umap_nd.pkl") or _load_pickle_if_exists("umap_reducer.pkl")
-    vif_features = _load_json_if_exists("vif_retained_features.json")
-    if reducer is not None:
-        try:
-            reduced = reducer.transform([scaled])[0].tolist()
-        except Exception:
+    # Skipped in batch mode (OSCA_BATCH_MODE=1) because infer() recalculates
+    # reduced_features from scratch and ignores this value anyway. Skipping
+    # avoids repeated numba JIT overhead for each senior in a batch loop.
+    if not os.environ.get("OSCA_BATCH_MODE"):
+        reducer = _load_pickle_if_exists("umap_nd.pkl") or _load_pickle_if_exists("umap_reducer.pkl")
+        if reducer is not None:
+            try:
+                reduced = reducer.transform([scaled])[0].tolist()
+            except Exception:
+                reduced = scaled[:10]
+        else:
             reduced = scaled[:10]
     else:
         reduced = scaled[:10]
@@ -868,6 +924,30 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "service": "osca-preprocessor"})
+
+
+@app.route("/batch_preprocess", methods=["POST"])
+def batch_preprocess_endpoint():
+    try:
+        batch = request.get_json(force=True)
+        if not isinstance(batch, list):
+            return jsonify({"status": "error", "message": "Expected JSON array"}), 400
+
+        results = []
+        for idx, item in enumerate(batch):
+            if not isinstance(item, dict):
+                results.append({"status": "error", "message": f"Item {idx} is not an object"})
+                continue
+            try:
+                results.append(preprocess(item))
+            except Exception as exc:
+                logger.exception("Batch preprocess error at index %d", idx)
+                results.append({"status": "error", "message": str(exc)})
+
+        return jsonify({"status": "success", "count": len(results), "results": results})
+    except Exception as exc:
+        logger.exception("Batch preprocessing error")
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @app.route("/preprocess", methods=["POST"])

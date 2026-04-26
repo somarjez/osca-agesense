@@ -5,19 +5,80 @@
 @section('content')
 <div class="space-y-5">
 
-    {{-- Health Cards --}}
-    <div class="grid grid-cols-2 gap-4">
-        @foreach ($health as $service => $status)
-        <div class="bg-white border {{ $status==='ok' ? 'border-emerald-200' : 'border-red-200' }} rounded-xl p-5 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl
-                {{ $status==='ok' ? 'bg-emerald-100' : 'bg-red-100' }}">
-                {{ $status==='ok' ? '✅' : '❌' }}
-            </div>
-            <div>
-                <p class="font-semibold text-slate-800 capitalize">{{ $service }} Service</p>
-                <p class="text-sm {{ $status==='ok' ? 'text-emerald-600' : 'text-red-600' }} font-medium">
-                    {{ strtoupper($status) }}
+    {{-- Mode banner --}}
+    @php $mode = $health['mode'] ?? 'php_fallback'; @endphp
+
+    <div class="card">
+        <div class="card-body flex items-center gap-4">
+            <div class="w-3 h-3 rounded-full flex-shrink-0
+                @if ($mode === 'http') bg-low-500
+                @elseif ($mode === 'local_python') bg-high-500
+                @else bg-critical-500
+                @endif"></div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <p class="font-semibold text-ink-900">
+                        @if ($mode === 'http') HTTP Services
+                        @elseif ($mode === 'local_python') Local Python Runner
+                        @else PHP Heuristic Fallback
+                        @endif
+                    </p>
+                    <span class="badge
+                        @if ($mode === 'http') badge-low
+                        @elseif ($mode === 'local_python') badge-high
+                        @else badge-critical
+                        @endif">
+                        @if ($mode === 'http') Online
+                        @elseif ($mode === 'local_python') Degraded
+                        @else Offline
+                        @endif
+                    </span>
+                </div>
+                <p class="text-sm text-ink-500">
+                    @if ($mode === 'http')
+                        Both Python microservices are reachable. Full ML pipeline is active.
+                    @elseif ($mode === 'local_python')
+                        HTTP services are down but a local Python environment is available. Analysis runs via subprocess.
+                    @else
+                        Python services unavailable. Results are computed using PHP rule-based heuristics.
+                    @endif
                 </p>
+            </div>
+            @if ($mode !== 'http')
+            <form method="POST" action="{{ route('ml.start') }}">
+                @csrf
+                <button type="submit" class="btn btn-primary flex-shrink-0">Start Services</button>
+            </form>
+            @endif
+        </div>
+    </div>
+
+    {{-- Service Health --}}
+    @php
+    $healthDisplay = [
+        'preprocessor' => ['label' => 'Preprocessor', 'port' => '5001', 'desc' => 'Feature pipeline'],
+        'inference'     => ['label' => 'Inference',    'port' => '5002', 'desc' => 'Cluster & risk model'],
+        'local_runner'  => ['label' => 'Local Python', 'port' => null,   'desc' => 'Subprocess fallback'],
+    ];
+    @endphp
+    <div class="grid grid-cols-3 gap-4">
+        @foreach ($healthDisplay as $key => $meta)
+        @php $status = $health[$key] ?? 'unknown'; $ok = in_array($status, ['ok', 'available']); @endphp
+        <div class="card">
+            <div class="card-body flex items-center gap-4">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
+                    {{ $ok ? 'bg-low-50' : 'bg-critical-50' }}">
+                    <div class="w-2.5 h-2.5 rounded-full {{ $ok ? 'bg-low-500' : 'bg-critical-500' }}"></div>
+                </div>
+                <div class="min-w-0">
+                    <p class="font-semibold text-sm text-ink-800">{{ $meta['label'] }}</p>
+                    @if ($meta['port'])
+                        <p class="text-xs text-ink-400">Port {{ $meta['port'] }} · {{ $meta['desc'] }}</p>
+                    @else
+                        <p class="text-xs text-ink-400">{{ $meta['desc'] }}</p>
+                    @endif
+                    <p class="text-xs font-semibold {{ $ok ? 'text-low-700' : 'text-critical-700' }} mt-0.5 capitalize">{{ $status }}</p>
+                </div>
             </div>
         </div>
         @endforeach
@@ -25,53 +86,48 @@
 
     {{-- Pipeline Stats --}}
     <div class="grid grid-cols-4 gap-4">
-        @foreach ([
-            ['Total Processed', $stats['total_processed'], '🤖'],
-            ['Critical Count',  $stats['critical_count'],  '🚨'],
-            ['Unprocessed',     $stats['unprocessed'],     '⏳'],
-            ['Last Run',        $stats['last_run'] ? \Carbon\Carbon::parse($stats['last_run'])->diffForHumans() : 'Never', '🕐'],
-        ] as [$label, $val, $icon])
-        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center">
-            <div class="text-2xl mb-2">{{ $icon }}</div>
-            <p class="text-2xl font-bold text-slate-800">{{ $val }}</p>
-            <p class="text-xs text-slate-500 mt-1">{{ $label }}</p>
-        </div>
-        @endforeach
+        <x-kpi label="Total Processed" :value="number_format($stats['total_processed'])" accent="forest" />
+        <x-kpi label="Critical Risk"   :value="number_format($stats['critical_count'])"  accent="critical" valueColor="text-critical-700" />
+        <x-kpi label="Unprocessed"     :value="number_format($stats['unprocessed'])"     accent="high"     valueColor="text-high-700" />
+        <x-kpi label="Last Run"        :value="$stats['last_run'] ? \Carbon\Carbon::parse($stats['last_run'])->diffForHumans() : 'Never'" accent="forest" />
     </div>
 
     {{-- Instructions --}}
-    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <h3 class="font-semibold text-slate-700 mb-3">Starting the Python Services</h3>
-        <div class="space-y-3 text-sm text-slate-600">
-            <div class="bg-slate-900 rounded-lg p-4 font-mono text-xs text-emerald-400 space-y-1">
-                <p><span class="text-slate-400"># Install dependencies</span></p>
-                <p>pip install flask scikit-learn numpy pandas umap-learn</p>
-                <p class="mt-2"><span class="text-slate-400"># Start Preprocessing Service (port 5001)</span></p>
-                <p>cd python/services && python preprocess_service.py</p>
-                <p class="mt-2"><span class="text-slate-400"># Start Inference Service (port 5002)</span></p>
-                <p>cd python/services && python inference_service.py</p>
-                <p class="mt-2"><span class="text-slate-400"># Or use the combined start script</span></p>
-                <p>bash python/start_services.sh</p>
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Starting the Python Services</div>
+                <div class="card-sub">Run these commands in a terminal from the project root</div>
             </div>
-            <p class="text-xs text-slate-400">
-                Services run on <code class="bg-slate-100 px-1 rounded">localhost:5001</code> (preprocessor) and
-                <code class="bg-slate-100 px-1 rounded">localhost:5002</code> (inference).
-                Configure <code class="bg-slate-100 px-1 rounded">PYTHON_SERVICE_URL</code> in .env to change the base URL.
+        </div>
+        <div class="card-body space-y-3">
+            <div class="bg-slate-900 rounded-lg p-4 font-mono text-xs text-emerald-400 space-y-1">
+                <p><span class="text-slate-400"># PowerShell — start both services (Windows)</span></p>
+                <p>cd python; .\start_services.ps1</p>
+                <p class="mt-2"><span class="text-slate-400"># Or start individually</span></p>
+                <p>cd python/services && python preprocess_service.py</p>
+                <p>cd python/services && python inference_service.py</p>
+            </div>
+            <p class="text-xs text-ink-400">
+                Services run on <code class="bg-paper-2 px-1 rounded">localhost:5001</code> (preprocessor) and
+                <code class="bg-paper-2 px-1 rounded">localhost:5002</code> (inference).
+                Configure <code class="bg-paper-2 px-1 rounded">PYTHON_SERVICE_URL</code> in .env to change the base URL.
             </p>
         </div>
     </div>
 
-    {{-- Batch action --}}
-    <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-center gap-4">
-        <span class="text-2xl">⚡</span>
-        <div class="flex-1">
-            <p class="font-semibold text-amber-900">{{ $stats['unprocessed'] }} senior(s) have no ML analysis yet.</p>
-            <p class="text-sm text-amber-700">Go to Batch Analysis to run the pipeline for all unprocessed seniors.</p>
+    {{-- Batch prompt --}}
+    @if ($stats['unprocessed'] > 0)
+    <div class="card">
+        <div class="card-body flex items-center gap-4">
+            <div class="flex-1">
+                <p class="font-semibold text-ink-900">{{ number_format($stats['unprocessed']) }} senior(s) have no ML analysis yet</p>
+                <p class="text-sm text-ink-500 mt-0.5">Run the full pipeline for all unprocessed seniors in Batch Analysis.</p>
+            </div>
+            <a href="{{ route('ml.batch') }}" class="btn btn-primary flex-shrink-0">Run Batch Analysis →</a>
         </div>
-        <a href="{{ route('ml.batch') }}"
-           class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 shadow-sm">
-            Run Batch →
-        </a>
     </div>
+    @endif
+
 </div>
 @endsection
