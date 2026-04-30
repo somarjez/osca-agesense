@@ -51,6 +51,15 @@ jobs:
           sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
           sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
 
+      - name: Create required Laravel storage directories
+        run: |
+          mkdir -p storage/framework/views
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/testing
+          mkdir -p storage/logs
+          chmod -R 775 storage bootstrap/cache
+
       - name: Cache Composer dependencies
         uses: actions/cache@v4
         with:
