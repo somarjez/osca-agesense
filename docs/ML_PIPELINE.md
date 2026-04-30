@@ -369,11 +369,13 @@ When `true`, the inference service matches each senior against a pre-exported `s
 
 ## Testing the Pipeline
 
-Run the integration test suite from the `python/services/` directory with the virtual environment activated:
+Run the integration test suite from the `python/tests/` directory with the virtual environment activated:
 
 ```bash
-cd python/services
-python test_ml_pipeline.py
+cd python
+venv\Scripts\activate      # Windows
+# source venv/bin/activate  # macOS/Linux
+python tests/test_ml_pipeline.py
 ```
 
 ### Test coverage
@@ -392,7 +394,9 @@ All tests must pass before deploying new model artefacts. A failed test 2 ("no h
 ### Manual single-senior test
 
 ```bash
-cd python/services
+cd python
+venv\Scripts\activate
+cd services
 echo '{"age":72,"gender":"Female","educational_attainment":"High School Graduate","monthly_income_range":"1,000 - 5,000","income_source":["own pension"],"real_assets":["house & lot"],"movable_assets":["mobile phone"],"living_with":["children"],"household_condition":[],"community_service":["senior citizen association member"],"specialization":["cooking"],"has_medical_checkup":true,"medical_concern":"hypertension","dental_concern":"tooth loss","optical_concern":"cataract","hearing_concern":"healthy hearing","social_emotional_concern":"loneliness","healthcare_difficulty":"cost","qol_responses":{"qol_enjoy_life":3,"qol_life_satisfaction":3,"qol_future_outlook":3,"qol_meaningfulness":3,"phy_energy":3,"phy_pain_r":3,"phy_health_limit_r":3,"phy_mobility_outside":3,"phy_mobility_indoor":4,"psych_happiness":3,"psych_peace":3,"psych_lonely_r":2,"psych_confidence":3,"func_independence":4,"func_autonomy":3,"func_control":3,"env_income_limit_r":2,"soc_social_support":3,"soc_close_friend":3,"soc_participation":3,"soc_opportunity":3,"soc_respect":4,"env_safe_home":4,"env_safe_neighborhood":4,"env_service_access":3,"env_home_comfort":3,"env_fin_medical":2,"env_fin_household":2,"env_fin_personal":2,"spi_belief_comfort":4,"spi_belief_practice":4}}' | python local_ml_runner.py combined
 ```
 

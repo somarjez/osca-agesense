@@ -25,6 +25,7 @@
 17. [Git Workflow for Collaborators](#git-workflow-for-collaborators)
 18. [Troubleshooting](#troubleshooting)
 19. [Notes for Future Developers](#notes-for-future-developers)
+20. [Additional Documentation](#additional-documentation)
 
 ---
 
@@ -511,14 +512,17 @@ osca-system/
 │       └── OscaSeeder.php                # Demo seeder: ~60 random seniors
 │
 ├── docs/
-│   ├── SYSTEM_FUNCTIONALITY.md          # Detailed system / thesis documentation
-│   └── ML_PIPELINE.md                   # ML architecture, data flow, model details
+│   ├── GIT_WORKFLOW.md                  # Step-by-step guide: clone, branch, commit, PR
+│   ├── ML_PIPELINE.md                   # ML architecture, data flow, model details
+│   └── SYSTEM_FUNCTIONALITY.md          # Detailed system / thesis documentation
 │
 ├── python/
 │   ├── services/
 │   │   ├── inference_service.py          # Flask: clustering + risk scoring + recommendations
 │   │   ├── local_ml_runner.py            # Subprocess runner (preprocess/infer/combined/batch)
-│   │   ├── preprocess_service.py         # Flask: feature engineering (port 5001)
+│   │   └── preprocess_service.py         # Flask: feature engineering (port 5001)
+│   ├── tests/
+│   │   ├── pyrightconfig.json            # Pyright/Pylance extra path for import resolution
 │   │   └── test_ml_pipeline.py           # Integration tests for the full ML pipeline
 │   ├── venv/                             # Python virtual environment (do not commit)
 │   ├── requirements.txt                  # Python package dependencies
@@ -709,7 +713,7 @@ python python/services/preprocess_service.py
 python python/services/inference_service.py
 
 # Run ML pipeline integration tests
-cd python/services && python test_ml_pipeline.py
+cd python && venv\Scripts\activate && python tests/test_ml_pipeline.py
 
 # Run a single batch inference test from the command line
 echo '[{"age":72,"gender":"Female",...}]' | python python/services/local_ml_runner.py batch
@@ -719,49 +723,65 @@ echo '[{"age":72,"gender":"Female",...}]' | python python/services/local_ml_runn
 
 ## Git Workflow for Collaborators
 
-### Rules
+> For the full step-by-step guide — including cloning, branch naming, commit format, PR creation, and common mistake fixes — see **[docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)**.
 
-- **Never push directly to `main`.**
-- **Never force-push to any shared branch.**
-- All changes must go through a Pull Request reviewed by at least one other contributor before merging.
-- Delete feature branches after merging.
+### Core rules (read these even if you skip the guide)
 
-### Branch naming convention
+- **Never push directly to `main`.** The branch is protected — direct pushes are blocked.
+- **Never force-push to a shared branch.**
+- All changes go through a Pull Request with at least one approval before merging.
+- Squash merge only — one commit per PR lands on `main`.
+- Delete your feature branch after it is merged.
+
+### Branch naming
 
 ```
-feature/short-description      # New feature or enhancement
-fix/short-description           # Bug fix
-chore/short-description         # Dependencies, tooling, docs, refactoring
-hotfix/short-description        # Urgent fix applied to production
+feat/short-description      # New feature or enhancement
+fix/short-description       # Bug fix
+chore/short-description     # Dependencies, tooling, docs, refactoring
+hotfix/short-description    # Urgent production fix
+docs/short-description      # Documentation only
+refactor/short-description  # Code restructuring, no behavior change
+test/short-description      # Test additions or fixes
 ```
 
-### Daily workflow
+### Quick daily flow
 
 ```bash
-# 1. Always start from an up-to-date main
+# Start of every session — always pull main first
 git checkout main
 git pull origin main
 
-# 2. Create a branch for your work
-git checkout -b feature/your-feature-name
+# Create a branch for your task
+git checkout -b feat/your-feature-name
 
-# 3. Commit frequently with clear messages
-git add path/to/changed/files
+# Stage specific files and commit
+git add path/to/changed/file.php
 git commit -m "feat: describe what was added"
 
-# 4. Push your branch and open a Pull Request
-git push origin feature/your-feature-name
+# Push and open a PR on GitHub
+git push -u origin feat/your-feature-name
 ```
 
-### Commit message format (Conventional Commits)
+### Commit message format (Conventional Commits — enforced by ruleset)
 
 ```
 feat: add barangay-level risk breakdown to dashboard
-fix: correct cluster chart disappearing on Livewire update
+fix: modal buttons invisible in dark mode due to CSS class remap
 chore: update Python requirements to latest compatible versions
-docs: document ML fallback strategy in README
+docs: add GIT_WORKFLOW guide for teammates
 refactor: extract cluster query helpers into ClusterAnalyticsService
+test: add batch KMeans validation to test_ml_pipeline.py
+ci: add python-ml-tests job to GitHub Actions workflow
 ```
+
+### Required CI checks (all must pass before merge)
+
+| Check | What it validates |
+|---|---|
+| `ci / php-checks` | PHP syntax, migrations, PHPUnit tests, no debug statements |
+| `ci / python-ml-tests` | Full ML pipeline integration tests |
+| `ci / js-build` | Frontend Vite build succeeds |
 
 ---
 
@@ -847,3 +867,14 @@ The migration `2026_04_25_000001_convert_health_concerns_to_json.php` converts h
 - **`store()` and `update()` controller stubs:** `SeniorCitizenController::store()` and `update()` are placeholders. Actual profile creation and editing are handled by the `ProfileSurvey` Livewire component. The stub methods should either be removed or clearly documented.
 
 - **`ENABLE_NOTEBOOK_OVERRIDES`:** When set to `true` in `.env`, the inference service attempts to match each senior to a pre-exported CSV of notebook predictions (`senior_predictions.csv`) and uses those values instead of live model output. This is a validation tool only — keep it `false` in production.
+
+---
+
+## Additional Documentation
+
+| Document | Description |
+|---|---|
+| [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) | Full teammate guide: clone, setup, branching, commits, PRs, do's and don'ts, common mistake fixes |
+| [docs/ML_PIPELINE.md](docs/ML_PIPELINE.md) | ML architecture deep-dive: feature engineering, clustering, risk ensemble, recommendations, fallback strategy |
+| [docs/SYSTEM_FUNCTIONALITY.md](docs/SYSTEM_FUNCTIONALITY.md) | Comprehensive system reference: all modules, data schema, capabilities, limitations, and thesis documentation |
+| [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | PR template auto-filled when opening a pull request on GitHub |

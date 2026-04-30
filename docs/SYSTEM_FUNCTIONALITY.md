@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-04-28 — Reflects Telescope removal, dead-code cleanup, batch optimisation, and corrected model/recommendation documentation.
+> **Last Updated:** 2026-04-30 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, and ML model update (UMAP, GBR/RFR retrain).
 
 ---
 
@@ -74,6 +74,8 @@ The following capabilities are fully implemented and operational in the current 
 | Auto-start Python services on `php artisan serve` | Implemented |
 | Three-tier ML fallback strategy | Implemented |
 | Senior citizen archive (soft-deleted records) management | Implemented |
+| QoL survey soft-delete cascade on senior archive | Implemented |
+| Archived QoL survey restore from archives page | Implemented |
 | CSV data import and ML pipeline seeding | Implemented |
 | Session-based authentication | Implemented |
 | Collapsible sidebar with dark mode toggle | Implemented |
