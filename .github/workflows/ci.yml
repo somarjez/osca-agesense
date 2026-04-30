@@ -40,16 +40,6 @@ jobs:
           extensions: mbstring, pdo, pdo_mysql, bcmath, json, tokenizer, xml, ctype, fileinfo
           coverage: none
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-
-
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
       - name: Copy .env
         run: cp .env.example .env
 
@@ -60,6 +50,16 @@ jobs:
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=password/' .env
           sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
           sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Generate app key
         run: php artisan key:generate
