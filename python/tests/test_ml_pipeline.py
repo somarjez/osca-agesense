@@ -192,10 +192,10 @@ def test_missing_asset_weights():
         _patch_model_dir(tmp)
         try:
             result = preprocess_service.preprocess(SAMPLE_SENIOR)
-            _check("no exception",        result.get("status") == "success")
-            _check("scaled_features present", len(result.get("scaled_features", [])) > 0)
+            _check("preprocessing succeeded", result.get("status") == "success")
+            _check("scaled_features present",  len(result.get("scaled_features", [])) > 0)
         except Exception as exc:
-            _check("no exception", False, str(exc))
+            _check("preprocessing succeeded", False, str(exc))
     finally:
         _patch_model_dir(orig_dir)
         shutil.rmtree(tmp, ignore_errors=True)
@@ -221,10 +221,10 @@ def test_missing_cluster_metadata():
         try:
             preprocessed = preprocess_service.preprocess(SAMPLE_SENIOR)
             result = inference_service.infer(preprocessed)
-            _check("no exception",        result.get("status") == "success")
+            _check("inference succeeded",    result.get("status") == "success")
             _check("cluster still returned", "cluster" in result)
         except Exception as exc:
-            _check("no exception", False, str(exc))
+            _check("inference succeeded", False, str(exc))
     finally:
         _patch_model_dir(orig_dir)
         shutil.rmtree(tmp, ignore_errors=True)
