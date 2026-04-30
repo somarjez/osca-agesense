@@ -76,6 +76,8 @@ class SeniorCitizenController extends Controller
 
     public function destroy(SeniorCitizen $senior)
     {
+        // Soft-delete all QoL surveys so the QoL index doesn't show them as orphans
+        $senior->qolSurveys()->each(fn($s) => $s->delete());
         $senior->delete();
         return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
     }
@@ -93,14 +95,32 @@ class SeniorCitizenController extends Controller
             ->latest('deleted_at')
             ->paginate(20)->withQueryString();
 
+        $archivedSurveys = \App\Models\QolSurvey::onlyTrashed()
+            ->with(['seniorCitizen' => fn($q) => $q->withTrashed()])
+            ->when($request->search, fn($q) =>
+                $q->whereHas('seniorCitizen', fn($q) => $q->withTrashed()->where(fn($q) =>
+                    $q->where('first_name', 'like', "%{$request->search}%")
+                      ->orWhere('last_name',  'like', "%{$request->search}%")
+                )))
+            ->when($request->barangay, fn($q) =>
+                $q->whereHas('seniorCitizen', fn($q) => $q->withTrashed()->where('barangay', $request->barangay))
+            )
+            ->latest('deleted_at')
+            ->paginate(20, ['*'], 'qol_page')->withQueryString();
+
         $barangays = SeniorCitizen::barangayList();
 
-        return view('seniors.archives', compact('seniors', 'barangays'));
+        return view('seniors.archives', compact('seniors', 'archivedSurveys', 'barangays'));
     }
 
     public function restore(int $id)
     {
-        SeniorCitizen::withTrashed()->findOrFail($id)->restore();
+        $senior = SeniorCitizen::withTrashed()->findOrFail($id);
+        // Restore QoL surveys that were soft-deleted when this senior was archived
+        \App\Models\QolSurvey::onlyTrashed()
+            ->where('senior_citizen_id', $senior->id)
+            ->each(fn($s) => $s->restore());
+        $senior->restore();
         return redirect()->route('seniors.archives')->with('success', 'Senior record restored to active.');
     }
 
@@ -108,7 +128,7 @@ class SeniorCitizenController extends Controller
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
 
-        foreach ($senior->qolSurveys()->get() as $survey) {
+        foreach ($senior->qolSurveys()->withTrashed()->get() as $survey) {
             if ($survey->mlResult) {
                 $survey->mlResult->recommendations()->delete();
                 $survey->mlResult->delete();

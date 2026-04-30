@@ -12,7 +12,7 @@ import json
 import sys
 import traceback
 
-from inference_service import infer
+from inference_service import batch_cluster_assign, infer
 from preprocess_service import preprocess
 
 MODES = {"preprocess", "infer", "combined", "batch"}
@@ -27,20 +27,44 @@ def run_combined(raw: dict) -> dict:
 def run_batch(payloads: list) -> list:
     """
     Process many seniors in one Python process.
-    Models are loaded once (lru_cache) and reused for all items.
-    OSCA_BATCH_MODE=1 is set so UMAP is skipped inside preprocess/infer,
-    which is the main bottleneck for large batches on Windows.
-    Returns list of {success, data} or {success, error}.
+
+    Pipeline:
+      1. Preprocess all seniors with OSCA_BATCH_MODE=1 (skips per-senior UMAP).
+      2. Run one batch UMAP + KMeans pass via batch_cluster_assign().
+         Each preprocessed dict gets _precomputed_raw_cluster_id injected.
+      3. Call infer() for each senior; it uses the precomputed cluster and
+         skips UMAP/KMeans entirely.
+
+    If batch UMAP/KMeans is unavailable or fails, infer() falls back to the
+    wellbeing-heuristic path transparently.
     """
     os.environ["OSCA_BATCH_MODE"] = "1"
-    results = []
+
+    # Step 1 — preprocess all seniors (UMAP skipped inside preprocess in batch mode)
+    preprocessed_list: list = []
     for item in payloads:
         try:
-            preprocessed = preprocess(item)
+            preprocessed_list.append(preprocess(item))
+        except Exception as exc:
+            preprocessed_list.append({"status": "error", "error": str(exc)})
+
+    # Step 2 — one-shot batch UMAP + KMeans; injects _precomputed_raw_cluster_id
+    cluster_warnings = batch_cluster_assign(preprocessed_list)
+    for w in cluster_warnings:
+        print(f"[batch_cluster_assign] {w}", file=sys.stderr)
+
+    # Step 3 — infer for each senior using precomputed cluster assignment
+    results: list = []
+    for preprocessed in preprocessed_list:
+        if isinstance(preprocessed, dict) and preprocessed.get("status") == "error":
+            results.append({"success": False, "error": preprocessed.get("error", "preprocessing failed")})
+            continue
+        try:
             result = infer(preprocessed)
             results.append({"success": True, "data": result})
         except Exception as exc:
             results.append({"success": False, "error": str(exc)})
+
     return results
 
 

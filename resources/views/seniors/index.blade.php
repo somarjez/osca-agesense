@@ -126,26 +126,31 @@
                                     @csrf @method('DELETE')
                                 </form>
                                 <div x-show="open" x-cloak
-                                     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                                     class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
                                      @keydown.escape.window="open = false">
-                                    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                    <div class="rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                         style="background:#ffffff; color:#1e293b;"
                                          @click.outside="open = false">
                                         <div class="flex items-start gap-3 mb-4">
-                                            <div class="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0 text-lg">📦</div>
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style="background:#fef3c7;">📦</div>
                                             <div>
-                                                <h3 class="font-semibold text-slate-800">Archive this record?</h3>
-                                                <p class="text-sm text-slate-500 mt-1">
-                                                    <strong>{{ $senior->full_name }}</strong> will be moved to Archives. Their data is preserved and can be restored at any time.
+                                                <h3 class="font-semibold" style="color:#1e293b;">Archive this record?</h3>
+                                                <p class="text-sm mt-1" style="color:#64748b;">
+                                                    <strong style="color:#334155;">{{ $senior->full_name }}</strong> will be moved to Archives. Their data is preserved and can be restored at any time.
                                                 </p>
                                             </div>
                                         </div>
-                                        <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
+                                        <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
                                             <button @click="open = false"
-                                                    class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                                    style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
+                                                    onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                                 Cancel
                                             </button>
                                             <button @click="$refs.archiveForm.submit()"
-                                                    class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition-colors">
+                                                    class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                                                    style="background:#d97706; color:#ffffff; border:1px solid #d97706;"
+                                                    onmouseover="this.style.background='#b45309'" onmouseout="this.style.background='#d97706'">
                                                 Archive
                                             </button>
                                         </div>

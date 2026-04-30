@@ -208,6 +208,8 @@
 .dark .bg-slate-200    { background-color: #2a3430; }
 .dark .bg-amber-50     { background-color: #2a2518; }
 .dark .bg-teal-50      { background-color: #0f2420; }
+.dark .bg-red-50       { background-color: #2a1515; }
+.dark .bg-red-100      { background-color: #321a1a; }
 
 /* Remap border utilities */
 .dark .border-slate-200 { border-color: #2b3530; }

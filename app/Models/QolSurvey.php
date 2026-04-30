@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class QolSurvey extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'senior_citizen_id','survey_version','survey_date',
         'a1_enjoy_life','a2_life_satisfaction','a3_future_outlook','a4_meaningfulness',

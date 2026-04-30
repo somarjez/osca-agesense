@@ -4,6 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
+> **Last Updated:** 2026-04-30 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, and ML model update (UMAP, GBR/RFR retrain).
 
 ---
 
@@ -59,7 +60,7 @@ The following capabilities are fully implemented and operational in the current 
 | K-Means clustering (K=3) with UMAP dimensionality reduction | Implemented |
 | Domain-specific risk scoring (IC, Environment, Functional) | Implemented |
 | Composite risk score and overall risk level classification | Implemented |
-| Prescriptive recommendation generation (domain + cluster + section-based) | Implemented |
+| Prescriptive recommendation generation (5 domain functions: health, financial, social, functional, hc_access) | Implemented |
 | Disease-specific recommendation actions (200+ disease entries) | Implemented |
 | Interactive dashboard with real-time KPIs and charts | Implemented |
 | Dashboard barangay and risk level filter | Implemented |
@@ -73,9 +74,15 @@ The following capabilities are fully implemented and operational in the current 
 | Auto-start Python services on `php artisan serve` | Implemented |
 | Three-tier ML fallback strategy | Implemented |
 | Senior citizen archive (soft-deleted records) management | Implemented |
+| QoL survey soft-delete cascade on senior archive | Implemented |
+| Archived QoL survey restore from archives page | Implemented |
 | CSV data import and ML pipeline seeding | Implemented |
 | Session-based authentication | Implemented |
 | Collapsible sidebar with dark mode toggle | Implemented |
+| GBR + RFR ensemble risk scoring (IC, ENV, FUNC, composite) | Implemented |
+| Batch UMAP + KMeans one-shot clustering (batch optimisation) | Implemented |
+| Runtime-configurable scoring weights via asset_weights.json | Implemented |
+| Runtime-configurable cluster metadata via cluster_metadata.json | Implemented |
 
 ---
 
@@ -507,35 +514,21 @@ Each score produces an associated risk level label. The `overall_risk_level` is 
 
 **Location:** `python/services/inference_service.py`
 
-The recommendation engine generates a prioritized list of actionable interventions for each senior based on three sources:
+The recommendation engine generates a prioritized list of actionable interventions for each senior. Recommendations are produced by five domain helper functions that each receive the model output (risk scores, risk levels, cluster assignment) and the senior's profile data, then return a list of structured recommendation dictionaries. The results from all five functions are merged, deduplicated, and sorted by priority before being persisted to the `recommendations` table.
 
-### Domain-Based Recommendations
+### Recommendation Generation Functions
 
-Triggered by domain-specific risk levels (ic_risk, env_risk, func_risk). Examples:
-
-- **IC Risk — CRITICAL:** Immediate medical referral, geriatric assessment, psychiatric evaluation
-- **ENV Risk — HIGH:** Social pension enrollment verification, financial assistance referral, housing improvement program
-- **FUNC Risk — MODERATE:** OT referral for ADL assessment, fall prevention program, community exercise program
-
-### Cluster-Based Recommendations
-
-Triggered by cluster assignment. Examples:
-
-- **Cluster 1 (High Functioning):** Maintain active lifestyle, volunteer opportunities, preventive health monitoring
-- **Cluster 2 (Moderate / Mixed):** Targeted program referrals, health monitoring schedule, community engagement
-- **Cluster 3 (Low Functioning):** Multi-domain urgent assessment, family/caregiver coordination, emergency support programs
-
-### Section-Based Recommendations
-
-Triggered by specific section score thresholds:
-
-- `sec1_age_risk` (80+ age): Fall prevention protocol, cognitive monitoring, palliative care readiness
-- `sec4_dependency_risk` (high): Housing assistance, accessible environment assessment
-- `sec2_family_support` (low): Supplemental feeding program, social pension eligibility review
+| Function | Category | Driven By |
+|---|---|---|
+| `generate_health_recs(result, profile)` | `health` | `ic_risk_level`, medical concerns list (200+ disease entries), checkup status |
+| `financial_actions(result, profile)` | `financial` | `env_risk_level`, income sources, asset scores, household condition |
+| `social_actions(result, profile)` | `social` | `env_risk_level`, living arrangement, social support QoL items, community engagement |
+| `functional_actions(result, profile)` | `functional` | `func_risk_level`, mobility/independence QoL items, dependency section score |
+| `hc_access_actions(result, profile)` | `hc_access` | `env_risk_level`, healthcare access difficulty flags, transport barriers |
 
 ### Disease-Specific Recommendations
 
-Triggered by entries in the `medical_concern` multi-select field. The system contains mappings for over 200 disease/condition entries, including:
+`generate_health_recs` contains mappings for over 200 disease/condition entries in the `medical_concern` multi-select field, including:
 
 - **Coronary Heart Disease:** Cardiology referral, BP/HR monitoring, cardiac diet counseling, PhilHealth Z-Benefit enrollment
 - **Diabetes Mellitus:** Endocrinology referral, blood glucose monitoring, diet counseling
@@ -544,6 +537,17 @@ Triggered by entries in the `medical_concern` multi-select field. The system con
 - **Hypertension:** BP monitoring schedule, cardiologist referral if uncontrolled
 - **Cancer:** Oncology referral, palliative care if stage III+, PhilHealth Z-Benefit
 
+### Urgency Mapping
+
+Urgency is assigned per recommendation based on the risk level that triggered it:
+
+| Risk Level | Urgency |
+|---|---|
+| CRITICAL | `immediate` |
+| HIGH | `urgent` |
+| MODERATE | `planned` |
+| LOW | `maintenance` |
+
 ### Recommendation Structure
 
 Each recommendation record contains:
@@ -551,7 +555,7 @@ Each recommendation record contains:
 | Field | Description |
 |---|---|
 | `priority` | Integer rank (1 = most urgent) |
-| `type` | Source type: `cluster`, `domain`, `section`, or `general` |
+| `type` | Source type: `domain` or `general` |
 | `domain` | Relevant WHO domain: `ic`, `env`, `func`, or `general` |
 | `category` | Action category: `health`, `financial`, `social`, `functional`, `hc_access`, `general` |
 | `action` | Plain-language description of the recommended action |

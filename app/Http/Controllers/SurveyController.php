@@ -52,6 +52,12 @@ class SurveyController extends Controller
             ->with('success', 'QoL survey deleted.');
     }
 
+    public function qolRestore(int $id)
+    {
+        QolSurvey::onlyTrashed()->findOrFail($id)->restore();
+        return redirect()->route('seniors.archives')->with('success', 'QoL survey restored.');
+    }
+
     public function qolResults(QolSurvey $survey)
     {
         $survey->load(['mlResult.recommendations']);

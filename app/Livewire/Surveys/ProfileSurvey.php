@@ -285,7 +285,8 @@ class ProfileSurvey extends Component
             'Chronic Kidney Disease','Alzheimer\'s / Dementia','COPD',
             'Asthma','Stroke','Osteoporosis','Parkinson\'s Disease','Cancer',
             'Tuberculosis (TB)','UTI','Anemia','Physical Disability',
-            'Mental Health Condition (Depression / Anxiety)','Physically Healthy',
+            'Mental Health Condition (Depression / Anxiety)','Other Chronic Disease',
+            'Physically Healthy',
         ];
     }
 

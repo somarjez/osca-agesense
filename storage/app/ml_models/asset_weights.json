@@ -104,7 +104,9 @@
     "overcrowded in home": 0.7,
     "no privacy": 0.55,
     "longing for independent": 0.45,
-    "longing for independent living": 0.45
+    "longing for independent living": 0.45,
+    "shared with relatives": 0.25,
+    "government-provided": 0.2
   },
   "section_weights": {
     "sec1": 0.05,

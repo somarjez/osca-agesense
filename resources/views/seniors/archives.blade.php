@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('page-title', 'Archived Records')
-@section('page-subtitle', 'Soft-deleted senior citizen records — restore or permanently remove')
+@section('page-subtitle', 'Soft-deleted senior citizen records and QoL surveys — restore or permanently remove')
 
 @section('content')
 <div class="space-y-6">
@@ -85,27 +85,32 @@
                                 <div x-show="open" x-cloak
                                      class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
                                      @keydown.escape.window="open = false">
-                                    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                    <div class="rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                         style="background:#ffffff; color:#1e293b;"
                                          @click.outside="open = false">
                                         <div class="flex items-start gap-3 mb-4">
-                                            <div class="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-lg">🗑️</div>
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style="background:#fee2e2;">🗑️</div>
                                             <div>
-                                                <h3 class="font-semibold text-red-700">Permanently delete this record?</h3>
-                                                <p class="text-sm text-slate-600 mt-1">
-                                                    <strong>{{ $senior->full_name }}</strong> and all associated data — QoL surveys, ML results, and recommendations — will be permanently erased.
+                                                <h3 class="font-semibold" style="color:#b91c1c;">Permanently delete this record?</h3>
+                                                <p class="text-sm mt-1" style="color:#475569;">
+                                                    <strong style="color:#334155;">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, ML results, and recommendations — will be permanently erased.
                                                 </p>
-                                                <p class="text-xs font-semibold text-red-600 mt-2 bg-red-50 px-3 py-1.5 rounded-lg">
+                                                <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg" style="color:#dc2626; background:#fef2f2;">
                                                     ⚠ This action cannot be undone.
                                                 </p>
                                             </div>
                                         </div>
-                                        <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
+                                        <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
                                             <button @click="open = false"
-                                                    class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                                    style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
+                                                    onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                                 Cancel
                                             </button>
                                             <button @click="$refs.deleteForm.submit()"
-                                                    class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
+                                                    class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                                                    style="background:#dc2626; color:#ffffff; border:1px solid #dc2626;"
+                                                    onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                                 Delete Forever
                                             </button>
                                         </div>
@@ -129,6 +134,83 @@
         @if ($seniors->hasPages())
         <div class="border-t border-paper-rule px-5 py-3">
             {{ $seniors->links() }}
+        </div>
+        @endif
+    </div>
+
+    {{-- ── Archived QoL Surveys ── --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-4 border-b border-paper-rule flex items-center justify-between">
+            <div>
+                <div class="font-semibold text-ink-900">Archived QoL Surveys</div>
+                <div class="text-xs text-ink-400 mt-0.5">Surveys archived when a senior was moved to archives</div>
+            </div>
+            <span class="badge badge-neutral">{{ $archivedSurveys->total() }} total</span>
+        </div>
+        <table class="w-full">
+            <thead>
+                <tr>
+                    <th class="th">Senior</th>
+                    <th class="th">Barangay</th>
+                    <th class="th text-center">Survey Date</th>
+                    <th class="th text-center">Overall Score</th>
+                    <th class="th text-center">Status</th>
+                    <th class="th text-center">Archived On</th>
+                    <th class="th text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($archivedSurveys as $survey)
+                <tr class="group hover:bg-paper-2 transition-colors">
+                    <td class="td font-medium text-ink-600">{{ $survey->seniorCitizen?->full_name ?? '—' }}</td>
+                    <td class="td text-ink-400">{{ $survey->seniorCitizen?->barangay ?? '—' }}</td>
+                    <td class="td text-center text-ink-500">{{ $survey->survey_date?->format('M j, Y') }}</td>
+                    <td class="td text-center">
+                        @if ($survey->overall_score !== null)
+                            <span class="font-mono text-sm font-semibold text-ink-700">{{ round($survey->overall_score * 100, 1) }}%</span>
+                        @else
+                            <span class="text-ink-300 text-xs">—</span>
+                        @endif
+                    </td>
+                    <td class="td text-center">
+                        <span class="badge {{ match($survey->status) {
+                            'processed'  => 'badge-low',
+                            'submitted'  => 'badge-info',
+                            'draft'      => 'badge-neutral',
+                            default      => 'badge-neutral',
+                        } }}">{{ ucfirst($survey->status) }}</span>
+                    </td>
+                    <td class="td text-center text-ink-400 text-[12px]">{{ $survey->deleted_at?->format('M j, Y') }}</td>
+                    <td class="td">
+                        <div class="flex items-center justify-end gap-1.5">
+                            {{-- Only allow restoring the survey if the senior is also restored --}}
+                            @if ($survey->seniorCitizen && !$survey->seniorCitizen->trashed())
+                            <form method="POST" action="{{ route('surveys.qol.restore', $survey->id) }}">
+                                @csrf
+                                <button type="submit"
+                                        class="btn btn-ghost text-[11.5px] px-2 py-1 text-forest-700 hover:text-forest-900 hover:bg-forest-50">
+                                    Restore
+                                </button>
+                            </form>
+                            @else
+                            <span class="text-[11.5px] text-ink-300 px-2 py-1">Restore senior first</span>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="7" class="td text-center py-10">
+                        <p class="text-ink-400 text-sm">No archived QoL surveys.</p>
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        @if ($archivedSurveys->hasPages())
+        <div class="border-t border-paper-rule px-5 py-3">
+            {{ $archivedSurveys->links() }}
         </div>
         @endif
     </div>

@@ -173,6 +173,7 @@ DISEASE_WEIGHTS = {
     "dental": 0.40,
     "physical disability": 0.75,
     "anemia": 0.55,
+    "other chronic disease": 0.65,
     "__default__": 0.50,
 }
 
@@ -194,7 +195,7 @@ INCOME_RISK = {
 EDU_ORDER = [
     "Not Attended School", "Elementary Level", "Elementary Graduate",
     "High School Level", "High School Graduate", "Vocational",
-    "College Level", "College Graduate", "Post Graduate"
+    "College Level", "College Graduate", "Post-Graduate"
 ]
 
 INCOME_ORDER = [
@@ -251,6 +252,16 @@ SOCIAL_EMOTIONAL_HEALTHY = {
     "living in a healthy environment",
 }
 
+# Short section-weight keys used in asset_weights.json → internal key names
+_SECTION_KEY_MAP: Dict[str, str] = {
+    "sec1": "sec1_age_risk",
+    "sec2": "sec2_family_support",
+    "sec3": "sec3_hr_score",
+    "sec4": "sec4_dependency_risk",
+    "sec5": "sec5_eco_stability",
+    "sec6": "sec6_health_score",
+}
+
 
 # ── Loaders ───────────────────────────────────────────────────────────────────
 @lru_cache(maxsize=None)
@@ -269,6 +280,84 @@ def _load_pickle_if_exists(filename: str) -> Optional[Any]:
         return None
     with open(path, "rb") as f:
         return pickle.load(f)
+
+
+@lru_cache(maxsize=1)
+def _runtime_weights() -> Dict[str, Any]:
+    """
+    Merge asset_weights.json from MODEL_DIR over the hardcoded defaults.
+    Returns a unified weights namespace keyed by type. Cached after first call.
+    Falls back silently to hardcoded defaults when the file is absent or malformed.
+    """
+    data = _load_json_if_exists("asset_weights.json")
+
+    if not data or not isinstance(data, dict):
+        logger.info("asset_weights.json missing or empty; using hardcoded defaults.")
+        return {
+            "real_asset":      dict(REAL_ASSET_WEIGHTS),
+            "movable_asset":   dict(MOVABLE_ASSET_WEIGHTS),
+            "income_source":   dict(INCOME_SOURCE_WEIGHTS),
+            "community":       dict(COMMUNITY_WEIGHTS),
+            "skill":           dict(SKILL_WEIGHTS),
+            "household_risk":  dict(HOUSEHOLD_RISK_WEIGHTS),
+            "disease":         dict(DISEASE_WEIGHTS),
+            "domain":          dict(DOMAIN_WEIGHTS),
+            "income_risk":     dict(INCOME_RISK),
+            "section":         dict(SECTION_WEIGHTS),
+            "social_emotional": dict(SOCIAL_EMOTIONAL_WEIGHTS),
+        }
+
+    def _merge(default: Dict[str, float], json_key: str) -> Dict[str, float]:
+        raw = data.get(json_key) or {}
+        if not isinstance(raw, dict):
+            return dict(default)
+        return {**default, **{str(k).lower(): float(v)
+                               for k, v in raw.items()
+                               if isinstance(v, (int, float))}}
+
+    # Section weights: JSON uses short keys sec1..sec6; remap to internal names.
+    json_sec = data.get("section_weights") or {}
+    merged_section: Dict[str, float] = dict(SECTION_WEIGHTS)
+    for json_k, internal_k in _SECTION_KEY_MAP.items():
+        if json_k in json_sec:
+            try:
+                merged_section[internal_k] = float(json_sec[json_k])
+            except (TypeError, ValueError):
+                pass
+    # Also accept full internal key names directly.
+    for k in SECTION_WEIGHTS:
+        if k in json_sec:
+            try:
+                merged_section[k] = float(json_sec[k])
+            except (TypeError, ValueError):
+                pass
+
+    # income_risk maps integer band (1-9) → float risk score.
+    raw_ir = data.get("income_risk")
+    if isinstance(raw_ir, dict):
+        merged_ir: Dict[int, float] = dict(INCOME_RISK)
+        for k, v in raw_ir.items():
+            try:
+                merged_ir[int(k)] = float(v)
+            except (TypeError, ValueError):
+                pass
+    else:
+        merged_ir = dict(INCOME_RISK)
+
+    logger.info("asset_weights.json loaded successfully.")
+    return {
+        "real_asset":      _merge(REAL_ASSET_WEIGHTS,     "real_assets"),
+        "movable_asset":   _merge(MOVABLE_ASSET_WEIGHTS,  "movable_assets"),
+        "income_source":   _merge(INCOME_SOURCE_WEIGHTS,  "income_sources"),
+        "community":       _merge(COMMUNITY_WEIGHTS,       "community"),
+        "skill":           _merge(SKILL_WEIGHTS,           "skills"),
+        "household_risk":  _merge(HOUSEHOLD_RISK_WEIGHTS, "household_risk"),
+        "disease":         _merge(DISEASE_WEIGHTS,         "disease_weights"),
+        "domain":          _merge(DOMAIN_WEIGHTS,          "domain_weights"),
+        "income_risk":     merged_ir,
+        "section":         merged_section,
+        "social_emotional": _merge(SOCIAL_EMOTIONAL_WEIGHTS, "social_emotional_weights"),
+    }
 
 
 # ── Normalizers ───────────────────────────────────────────────────────────────
@@ -300,14 +389,6 @@ def _safe_int(value: Any, default: int = 0) -> int:
     except (TypeError, ValueError):
         return default
 
-
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        if value is None or value == "":
-            return default
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _safe_bool(value: Any, default: bool = False) -> bool:
@@ -353,13 +434,13 @@ def _multiselect_count(values: Any) -> int:
     return len(_as_list(values))
 
 
-def _score_household_risk(values: Any) -> float:
+def _score_household_risk(values: Any, hw: Optional[Dict[str, float]] = None) -> float:
     text = _as_text(values).lower()
     if not text:
         return 0.0
-
+    weights = hw if hw is not None else HOUSEHOLD_RISK_WEIGHTS
     max_risk = 0.0
-    for key, risk in HOUSEHOLD_RISK_WEIGHTS.items():
+    for key, risk in weights.items():
         if key in text:
             max_risk = max(max_risk, risk)
     return round(max_risk, 4)
@@ -372,18 +453,18 @@ def _ordinal_encode(value: str, ordered_list: List[str]) -> int:
         return 0
 
 
-def _disease_severity_score(concern_value: Any) -> float:
+def _disease_severity_score(concern_value: Any, dw: Optional[Dict[str, float]] = None) -> float:
     text = _as_text(concern_value).strip().lower()
     if text in HEALTHY_FLAGS:
         return 0.0
-
+    weights = dw if dw is not None else DISEASE_WEIGHTS
     matched_weights = [
         weight
-        for keyword, weight in DISEASE_WEIGHTS.items()
+        for keyword, weight in weights.items()
         if keyword != "__default__" and keyword in text
     ]
     if not matched_weights:
-        return DISEASE_WEIGHTS["__default__"]
+        return weights.get("__default__", DISEASE_WEIGHTS["__default__"])
 
     matched_weights.sort(reverse=True)
     score = 0.0
@@ -392,19 +473,19 @@ def _disease_severity_score(concern_value: Any) -> float:
     return min(score, 1.0)
 
 
-def _social_emotional_score(concern_value: Any) -> float:
+def _social_emotional_score(concern_value: Any, sw: Optional[Dict[str, float]] = None) -> float:
     if concern_value is None:
         return 0.0
     items = _as_list(concern_value)
     if not items:
         return 0.0
-
+    weights = sw if sw is not None else SOCIAL_EMOTIONAL_WEIGHTS
     matched: List[float] = []
     for item in items:
         text = item.strip().lower()
         if text in SOCIAL_EMOTIONAL_HEALTHY or text in HEALTHY_FLAGS:
             continue
-        for kw, w in SOCIAL_EMOTIONAL_WEIGHTS.items():
+        for kw, w in weights.items():
             if kw in text:
                 matched.append(w)
                 break
@@ -444,10 +525,20 @@ def _domain_avg(enc: Dict[str, Any], keys: List[str]) -> float:
 
 
 # ── Rule-based risk engine ────────────────────────────────────────────────────
-def _compute_rule_based_risk(raw: Dict[str, Any], enc: Dict[str, Any], section_scores: Dict[str, float]) -> Dict[str, Any]:
-    med_score = _disease_severity_score(raw.get("medical_concern", ""))
-    den_score = _disease_severity_score(raw.get("dental_concern", ""))
-    soc_emo = _social_emotional_score(raw.get("social_emotional_concern", ""))
+def _compute_rule_based_risk(
+    raw: Dict[str, Any],
+    enc: Dict[str, Any],
+    section_scores: Dict[str, float],
+    W: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    dw  = W["disease"]         if W is not None else None
+    sw  = W["social_emotional"] if W is not None else None
+    income_risk_map = W["income_risk"] if W is not None else INCOME_RISK
+    domain_wt       = W["domain"]      if W is not None else DOMAIN_WEIGHTS
+
+    med_score = _disease_severity_score(raw.get("medical_concern", ""), dw)
+    den_score = _disease_severity_score(raw.get("dental_concern", ""), dw)
+    soc_emo   = _social_emotional_score(raw.get("social_emotional_concern", ""), sw)
     medical_domain = min(med_score * 0.65 + den_score * 0.15 + soc_emo * 0.20, 1.0)
 
     opt_score = _disease_severity_score(raw.get("optical_concern", ""))
@@ -455,7 +546,7 @@ def _compute_rule_based_risk(raw: Dict[str, Any], enc: Dict[str, Any], section_s
     sensory_domain = min(opt_score * 0.55 + hear_score * 0.45, 1.0)
 
     income_enc_val = int(min(max(enc.get("income_enc", 5), 1), 9))
-    income_risk_val = INCOME_RISK.get(income_enc_val, 0.50)
+    income_risk_val = income_risk_map.get(income_enc_val, 0.50)
 
     eco_stability = section_scores.get("sec5_eco_stability", 0.5)
     real_asset_s = section_scores.get("sec5_real_asset_score", 0.3)
@@ -545,13 +636,13 @@ def _compute_rule_based_risk(raw: Dict[str, Any], enc: Dict[str, Any], section_s
     )
 
     composite = (
-        medical_domain * DOMAIN_WEIGHTS["medical"] +
-        financial_domain * DOMAIN_WEIGHTS["financial"] +
-        social_domain * DOMAIN_WEIGHTS["social"] +
-        hc_access_domain * DOMAIN_WEIGHTS["hc_access"] +
-        housing_domain * DOMAIN_WEIGHTS["housing"] +
-        functional_domain * DOMAIN_WEIGHTS["functional"] +
-        sensory_domain * DOMAIN_WEIGHTS["sensory"]
+        medical_domain   * domain_wt["medical"] +
+        financial_domain * domain_wt["financial"] +
+        social_domain    * domain_wt["social"] +
+        hc_access_domain * domain_wt["hc_access"] +
+        housing_domain   * domain_wt["housing"] +
+        functional_domain * domain_wt["functional"] +
+        sensory_domain   * domain_wt["sensory"]
     )
 
     level = (
@@ -576,6 +667,7 @@ def _compute_rule_based_risk(raw: Dict[str, Any], enc: Dict[str, Any], section_s
 
 # ── Main preprocessing ────────────────────────────────────────────────────────
 def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
+    W   = _runtime_weights()
     enc: Dict[str, Any] = {}
 
     # 1. Demographic
@@ -591,7 +683,8 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     edu_encoder = _load_pickle_if_exists("edu_encoder.pkl")
     if edu_encoder is not None:
         try:
-            enc["education_enc"] = int(edu_encoder.transform([edu_raw])[0])
+            val = int(edu_encoder.transform([[edu_raw]])[0][0])
+            enc["education_enc"] = val + 1 if val >= 0 else _ordinal_encode(edu_raw, EDU_ORDER)
         except Exception:
             enc["education_enc"] = _ordinal_encode(edu_raw, EDU_ORDER)
     else:
@@ -600,7 +693,8 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     income_encoder = _load_pickle_if_exists("income_encoder.pkl")
     if income_encoder is not None:
         try:
-            enc["income_enc"] = int(income_encoder.transform([inc_raw])[0])
+            val = int(income_encoder.transform([[inc_raw]])[0][0])
+            enc["income_enc"] = val + 1 if val >= 0 else _ordinal_encode(inc_raw, INCOME_ORDER)
         except Exception:
             enc["income_enc"] = _ordinal_encode(inc_raw, INCOME_ORDER)
     else:
@@ -636,11 +730,11 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     specialization = _as_list(raw.get("specialization"))
 
     enc["income_source_count"] = _multiselect_count(income_sources)
-    enc["income_source_score"] = _weighted_score(income_sources, INCOME_SOURCE_WEIGHTS)
-    enc["real_asset_score"] = _weighted_score(real_assets, REAL_ASSET_WEIGHTS)
-    enc["movable_asset_score"] = _weighted_score(movable_assets, MOVABLE_ASSET_WEIGHTS)
-    enc["living_with_count"] = _multiselect_count(living_with)
-    enc["household_risk_score"] = _score_household_risk(household_condition)
+    enc["income_source_score"] = _weighted_score(income_sources, W["income_source"])
+    enc["real_asset_score"]    = _weighted_score(real_assets,    W["real_asset"])
+    enc["movable_asset_score"] = _weighted_score(movable_assets, W["movable_asset"])
+    enc["living_with_count"]   = _multiselect_count(living_with)
+    enc["household_risk_score"] = _score_household_risk(household_condition, W["household_risk"])
     enc["community_service_count"] = _multiselect_count(community_service)
     enc["specialization_count"] = _multiselect_count(specialization)
 
@@ -689,9 +783,9 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     )
     section_scores["sec2_family_size_norm"] = round(household_size_norm, 4)
 
-    education_norm = enc["education_enc"] / 9 if enc["education_enc"] else 0.0
-    skill_score = _weighted_score(specialization, SKILL_WEIGHTS)
-    community_score = _weighted_score(community_service, COMMUNITY_WEIGHTS)
+    education_norm  = enc["education_enc"] / 9 if enc["education_enc"] else 0.0
+    skill_score     = _weighted_score(specialization,    W["skill"])
+    community_score = _weighted_score(community_service, W["community"])
 
     section_scores["sec3_education_norm"] = round(education_norm, 4)
     section_scores["sec3_skill_score"] = round(skill_score, 4)
@@ -749,13 +843,14 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     section_scores["sec6_psy_score"] = round(float(sec6_psy), 4)
     section_scores["sec6_func_score"] = round(float(sec6_func), 4)
 
+    SW = W["section"]
     overall = (
-        (1 - section_scores["sec1_age_risk"]) * SECTION_WEIGHTS["sec1_age_risk"] +
-        section_scores["sec2_family_support"] * SECTION_WEIGHTS["sec2_family_support"] +
-        section_scores["sec3_hr_score"] * SECTION_WEIGHTS["sec3_hr_score"] +
-        (1 - section_scores["sec4_dependency_risk"]) * SECTION_WEIGHTS["sec4_dependency_risk"] +
-        section_scores["sec5_eco_stability"] * SECTION_WEIGHTS["sec5_eco_stability"] +
-        section_scores["sec6_health_score"] * SECTION_WEIGHTS["sec6_health_score"]
+        (1 - section_scores["sec1_age_risk"])      * SW["sec1_age_risk"] +
+        section_scores["sec2_family_support"]       * SW["sec2_family_support"] +
+        section_scores["sec3_hr_score"]             * SW["sec3_hr_score"] +
+        (1 - section_scores["sec4_dependency_risk"]) * SW["sec4_dependency_risk"] +
+        section_scores["sec5_eco_stability"]        * SW["sec5_eco_stability"] +
+        section_scores["sec6_health_score"]         * SW["sec6_health_score"]
     )
     section_scores["overall_wellbeing"] = round(max(0.0, min(1.0, overall)), 4)
 
@@ -820,7 +915,7 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     enc["qol_score"] = who_domain_scores["qol_score"]
 
     # 8. Rule-based risk components
-    rule_scores = _compute_rule_based_risk(raw, enc, section_scores)
+    rule_scores = _compute_rule_based_risk(raw, enc, section_scores, W)
     for key, value in rule_scores.items():
         enc[key] = value
 
@@ -834,8 +929,6 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
         "community_service_count", "is_association_member", "has_pension",
         "lives_alone", "health_concern_count", "has_medical_checkup",
     ] + QOL_FEATURE_COLS
-
-    feature_vector = [float(enc.get(k, 0.0)) for k in feature_keys]
 
     # 10. Cluster vector
     feature_list_names = _load_json_if_exists("feature_list.json")
@@ -904,7 +997,6 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             "healthcare_difficulty": raw.get("healthcare_difficulty", ""),
             "household_condition": raw.get("household_condition", ""),
         },
-        "encoded_features": {k: enc.get(k) for k in feature_keys},
         "feature_map": {
             k: float(v) if isinstance(v, (int, float, np.integer, np.floating)) else v
             for k, v in enc.items()

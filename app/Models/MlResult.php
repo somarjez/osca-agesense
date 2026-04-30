@@ -13,18 +13,35 @@ class MlResult extends Model
         'cluster_id', 'cluster_named_id', 'cluster_name',
         'ic_risk', 'env_risk', 'func_risk', 'composite_risk', 'wellbeing_score',
         'ic_risk_level', 'env_risk_level', 'func_risk_level', 'overall_risk_level',
+        // Rule-based domain risks
+        'risk_medical', 'risk_financial', 'risk_social', 'risk_functional',
+        'risk_housing', 'risk_hc_access', 'risk_sensory', 'rule_composite',
+        // WHO domain scores
+        'ic_score', 'env_score', 'func_score', 'qol_score',
         'section_scores', 'raw_output', 'processed_at',
     ];
 
     protected $casts = [
         'section_scores' => 'array',
-        'raw_output' => 'array',
-        'processed_at' => 'datetime',
-        'ic_risk' => 'float',
-        'env_risk' => 'float',
-        'func_risk' => 'float',
-        'composite_risk' => 'float',
-        'wellbeing_score' => 'float',
+        'raw_output'     => 'array',
+        'processed_at'   => 'datetime',
+        'ic_risk'          => 'float',
+        'env_risk'         => 'float',
+        'func_risk'        => 'float',
+        'composite_risk'   => 'float',
+        'wellbeing_score'  => 'float',
+        'risk_medical'     => 'float',
+        'risk_financial'   => 'float',
+        'risk_social'      => 'float',
+        'risk_functional'  => 'float',
+        'risk_housing'     => 'float',
+        'risk_hc_access'   => 'float',
+        'risk_sensory'     => 'float',
+        'rule_composite'   => 'float',
+        'ic_score'         => 'float',
+        'env_score'        => 'float',
+        'func_score'       => 'float',
+        'qol_score'        => 'float',
     ];
 
     public function seniorCitizen(): BelongsTo

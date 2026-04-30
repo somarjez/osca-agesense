@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -21,12 +20,9 @@ return new class extends Migration
             $table->string('name_extension')->nullable()->comment('Jr., Sr., II, III');
             $table->string('barangay');
             $table->date('date_of_birth');
-            // SQLite cannot create MySQL generated columns using TIMESTAMPDIFF.
-            if (DB::getDriverName() === 'sqlite') {
-                $table->integer('age')->nullable();
-            } else {
-                $table->integer('age')->storedAs('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE())');
-            }
+            // age is computed by the application from date_of_birth; stored as a plain
+            // column because MySQL 8 disallows CURDATE() in generated stored columns.
+            $table->integer('age')->nullable();
             $table->string('contact_number')->nullable();
             $table->string('place_of_birth')->nullable();
             $table->enum('marital_status', ['Single','Married','Widowed','Separated','Divorced','Annulled'])->nullable();
