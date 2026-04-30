@@ -11,5 +11,6 @@ Route::prefix('surveys')->name('surveys.')->group(function () {
         Route::get('/{survey}/edit',       [SurveyController::class, 'qolEdit'])->name('edit');
         Route::get('/{survey}/results',    [SurveyController::class, 'qolResults'])->name('results');
         Route::delete('/{survey}',         [SurveyController::class, 'qolDestroy'])->name('destroy');
+        Route::post('/{id}/restore',       [SurveyController::class, 'qolRestore'])->name('restore');
     });
 });

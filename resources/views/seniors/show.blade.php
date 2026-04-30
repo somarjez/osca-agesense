@@ -215,36 +215,41 @@
                                     @endif
                                     <div x-data="{ open: false }">
                                         <button @click="open = true"
-                                                class="btn btn-ghost text-[11px] px-2 py-0.5 text-critical-700 hover:bg-critical-50">
+                                                class="text-[11px] px-2 py-0.5 rounded-md font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors">
                                             Delete
                                         </button>
                                         <form x-ref="deleteForm" method="POST" action="{{ route('surveys.qol.destroy', $survey) }}" class="hidden">
                                             @csrf @method('DELETE')
                                         </form>
                                         <div x-show="open" x-cloak
-                                             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                                             class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
                                              @keydown.escape.window="open = false">
-                                            <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                            <div class="!bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+                                                 style="background:#ffffff !important; color:#1e293b;"
                                                  @click.outside="open = false">
                                                 <div class="flex items-start gap-3 mb-4">
-                                                    <div class="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 text-lg">🗑️</div>
+                                                    <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style="background:#fee2e2;">🗑️</div>
                                                     <div>
-                                                        <h3 class="font-semibold text-slate-800">Delete QoL Survey?</h3>
-                                                        <p class="text-sm text-slate-500 mt-1">
-                                                            The survey from <strong>{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
+                                                        <h3 class="font-semibold" style="color:#1e293b;">Delete QoL Survey?</h3>
+                                                        <p class="text-sm mt-1" style="color:#64748b;">
+                                                            The survey from <strong style="color:#334155;">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
                                                         </p>
-                                                        <p class="text-xs font-semibold text-red-600 mt-2 bg-red-50 px-3 py-1.5 rounded-lg">
+                                                        <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg" style="color:#dc2626; background:#fef2f2;">
                                                             ⚠ This cannot be undone.
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
+                                                <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
                                                     <button @click="open = false"
-                                                            class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                                            class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                                            style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
+                                                            onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                                         Cancel
                                                     </button>
                                                     <button @click="$refs.deleteForm.submit()"
-                                                            class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">
+                                                            class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                                                            style="background:#dc2626; color:#ffffff; border:1px solid #dc2626;"
+                                                            onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                                         Delete Survey
                                                     </button>
                                                 </div>

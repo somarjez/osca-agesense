@@ -82,110 +82,56 @@ CLUSTER_PROFILES = {
     },
 }
 
-DOMAIN_RECS = {
-    "ic_risk": {
-        "critical": [
-            {"action": "Refer immediately to a physician for comprehensive geriatric assessment.", "category": "health", "urgency": "immediate"},
-            {"action": "Arrange daily medical check-ins or home nursing visits.", "category": "health", "urgency": "immediate"},
-            {"action": "Schedule psychiatric or psychosocial evaluation for emotional well-being.", "category": "health", "urgency": "immediate"},
-        ],
-        "high": [
-            {"action": "Enroll in the municipal wellness and active aging program.", "category": "health", "urgency": "urgent"},
-            {"action": "Coordinate with Barangay Health Center for monthly health assessments.", "category": "health", "urgency": "urgent"},
-            {"action": "Provide pain management referral and physical therapy evaluation.", "category": "health", "urgency": "urgent"},
-        ],
-        "moderate": [
-            {"action": "Schedule quarterly health monitoring at the OSCA health desk.", "category": "health", "urgency": "planned"},
-            {"action": "Enroll in senior-friendly exercise and nutrition program.", "category": "health", "urgency": "planned"},
-        ],
-        "low": [
-            {"action": "Maintain annual health screening and continue current activity level.", "category": "health", "urgency": "maintenance"},
-        ],
-    },
-    "env_risk": {
-        "critical": [
-            {"action": "Coordinate emergency financial assistance through DSWD/OSCA emergency fund.", "category": "financial", "urgency": "immediate"},
-            {"action": "Conduct immediate home safety and livability assessment.", "category": "financial", "urgency": "immediate"},
-            {"action": "Refer to social worker for social isolation intervention plan.", "category": "social", "urgency": "immediate"},
-        ],
-        "high": [
-            {"action": "Enroll in financial literacy and budgeting assistance program.", "category": "financial", "urgency": "urgent"},
-            {"action": "Assess home accessibility needs; coordinate renovation grants if applicable.", "category": "financial", "urgency": "urgent"},
-            {"action": "Link to senior citizen community center for social engagement.", "category": "social", "urgency": "urgent"},
-        ],
-        "moderate": [
-            {"action": "Facilitate connection to available livelihood and social pension programs.", "category": "financial", "urgency": "planned"},
-            {"action": "Encourage participation in barangay-level senior citizen activities.", "category": "social", "urgency": "planned"},
-        ],
-        "low": [
-            {"action": "Conduct annual financial review and community program update.", "category": "financial", "urgency": "maintenance"},
-        ],
-    },
-    "func_risk": {
-        "critical": [
-            {"action": "Refer to occupational therapist for activities of daily living (ADL) assessment.", "category": "functional", "urgency": "immediate"},
-            {"action": "Arrange for in-home caregiving support or care institution referral.", "category": "functional", "urgency": "immediate"},
-            {"action": "Conduct cognitive screening (MMSE/MoCA) and refer if indicated.", "category": "functional", "urgency": "immediate"},
-        ],
-        "high": [
-            {"action": "Enroll in occupational rehabilitation and adaptive independence program.", "category": "functional", "urgency": "urgent"},
-            {"action": "Evaluate need for assistive devices (walker, cane, grab bars).", "category": "functional", "urgency": "urgent"},
-            {"action": "Implement fall prevention assessment and home modification.", "category": "functional", "urgency": "urgent"},
-        ],
-        "moderate": [
-            {"action": "Refer for functional capacity evaluation and activity-based rehabilitation.", "category": "functional", "urgency": "planned"},
-            {"action": "Enroll in fall prevention and balance training classes.", "category": "functional", "urgency": "planned"},
-        ],
-        "low": [
-            {"action": "Continue regular physical exercise and cognitive activities.", "category": "functional", "urgency": "maintenance"},
-            {"action": "Annual fall prevention review and home safety check.", "category": "functional", "urgency": "maintenance"},
-        ],
-    },
-}
+@lru_cache(maxsize=1)
+def _load_cluster_profiles() -> Dict[int, Dict[str, str]]:
+    """
+    Merge cluster_metadata.json from MODEL_DIR over CLUSTER_PROFILES defaults.
+    Accepts shape A  {"1": {...}, "2": {...}, "3": {...}}
+    or shape B  {"clusters": {"1": {...}, ...}}.
+    Maps notebook field names to internal API names:
+        ic_level / env_level / func_level → ic / env / func
+        interpretation → description
+    """
+    data = _load_json("cluster_metadata.json")
+    merged = {k: dict(v) for k, v in CLUSTER_PROFILES.items()}
 
-CLUSTER_RECS = {
-    1: [
-        {"action": "Continue current healthy lifestyle and regular preventive care.", "category": "general", "urgency": "maintenance"},
-        {"action": "Explore peer mentoring or volunteer opportunities with fellow senior citizens.", "category": "social", "urgency": "maintenance"},
-        {"action": "Review long-term financial and estate planning for sustained independence.", "category": "financial", "urgency": "maintenance"},
-    ],
-    2: [
-        {"action": "Address lowest-performing quality-of-life domains through targeted programs.", "category": "general", "urgency": "planned"},
-        {"action": "Enroll in social activation and community engagement programs.", "category": "social", "urgency": "planned"},
-        {"action": "Link to financial assistance and support services available in municipality.", "category": "financial", "urgency": "planned"},
-        {"action": "Initiate regular health monitoring schedule at least every 3 months.", "category": "health", "urgency": "planned"},
-    ],
-    3: [
-        {"action": "Initiate immediate comprehensive multi-domain assessment by OSCA social worker.", "category": "general", "urgency": "immediate"},
-        {"action": "Coordinate emergency financial, medical, and social support from LGU/DSWD.", "category": "general", "urgency": "immediate"},
-        {"action": "Establish daily/weekly follow-up care coordination protocol.", "category": "general", "urgency": "immediate"},
-        {"action": "Engage family or caregiver for support network activation.", "category": "social", "urgency": "urgent"},
-    ],
-}
+    if not data or not isinstance(data, dict):
+        logger.info("cluster_metadata.json missing or empty; using hardcoded defaults.")
+        return merged
 
-SECTION_RECS = {
-    "sec1_age_risk": {
-        "action": "Flag as oldest-old (80+): prioritize fall prevention, cognitive monitoring, and palliative readiness.",
-        "category": "health",
-        "urgency": "urgent",
-    },
-    "sec4_dependency_risk": {
-        "action": "Coordinate with BLGU and DILG for housing assistance or shelter program referral.",
-        "category": "functional",
-        "urgency": "urgent",
-    },
-    "sec2_family_support": {
-        "action": "Refer to DSWD for Supplemental Feeding Program and social pension eligibility check.",
-        "category": "financial",
-        "urgency": "planned",
-    },
-}
+    raw_clusters = data.get("clusters", data)
+    if not isinstance(raw_clusters, dict):
+        logger.warning("cluster_metadata.json has unexpected shape; using hardcoded defaults.")
+        return merged
 
-HC_ACCESS_REC = {
-    "action": "Link senior to PhilHealth, PCSO, and Malasakit Center for subsidized medical access.",
-    "category": "hc_access",
-    "urgency": "planned",
-}
+    field_map = {
+        "ic_level":    "ic",
+        "env_level":   "env",
+        "func_level":  "func",
+        "interpretation": "description",
+    }
+    for str_id, meta in raw_clusters.items():
+        try:
+            cid = int(str_id)
+        except (ValueError, TypeError):
+            continue
+        if cid not in merged or not isinstance(meta, dict):
+            continue
+        for src, dst in field_map.items():
+            if src in meta and meta[src]:
+                merged[cid][dst] = str(meta[src])
+        for direct in ("name", "ic", "env", "func", "risk_level", "description"):
+            if direct in meta and meta[direct]:
+                merged[cid][direct] = str(meta[direct])
+
+    if not all(i in merged for i in (1, 2, 3)):
+        logger.warning("cluster_metadata.json missing required cluster IDs; using hardcoded defaults.")
+        return {k: dict(v) for k, v in CLUSTER_PROFILES.items()}
+
+    logger.info("cluster_metadata.json loaded successfully.")
+    return merged
+
+
 
 DISEASE_ACTIONS = {
     "coronary heart disease": [
@@ -310,6 +256,12 @@ DISEASE_ACTIONS = {
         "Assess eligibility for OSCA Persons with Disability (PWD) benefits.",
         "Conduct home modification assessment (ramps, grab bars, wide doorways).",
     ],
+    "other chronic disease": [
+        "Schedule comprehensive evaluation with a physician to identify and document the specific chronic condition.",
+        "Ensure enrollment in PhilHealth and verify applicable benefit packages for chronic illness management.",
+        "Advise regular follow-up at the barangay health center for monitoring and medication adherence.",
+        "Refer to appropriate specialist based on confirmed diagnosis.",
+    ],
     "__generic__": [
         "Schedule comprehensive health assessment at barangay health center.",
         "Ensure annual physical examination and laboratory workup.",
@@ -432,7 +384,7 @@ def _load_notebook_cluster_index() -> Dict[str, Dict[Any, Any]]:
 
             payload = {
                 "cluster_id": max(1, min(3, cluster_id)),
-                "cluster_name": row.get("cluster_name") or CLUSTER_PROFILES.get(cluster_id, {}).get("name"),
+                "cluster_name": row.get("cluster_name") or _load_cluster_profiles().get(cluster_id, {}).get("name"),
                 "age": _safe_float(row.get("age")),
                 "risk_level": (row.get("risk_level") or "").strip().upper(),
                 "composite_risk": _safe_float(row.get("composite_risk")),
@@ -508,7 +460,7 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 (_normalize_identity_part(name), _normalize_identity_part(row.get("barangay"))),
                 [],
             )
-            domain = (_as_text := str(row.get("domain", "")).strip().lower()) or "general"
+            domain = str(row.get("domain", "")).strip().lower() or "general"
             risk_level = (row.get("risk_level") or "").strip().upper() or "MODERATE"
             actions.append({
                 "priority": len(actions) + 1,
@@ -659,13 +611,20 @@ def _clip01(value: float) -> float:
 
 
 def _notebook_ml_score(gbr_pred: Optional[float], rfr_pred: Optional[float], fallback: float) -> float:
+    # Notebook ensemble: rule-based=0.45, GBR=0.35, RFR=0.20
+    # Weights are renormalised proportionally when a model is unavailable.
     if gbr_pred is None and rfr_pred is None:
         return _clip01(fallback)
-    if gbr_pred is None:
-        return _clip01(rfr_pred if rfr_pred is not None else fallback)
-    if rfr_pred is None:
-        return _clip01(gbr_pred)
-    return _clip01(0.60 * gbr_pred + 0.40 * rfr_pred)
+    w_rule, w_gbr, w_rfr = 0.45, 0.35, 0.20
+    total  = w_rule
+    score  = fallback * w_rule
+    if gbr_pred is not None:
+        total += w_gbr
+        score += gbr_pred * w_gbr
+    if rfr_pred is not None:
+        total += w_rfr
+        score += rfr_pred * w_rfr
+    return _clip01(score / total)
 
 
 def _fallback_cluster_from_wellbeing(wb: float) -> int:
@@ -872,73 +831,74 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     scaled_features = preprocessed.get("scaled_features", []) or []
     reduced_features = preprocessed.get("reduced_features", []) or []
     section_scores = preprocessed.get("section_scores", {}) or {}
+    rule_scores = preprocessed.get("rule_scores", {}) or {}
     who_scores = preprocessed.get("who_domain_scores", {}) or {}
     feature_map = preprocessed.get("feature_map", {}) or {}
     raw_context = preprocessed.get("raw_context", {}) or {}
 
     # 1. Cluster assignment
-    # In batch mode (OSCA_BATCH_MODE=1) skip UMAP entirely: reducer.transform()
-    # calls numba JIT per senior which accumulates to several minutes for large batches.
-    # Risk scores (GBR/RFR models) are unaffected; cluster falls back to the
-    # wellbeing-heuristic path that already exists below.
-    batch_mode = bool(os.environ.get("OSCA_BATCH_MODE"))
-    scaler = _load_model("scaler.pkl")
-    reducer = None if batch_mode else _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
-    kmeans = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl"])
-    cluster_map = _load_cluster_mapping()
-
-    feature_names = _load_json("feature_list.json")
-    vif_features = _load_json("vif_retained_features.json")
+    cluster_map      = _load_cluster_mapping()
+    cluster_profiles = _load_cluster_profiles()
 
     raw_cluster_id: Optional[int] = None
 
-    reduced_features = []
-    scaled_features = []
-    if (
-        scaler is not None and
-        reducer is not None and
-        kmeans is not None and
-        feature_map
-    ):
-        try:
-            expected = int(getattr(scaler, "n_features_in_", 0) or 0)
-            cluster_input_names: Optional[List[str]] = None
+    if "_precomputed_raw_cluster_id" in preprocessed:
+        # Fast path: batch_cluster_assign already ran UMAP+KMeans for the whole batch.
+        raw_cluster_id   = int(preprocessed["_precomputed_raw_cluster_id"])
+        reduced_features = list(preprocessed.get("reduced_features") or [])
+        scaled_features  = list(preprocessed.get("scaled_features")  or [])
+    else:
+        # Single-senior path: scaler → UMAP → KMeans.
+        # In legacy OSCA_BATCH_MODE=1 (without batch_cluster_assign), reducer is
+        # skipped and the heuristic fallback below catches it.
+        batch_mode = bool(os.environ.get("OSCA_BATCH_MODE"))
+        scaler  = _load_model("scaler.pkl")
+        reducer = None if batch_mode else _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
+        kmeans  = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
 
-            for candidate in (feature_names, vif_features):
-                if isinstance(candidate, list):
-                    if not expected or len(candidate) == expected:
+        feature_names = _load_json("feature_list.json")
+        vif_features  = _load_json("vif_retained_features.json")
+
+        if scaler is not None and reducer is not None and kmeans is not None and feature_map:
+            try:
+                expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
+                cluster_input_names: Optional[List[str]] = None
+                for candidate in (feature_names, vif_features):
+                    if isinstance(candidate, list) and (not expected or len(candidate) == expected):
                         cluster_input_names = candidate
                         break
 
-            if cluster_input_names is None:
-                warnings_list.append(
-                    "No cluster feature list matched scaler input size; cluster fallback used."
-                )
-            else:
-                cluster_row = _vector_from_feature_map(feature_map, cluster_input_names)
-                row_scaled = scaler.transform([cluster_row])[0].tolist()
-                row_reduced = reducer.transform([row_scaled])
-                raw_cluster_id = _safe_kmeans_predict(kmeans, row_reduced)
-                reduced_features = row_reduced[0].tolist()
-                scaled_features = row_scaled
-        except Exception as exc:
-            warnings_list.append(f"Notebook-style cluster path failed: {exc}")
+                if cluster_input_names is None:
+                    warnings_list.append(
+                        "No cluster feature list matched scaler input size; cluster fallback used."
+                    )
+                else:
+                    cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
+                    row_scaled   = scaler.transform([cluster_row])[0].tolist()
+                    row_reduced  = reducer.transform([row_scaled])
+                    raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
+                    reduced_features = row_reduced[0].tolist()
+                    scaled_features  = row_scaled
+            except Exception as exc:
+                warnings_list.append(f"Notebook-style cluster path failed: {exc}")
 
-    if raw_cluster_id is None and kmeans is not None:
-        try:
-            required = getattr(kmeans, "n_features_in_", len(reduced_features) if reduced_features else 0)
-            if len(reduced_features) >= required:
-                km_input = [reduced_features[:required]]
-                raw_cluster_id = _safe_kmeans_predict(kmeans, km_input)
-            else:
-                warnings_list.append("Reduced features shorter than KMeans expected input; fallback cluster used.")
-        except Exception as exc:
-            warnings_list.append(f"KMeans prediction failed: {exc}")
+        if raw_cluster_id is None and kmeans is not None:
+            try:
+                required = getattr(kmeans, "n_features_in_",
+                                   len(reduced_features) if reduced_features else 0)
+                if len(reduced_features) >= required:
+                    raw_cluster_id = _safe_kmeans_predict(kmeans, [reduced_features[:required]])
+                else:
+                    warnings_list.append(
+                        "Reduced features shorter than KMeans expected input; fallback cluster used."
+                    )
+            except Exception as exc:
+                warnings_list.append(f"KMeans prediction failed: {exc}")
 
-    if raw_cluster_id is None:
-        wb = float(section_scores.get("overall_wellbeing", 0.5))
-        raw_cluster_id = _fallback_cluster_from_wellbeing(wb)
-        warnings_list.append("KMeans unavailable/incompatible; heuristic cluster assignment used.")
+        if raw_cluster_id is None:
+            wb = float(section_scores.get("overall_wellbeing", 0.5))
+            raw_cluster_id = _fallback_cluster_from_wellbeing(wb)
+            warnings_list.append("KMeans unavailable/incompatible; heuristic cluster assignment used.")
 
     if cluster_map and raw_cluster_id in cluster_map:
         named_id = cluster_map[raw_cluster_id]
@@ -953,7 +913,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     named_id = max(1, min(3, int(named_id)))
-    cluster_profile = CLUSTER_PROFILES[named_id]
+    cluster_profile = cluster_profiles[named_id]
 
     notebook_override = None
     notebook_recommendations = None
@@ -968,7 +928,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         )
     if notebook_override:
         named_id = max(1, min(3, int(notebook_override.get("cluster_id", named_id))))
-        cluster_profile = CLUSTER_PROFILES[named_id]
+        cluster_profile = cluster_profiles[named_id]
         raw_cluster_id = next(
             (raw_id for raw_id, mapped_id in (cluster_map or {}).items() if mapped_id == named_id),
             named_id - 1,
@@ -1006,7 +966,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     ic_fallback = _clip01(_safe_float(section_scores.get("ic_risk"), 1.0 - (_safe_float(who_scores.get("ic_score"), 3.0) - 1.0) / 4.0))
     env_fallback = _clip01(_safe_float(section_scores.get("env_risk"), 1.0 - (_safe_float(who_scores.get("env_score"), 3.0) - 1.0) / 4.0))
     func_fallback = _clip01(_safe_float(section_scores.get("func_risk"), 1.0 - (_safe_float(who_scores.get("func_score"), 3.0) - 1.0) / 4.0))
-    composite_fallback = _clip01(_safe_float(section_scores.get("composite_risk"), section_scores.get("rule_composite", 0.5)))
+    composite_fallback = _clip01(_safe_float(section_scores.get("composite_risk"), rule_scores.get("rule_composite", section_scores.get("rule_composite", 0.5))))
 
     ic_risk_raw = _notebook_ml_score(gbr_ic_pred, rfr_ic_pred, ic_fallback)
     env_risk_raw = _notebook_ml_score(gbr_env_pred, rfr_env_pred, env_fallback)
@@ -1096,6 +1056,22 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "func": func_level,
             "overall": overall_level,
         },
+        "domain_risks": {
+            "risk_medical":    round(float(rule_scores.get("risk_medical",    0.0)), 4),
+            "risk_financial":  round(float(rule_scores.get("risk_financial",  0.0)), 4),
+            "risk_social":     round(float(rule_scores.get("risk_social",     0.0)), 4),
+            "risk_functional": round(float(rule_scores.get("risk_functional", 0.0)), 4),
+            "risk_housing":    round(float(rule_scores.get("risk_housing",    0.0)), 4),
+            "risk_hc_access":  round(float(rule_scores.get("risk_hc_access",  0.0)), 4),
+            "risk_sensory":    round(float(rule_scores.get("risk_sensory",    0.0)), 4),
+            "rule_composite":  round(float(rule_scores.get("rule_composite",  composite_risk)), 4),
+        },
+        "who_scores": {
+            "ic_score":   round(float(who_scores.get("ic_score",   3.0)), 4),
+            "env_score":  round(float(who_scores.get("env_score",  3.0)), 4),
+            "func_score": round(float(who_scores.get("func_score", 3.0)), 4),
+            "qol_score":  round(float(who_scores.get("qol_score",  3.0)), 4),
+        },
         "recommendations": recs,
         "section_scores": section_scores,
         "model_metadata": {
@@ -1105,6 +1081,77 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         },
         "warnings": warnings_list,
     }
+
+
+# ── Batch cluster assignment (used by local_ml_runner) ───────────────────────
+def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
+    """
+    One-shot batch UMAP + KMeans for every valid preprocessed payload.
+    Injects '_precomputed_raw_cluster_id' and 'reduced_features' into each dict
+    so that subsequent infer() calls skip per-senior UMAP/KMeans.
+    Returns a list of warning/info strings.
+    """
+    warn: List[str] = []
+
+    scaler  = _load_model("scaler.pkl")
+    reducer = _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
+    kmeans  = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
+
+    if reducer is None or kmeans is None:
+        warn.append("batch KMeans path: UMAP or KMeans unavailable; heuristic fallback will be used.")
+        return warn
+    if scaler is None:
+        warn.append("batch KMeans path: scaler unavailable; heuristic fallback will be used.")
+        return warn
+
+    feature_names = _load_json("feature_list.json")
+    vif_features  = _load_json("vif_retained_features.json")
+
+    expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
+    cluster_input_names: Optional[List[str]] = None
+    for candidate in (feature_names, vif_features):
+        if isinstance(candidate, list) and (not expected or len(candidate) == expected):
+            cluster_input_names = candidate
+            break
+
+    if cluster_input_names is None:
+        warn.append("batch KMeans path: no feature list matches scaler; heuristic fallback will be used.")
+        return warn
+
+    valid_indices: List[int] = []
+    cluster_rows:  List[List[float]] = []
+    for idx, p in enumerate(preprocessed_list):
+        if not isinstance(p, dict):
+            continue
+        feature_map = p.get("feature_map") or {}
+        if not feature_map:
+            continue
+        cluster_rows.append([float(feature_map.get(k, 0.0)) for k in cluster_input_names])
+        valid_indices.append(idx)
+
+    if not cluster_rows:
+        warn.append("batch KMeans path: no valid feature maps found; heuristic fallback will be used.")
+        return warn
+
+    try:
+        X          = np.asarray(cluster_rows, dtype=np.float64)
+        X_scaled   = scaler.transform(X)
+        X_reduced  = reducer.transform(X_scaled)
+        raw_ids    = kmeans.predict(X_reduced).tolist()
+
+        for i, idx in enumerate(valid_indices):
+            preprocessed_list[idx]["_precomputed_raw_cluster_id"] = int(raw_ids[i])
+            preprocessed_list[idx]["reduced_features"]            = X_reduced[i].tolist()
+
+        warn.append(
+            f"batch KMeans path used successfully for {len(valid_indices)} seniors."
+        )
+    except Exception as exc:
+        warn.append(
+            f"batch KMeans path failed ({exc}); heuristic fallback will be used."
+        )
+
+    return warn
 
 
 # ── Flask API ─────────────────────────────────────────────────────────────────
