@@ -71,7 +71,7 @@ class QolSurveyForm extends Component
         $this->surveyDate = now()->format('Y-m-d');
 
         if ($surveyId) {
-            $this->survey = QolSurvey::findOrFail($surveyId);
+            $this->survey = QolSurvey::withTrashed()->findOrFail($surveyId);
             $this->populateFromSurvey($this->survey);
         }
     }

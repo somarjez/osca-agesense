@@ -584,9 +584,11 @@ class MlService
         array $preprocessed,
         array $inferResult
     ): MlResult {
-        $cluster = $inferResult['cluster']      ?? [];
-        $scores  = $inferResult['risk_scores']  ?? [];
-        $levels  = $inferResult['risk_levels']  ?? [];
+        $cluster      = $inferResult['cluster']      ?? [];
+        $scores       = $inferResult['risk_scores']  ?? [];
+        $levels       = $inferResult['risk_levels']  ?? [];
+        $domainRisks  = $inferResult['domain_risks'] ?? [];
+        $whoScores    = $inferResult['who_scores']   ?? [];
 
         // section_scores come from preprocessed in HTTP mode, or forwarded in inferResult in combined/batch mode
         $sectionScores = $preprocessed['section_scores'] ?? $inferResult['section_scores'] ?? null;
@@ -604,10 +606,24 @@ class MlService
                 'func_risk'          => $scores['func_risk']       ?? null,
                 'composite_risk'     => $scores['composite_risk']  ?? null,
                 'wellbeing_score'    => $scores['wellbeing_score'] ?? null,
-                'ic_risk_level'      => $levels['ic']   ?? null,
-                'env_risk_level'     => $levels['env']  ?? null,
-                'func_risk_level'    => $levels['func'] ?? null,
+                'ic_risk_level'      => $levels['ic']      ?? null,
+                'env_risk_level'     => $levels['env']     ?? null,
+                'func_risk_level'    => $levels['func']    ?? null,
                 'overall_risk_level' => $levels['overall'] ?? null,
+                // Rule-based domain risks
+                'risk_medical'       => $domainRisks['risk_medical']    ?? null,
+                'risk_financial'     => $domainRisks['risk_financial']  ?? null,
+                'risk_social'        => $domainRisks['risk_social']     ?? null,
+                'risk_functional'    => $domainRisks['risk_functional'] ?? null,
+                'risk_housing'       => $domainRisks['risk_housing']    ?? null,
+                'risk_hc_access'     => $domainRisks['risk_hc_access']  ?? null,
+                'risk_sensory'       => $domainRisks['risk_sensory']    ?? null,
+                'rule_composite'     => $domainRisks['rule_composite']  ?? null,
+                // WHO domain scores
+                'ic_score'           => $whoScores['ic_score']   ?? null,
+                'env_score'          => $whoScores['env_score']  ?? null,
+                'func_score'         => $whoScores['func_score'] ?? null,
+                'qol_score'          => $whoScores['qol_score']  ?? null,
                 'section_scores'     => $sectionScores,
                 'raw_output'         => $inferResult,
                 'processed_at'       => now(),
@@ -667,34 +683,67 @@ class MlService
 
     private function fallbackInfer(array $preprocessed): array
     {
-        $wellbeing = $preprocessed['section_scores']['overall_wellbeing'] ?? 0.5;
+        $ss        = $preprocessed['section_scores'] ?? [];
+        $who       = $preprocessed['who_domain_scores'] ?? [];
+        $wellbeing = (float) ($ss['overall_wellbeing'] ?? 0.5);
         $composite = round(1 - $wellbeing, 4);
+
         // Thresholds mirror osca5.ipynb: CRITICAL>=0.65, HIGH>=0.45, MODERATE>=0.25, LOW<0.25
         $level     = $composite >= 0.65 ? 'CRITICAL' : ($composite >= 0.45 ? 'HIGH' : ($composite >= 0.25 ? 'MODERATE' : 'LOW'));
         $clusterId = $composite >= 0.45 ? 3 : ($composite >= 0.25 ? 2 : 1);
 
+        // Derive domain risks from available section scores (same logic as _compute_rule_based_risk)
+        $ageRisk      = (float) ($ss['sec1_age_risk']        ?? 0.5);
+        $healthScore  = (float) ($ss['sec6_health_score']    ?? 0.5);
+        $ecoStability = (float) ($ss['sec5_eco_stability']   ?? 0.5);
+        $famSupport   = (float) ($ss['sec2_family_support']  ?? 0.5);
+        $depRisk      = (float) ($ss['sec4_dependency_risk'] ?? 0.3);
+        $hrScore      = (float) ($ss['sec3_hr_score']        ?? 0.5);
+
+        $domainRisks = [
+            'risk_medical'    => round(min($healthScore, 1.0), 4),
+            'risk_financial'  => round(min(max(1.0 - $ecoStability, 0.0), 1.0), 4),
+            'risk_social'     => round(min(max(1.0 - $famSupport, 0.0), 1.0), 4),
+            'risk_functional' => round(min($ageRisk * 0.5 + (1.0 - $hrScore) * 0.5, 1.0), 4),
+            'risk_housing'    => round(min((float) ($ss['sec4_household_risk'] ?? 0.0), 1.0), 4),
+            'risk_hc_access'  => round(min($healthScore * 0.5 + $ageRisk * 0.5, 1.0), 4),
+            'risk_sensory'    => round(min($healthScore * 0.6, 1.0), 4),
+            'rule_composite'  => $composite,
+        ];
+
         return [
             'status'  => 'success_fallback',
             'cluster' => [
-                'raw_id' => $clusterId - 1, 'named_id' => $clusterId,
-                'name'   => ['', 'High Functioning', 'Moderate / Mixed Needs', 'Low Functioning / Multi-Domain Risk'][$clusterId],
+                'raw_id'  => $clusterId - 1,
+                'named_id' => $clusterId,
+                'name'    => ['', 'High Functioning', 'Moderate / Mixed Needs', 'Low Functioning / Multi-Domain Risk'][$clusterId],
                 'ic' => 'Unknown', 'env' => 'Unknown', 'func' => 'Unknown',
+                'description' => 'Heuristic assignment — ML service unavailable.',
             ],
             'risk_scores' => [
-                'ic_risk' => $composite, 'env_risk' => $composite,
-                'func_risk' => $composite, 'composite_risk' => $composite,
+                'ic_risk'         => $composite,
+                'env_risk'        => $composite,
+                'func_risk'       => $composite,
+                'composite_risk'  => $composite,
                 'wellbeing_score' => $wellbeing,
             ],
             'risk_levels' => [
                 'ic' => strtolower($level), 'env' => strtolower($level),
                 'func' => strtolower($level), 'overall' => $level,
             ],
-            'section_scores' => $preprocessed['section_scores'] ?? [],
+            'domain_risks' => $domainRisks,
+            'who_scores'   => [
+                'ic_score'   => (float) ($who['ic_score']   ?? 3.0),
+                'env_score'  => (float) ($who['env_score']  ?? 3.0),
+                'func_score' => (float) ($who['func_score'] ?? 3.0),
+                'qol_score'  => (float) ($who['qol_score']  ?? 3.0),
+            ],
+            'section_scores' => $ss,
             'recommendations' => [
                 [
-                    'priority' => 1, 'type' => 'general', 'category' => 'general',
-                    'action'   => 'ML service unavailable. Please re-run analysis when service is restored.',
-                    'urgency'  => 'planned', 'domain' => 'general',
+                    'priority' => 1, 'type' => 'general', 'domain' => 'general', 'category' => 'general',
+                    'action'   => 'ML service unavailable. Please re-run analysis when the service is restored.',
+                    'urgency'  => 'planned', 'risk_level' => strtolower($level),
                 ],
             ],
             'warnings' => ['Python ML services are currently unreachable. Fallback heuristics used.'],

@@ -49,6 +49,9 @@ python/__pycache__/
 python/**/*.pyc
 python/logs/
 python/tmp/
+python/services/*_err.txt
+python/services/out_*.json
+python/services/err_*.txt
 
 # IDE / editor
 /.fleet
