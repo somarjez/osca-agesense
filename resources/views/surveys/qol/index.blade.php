@@ -93,14 +93,16 @@
                                          style="background:#ffffff !important; color:#1e293b;"
                                          @click.outside="open = false">
                                         <div class="flex items-start gap-3 mb-4">
-                                            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style="background:#fee2e2;">🗑️</div>
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fee2e2;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </div>
                                             <div>
                                                 <h3 class="font-semibold" style="color:#1e293b;">Delete QoL Survey?</h3>
                                                 <p class="text-sm mt-1" style="color:#64748b;">
                                                     The survey from <strong style="color:#334155;">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
                                                 </p>
                                                 <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg" style="color:#dc2626; background:#fef2f2;">
-                                                    ⚠ This cannot be undone.
+                                                    This cannot be undone.
                                                 </p>
                                             </div>
                                         </div>
@@ -127,7 +129,9 @@
                 @empty
                 <tr>
                     <td colspan="6" class="px-4 py-12 text-center text-slate-400">
-                        <div class="text-3xl mb-2">📋</div>
+                        <div class="flex justify-center mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                        </div>
                         <p class="font-medium">No surveys found.</p>
                     </td>
                 </tr>

@@ -33,7 +33,7 @@
     {{-- Success banner --}}
     @if ($saved)
     <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
-        <span class="text-2xl">✅</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <div>
             <p class="font-semibold text-emerald-800">Profile saved!</p>
             <p class="text-sm text-emerald-600">OSCA ID: <strong>{{ $senior?->osca_id }}</strong></p>
@@ -478,7 +478,10 @@
                 @else
                 <button wire:click="save"
                         class="px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
-                    <span wire:loading.remove wire:target="save">💾 Save Profile</span>
+                    <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                        Save Profile
+                    </span>
                     <span wire:loading wire:target="save">Saving…</span>
                 </button>
                 @endif

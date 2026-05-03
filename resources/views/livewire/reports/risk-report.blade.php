@@ -4,7 +4,12 @@
     {{-- ── Summary Cards ── --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         @php
-        $levels = ['CRITICAL' => ['color' => 'red', 'icon' => '🚨'], 'HIGH' => ['color' => 'orange', 'icon' => '⚠️'], 'MODERATE' => ['color' => 'amber', 'icon' => '📊'], 'LOW' => ['color' => 'green', 'icon' => '✅']];
+        $levels = [
+            'CRITICAL' => ['color' => 'red',    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'],
+            'HIGH'     => ['color' => 'orange', 'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'],
+            'MODERATE' => ['color' => 'amber',  'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'],
+            'LOW'      => ['color' => 'green',  'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'],
+        ];
         $colorBg = ['red' => 'bg-red-50 border-red-200', 'orange' => 'bg-orange-50 border-orange-200', 'amber' => 'bg-amber-50 border-amber-200', 'green' => 'bg-emerald-50 border-emerald-200'];
         $colorText = ['red' => 'text-red-700', 'orange' => 'text-orange-700', 'amber' => 'text-amber-700', 'green' => 'text-emerald-700'];
         @endphp
@@ -13,7 +18,7 @@
         <div class="bg-white border rounded-xl p-4 shadow-sm {{ $colorBg[$meta['color']] }} cursor-pointer hover:shadow-md transition-shadow"
              wire:click="$set('filterRisk', '{{ strtolower($level) }}')">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-xl">{{ $meta['icon'] }}</span>
+                <span>{!! $meta['icon'] !!}</span>
                 <span class="text-xs font-medium {{ $colorText[$meta['color']] }}">{{ $level }}</span>
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $stat?->count ?? 0 }}</p>
@@ -51,14 +56,16 @@
         @if ($filterRisk || $filterBarangay || $filterCluster)
         <button wire:click="$set('filterRisk',''); $set('filterBarangay',''); $set('filterCluster','')"
                 class="text-xs text-rose-500 hover:text-rose-700 font-medium">
-            ✕ Clear filters
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            Clear filters
         </button>
         @endif
 
         <div class="ml-auto">
             <a href="{{ route('reports.risk.export') }}"
                class="px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
-                📥 Export CSV
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export CSV
             </a>
         </div>
     </div>
