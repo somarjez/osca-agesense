@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('page-title', 'Batch ML Analysis')
-@section('page-subtitle', 'Run KMeans clustering and risk scoring for all eligible seniors')
+@section('page-title', 'Batch Health Assessment')
+@section('page-subtitle', 'Run health grouping and risk scoring for all eligible seniors')
 
 @section('content')
 <div class="space-y-5">
@@ -62,8 +62,8 @@
             </div>
 
             <div class="flex-1 min-w-0">
-                <p class="font-semibold text-ink-900">Run Full Batch Analysis</p>
-                <p class="text-sm text-ink-500 mb-3">Processes all seniors with a QoL survey through the full pipeline: preprocess → cluster → risk score → recommendations.</p>
+                <p class="font-semibold text-ink-900">Run Full Batch Assessment</p>
+                <p class="text-sm text-ink-500 mb-3">Assesses all seniors with a QoL survey: prepares data → assigns health group → scores risk → generates recommendations.</p>
 
                 {{-- Result / error banners --}}
                 <p x-show="resultMsg && !running" x-text="resultMsg"
@@ -106,9 +106,9 @@
                         </svg>
                     </div>
                     <div>
-                        <h3 class="font-semibold text-slate-800 text-base">Run Batch ML Analysis?</h3>
+                        <h3 class="font-semibold text-slate-800 text-base">Run Batch Health Assessment?</h3>
                         <p class="text-sm text-slate-500 mt-1">
-                            This will process <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong> through the full pipeline: preprocess → cluster → risk score → recommendations.
+                            This will assess <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong>: prepare data → assign health group → score risk → generate recommendations.
                         </p>
                         <p class="text-xs text-slate-400 mt-2">Estimated time: 1–3 minutes. Progress is shown inline — the page will not hang.</p>
                     </div>
@@ -135,7 +135,7 @@
                     <th class="th">Senior</th>
                     <th class="th">Barangay</th>
                     <th class="th text-center">Last Survey</th>
-                    <th class="th text-center">Last ML Run</th>
+                    <th class="th text-center">Last Assessment</th>
                     <th class="th text-center">Current Risk</th>
                     <th class="th text-center">Action</th>
                 </tr>

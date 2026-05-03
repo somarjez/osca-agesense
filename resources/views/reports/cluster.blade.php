@@ -1,7 +1,7 @@
 {{-- resources/views/reports/cluster.blade.php --}}
 @extends('layouts.app')
-@section('page-title', 'Cluster Analysis')
-@section('page-subtitle', 'KMeans K=3 clustering results — WHO Healthy Ageing profiles')
+@section('page-title', 'Health Group Analysis')
+@section('page-subtitle', 'Senior citizens grouped by health capacity and environmental factors')
 
 @section('content')
 <div class="space-y-5">
@@ -85,13 +85,13 @@
     {{-- ── Evaluation Metrics ── --}}
     @if ($evalMetrics['silhouette'])
     <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <h3 class="text-sm font-semibold text-slate-700 mb-3">Clustering Evaluation Metrics (K=3 Validated)</h3>
+        <h3 class="text-sm font-semibold text-slate-700 mb-3">Grouping Quality Indicators</h3>
         <div class="grid grid-cols-4 gap-4 text-center">
             @foreach ([
-                ['Silhouette Score',    $evalMetrics['silhouette'],        'Higher = better separation (0–1)'],
-                ['Davies-Bouldin',      $evalMetrics['davies_bouldin'],    'Lower = better (0 = perfect)'],
-                ['Calinski-Harabasz',   $evalMetrics['calinski_harabasz'], 'Higher = denser clusters'],
-                ['Inertia (WCSS)',       $evalMetrics['inertia'],           'Within-cluster sum of squares'],
+                ['Group Separation',  $evalMetrics['silhouette'],        'Higher = more distinct groups (0–1)'],
+                ['Group Distinctness',$evalMetrics['davies_bouldin'],    'Lower = better defined groups'],
+                ['Group Density',     $evalMetrics['calinski_harabasz'], 'Higher = tighter groups'],
+                ['Spread Score',      $evalMetrics['inertia'],           'How spread out members are within groups'],
             ] as [$label, $val, $hint])
             <div class="bg-slate-50 rounded-xl p-3">
                 <p class="text-xs text-slate-500 mb-1">{{ $label }}</p>
@@ -113,9 +113,9 @@
                 <thead class="border-b border-slate-100">
                     <tr class="text-xs text-slate-400">
                         <th class="px-5 py-2.5 text-left font-medium">Barangay</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-emerald-600">C1 – High Functioning</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-amber-600">C2 – Moderate / Mixed</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-rose-600">C3 – Low Functioning</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-emerald-600">Group 1 – High Functioning</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-amber-600">Group 2 – Moderate / Mixed</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-rose-600">Group 3 – Low Functioning</th>
                         <th class="px-5 py-2.5 text-center font-medium text-slate-500">Total</th>
                     </tr>
                 </thead>
@@ -158,7 +158,7 @@
 @push('scripts')
 <script>
 (function () {
-    const clusterLabels  = ['C1: High Functioning', 'C2: Moderate/Mixed', 'C3: Low Functioning'];
+    const clusterLabels  = ['Group 1: High Functioning', 'Group 2: Moderate/Mixed', 'Group 3: Low Functioning'];
     const clusterColors  = ['rgb(16,185,129)', 'rgb(245,158,11)', 'rgb(244,63,94)'];
     const clusterBgAlpha = ['rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)', 'rgba(244,63,94,0.2)'];
     const domainByCluster = @json($domainByCluster);
@@ -176,7 +176,7 @@
         upsert('domainByClusterChart', {
             type: 'bar',
             data: {
-                labels: ['IC Risk', 'Env Risk', 'Func Risk'],
+                labels: ['Physical Capacity', 'Environment', 'Daily Functioning'],
                 datasets: [1,2,3].map((cid, i) => ({
                     label: clusterLabels[i],
                     data: [

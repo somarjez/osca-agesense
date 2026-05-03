@@ -14,6 +14,13 @@
 
     {{-- Filter + Search --}}
     <form method="GET" class="card">
+        <div class="card-head">
+            <div class="card-title">Filter Records</div>
+            <a href="{{ route('seniors.create') }}" class="btn btn-primary">
+                <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
+                New Senior
+            </a>
+        </div>
         <div class="card-body flex flex-wrap items-end gap-4">
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1.5">Search</label>
@@ -35,23 +42,27 @@
                 <select name="risk" class="form-select">
                     <option value="">All</option>
                     @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $r)
-                        <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ $r }}</option>
+                        <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ ucfirst(strtolower($r)) }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="min-w-[180px]">
-                <label class="eyebrow block mb-1.5">Cluster</label>
+                <label class="eyebrow block mb-1.5">Health Group</label>
                 <select name="cluster" class="form-select">
-                    <option value="">All</option>
-                    <option value="1" {{ request('cluster')=='1'?'selected':'' }}>C1 · High Functioning</option>
-                    <option value="2" {{ request('cluster')=='2'?'selected':'' }}>C2 · Moderate</option>
-                    <option value="3" {{ request('cluster')=='3'?'selected':'' }}>C3 · Low Functioning</option>
+                    <option value="">All Groups</option>
+                    <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
+                    <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Moderate</option>
+                    <option value="3" {{ request('cluster')=='3'?'selected':'' }}>Group 3 · Low Functioning</option>
                 </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">Search</button>
-                <a href="{{ route('seniors.index') }}" class="btn">Clear</a>
-                <a href="{{ route('seniors.create') }}" class="btn btn-primary">+ New Senior</a>
+                <button type="submit" class="btn btn-primary">
+                    <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
+                    Search
+                </button>
+                @if (request()->hasAny(['search','barangay','risk','cluster']))
+                    <a href="{{ route('seniors.index') }}" class="btn">Clear filters</a>
+                @endif
             </div>
         </div>
     </form>
@@ -102,7 +113,7 @@
                         @if ($ml?->overall_risk_level)
                             <x-risk-badge :level="$ml->overall_risk_level" />
                         @else
-                            <span class="text-ink-300 text-xs">No data</span>
+                            <span class="text-ink-300 text-[11px]">Unassessed</span>
                         @endif
                     </td>
                     <td class="td">
@@ -113,44 +124,52 @@
                         @endif
                     </td>
                     <td class="td">
-                        <div class="flex items-center justify-end gap-1.5">
-                            <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost text-[11.5px] px-2 py-1">View</a>
-                            <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-ghost text-[11.5px] px-2 py-1">QoL</a>
-                            <a href="{{ route('seniors.edit', $senior) }}" class="btn btn-ghost text-[11.5px] px-2 py-1">Edit</a>
-                            <div x-data="{ open: false }">
-                                <button @click="open = true"
-                                        class="btn btn-ghost text-[11.5px] px-2 py-1 text-critical-700 hover:text-critical-700 hover:bg-critical-50">
-                                    Archive
-                                </button>
-                                <form x-ref="archiveForm" method="POST" action="{{ route('seniors.destroy', $senior) }}" class="hidden">
-                                    @csrf @method('DELETE')
-                                </form>
-                                <div x-show="open" x-cloak
-                                     class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-                                     @keydown.escape.window="open = false">
-                                    <div class="rounded-2xl shadow-2xl max-w-sm w-full p-6"
-                                         style="background:#ffffff; color:#1e293b;"
-                                         @click.outside="open = false">
-                                        <div class="flex items-start gap-3 mb-4">
-                                            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style="background:#fef3c7;">📦</div>
-                                            <div>
-                                                <h3 class="font-semibold" style="color:#1e293b;">Archive this record?</h3>
-                                                <p class="text-sm mt-1" style="color:#64748b;">
-                                                    <strong style="color:#334155;">{{ $senior->full_name }}</strong> will be moved to Archives. Their data is preserved and can be restored at any time.
-                                                </p>
+                        <div class="flex items-center justify-end gap-1" x-data="{ archiveOpen: false }">
+                            <a href="{{ route('seniors.show', $senior) }}"
+                               class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
+                               title="View profile">
+                                <x-heroicon-o-eye class="w-3.5 h-3.5" /> View
+                            </a>
+                            <a href="{{ route('seniors.edit', $senior) }}"
+                               class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
+                               title="Edit profile">
+                                <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
+                            </a>
+                            <a href="{{ route('surveys.qol.create', $senior) }}"
+                               class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
+                               title="New QoL survey">
+                                <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> QoL
+                            </a>
+                            <button @click="archiveOpen = true"
+                                    class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
+                                    title="Archive record">
+                                <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
+                            </button>
+                            <form x-ref="archiveForm" method="POST" action="{{ route('seniors.destroy', $senior) }}" class="hidden">
+                                @csrf @method('DELETE')
+                            </form>
+                            <div x-show="archiveOpen" x-cloak
+                                 class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                                 @keydown.escape.window="archiveOpen = false">
+                                <div class="card max-w-sm w-full shadow-2xl"
+                                     @click.outside="archiveOpen = false">
+                                    <div class="card-head">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-8 h-8 rounded-lg bg-high-50 grid place-items-center flex-shrink-0">
+                                                <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
                                             </div>
+                                            <div class="card-title">Archive record?</div>
                                         </div>
-                                        <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
-                                            <button @click="open = false"
-                                                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-                                                    style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
-                                                    onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                                                Cancel
-                                            </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-sm text-ink-700">
+                                            <span class="font-semibold text-ink-900">{{ $senior->full_name }}</span>
+                                            will be moved to Archives. Their data is preserved and can be restored at any time.
+                                        </p>
+                                        <div class="flex gap-2.5 justify-end mt-5">
+                                            <button @click="archiveOpen = false" class="btn">Cancel</button>
                                             <button @click="$refs.archiveForm.submit()"
-                                                    class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                                                    style="background:#d97706; color:#ffffff; border:1px solid #d97706;"
-                                                    onmouseover="this.style.background='#b45309'" onmouseout="this.style.background='#d97706'">
+                                                    class="btn bg-high-600 border-high-600 text-white hover:bg-high-700 hover:border-high-700 hover:text-white">
                                                 Archive
                                             </button>
                                         </div>
@@ -162,9 +181,12 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="td text-center py-16">
-                        <p class="font-serif text-lg text-ink-700">No senior citizens found.</p>
-                        <a href="{{ route('seniors.create') }}" class="text-forest-700 hover:text-forest-900 text-sm mt-2 inline-block font-semibold">Register the first one →</a>
+                    <td colspan="8" class="px-4 py-16 text-center">
+                        <p class="font-serif text-base text-ink-500">No senior citizens found.</p>
+                        <p class="text-[12.5px] text-ink-400 mt-1">Try adjusting your filters or register a new senior.</p>
+                        <a href="{{ route('seniors.create') }}" class="btn btn-primary mt-4 inline-flex">
+                            <x-heroicon-o-user-plus class="w-3.5 h-3.5" /> New Senior
+                        </a>
                     </td>
                 </tr>
                 @endforelse
