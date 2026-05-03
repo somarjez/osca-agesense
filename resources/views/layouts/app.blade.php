@@ -188,7 +188,7 @@
         </header>
 
         {{-- Page content --}}
-        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-6">
+        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-8 pb-10">
             @yield('content')
         </main>
     </div>
