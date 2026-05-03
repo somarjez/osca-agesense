@@ -8,14 +8,17 @@
 
     {{-- ── Summary Stats ── --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        @foreach ([
-            ['Seniors with Recs',  $stats['seniors'],   'teal',   '👥'],
-            ['Total Actions',      $stats['total'],     'slate',  '📋'],
-            ['Pending Actions',    $stats['pending'],   'amber',  '⏳'],
-            ['Immediate / Urgent', $stats['immediate'], 'red',    '🚨'],
-        ] as [$label, $val, $color, $icon])
+        @php
+        $statCards = [
+            ['Seniors with Recs',  $stats['seniors'],   'teal',  '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5.356-3.712M9 20H4v-2a4 4 0 015.356-3.712M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0zM3 10a3 3 0 116 0 3 3 0 01-6 0z"/></svg>'],
+            ['Total Actions',      $stats['total'],     'slate', '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>'],
+            ['Pending Actions',    $stats['pending'],   'amber', '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'],
+            ['Immediate / Urgent', $stats['immediate'], 'red',   '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'],
+        ];
+        @endphp
+        @foreach ($statCards as [$label, $val, $color, $icon])
         <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3">
-            <span class="text-xl">{{ $icon }}</span>
+            <span>{!! $icon !!}</span>
             <div>
                 <p class="text-2xl font-bold text-{{ $color }}-600 leading-none">{{ number_format($val) }}</p>
                 <p class="text-xs text-slate-500 mt-0.5">{{ $label }}</p>
@@ -150,7 +153,10 @@
                                 {{ $senior->pending_count }}
                             </span>
                             @else
-                            <span class="text-xs text-emerald-600 font-medium">✓ All done</span>
+                            <span class="inline-flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                All done
+                            </span>
                             @endif
                         </td>
 
@@ -158,7 +164,8 @@
                         <td class="px-4 py-3 text-center">
                             @if ($senior->immediate_count > 0)
                             <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                                🚨 {{ $senior->immediate_count }}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                                {{ $senior->immediate_count }}
                             </span>
                             @else
                             <span class="text-xs text-slate-300">—</span>
@@ -177,7 +184,9 @@
                     @empty
                     <tr>
                         <td colspan="8" class="px-4 py-12 text-center text-slate-400">
-                            <div class="text-3xl mb-2">✅</div>
+                            <div class="flex justify-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
                             <p class="font-medium">No seniors match the selected filters.</p>
                         </td>
                     </tr>

@@ -161,7 +161,7 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-8 py-4 flex items-center justify-between flex-shrink-0 gap-6">
+        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-9 py-4 flex items-center justify-between flex-shrink-0 gap-6">
             <div class="flex items-baseline gap-3 min-w-0">
                 <h1 class="font-serif text-[22px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-tight whitespace-nowrap">@yield('page-title', 'Dashboard')</h1>
                 @hasSection('page-subtitle')
@@ -188,7 +188,7 @@
         </header>
 
         {{-- Page content --}}
-        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-7">
+        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-6">
             @yield('content')
         </main>
     </div>

@@ -88,10 +88,18 @@
             <h3 class="text-sm font-semibold text-slate-700 mb-4">Pending Recommendations by Category</h3>
             @foreach ($recsByCategory as $rec)
             @php
-            $catIcons = ['health'=>'🏥','financial'=>'💰','social'=>'👥','functional'=>'🦾','hc_access'=>'🏨','general'=>'📌'];
+            $catIcons = [
+                'health'     => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>',
+                'financial'  => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                'social'     => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5.356-3.712M9 20H4v-2a4 4 0 015.356-3.712M15 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0zM3 10a3 3 0 116 0 3 3 0 01-6 0z"/></svg>',
+                'functional' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+                'hc_access'  => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>',
+                'general'    => '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>',
+            ];
+            $defaultIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>';
             @endphp
             <div class="flex items-center gap-3 mb-2.5">
-                <span class="text-base">{{ $catIcons[$rec->category] ?? '📌' }}</span>
+                <span>{!! $catIcons[$rec->category] ?? $defaultIcon !!}</span>
                 <div class="flex-1">
                     <div class="flex justify-between text-sm mb-0.5">
                         <span class="text-slate-600 capitalize">{{ str_replace('_',' ', $rec->category) }}</span>
@@ -153,7 +161,7 @@
     {{-- ── At-Risk Seniors Table ── --}}
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-2">
-            <span class="text-base">🚨</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
             <h3 class="text-sm font-semibold text-red-800">At-Risk Seniors (CRITICAL & HIGH)</h3>
             <span class="ml-auto text-xs text-red-600">{{ $atRiskSeniors->total() }} total</span>
         </div>
@@ -201,7 +209,9 @@
                     @empty
                     <tr>
                         <td colspan="10" class="px-4 py-8 text-center text-slate-400">
-                            <div class="text-3xl mb-2">✅</div>
+                            <div class="flex justify-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
                             No critical or high risk seniors found with current filters.
                         </td>
                     </tr>
