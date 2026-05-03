@@ -22,6 +22,7 @@ class ClusterAnalyticsService
         return MlResult::with(['seniorCitizen'])
             ->whereIn('id', $this->latestResultIds())
             ->whereNotNull('cluster_named_id')
+            ->whereHas('seniorCitizen')
             ->when($barangay, fn ($query) => $query->whereHas(
                 'seniorCitizen',
                 fn ($seniorQuery) => $seniorQuery->where('barangay', $barangay)

@@ -223,7 +223,7 @@
                 @else
                 <button wire:click="confirmSubmit"
                         class="px-5 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
-                    Submit & Run ML Analysis
+                    Submit & Run Assessment
                 </button>
                 @endif
             </div>
@@ -237,7 +237,7 @@
             <h3 class="font-display text-xl text-slate-800 mb-2">Submit QoL Survey?</h3>
             <p class="text-sm text-slate-600 mb-4">
                 This will submit the Quality of Life survey for <strong>{{ $senior->full_name }}</strong>
-                and automatically trigger the ML analysis pipeline (preprocessing → clustering → risk scoring → recommendations).
+                and automatically run the health assessment (data preparation → health grouping → risk scoring → recommendations).
             </p>
             <div class="flex gap-3 justify-end">
                 <button wire:click="$set('showConfirm', false)"
@@ -258,8 +258,8 @@
     @if ($isProcessing)
     <div class="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
         <div class="animate-spin w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full mb-3"></div>
-        <p class="text-sm font-medium text-slate-600">Running ML Analysis Pipeline…</p>
-        <p class="text-xs text-slate-400 mt-1">Preprocessing → Clustering → Risk Scoring → Recommendations</p>
+        <p class="text-sm font-medium text-slate-600">Running Health Assessment…</p>
+        <p class="text-xs text-slate-400 mt-1">Preparing data → Assigning health group → Scoring risk → Generating recommendations</p>
     </div>
     @endif
 
