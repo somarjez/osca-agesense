@@ -4,51 +4,64 @@
 
 @section('content')
 <div class="space-y-5">
-    <a href="{{ route('seniors.show', $senior) }}" class="text-sm text-slate-500 hover:text-slate-700">← Back to profile</a>
+    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+        <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to profile
+    </a>
 
     @php
     $grouped = $recommendations->groupBy('category');
-    $catIcons = ['health'=>'🏥','financial'=>'💰','social'=>'🤝','functional'=>'🦾','hc_access'=>'💊','general'=>'📋'];
+    $catLabels = [
+        'health'     => 'Health',
+        'financial'  => 'Financial',
+        'social'     => 'Social',
+        'functional' => 'Functional',
+        'hc_access'  => 'Healthcare Access',
+        'general'    => 'General',
+    ];
     @endphp
 
     @forelse ($grouped as $category => $recs)
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-            <span class="text-lg">{{ $catIcons[$category] ?? '📌' }}</span>
-            <h3 class="font-semibold text-slate-700 capitalize">{{ str_replace('_',' ', $category) }}</h3>
-            <span class="ml-auto text-xs text-slate-400">{{ $recs->count() }} action(s)</span>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div class="card-title">{{ $catLabels[$category] ?? ucwords(str_replace('_',' ', $category)) }}</div>
+            <span class="badge badge-neutral">{{ $recs->count() }} action{{ $recs->count() !== 1 ? 's' : '' }}</span>
         </div>
-        <div class="divide-y divide-slate-50">
+        <div class="divide-y divide-paper-rule">
             @foreach ($recs->sortBy('priority') as $rec)
             <div class="px-5 py-4 flex items-start gap-3">
-                <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5
+                <span class="flex-shrink-0 w-6 h-6 rounded-md grid place-items-center text-[11px] font-bold mt-0.5
                     {{ match($rec->urgency) {
-                        'immediate' => 'bg-red-500 text-white',
-                        'urgent'    => 'bg-orange-400 text-white',
-                        'planned'   => 'bg-blue-400 text-white',
-                        default     => 'bg-slate-200 text-slate-600',
+                        'immediate' => 'bg-critical-100 text-critical-700',
+                        'urgent'    => 'bg-high-100 text-high-700',
+                        'planned'   => 'bg-info-100 text-info-700',
+                        default     => 'bg-paper-2 text-ink-500',
                     } }}">{{ $rec->priority }}</span>
                 <div class="flex-1">
-                    <p class="text-sm text-slate-800">{{ $rec->action }}</p>
+                    <p class="text-[13px] text-ink-800">{{ $rec->action }}</p>
                     <div class="flex items-center gap-3 mt-1.5 flex-wrap">
-                        <span class="{{ $rec->urgency_badge }} text-xs px-2 py-0.5 rounded-full font-medium">
-                            {{ ucfirst($rec->urgency) }}
-                        </span>
+                        @if ($rec->urgency === 'immediate')
+                            <span class="badge badge-critical">{{ ucfirst($rec->urgency) }}</span>
+                        @elseif ($rec->urgency === 'urgent')
+                            <span class="badge badge-high">{{ ucfirst($rec->urgency) }}</span>
+                        @elseif ($rec->urgency === 'planned')
+                            <span class="badge badge-info">{{ ucfirst($rec->urgency) }}</span>
+                        @else
+                            <span class="badge badge-neutral">{{ ucfirst($rec->urgency ?? 'Pending') }}</span>
+                        @endif
                         @if ($rec->risk_level)
-                        <span class="text-xs text-slate-400">Risk: {{ strtoupper($rec->risk_level) }}</span>
+                        <span class="text-[11.5px] text-ink-400">Risk: {{ strtoupper($rec->risk_level) }}</span>
                         @endif
                         @if ($rec->target_date)
-                        <span class="text-xs text-slate-400">Target: {{ $rec->target_date->format('M j, Y') }}</span>
+                        <span class="text-[11.5px] text-ink-400">Target: {{ $rec->target_date->format('M j, Y') }}</span>
                         @endif
                     </div>
                     @if ($rec->notes)
-                    <p class="text-xs text-slate-500 mt-1 italic">{{ $rec->notes }}</p>
+                    <p class="text-[11.5px] text-ink-400 mt-1 italic">{{ $rec->notes }}</p>
                     @endif
                 </div>
                 <form method="POST" action="{{ route('recommendations.status', $rec) }}" class="flex-shrink-0">
                     @csrf @method('PATCH')
-                    <select name="status" onchange="this.form.submit()"
-                            class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-teal-500">
+                    <select name="status" onchange="this.form.submit()" class="form-select w-auto text-[12px] py-1">
                         @foreach (['pending','in_progress','completed','dismissed'] as $s)
                             <option value="{{ $s }}" {{ $rec->status===$s?'selected':'' }}>
                                 {{ ucwords(str_replace('_',' ',$s)) }}
@@ -61,12 +74,12 @@
         </div>
     </div>
     @empty
-    <div class="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm">
-        <div class="text-3xl mb-2">💡</div>
-        <p class="text-slate-500 font-medium">No recommendations yet.</p>
-        <a href="{{ route('surveys.qol.create', $senior) }}"
-           class="inline-block mt-3 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700">
-            Take QoL Survey to generate recommendations →
+    <div class="card p-12 text-center">
+        <x-heroicon-o-light-bulb class="w-10 h-10 text-ink-300 mx-auto mb-3" />
+        <p class="font-serif text-base text-ink-500 font-medium">No recommendations yet.</p>
+        <p class="text-[12.5px] text-ink-400 mt-1">Complete a QoL survey to generate tailored recommendations.</p>
+        <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary mt-4 inline-flex">
+            <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Take QoL Survey
         </a>
     </div>
     @endforelse

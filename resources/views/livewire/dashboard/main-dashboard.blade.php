@@ -29,7 +29,7 @@
         </select>
 
         <div class="ml-auto flex items-center gap-3 text-[11.5px] text-ink-500">
-            <span class="eyebrow">ML Pipeline</span>
+            <span class="eyebrow">Analysis Services</span>
             @foreach ($mlHealth as $service => $status)
                 <span class="inline-flex items-center gap-1.5">
                     <span class="status-dot {{ $status === 'ok' ? 'status-dot-ok' : 'status-dot-err' }}"></span>
@@ -56,7 +56,7 @@
             </div>
         </x-card>
 
-        <x-card title="K-Means Clusters" sub="K=3 · WHO domain features">
+        <x-card title="Health Groups" sub="3 groups · based on capacity & environment">
             <div wire:ignore class="relative h-44"><canvas id="clusterChart"></canvas></div>
             <div class="mt-4 space-y-1.5">
                 @foreach ($clusterDistribution['labels'] as $i => $label)
@@ -69,7 +69,7 @@
             </div>
         </x-card>
 
-        <x-card title="Domain Scores" sub="Population mean · % of max">
+        <x-card title="Domain Scores" sub="Average score across all seniors">
             <div wire:ignore class="relative h-56"><canvas id="domainChart"></canvas></div>
         </x-card>
     </div>
@@ -132,7 +132,7 @@
                     @if ($ml)
                         <x-risk-badge :level="$ml->overall_risk_level" />
                     @else
-                        <span class="badge badge-neutral">No ML data</span>
+                        <span class="badge badge-neutral">Not yet assessed</span>
                     @endif
                 </a>
                 @empty

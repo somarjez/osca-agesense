@@ -21,9 +21,13 @@
 
     {{-- Back --}}
     @if ($senior && !$senior->trashed())
-    <a href="{{ route('seniors.show', $senior) }}" class="text-sm text-slate-500 hover:text-slate-700">← Back to {{ $senior->full_name }}</a>
+    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+        <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to {{ $senior->full_name }}
+    </a>
     @else
-    <a href="{{ route('surveys.qol.index') }}" class="text-sm text-slate-500 hover:text-slate-700">← Back to QoL Surveys</a>
+    <a href="{{ route('surveys.qol.index') }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+        <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to QoL Surveys
+    </a>
     @endif
 
     {{-- Summary header --}}
@@ -54,13 +58,13 @@
         {{-- ML Risk --}}
         @if ($ml)
         <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">ML Risk Assessment</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Risk Assessment</p>
             <div class="space-y-3">
                 @foreach ([
-                    ['IC Risk',        $ml->ic_risk,        $ml->ic_risk_level],
-                    ['Env Risk',       $ml->env_risk,       $ml->env_risk_level],
-                    ['Func Risk',      $ml->func_risk,      $ml->func_risk_level],
-                    ['Composite',      $ml->composite_risk, $ml->overall_risk_level],
+                    ['Physical Capacity', $ml->ic_risk,        $ml->ic_risk_level],
+                    ['Environment',       $ml->env_risk,       $ml->env_risk_level],
+                    ['Daily Functioning', $ml->func_risk,      $ml->func_risk_level],
+                    ['Overall Risk',      $ml->composite_risk, $ml->overall_risk_level],
                 ] as [$label, $score, $level])
                 <div class="flex items-center gap-3">
                     <span class="text-xs text-slate-500 w-20 flex-shrink-0">{{ $label }}</span>
@@ -82,15 +86,15 @@
                 @endforeach
             </div>
             <div class="mt-3 pt-3 border-t border-slate-100 text-center">
-                <span class="text-xs text-slate-500">Cluster</span>
+                <span class="text-xs text-slate-500">Health Group</span>
                 <p class="font-semibold text-slate-800">
-                    C{{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
+                    Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
                 </p>
             </div>
         </div>
         @else
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 flex items-center justify-center">
-            <p class="text-sm text-slate-400">ML analysis not yet run.</p>
+            <p class="text-sm text-slate-400">Assessment not yet run.</p>
         </div>
         @endif
 

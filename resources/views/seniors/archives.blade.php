@@ -7,6 +7,12 @@
 
     {{-- Filter --}}
     <form method="GET" class="card">
+        <div class="card-head">
+            <div class="card-title">Search Archives</div>
+            <a href="{{ route('seniors.index') }}" class="btn btn-ghost gap-1.5">
+                <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Active Records
+            </a>
+        </div>
         <div class="card-body flex flex-wrap items-end gap-4">
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1.5">Search</label>
@@ -24,9 +30,12 @@
                 </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">Search</button>
-                <a href="{{ route('seniors.archives') }}" class="btn">Clear</a>
-                <a href="{{ route('seniors.index') }}" class="btn">← Active Records</a>
+                <button type="submit" class="btn btn-primary">
+                    <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" /> Search
+                </button>
+                @if (request()->hasAny(['search','barangay']))
+                    <a href="{{ route('seniors.archives') }}" class="btn">Clear</a>
+                @endif
             </div>
         </div>
     </form>

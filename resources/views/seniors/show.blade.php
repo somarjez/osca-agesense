@@ -8,11 +8,13 @@
 
     {{-- Top action bar --}}
     <div class="flex items-center gap-3 flex-wrap">
-        <a href="{{ route('seniors.index') }}" class="text-sm text-ink-500 hover:text-ink-900 inline-flex items-center gap-1.5">
-            <span>←</span> Back to records
+        <a href="{{ route('seniors.index') }}" class="btn btn-ghost gap-1.5 pl-1.5">
+            <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to records
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
-            <a href="{{ route('surveys.qol.create', $senior) }}" class="btn">+ New QoL Survey</a>
+            <a href="{{ route('surveys.qol.create', $senior) }}" class="btn">
+                <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> New QoL Survey
+            </a>
 
             <div x-data="{
                     loading: false, done: false, err: '',
@@ -27,19 +29,27 @@
                             if (d.success) { this.done = true; setTimeout(() => location.reload(), 1200); }
                             else { this.err = d.error || 'Analysis failed.'; this.loading = false; }
                         })
-                        .catch(() => { this.err = 'Request failed. Is the ML service running?'; this.loading = false; });
+                        .catch(() => { this.err = 'Request failed. Is the analysis service running?'; this.loading = false; });
                     }
                 }">
                 <button @click="run()" :disabled="loading || done" class="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
                     <template x-if="loading"><span>Running…</span></template>
                     <template x-if="done"><span>✓ Refreshing…</span></template>
-                    <template x-if="!loading && !done"><span>Re-run ML Analysis</span></template>
+                    <template x-if="!loading && !done">
+                        <span class="inline-flex items-center gap-1.5">
+                            <x-heroicon-o-arrow-path class="w-3.5 h-3.5" /> Re-run Assessment
+                        </span>
+                    </template>
                 </button>
                 <p x-show="err" x-text="err" x-cloak class="text-xs text-critical-700 mt-1 text-right"></p>
             </div>
 
-            <a href="{{ route('seniors.export', $senior) }}" class="btn">Export PDF</a>
-            <a href="{{ route('seniors.edit', $senior) }}" class="btn">Edit</a>
+            <a href="{{ route('seniors.export', $senior) }}" class="btn">
+                <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export PDF
+            </a>
+            <a href="{{ route('seniors.edit', $senior) }}" class="btn">
+                <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
+            </a>
         </div>
     </div>
 
@@ -57,9 +67,9 @@
                     <x-cluster-badge :id="$ml->cluster_named_id" :label="$ml->cluster_name" />
                 </div>
                 @foreach ([
-                    ['IC Risk', $ml->ic_risk, $ml->ic_risk_level],
-                    ['Env Risk', $ml->env_risk, $ml->env_risk_level],
-                    ['Func Risk', $ml->func_risk, $ml->func_risk_level],
+                    ['Physical Capacity', $ml->ic_risk, $ml->ic_risk_level],
+                    ['Environment', $ml->env_risk, $ml->env_risk_level],
+                    ['Daily Functioning', $ml->func_risk, $ml->func_risk_level],
                 ] as [$label, $score, $level])
                 <div>
                     <div class="eyebrow mb-2">{{ $label }}</div>
@@ -79,7 +89,7 @@
     @else
     <div class="card border-l-[3px] border-l-moderate-500">
         <div class="card-body text-sm text-ink-700">
-            No ML analysis yet. Complete a QoL survey and run the analysis to see risk scores and recommendations.
+            No assessment yet. Complete a QoL survey and run the assessment to see risk scores and recommendations.
         </div>
     </div>
     @endif
@@ -320,7 +330,7 @@
                     </ul>
                 </div>
                 @empty
-                <div class="p-8 text-center text-sm text-ink-400">No recommendations yet. Run ML analysis first.</div>
+                <div class="p-8 text-center text-sm text-ink-400">No recommendations yet. Run the assessment first.</div>
                 @endforelse
             </x-card>
 

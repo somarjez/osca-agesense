@@ -62,9 +62,8 @@
                 ['route'=>'dashboard',            'label'=>'Dashboard',         'icon'=>'home'],
                 ['route'=>'seniors.index',        'label'=>'Senior Records',    'icon'=>'users'],
                 ['route'=>'seniors.create',       'label'=>'New Profile',       'icon'=>'user-plus'],
-                ['route'=>'seniors.archives',     'label'=>'Archives',          'icon'=>'archive-box'],
                 ['route'=>'surveys.qol.index',    'label'=>'QoL Surveys',       'icon'=>'clipboard-document-list'],
-                ['route'=>'reports.cluster',      'label'=>'Cluster Analysis',  'icon'=>'squares-2x2'],
+                ['route'=>'reports.cluster',      'label'=>'Health Groups',     'icon'=>'squares-2x2'],
                 ['route'=>'reports.risk',         'label'=>'Risk Reports',      'icon'=>'shield-check'],
                 ['route'=>'recommendations.index','label'=>'Recommendations',   'icon'=>'light-bulb'],
             ];
@@ -81,7 +80,7 @@
             @endforeach
 
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">ML Pipeline</div>
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Assessment Tools</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
@@ -100,14 +99,27 @@
             </a>
 
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Reference</div>
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Archives</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
-            <a class="nav-link cursor-default"
+            <a href="{{ route('seniors.archives') }}"
+               class="nav-link {{ request()->routeIs('seniors.archives*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
-               :title="sidebarOpen ? '' : 'WHO Framework'">
-                <x-heroicon-o-document-text class="w-4 h-4 flex-shrink-0" />
-                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">WHO Framework</span>
+               :title="sidebarOpen ? '' : 'Archives'">
+                <x-heroicon-o-archive-box class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Archives</span>
+            </a>
+
+            <div x-show="sidebarOpen" x-cloak
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Help</div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
+
+            <a href="{{ route('help') }}"
+               class="nav-link {{ request()->routeIs('help') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Help Centre'">
+                <x-heroicon-o-question-mark-circle class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Help Centre</span>
             </a>
         </nav>
 
@@ -149,31 +161,29 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-9 py-5 flex items-center justify-between flex-shrink-0">
-            <div>
-                <div class="flex items-center gap-3">
-                    <h1 class="font-serif text-[26px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-tight">@yield('page-title', 'Dashboard')</h1>
-                    <span class="framework-tag">WHO Healthy Ageing</span>
-                </div>
+        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-8 py-4 flex items-center justify-between flex-shrink-0 gap-6">
+            <div class="flex items-baseline gap-3 min-w-0">
+                <h1 class="font-serif text-[22px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-tight whitespace-nowrap">@yield('page-title', 'Dashboard')</h1>
                 @hasSection('page-subtitle')
-                    <p class="text-[13px] text-ink-500 dark:text-[#6b7570] mt-1">@yield('page-subtitle')</p>
+                    <p class="text-[12.5px] text-ink-400 dark:text-[#6b7570] truncate">@yield('page-subtitle')</p>
                 @endif
             </div>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-2 text-xs text-ink-500 dark:text-[#6b7570]">
-                    <span class="status-dot status-dot-ok"></span>
-                    <span>Preprocess <span class="text-ink-700 dark:text-[#b0b5b2] font-semibold">:5001</span></span>
-                    <span class="text-ink-300 dark:text-[#2b3530]">·</span>
-                    <span class="status-dot status-dot-ok"></span>
-                    <span>Inference <span class="text-ink-700 dark:text-[#b0b5b2] font-semibold">:5002</span></span>
-                </div>
+            <div class="flex items-center gap-3 flex-shrink-0">
                 @foreach (['success'=>'low','warning'=>'moderate','info'=>'info','error'=>'critical'] as $type => $variant)
                     @if (session($type))
                     <div class="badge badge-{{ $variant }}">{{ session($type) }}</div>
                     @endif
                 @endforeach
-                <button class="btn"><x-heroicon-o-bell class="w-3.5 h-3.5" /></button>
-                <span class="text-ink-400 dark:text-[#4a5550] text-[11px] tnum">{{ now()->format('D, M j, Y') }}</span>
+                <span class="text-[11px] text-ink-400 dark:text-[#4a5550] tnum whitespace-nowrap">{{ now()->format('D, M j') }}</span>
+                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
+                <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570] hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors" title="Analysis service status">
+                    <span class="status-dot status-dot-ok"></span>
+                    <span class="font-medium">Services</span>
+                </a>
+                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
+                <button class="btn btn-ghost p-1.5" title="Notifications">
+                    <x-heroicon-o-bell class="w-4 h-4" />
+                </button>
             </div>
         </header>
 
