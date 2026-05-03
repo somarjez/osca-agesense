@@ -25,39 +25,39 @@
 
   /* Cards */
   .card {
-    @apply bg-white border border-paper-rule rounded-lg shadow-sm;
+    @apply bg-white border border-paper-rule rounded-xl shadow-sm;
   }
   .card-head {
-    @apply px-5 py-4 border-b border-paper-rule flex items-center justify-between gap-3;
+    @apply px-5 py-3.5 border-b border-paper-rule flex items-center justify-between gap-3;
   }
   .card-title {
-    @apply font-serif text-base font-semibold tracking-tightish text-ink-900;
+    @apply font-serif text-[15px] font-semibold tracking-tightish text-ink-900;
   }
   .card-sub {
-    @apply text-xs text-ink-500 mt-0.5;
+    @apply text-[11.5px] text-ink-400 mt-0.5;
   }
   .card-body { @apply p-5; }
 
   /* KPI */
   .kpi {
-    @apply bg-white border border-paper-rule rounded-lg p-5 relative overflow-hidden;
+    @apply bg-white border border-paper-rule rounded-xl px-5 py-4 relative overflow-hidden;
   }
   .kpi-label {
-    @apply text-[11.5px] uppercase tracking-[0.08em] font-semibold text-ink-500;
+    @apply text-[11px] uppercase tracking-[0.1em] font-semibold text-ink-400;
   }
   .kpi-value {
-    @apply font-serif text-[38px] font-semibold tracking-snug text-ink-900 mt-1.5 leading-none tnum;
+    @apply font-serif text-[32px] font-semibold tracking-snug text-ink-900 mt-1 leading-none tnum;
   }
   .kpi-rule {
-    @apply absolute left-0 top-0 bottom-0 w-[3px] bg-forest-600;
+    @apply absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full;
   }
   .kpi-delta {
-    @apply inline-flex items-center gap-1 text-xs font-medium mt-2 text-ink-500;
+    @apply inline-flex items-center gap-1 text-[11.5px] font-medium mt-2 text-ink-400;
   }
 
   /* Status badges */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold border;
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold border whitespace-nowrap;
   }
   .badge-critical { @apply bg-critical-50 text-critical-700 border-critical-100; }
   .badge-high     { @apply bg-high-50     text-high-700     border-high-100; }
@@ -88,21 +88,25 @@
 
   /* Form inputs */
   .form-input, .form-select {
-    @apply w-full border border-paper-rule rounded-md px-3 py-2 text-sm bg-white text-ink-900
+    @apply w-full border border-paper-rule rounded-md px-3 py-2 text-[13px] bg-white text-ink-900
            focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500
-           transition-colors placeholder:text-ink-400;
+           transition-colors placeholder:text-ink-300;
   }
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border
-           border-paper-rule bg-white text-ink-700 hover:border-ink-300 hover:text-ink-900 transition-all;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium border
+           border-paper-rule bg-white text-ink-700 hover:border-ink-300 hover:text-ink-900
+           transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-forest-500/25;
   }
   .btn-primary {
     @apply bg-forest-800 text-paper border-forest-800 hover:bg-forest-900 hover:border-forest-900 hover:text-paper;
   }
   .btn-ghost {
-    @apply bg-transparent border-transparent text-ink-500 hover:text-ink-900 hover:bg-ink-100/40;
+    @apply bg-transparent border-transparent text-ink-500 hover:text-ink-900 hover:bg-paper-rule/40;
+  }
+  .btn-danger {
+    @apply bg-critical-600 text-white border-critical-600 hover:bg-critical-700 hover:border-critical-700 hover:text-white;
   }
 
   /* Section header (legacy) */
@@ -112,10 +116,10 @@
 
   /* Table */
   .th {
-    @apply px-4 py-3 text-left text-[11px] font-semibold text-ink-500 uppercase tracking-[0.08em] bg-paper-2 border-b border-paper-rule whitespace-nowrap;
+    @apply px-4 py-2.5 text-left text-[10.5px] font-semibold text-ink-400 uppercase tracking-[0.09em] bg-paper-2 border-b border-paper-rule whitespace-nowrap;
   }
   .td {
-    @apply px-4 py-3 text-sm text-ink-700 border-b border-paper-rule;
+    @apply px-4 py-2.5 text-[13px] text-ink-700 border-b border-paper-rule;
   }
 
   /* Bars */
@@ -165,15 +169,15 @@
 
   /* Sidebar nav link */
   .nav-link {
-    @apply flex items-center gap-3 px-3 py-1.5 rounded-md text-[13.5px] text-ink-700 font-medium transition-colors relative;
+    @apply flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-ink-700 font-medium transition-all duration-100 relative;
   }
-  .nav-link:hover { @apply bg-forest-100/40 text-ink-900; }
+  .nav-link:hover { @apply bg-forest-100/50 text-ink-900; }
   .nav-link-active {
     @apply bg-forest-100 text-forest-800 font-semibold;
   }
   .nav-link-active::before {
     content: '';
-    @apply absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-forest-700 rounded-full;
+    @apply absolute left-0 top-2 bottom-2 w-[3px] bg-forest-700 rounded-full;
   }
   .nav-link-collapsed {
     padding-left: 0 !important;
@@ -233,6 +237,8 @@
 .dark .btn-primary:hover { background-color: #3a7a65; border-color: #3a7a65; }
 .dark .btn-ghost   { background-color: transparent; border-color: transparent; color: #6b7570; }
 .dark .btn-ghost:hover { background-color: rgba(47,101,82,0.15); color: #e4e1d8; }
+.dark .btn-danger  { background-color: #7a2020; border-color: #7a2020; color: #e4d4d4; }
+.dark .btn-danger:hover { background-color: #963030; border-color: #963030; }
 
 .dark .form-input,
 .dark .form-select { background-color: #1a201d; border-color: #2b3530; color: #e4e1d8; }

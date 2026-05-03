@@ -5,10 +5,10 @@
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         @php
         $metrics = [
-            ['K Clusters',         $evalMetrics['k_chosen'],                              'Validated K=3',                  true],
-            ['Silhouette Score',    number_format($evalMetrics['silhouette'], 3),          'Higher is better · ≥0.30',       $evalMetrics['silhouette'] > 0.3],
-            ['Davies–Bouldin',      number_format($evalMetrics['davies_bouldin'], 3),      'Lower is better · ≤1.50',        $evalMetrics['davies_bouldin'] < 1.5],
-            ['Calinski–Harabasz',   number_format($evalMetrics['calinski_harabasz'], 1),   'Higher is better',               true],
+            ['Health Groups',       $evalMetrics['k_chosen'],                              '3 groups identified',            true],
+            ['Group Separation',    number_format($evalMetrics['silhouette'], 3),          'Higher is better · ≥0.30',       $evalMetrics['silhouette'] > 0.3],
+            ['Group Distinctness',  number_format($evalMetrics['davies_bouldin'], 3),      'Lower is better · ≤1.50',        $evalMetrics['davies_bouldin'] < 1.5],
+            ['Group Density',       number_format($evalMetrics['calinski_harabasz'], 1),   'Higher is better',               true],
         ];
         @endphp
         @foreach ($metrics as [$label, $value, $note, $good])
@@ -81,7 +81,7 @@
 
     {{-- ── Charts row ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <x-card title="WHO Domain Risk by Cluster" sub="% of maximum risk">
+        <x-card title="Risk by Health Group" sub="Score out of 100%">
             <div wire:ignore class="h-56"><canvas id="domainClusterChart"></canvas></div>
         </x-card>
 
@@ -158,7 +158,7 @@
                 @empty
                 <tr>
                     <td colspan="9" class="td text-center py-12 text-ink-400">
-                        No cluster analysis results found. Run the ML pipeline to generate data.
+                        No results found. Run the health assessment to generate data.
                     </td>
                 </tr>
                 @endforelse

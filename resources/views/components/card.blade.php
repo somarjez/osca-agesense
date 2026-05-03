@@ -1,4 +1,4 @@
-@props(['title' => null, 'sub' => null])
+@props(['title' => null, 'sub' => null, 'noPadding' => false])
 <div {{ $attributes->merge(['class' => 'card']) }}>
     @if ($title || $sub || isset($actions))
     <div class="card-head">
@@ -11,7 +11,9 @@
         @endisset
     </div>
     @endif
-    <div {{ isset($noPadding) ? '' : 'class=card-body' }}>
-        {{ $slot }}
-    </div>
+    @if ($noPadding)
+        <div>{{ $slot }}</div>
+    @else
+        <div class="card-body">{{ $slot }}</div>
+    @endif
 </div>

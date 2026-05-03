@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-04-30 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, and ML model update (UMAP, GBR/RFR retrain).
+> **Last Updated:** 2026-05-03 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), and GIS module planning.
 
 ---
 
@@ -27,8 +27,9 @@
 15. [Current Limitations](#15-current-limitations)
 16. [Security and Privacy Notes](#16-security-and-privacy-notes)
 17. [Known Missing Features and TODOs](#17-known-missing-features-and-todos)
-18. [Suggested Future Improvements](#18-suggested-future-improvements)
-19. [Current System Status](#19-current-system-status)
+18. [Planned GIS Module](#18-planned-gis-module)
+19. [Suggested Future Improvements](#19-suggested-future-improvements)
+20. [Current System Status](#20-current-system-status)
 
 ---
 
@@ -83,6 +84,10 @@ The following capabilities are fully implemented and operational in the current 
 | Batch UMAP + KMeans one-shot clustering (batch optimisation) | Implemented |
 | Runtime-configurable scoring weights via asset_weights.json | Implemented |
 | Runtime-configurable cluster metadata via cluster_metadata.json | Implemented |
+| UI terminology simplification (plain-language labels throughout) | Implemented |
+| Cluster analysis archived-senior exclusion fix | Implemented |
+| In-app Help Centre with FAQs and user guide | Implemented |
+| Sidebar section reorganisation (Archives, Assessment Tools, Help) | Implemented |
 
 ---
 
@@ -744,10 +749,137 @@ The following features are either partially implemented or explicitly absent fro
 | Senior citizen photo upload | Not implemented | No photo field or upload feature in the profile form |
 | Export full database to Excel | Not implemented | `maatwebsite/excel` is installed but no Excel export is implemented |
 | Barangay-specific report page | Partially implemented | Route `reports.barangay` is defined; no view or controller logic implemented |
+| GIS / interactive senior location map | Planned | See Section 18 for full specification |
+| Points of Interest proximity scoring | Planned | Requires `points_of_interest` table and GIS fields on `senior_citizens` |
+| Leaflet.js map view (`/gis/map`) | Planned | Depends on coordinate data collection |
 
 ---
 
-## 18. Suggested Future Improvements
+## 18. Planned GIS Module
+
+The GIS (Geographic Information System) module is a planned feature that will allow OSCA staff to visualise senior citizen locations on an interactive map, understand proximity to essential services, and identify geographic clusters of high-risk seniors.
+
+### 18.1 Overview
+
+The GIS module will integrate a web-based map (Leaflet.js with OpenStreetMap tiles) into the existing AgeSense web application. Latitude and longitude coordinates will be stored against each senior citizen record and used to render pins on a map with colour-coded risk levels. No external GIS software or server is required — the map renders in the browser.
+
+### 18.2 Senior Location Data
+
+Each senior citizen record will be extended with:
+
+| New Field | Type | Description |
+|---|---|---|
+| `latitude` | `decimal(10,7)` | GPS latitude of the senior's home |
+| `longitude` | `decimal(10,7)` | GPS longitude of the senior's home |
+| `address_line` | `string` | Street-level address (optional, for display) |
+| `location_source` | `enum` | How coordinates were obtained: `manual`, `geocoded`, `gps` |
+| `location_verified_at` | `timestamp` | When coordinates were last confirmed |
+
+Coordinates can be entered manually, geocoded from the barangay address via a geocoding API (e.g., Nominatim/OpenStreetMap), or captured from a GPS device in the field.
+
+### 18.3 Map Features
+
+**Senior location map** (`/gis/map`):
+
+- Pins for each senior, coloured by risk level (red = CRITICAL, orange = HIGH, yellow = MODERATE, green = LOW)
+- Click a pin to see a popup: senior name, OSCA ID, barangay, health group, overall risk level, link to profile
+- Filter by barangay, risk level, and health group
+- Cluster pins automatically at zoom-out (Leaflet.markercluster)
+- Heatmap overlay to show density of high-risk seniors by area
+
+**Service proximity overlay**:
+
+Points of interest (POIs) will be mapped alongside seniors to show proximity to essential services:
+
+| POI Category | Icon | Data Source |
+|---|---|---|
+| Health centres / RHU | Cross icon | Manual entry or OpenStreetMap |
+| Hospitals | Hospital icon | Manual entry or OpenStreetMap |
+| Pharmacies / drugstores | Pill icon | Manual entry or OpenStreetMap |
+| Public markets | Cart icon | Manual entry |
+| Sari-sari stores / convenience | Shop icon | Manual entry |
+| Barangay halls | Flag icon | Manual entry |
+| Churches / places of worship | Star icon | Manual entry |
+| Senior citizen centres | People icon | Manual entry |
+
+A proximity indicator will show each senior's straight-line distance to the nearest facility of each type. Seniors beyond a configurable threshold (e.g., > 500 m from a health centre) will be flagged for a `hc_access` risk adjustment.
+
+### 18.4 Proximity-Based Risk Adjustment
+
+The GIS module will feed into the existing risk scoring pipeline by providing a `gis_proximity_score` (0–1) that reflects how well-served a senior is by nearby essential facilities. This score will be included as an optional additional feature in the preprocessing pipeline when coordinates are available:
+
+```
+gis_proximity_score = weighted_average(
+    distance_to_health_centre    × 0.35,
+    distance_to_hospital         × 0.25,
+    distance_to_pharmacy         × 0.20,
+    distance_to_market           × 0.15,
+    distance_to_barangay_hall    × 0.05
+)
+```
+
+Distances are normalised against a 2 km reference radius. Seniors beyond 2 km from a facility receive the maximum risk contribution for that category.
+
+### 18.5 GIS Report Page
+
+A new report page (`/reports/gis`) will include:
+
+- Barangay-level choropleth map (shading by average composite risk)
+- Table of barangays ranked by average risk, % of seniors beyond service thresholds, and count of CRITICAL/HIGH seniors
+- Export of the GIS data as CSV (name, barangay, lat/lng, risk level, nearest health centre distance)
+
+### 18.6 Data Entry Workflow
+
+OSCA staff will be able to:
+1. Enter or edit coordinates directly on the senior profile edit form (a map picker will be provided)
+2. Auto-geocode from the senior's barangay name when no exact address is available (places the pin at the barangay centroid)
+3. Run a bulk geocode job from the admin panel to assign barangay centroids to all seniors missing coordinates
+
+### 18.7 Technical Stack
+
+| Component | Technology |
+|---|---|
+| Map rendering | Leaflet.js 1.9 |
+| Base tiles | OpenStreetMap (free, no API key required) |
+| Marker clustering | Leaflet.markercluster plugin |
+| Geocoding | Nominatim API (OpenStreetMap) — rate-limited, no key required |
+| POI data | Manual entry via seeder + admin UI; future: OpenStreetMap Overpass API |
+| Proximity calculation | PHP Haversine formula (server-side, stored in `senior_citizens` via accessor) |
+| Migration | New columns on `senior_citizens` table; new `points_of_interest` table |
+
+### 18.8 Database Changes Required
+
+**New migration — `add_gis_fields_to_senior_citizens`:**
+
+```sql
+ALTER TABLE senior_citizens
+  ADD latitude          DECIMAL(10,7) NULL,
+  ADD longitude         DECIMAL(10,7) NULL,
+  ADD address_line      VARCHAR(255)  NULL,
+  ADD location_source   ENUM('manual','geocoded','gps') DEFAULT 'geocoded',
+  ADD location_verified_at TIMESTAMP NULL;
+```
+
+**New table — `points_of_interest`:**
+
+```sql
+CREATE TABLE points_of_interest (
+  id         BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  name       VARCHAR(255) NOT NULL,
+  category   ENUM('health_centre','hospital','pharmacy','market','store','barangay_hall','church','senior_centre') NOT NULL,
+  barangay   VARCHAR(100) NULL,
+  latitude   DECIMAL(10,7) NOT NULL,
+  longitude  DECIMAL(10,7) NOT NULL,
+  address    VARCHAR(255) NULL,
+  is_active  BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+```
+
+---
+
+## 19. Suggested Future Improvements
 
 1. **Implement role-based access control** using `spatie/laravel-permission`. Suggested roles: `admin` (full system access, user management, batch ML), `encoder` (profile and survey management only), `viewer` (read-only access to reports and recommendations).
 
@@ -771,9 +903,15 @@ The following features are either partially implemented or explicitly absent fro
 
 11. **Complete the barangay report page.** The route `reports.barangay` is defined but has no controller logic or view. Implement a barangay-level drill-down page showing all seniors, their risk distribution, and cluster breakdown for that specific barangay.
 
+12. **Implement the GIS module.** Add latitude/longitude fields to `senior_citizens`, create the `points_of_interest` table, build the Leaflet.js map view at `/gis/map`, and wire the proximity scoring into the ML preprocessing pipeline. See Section 18 for full technical specification.
+
+13. **Collect and geocode senior coordinates.** Run the bulk geocode job to assign barangay centroids as initial coordinates for all existing seniors, then iteratively improve accuracy as field workers capture GPS coordinates during visits.
+
+14. **Seed the Points of Interest dataset.** Populate `points_of_interest` with health centres, hospitals, pharmacies, markets, barangay halls, and senior citizen centres for all 16 Pagsanjan barangays using OpenStreetMap data and manual OSCA records.
+
 ---
 
-## 19. Current System Status
+## 20. Current System Status
 
 AgeSense is a **functionally complete core system** suitable for supervised pilot deployment. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, and recommendation management — are implemented and operational. The dashboard, cluster analysis, and risk reporting features provide meaningful analytics for OSCA staff.
 

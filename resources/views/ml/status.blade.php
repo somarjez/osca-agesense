@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('page-title', 'ML Service Status')
-@section('page-subtitle', 'Python microservice health and pipeline statistics')
+@section('page-title', 'Analysis Service Status')
+@section('page-subtitle', 'Health assessment service status and processing statistics')
 
 @section('content')
 <div class="space-y-5">
@@ -36,11 +36,11 @@
                 </div>
                 <p class="text-sm text-ink-500">
                     @if ($mode === 'http')
-                        Both Python microservices are reachable. Full ML pipeline is active.
+                        All analysis services are online and running normally.
                     @elseif ($mode === 'local_python')
-                        HTTP services are down but a local Python environment is available. Analysis runs via subprocess.
+                        Main services are unavailable, but a backup local process is active. Assessments will still run.
                     @else
-                        Python services unavailable. Results are computed using PHP rule-based heuristics.
+                        Analysis services are offline. Results are estimated using built-in rules.
                     @endif
                 </p>
             </div>
@@ -56,9 +56,9 @@
     {{-- Service Health --}}
     @php
     $healthDisplay = [
-        'preprocessor' => ['label' => 'Preprocessor', 'port' => '5001', 'desc' => 'Feature pipeline'],
-        'inference'     => ['label' => 'Inference',    'port' => '5002', 'desc' => 'Cluster & risk model'],
-        'local_runner'  => ['label' => 'Local Python', 'port' => null,   'desc' => 'Subprocess fallback'],
+        'preprocessor' => ['label' => 'Data Preparation', 'port' => '5001', 'desc' => 'Prepares survey data for analysis'],
+        'inference'     => ['label' => 'Risk Assessment',  'port' => '5002', 'desc' => 'Assigns health groups and risk levels'],
+        'local_runner'  => ['label' => 'Backup Process',   'port' => null,   'desc' => 'Runs locally when main services are down'],
     ];
     @endphp
     <div class="grid grid-cols-3 gap-4">
@@ -121,8 +121,8 @@
     <div class="card">
         <div class="card-body flex items-center gap-4">
             <div class="flex-1">
-                <p class="font-semibold text-ink-900">{{ number_format($stats['unprocessed']) }} senior(s) have no ML analysis yet</p>
-                <p class="text-sm text-ink-500 mt-0.5">Run the full pipeline for all unprocessed seniors in Batch Analysis.</p>
+                <p class="font-semibold text-ink-900">{{ number_format($stats['unprocessed']) }} senior(s) have not been assessed yet</p>
+                <p class="text-sm text-ink-500 mt-0.5">Run a batch assessment for all pending seniors.</p>
             </div>
             <a href="{{ route('ml.batch') }}" class="btn btn-primary flex-shrink-0">Run Batch Analysis →</a>
         </div>
