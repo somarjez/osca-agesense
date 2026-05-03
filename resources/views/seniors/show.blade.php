@@ -124,6 +124,57 @@
                 </div>
             </x-card>
 
+            <x-card title="III. Education / HR Profile">
+                <div class="space-y-3 text-sm">
+                    <x-profile-field label="Educational Attainment" :value="$senior->educational_attainment"/>
+                    @if (!empty($senior->specialization))
+                    <div>
+                        <span class="eyebrow">Areas of Specialization / Technical Skills</span>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                            @foreach ($senior->specialization as $item)
+                                <span class="badge badge-info">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                    @if (!empty($senior->community_service))
+                    <div>
+                        <span class="eyebrow">Community Service and Involvement</span>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                            @foreach ($senior->community_service as $item)
+                                <span class="badge badge-info">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </x-card>
+
+            <x-card title="IV. Dependency Profile">
+                <div class="space-y-3 text-sm">
+                    @if (!empty($senior->living_with))
+                    <div>
+                        <span class="eyebrow">Living / Residing With</span>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                            @foreach ($senior->living_with as $item)
+                                <span class="badge badge-info">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                    @if (!empty($senior->household_condition))
+                    <div>
+                        <span class="eyebrow">Household Condition</span>
+                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                            @foreach ($senior->household_condition as $item)
+                                <span class="badge badge-info">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </x-card>
+
             <x-card title="V. Economic Profile">
                 <div class="space-y-3 text-sm">
                     <x-profile-field label="Monthly Income" :value="$senior->monthly_income_range"/>
