@@ -610,6 +610,7 @@ class MlService
                 'env_risk_level'     => $levels['env']     ?? null,
                 'func_risk_level'    => $levels['func']    ?? null,
                 'overall_risk_level' => $levels['overall'] ?? null,
+                'priority_flag'      => $inferResult['priority_flag'] ?? $this->computePriorityFlag((float)($scores['composite_risk'] ?? 0)),
                 // Rule-based domain risks
                 'risk_medical'       => $domainRisks['risk_medical']    ?? null,
                 'risk_financial'     => $domainRisks['risk_financial']  ?? null,
@@ -641,9 +642,10 @@ class MlService
                 'type'              => $rec['type'],
                 'domain'            => $rec['domain']      ?? null,
                 'category'          => $rec['category']    ?? null,
-                'action'            => $rec['action'],
+                'action'            => $rec['action']      ?? '',
                 'urgency'           => $rec['urgency']     ?? null,
                 'risk_level'        => $rec['risk_level']  ?? null,
+                'notes'             => $rec['reason']      ?? null,
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ];
@@ -688,9 +690,10 @@ class MlService
         $wellbeing = (float) ($ss['overall_wellbeing'] ?? 0.5);
         $composite = round(1 - $wellbeing, 4);
 
-        // Thresholds mirror osca5.ipynb: CRITICAL>=0.65, HIGH>=0.45, MODERATE>=0.25, LOW<0.25
-        $level     = $composite >= 0.65 ? 'CRITICAL' : ($composite >= 0.45 ? 'HIGH' : ($composite >= 0.25 ? 'MODERATE' : 'LOW'));
-        $clusterId = $composite >= 0.45 ? 3 : ($composite >= 0.25 ? 2 : 1);
+        // 3-level classification: HIGH>=0.50, MODERATE>=0.30, LOW<0.30
+        // Scores >= 0.70 remain HIGH; urgency surfaced via priority_flag.
+        $level     = $composite >= 0.50 ? 'HIGH' : ($composite >= 0.30 ? 'MODERATE' : 'LOW');
+        $clusterId = $composite >= 0.50 ? 3 : ($composite >= 0.30 ? 2 : 1);
 
         // Derive domain risks from available section scores (same logic as _compute_rule_based_risk)
         $ageRisk      = (float) ($ss['sec1_age_risk']        ?? 0.5);
@@ -747,6 +750,15 @@ class MlService
                 ],
             ],
             'warnings' => ['Python ML services are currently unreachable. Fallback heuristics used.'],
+            'priority_flag' => $this->computePriorityFlag($composite),
         ];
+    }
+
+    private function computePriorityFlag(float $composite): string
+    {
+        if ($composite >= 0.70) return 'urgent';
+        if ($composite >= 0.50) return 'priority_action';
+        if ($composite >= 0.30) return 'planned_monitoring';
+        return 'maintenance';
     }
 }

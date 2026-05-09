@@ -20,9 +20,9 @@ class MlController extends Controller
         $stats = [
             'total_processed' => MlResult::count(),
             'last_run'        => MlResult::latest()->value('processed_at'),
-            'critical_count'  => MlResult::whereIn('id',
+            'urgent_count'    => MlResult::whereIn('id',
                 MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id')
-            )->where('overall_risk_level', 'CRITICAL')->count(),
+            )->where('priority_flag', 'urgent')->count(),
             'unprocessed'     => SeniorCitizen::active()
                 ->whereDoesntHave('mlResults')
                 ->count(),

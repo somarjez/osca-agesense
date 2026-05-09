@@ -208,13 +208,13 @@ One row per ML pipeline execution. A senior may have many results over time (one
 | `cluster_named_id` | `tinyint` | Human-friendly cluster ID (1, 2, 3) |
 | `cluster_name` | `varchar(100)` | e.g. "High Functioning" |
 | `ic_risk` | `decimal(5,4)` | Intrinsic Capacity risk score (0–1) |
-| `ic_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH / CRITICAL |
+| `ic_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH |
 | `env_risk` | `decimal(5,4)` | Environment risk score (0–1) |
 | `env_risk_level` | `varchar(20)` | |
 | `func_risk` | `decimal(5,4)` | Functional Ability risk score (0–1) |
 | `func_risk_level` | `varchar(20)` | |
 | `composite_risk` | `decimal(5,4)` | Weighted overall risk score (0–1) |
-| `overall_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH / CRITICAL (uppercase) |
+| `overall_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH (uppercase). Urgency expressed via `priority_flag`. |
 | `wellbeing_score` | `decimal(5,4)` | Inverse of composite risk (0–1, higher = better) |
 | `section_scores` | `json` | Object: sec1_age_risk … overall_wellbeing |
 | `raw_output` | `json` | Full Python service response |

@@ -44,7 +44,6 @@ class ClusterAnalysis extends Component
                 'avg_ic'             => round($group->avg('ic_risk'), 3),
                 'avg_env'            => round($group->avg('env_risk'), 3),
                 'avg_func'           => round($group->avg('func_risk'), 3),
-                'critical_count'     => $group->where('overall_risk_level', 'CRITICAL')->count(),
                 'high_count'         => $group->where('overall_risk_level', 'HIGH')->count(),
                 'barangay_top'       => $group->map(fn($r) => $r->seniorCitizen?->barangay)
                                               ->filter()->countBy()->sortDesc()->keys()->first(),
@@ -75,7 +74,6 @@ class ClusterAnalysis extends Component
                 'LOW'      => $group->where('overall_risk_level', 'LOW')->count(),
                 'MODERATE' => $group->where('overall_risk_level', 'MODERATE')->count(),
                 'HIGH'     => $group->where('overall_risk_level', 'HIGH')->count(),
-                'CRITICAL' => $group->where('overall_risk_level', 'CRITICAL')->count(),
             ];
         });
 

@@ -46,6 +46,7 @@
     @endif
 
     {{-- ── Form Card ── --}}
+    <form wire:submit.prevent="{{ $step < $totalSteps ? 'nextStep' : 'save' }}">
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
 
         {{-- Validation errors --}}
@@ -488,4 +489,5 @@
             </div>
         </div>
     </div>
+    </form>
 </div>

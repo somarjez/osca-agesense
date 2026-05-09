@@ -128,8 +128,9 @@ class SeniorCitizen extends Model
         return [
             'Anibong','Biñan','Buboy','Calusiche','Cabanbanan',
             'Dingin','Lambac','Layugan','Magdapio','Maulawin',
-            'Pinagsanjan','Poblacion I','Poblacion II','Sabang',
-            'Sampaloc','San Isidro',
+            'Pinagsanjan',
+            'Barangay I (Poblacion)','Barangay II (Poblacion)',
+            'Sabang','Sampaloc','San Isidro',
         ];
     }
 }

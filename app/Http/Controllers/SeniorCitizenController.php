@@ -31,11 +31,11 @@ class SeniorCitizenController extends Controller
         $seniors    = $query->paginate(20)->withQueryString();
         $barangays  = SeniorCitizen::barangayList();
         $stats = [
-            'total' => SeniorCitizen::active()->count(),
-            'critical' => MlResult::where('overall_risk_level', 'CRITICAL')
+            'total'  => SeniorCitizen::active()->count(),
+            'urgent' => MlResult::where('priority_flag', 'urgent')
                 ->whereIn('id', $latestMlIds)
                 ->count(),
-            'high' => MlResult::where('overall_risk_level', 'HIGH')
+            'high'   => MlResult::where('overall_risk_level', 'HIGH')
                 ->whereIn('id', $latestMlIds)
                 ->count(),
         ];

@@ -185,7 +185,7 @@ The dashboard provides a real-time overview of the senior citizen population. It
 - Pending Recommendations count
 
 **Charts (Chart.js 4):**
-- Risk Distribution doughnut (CRITICAL / HIGH / MODERATE / LOW)
+- Risk Distribution doughnut (HIGH / MODERATE / LOW)
 - K-Means Cluster Distribution doughnut (Cluster 1 / 2 / 3)
 - WHO Domain Scores radar (8 domains, population mean %)
 - Age Group Distribution bar chart (60–64, 65–69, 70–74, 75–79, 80–84, 85+)
@@ -228,7 +228,7 @@ The cluster report presents the results of the K-Means clustering across the sen
 The risk report focuses on identifying and listing seniors at elevated health risk.
 
 - Risk distribution summary (count and percentage per risk level)
-- At-risk senior list (HIGH + CRITICAL), paginated 25 per page
+- At-risk senior list (HIGH + urgent-priority), paginated 25 per page
 - Filterable by barangay, risk level, and cluster
 - Sortable by composite risk, IC risk, ENV risk, FUNC risk
 - Domain risk averages (IC, ENV, FUNC) for the full population
@@ -314,7 +314,7 @@ Core identifying and socioeconomic fields:
 
 - Cluster: `cluster_id` (0-indexed), `cluster_named_id` (1–3), `cluster_name`
 - Risk scores (decimal 0–1): `ic_risk`, `env_risk`, `func_risk`, `composite_risk`, `wellbeing_score`
-- Risk levels: `ic_risk_level`, `env_risk_level`, `func_risk_level` (low/moderate/high/critical), `overall_risk_level` (LOW/MODERATE/HIGH/CRITICAL)
+- Risk levels: `ic_risk_level`, `env_risk_level`, `func_risk_level` (LOW/MODERATE/HIGH), `overall_risk_level` (LOW/MODERATE/HIGH), `priority_flag` (maintenance/planned_monitoring/priority_action/urgent)
 - `section_scores` (JSON): 6 composite section indices from preprocessing
 - `raw_output` (JSON): full Python service output, including status and mode tags
 - `model_version`, `processed_at`
@@ -383,7 +383,7 @@ Generates a PDF document using `barryvdh/laravel-dompdf` from the template `reso
 
 All dashboard data is computed in `MainDashboard.php` and filtered in real time by barangay and risk level:
 
-- **Risk distribution** by level (CRITICAL, HIGH, MODERATE, LOW)
+- **Risk distribution** by level (HIGH, MODERATE, LOW) with urgent sub-count for HIGH seniors
 - **Cluster distribution** (Cluster 1, 2, 3) via `ClusterAnalyticsService`
 - **WHO domain scores** — population mean for 8 QoL domains
 - **Age group distribution** — six age brackets from 60–64 to 85+
@@ -492,14 +492,16 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 
 ### Risk Levels
 
-The system classifies risk across four severity levels using the following thresholds (applied in `inference_service.py`):
+The system classifies risk across three official levels. Urgency within HIGH is expressed via `priority_flag` (applied in `inference_service.py`):
 
-| Risk Level | Score Range | Meaning |
-|---|---|---|
-| **CRITICAL** | ≥ 0.65 | Requires immediate intervention |
-| **HIGH** | ≥ 0.45, < 0.65 | Requires targeted intervention |
-| **MODERATE** | ≥ 0.25, < 0.45 | Requires monitoring and preventive action |
-| **LOW** | < 0.25 | Generally functioning well; maintain current state |
+| Risk Level | Score Range | Priority Flag | Meaning |
+|---|---|---|---|
+| **HIGH** (Urgent) | ≥ 0.70 | `urgent` | Requires immediate intervention |
+| **HIGH** | 0.50 – 0.69 | `priority_action` | Requires targeted intervention |
+| **MODERATE** | 0.30 – 0.49 | `planned_monitoring` | Requires monitoring and preventive action |
+| **LOW** | < 0.30 | `maintenance` | Generally functioning well; maintain current state |
+
+There is no CRITICAL level. It was removed because the dataset had only 1 qualifying case — insufficient for model validation.
 
 ### Risk Scores Computed
 
@@ -544,13 +546,13 @@ The recommendation engine generates a prioritized list of actionable interventio
 
 ### Urgency Mapping
 
-Urgency is assigned per recommendation based on the risk level that triggered it:
+Urgency is assigned per recommendation based on the risk level and priority flag:
 
-| Risk Level | Urgency |
+| Risk Level / Flag | Urgency |
 |---|---|
-| CRITICAL | `immediate` |
-| HIGH | `urgent` |
-| MODERATE | `planned` |
+| HIGH + `urgent` (≥ 0.70) | `urgent` |
+| HIGH + `priority_action` | `priority_action` |
+| MODERATE | `planned_monitoring` |
 | LOW | `maintenance` |
 
 ### Recommendation Structure
@@ -634,7 +636,7 @@ The following table defines terms as they are used throughout the codebase, data
 | **Section Score** | One of six composite indices derived from senior profile data during preprocessing, summarizing risk or strength in a particular aspect of ageing | `sec1_age_risk` through `sec6_health_score`; stored in `ml_results.section_scores` (JSON) |
 | **Risk Score** | A continuous value between 0 and 1 representing the estimated risk level for a specific domain (IC, ENV, FUNC, or composite) | `ic_risk`, `env_risk`, `func_risk`, `composite_risk` in `ml_results` |
 | **Composite Risk** | A weighted combination of IC, ENV, and FUNC risk scores representing overall health risk | `ml_results.composite_risk`; drives `overall_risk_level` |
-| **Risk Level** | A categorical classification (LOW / MODERATE / HIGH / CRITICAL) derived from a risk score using fixed thresholds | `overall_risk_level` (UPPERCASE), `ic_risk_level`, `env_risk_level`, `func_risk_level` in `ml_results` |
+| **Risk Level** | A categorical classification (LOW / MODERATE / HIGH) derived from a risk score using fixed thresholds. Urgency within HIGH is expressed via `priority_flag` | `overall_risk_level` (UPPERCASE), `ic_risk_level`, `env_risk_level`, `func_risk_level`, `priority_flag` in `ml_results` |
 | **Wellbeing Score** | The inverse of the composite risk score; represents overall well-being (higher = better) | `ml_results.wellbeing_score`; displayed in cluster summary cards |
 | **Recommendation** | A specific, actionable health or social intervention generated by the ML pipeline for a senior | Stored in `recommendations` table; generated by `inference_service.py` |
 | **Urgency** | The execution timeline for a recommendation: immediate (within days), urgent (within weeks), planned (within months), maintenance (ongoing) | `recommendations.urgency`; drives sorting and dashboard priority list |
@@ -781,7 +783,7 @@ Coordinates can be entered manually, geocoded from the barangay address via a ge
 
 **Senior location map** (`/gis/map`):
 
-- Pins for each senior, coloured by risk level (red = CRITICAL, orange = HIGH, yellow = MODERATE, green = LOW)
+- Pins for each senior, coloured by risk level (red = HIGH urgent, orange = HIGH, yellow = MODERATE, green = LOW)
 - Click a pin to see a popup: senior name, OSCA ID, barangay, health group, overall risk level, link to profile
 - Filter by barangay, risk level, and health group
 - Cluster pins automatically at zoom-out (Leaflet.markercluster)
@@ -825,7 +827,7 @@ Distances are normalised against a 2 km reference radius. Seniors beyond 2 km fr
 A new report page (`/reports/gis`) will include:
 
 - Barangay-level choropleth map (shading by average composite risk)
-- Table of barangays ranked by average risk, % of seniors beyond service thresholds, and count of CRITICAL/HIGH seniors
+- Table of barangays ranked by average risk, % of seniors beyond service thresholds, and count of HIGH/urgent seniors
 - Export of the GIS data as CSV (name, barangay, lat/lng, risk level, nearest health centre distance)
 
 ### 18.6 Data Entry Workflow
