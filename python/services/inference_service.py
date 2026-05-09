@@ -1,7 +1,8 @@
 """
 OSCA ML Inference Service
-Runs KMeans clustering, ensemble risk prediction (GBR + RFR),
-and generates structured recommendations.
+Runs KMeans clustering and ensemble GBR+RFR models to indicate possible risk levels
+for decision support based on multidimensional senior citizen indicators.
+Generates structured recommendations per WHO Healthy Ageing domains.
 
 Usage:
     python inference_service.py
@@ -35,6 +36,7 @@ def _resolve_model_dir() -> str:
         return env_model_dir if os.path.isabs(env_model_dir) else os.path.join(BASE_DIR, env_model_dir)
 
     candidates = [
+        os.path.join(BASE_DIR, "python", "models"),
         os.path.join(BASE_DIR, "storage", "app", "ml_models"),
         os.path.join(os.path.expanduser("~"), "AppData", "Local", "OSCA-System", "ml_models"),
         os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "model")),
@@ -56,10 +58,11 @@ MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
 
 RISK_THRESHOLDS = {
-    "critical": 0.65,
-    "high": 0.45,
-    "moderate": 0.25,
+    "high": 0.50,
+    "moderate": 0.30,
 }
+# Scores >= 0.70 are still HIGH but flagged as urgent-priority internally.
+URGENT_PRIORITY_THRESHOLD = 0.70
 
 CLUSTER_PROFILES = {
     1: {
@@ -317,8 +320,13 @@ def _load_json(filename: str) -> Optional[Any]:
     path = os.path.join(MODEL_DIR, filename)
     if not os.path.exists(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    raw = open(path, "rb").read()
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            return json.loads(raw.decode(enc))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+    return None
 
 
 def _normalize_identity_part(value: Any) -> str:
@@ -460,15 +468,20 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 (_normalize_identity_part(name), _normalize_identity_part(row.get("barangay"))),
                 [],
             )
-            domain = str(row.get("domain", "")).strip().lower() or "general"
+            # CSV columns: category (not domain), recommendation (not action), priority as string
+            category = str(row.get("category", "")).strip().lower() or "general"
             risk_level = (row.get("risk_level") or "").strip().upper() or "MODERATE"
+            csv_priority = str(row.get("priority", "")).strip().lower()
+            urgency_map = {"immediate": "immediate", "urgent": "urgent", "planned": "planned", "maintenance": "maintenance"}
+            urgency = urgency_map.get(csv_priority, _recommendation_urgency(risk_level))
             actions.append({
                 "priority": len(actions) + 1,
                 "type": "domain",
-                "domain": domain,
-                "category": domain,
-                "action": row.get("action", ""),
-                "urgency": _recommendation_urgency(risk_level),
+                "domain": category,
+                "category": category,
+                "action": str(row.get("recommendation", "") or row.get("action", "")),
+                "reason": str(row.get("reason", "")),
+                "urgency": urgency,
                 "risk_level": risk_level.lower(),
             })
 
@@ -568,8 +581,6 @@ def _load_cluster_mapping() -> Optional[Dict[int, int]]:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _get_risk_level(score: float) -> str:
-    if score >= RISK_THRESHOLDS["critical"]:
-        return "critical"
     if score >= RISK_THRESHOLDS["high"]:
         return "high"
     if score >= RISK_THRESHOLDS["moderate"]:
@@ -641,11 +652,23 @@ def _fallback_cluster_from_wellbeing(wb: float) -> int:
 
 def _recommendation_urgency(overall_level: str) -> str:
     return {
-        "CRITICAL": "immediate",
         "HIGH": "urgent",
         "MODERATE": "planned",
         "LOW": "maintenance",
     }.get(overall_level, "planned")
+
+
+def _priority_flag(composite: float) -> str:
+    """Internal priority flag — not an official risk level.
+    HIGH risk seniors with composite >= 0.70 are flagged as urgent-priority.
+    """
+    if composite >= URGENT_PRIORITY_THRESHOLD:
+        return "urgent"
+    if composite >= RISK_THRESHOLDS["high"]:
+        return "priority_action"
+    if composite >= RISK_THRESHOLDS["moderate"]:
+        return "planned_monitoring"
+    return "maintenance"
 
 
 def _as_bool(value: Any) -> bool:
@@ -857,28 +880,39 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         kmeans  = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
 
         feature_names = _load_json("feature_list.json")
-        vif_features  = _load_json("vif_retained_features.json")
 
         if scaler is not None and reducer is not None and kmeans is not None and feature_map:
             try:
-                expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
-                cluster_input_names: Optional[List[str]] = None
-                for candidate in (feature_names, vif_features):
-                    if isinstance(candidate, list) and (not expected or len(candidate) == expected):
-                        cluster_input_names = candidate
-                        break
-
-                if cluster_input_names is None:
-                    warnings_list.append(
-                        "No cluster feature list matched scaler input size; cluster fallback used."
-                    )
-                else:
-                    cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
-                    row_scaled   = scaler.transform([cluster_row])[0].tolist()
-                    row_reduced  = reducer.transform([row_scaled])
+                # Notebook flow: scale all scaler features (VIF superset), then
+                # select only the final clustering columns (feature_list.json) from
+                # the scaled output before passing to UMAP.
+                if hasattr(scaler, "feature_names_in_") and isinstance(feature_names, list) and feature_names:
+                    scaler_input_names = list(scaler.feature_names_in_)
+                    scaler_row = _vector_from_feature_map(feature_map, scaler_input_names)
+                    full_scaled = scaler.transform([scaler_row])[0]
+                    scaler_feat_idx = {f: i for i, f in enumerate(scaler_input_names)}
+                    row_scaled_30 = [float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
+                                     for f in feature_names]
+                    row_reduced  = reducer.transform([row_scaled_30])
                     raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
                     reduced_features = row_reduced[0].tolist()
-                    scaled_features  = row_scaled
+                    scaled_features  = row_scaled_30
+                else:
+                    # Fallback: try feature_names directly against scaler
+                    expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
+                    cluster_input_names: Optional[List[str]] = feature_names
+                    if not cluster_input_names or (expected and len(cluster_input_names) != expected):
+                        warnings_list.append(
+                            "No cluster feature list matched scaler input size; cluster fallback used."
+                        )
+                        cluster_input_names = None
+                    if cluster_input_names:
+                        cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
+                        row_scaled   = scaler.transform([cluster_row])[0].tolist()
+                        row_reduced  = reducer.transform([row_scaled])
+                        raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
+                        reduced_features = row_reduced[0].tolist()
+                        scaled_features  = row_scaled
             except Exception as exc:
                 warnings_list.append(f"Notebook-style cluster path failed: {exc}")
 
@@ -942,9 +976,6 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     rfr_env = _load_model("rfr_env_risk.pkl")
     gbr_func = _load_model("gbr_func_risk.pkl")
     rfr_func = _load_model("rfr_func_risk.pkl")
-    gbr_comp = _load_model("gbr_composite_risk.pkl")
-    rfr_comp = _load_model("rfr_composite_risk.pkl")
-
     ml_feature_names = _load_json("ml_risk_features.json")
     if isinstance(ml_feature_names, list) and feature_map:
         ml_features = _vector_from_feature_map(feature_map, ml_feature_names)
@@ -961,16 +992,10 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     gbr_ic_pred, rfr_ic_pred = _dual_predict(gbr_ic, rfr_ic, ml_features)
     gbr_env_pred, rfr_env_pred = _dual_predict(gbr_env, rfr_env, ml_features)
     gbr_func_pred, rfr_func_pred = _dual_predict(gbr_func, rfr_func, ml_features)
-    gbr_comp_pred, rfr_comp_pred = _dual_predict(gbr_comp, rfr_comp, ml_features)
 
     ic_fallback = _clip01(_safe_float(section_scores.get("ic_risk"), 1.0 - (_safe_float(who_scores.get("ic_score"), 3.0) - 1.0) / 4.0))
     env_fallback = _clip01(_safe_float(section_scores.get("env_risk"), 1.0 - (_safe_float(who_scores.get("env_score"), 3.0) - 1.0) / 4.0))
     func_fallback = _clip01(_safe_float(section_scores.get("func_risk"), 1.0 - (_safe_float(who_scores.get("func_score"), 3.0) - 1.0) / 4.0))
-    composite_fallback = _clip01(_safe_float(section_scores.get("composite_risk"), rule_scores.get("rule_composite", section_scores.get("rule_composite", 0.5))))
-
-    ic_risk_raw = _notebook_ml_score(gbr_ic_pred, rfr_ic_pred, ic_fallback)
-    env_risk_raw = _notebook_ml_score(gbr_env_pred, rfr_env_pred, env_fallback)
-    func_risk_raw = _notebook_ml_score(gbr_func_pred, rfr_func_pred, func_fallback)
 
     if gbr_ic_pred is None and rfr_ic_pred is None:
         warnings_list.append("IC ML models unavailable/incompatible; fallback score used.")
@@ -979,9 +1004,16 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     if gbr_func_pred is None and rfr_func_pred is None:
         warnings_list.append("FUNC ML models unavailable/incompatible; fallback score used.")
 
-    composite_risk = _notebook_ml_score(gbr_comp_pred, rfr_comp_pred, composite_fallback)
-    if gbr_comp_pred is None and rfr_comp_pred is None:
-        warnings_list.append("Composite ML models unavailable/incompatible; fallback score used.")
+    ic_risk_raw = _notebook_ml_score(gbr_ic_pred, rfr_ic_pred, ic_fallback)
+    env_risk_raw = _notebook_ml_score(gbr_env_pred, rfr_env_pred, env_fallback)
+    func_risk_raw = _notebook_ml_score(gbr_func_pred, rfr_func_pred, func_fallback)
+
+    # Composite matches the notebook formula (cell 45):
+    #   ml_composite  = IC×0.35 + ENV×0.35 + FUNC×0.30
+    #   composite     = rule_composite×0.45 + ml_composite×0.55
+    ml_composite = ic_risk_raw * 0.35 + env_risk_raw * 0.35 + func_risk_raw * 0.30
+    rule_composite_val = _clip01(_safe_float(rule_scores.get("rule_composite", ml_composite)))
+    composite_risk = _clip01(rule_composite_val * 0.45 + ml_composite * 0.55)
 
     wellbeing_score = float(section_scores.get("overall_wellbeing", 0.5))
 
@@ -990,9 +1022,9 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     env_level = _get_risk_level(env_risk_raw)
     func_level = _get_risk_level(func_risk_raw)
 
-    if composite_risk >= RISK_THRESHOLDS["critical"]:
-        overall_level = "CRITICAL"
-    elif composite_risk >= RISK_THRESHOLDS["high"]:
+    # 3-level classification: LOW / MODERATE / HIGH
+    # Scores >= 0.70 remain HIGH; urgency is surfaced via priority_flag, not a 4th level.
+    if composite_risk >= RISK_THRESHOLDS["high"]:
         overall_level = "HIGH"
     elif composite_risk >= RISK_THRESHOLDS["moderate"]:
         overall_level = "MODERATE"
@@ -1015,7 +1047,11 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             func_risk_raw = _clip01(_ov_func)
         if _ov_comp > 0:
             composite_risk = _clip01(_ov_comp)
-        overall_level = (notebook_override.get("risk_level") or overall_level or "").upper() or overall_level
+        _nb_level = (notebook_override.get("risk_level") or overall_level or "").upper()
+        # Remap legacy CRITICAL → HIGH (3-level system)
+        if _nb_level == "CRITICAL":
+            _nb_level = "HIGH"
+        overall_level = _nb_level or overall_level
         ic_level = _get_risk_level(ic_risk_raw)
         env_level = _get_risk_level(env_risk_raw)
         func_level = _get_risk_level(func_risk_raw)
@@ -1056,6 +1092,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "func": func_level,
             "overall": overall_level,
         },
+        "priority_flag": _priority_flag(composite_risk),
         "domain_risks": {
             "risk_medical":    round(float(rule_scores.get("risk_medical",    0.0)), 4),
             "risk_financial":  round(float(rule_scores.get("risk_financial",  0.0)), 4),
@@ -1064,7 +1101,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "risk_housing":    round(float(rule_scores.get("risk_housing",    0.0)), 4),
             "risk_hc_access":  round(float(rule_scores.get("risk_hc_access",  0.0)), 4),
             "risk_sensory":    round(float(rule_scores.get("risk_sensory",    0.0)), 4),
-            "rule_composite":  round(float(rule_scores.get("rule_composite",  composite_risk)), 4),
+            "rule_composite":  round(float(rule_scores.get("rule_composite",  rule_composite_val)), 4),
         },
         "who_scores": {
             "ic_score":   round(float(who_scores.get("ic_score",   3.0)), 4),

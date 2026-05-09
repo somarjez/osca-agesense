@@ -47,7 +47,7 @@
                 <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Senior Profiles</div>
             </div>
             <div>
-                <div class="font-serif text-2xl font-semibold text-paper tnum">17</div>
+                <div class="font-serif text-2xl font-semibold text-paper tnum">16</div>
                 <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Barangays</div>
             </div>
         </div>
@@ -80,7 +80,7 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label for="password" class="eyebrow">Password</label>
-                        <a href="#" class="text-[11px] text-forest-700 hover:text-forest-900 font-semibold">Forgot?</a>
+                        <span class="text-[11px] text-ink-400">Forgot?</span>
                     </div>
                     <input id="password" name="password" type="password" required class="form-input" />
                 </div>
@@ -94,14 +94,6 @@
                     Sign in to AgeSense
                 </button>
             </form>
-
-            <div class="mt-8 pt-6 border-t border-paper-rule">
-                <div class="eyebrow mb-2">Default local account</div>
-                <div class="font-mono text-[12px] text-ink-700 space-y-0.5">
-                    <div>admin@osca.local</div>
-                    <div>password</div>
-                </div>
-            </div>
 
             <p class="text-[11px] text-ink-400 mt-10">
                 AgeSense · WHO Healthy Ageing framework · OSCA Pagsanjan, Laguna

@@ -13,6 +13,7 @@ class MlResult extends Model
         'cluster_id', 'cluster_named_id', 'cluster_name',
         'ic_risk', 'env_risk', 'func_risk', 'composite_risk', 'wellbeing_score',
         'ic_risk_level', 'env_risk_level', 'func_risk_level', 'overall_risk_level',
+        'priority_flag',
         // Rule-based domain risks
         'risk_medical', 'risk_financial', 'risk_social', 'risk_functional',
         'risk_housing', 'risk_hc_access', 'risk_sensory', 'rule_composite',
@@ -62,12 +63,27 @@ class MlResult extends Model
     public function getRiskBadgeColorAttribute(): string
     {
         return match ($this->overall_risk_level) {
-            'CRITICAL' => 'red',
             'HIGH' => 'orange',
             'MODERATE' => 'yellow',
             'LOW' => 'green',
             default => 'gray',
         };
+    }
+
+    public function getPriorityLabelAttribute(): string
+    {
+        return match ($this->priority_flag) {
+            'urgent'             => 'Urgent attention recommended',
+            'priority_action'    => 'Priority action required',
+            'planned_monitoring' => 'Planned monitoring',
+            'maintenance'        => 'Routine maintenance',
+            default              => '',
+        };
+    }
+
+    public function isUrgentPriority(): bool
+    {
+        return $this->priority_flag === 'urgent';
     }
 
     public function getClusterColorAttribute(): string

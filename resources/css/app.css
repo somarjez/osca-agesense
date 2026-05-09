@@ -66,10 +66,10 @@
   .badge-info     { @apply bg-info-100    text-info-700     border-info-100; }
   .badge-neutral  { @apply bg-paper-2     text-ink-700      border-paper-rule; }
 
-  /* Cluster badges (legacy) */
-  .badge-cluster-1 { @apply bg-low-50      text-low-700      border border-low-100      px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
-  .badge-cluster-2 { @apply bg-moderate-50 text-moderate-700 border border-moderate-100 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
-  .badge-cluster-3 { @apply bg-critical-50 text-critical-700 border border-critical-100 px-2 py-0.5 rounded-[10px] text-[11px] font-semibold; }
+  /* Cluster badges — Group 1 blue, Group 2 amber, Group 3 red */
+  .badge-cluster-1 { padding: 0.125rem 0.5rem; border-radius: 10px; font-size: 11px; font-weight: 600; background: #e8eeff; color: #3347b0; border: 1px solid #c5ccf5; }
+  .badge-cluster-2 { padding: 0.125rem 0.5rem; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3e2; color: #9a6a00; border: 1px solid #f5dfa0; }
+  .badge-cluster-3 { padding: 0.125rem 0.5rem; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fbeeea; color: #8a2a1f; border: 1px solid #f5dfd9; }
 
   /* Risk badges (compat with old names) */
   .badge-risk-critical { @apply badge badge-critical; }
@@ -244,7 +244,10 @@
 .dark .form-select { background-color: #1a201d; border-color: #2b3530; color: #e4e1d8; }
 .dark .form-input::placeholder { color: #4a5550; }
 
-.dark .badge-neutral { background-color: #202a26; color: #b0b5b2; border-color: #2b3530; }
+.dark .badge-neutral  { background-color: #202a26; color: #b0b5b2; border-color: #2b3530; }
+.dark .badge-cluster-1 { background: #1a2050; color: #8fa0e8; border-color: #2a3580; }
+.dark .badge-cluster-2 { background: #2a2010; color: #d4a830; border-color: #5a4a10; }
+.dark .badge-cluster-3 { background: #2a1515; color: #e08070; border-color: #5a2020; }
 
 .dark .eyebrow { color: #6b7570; }
 
@@ -267,7 +270,7 @@
 .dark .nav-link-active::before { background-color: #5fa088; }
 
 .dark .status-dot-ok   { background-color: #4a8a68; box-shadow: 0 0 0 2px rgba(74,138,104,0.2); }
-.dark .status-dot-warn { background-color: #c47832; box-shadow: 0 0 0 2px rgba(196,120,50,0.2); }
+.dark .status-dot-warn { background-color: #e0621a; box-shadow: 0 0 0 2px rgba(224,98,26,0.2); }
 .dark .status-dot-err  { background-color: #b94a3a; box-shadow: 0 0 0 2px rgba(185,74,58,0.2); }
 
 /* ── Utilities ────────────────────────────────────────────────────────── */

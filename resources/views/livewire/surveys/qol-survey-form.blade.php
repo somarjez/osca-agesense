@@ -64,6 +64,7 @@
     </div>
 
     {{-- ── Question Card ── --}}
+    <form wire:submit.prevent="{{ $step < $totalSteps ? 'nextStep' : 'confirmSubmit' }}">
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 
         {{-- Instructions header (step 1 only) --}}
@@ -229,6 +230,7 @@
             </div>
         </div>
     </div>
+    </form>
 
     {{-- ── Confirm Modal ── --}}
     @if ($showConfirm)

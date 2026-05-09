@@ -32,6 +32,7 @@ def _resolve_model_dir() -> str:
         return env_model_dir if os.path.isabs(env_model_dir) else os.path.join(BASE_DIR, env_model_dir)
 
     candidates = [
+        os.path.join(BASE_DIR, "python", "models"),
         os.path.join(BASE_DIR, "storage", "app", "ml_models"),
         os.path.join(os.path.expanduser("~"), "AppData", "Local", "OSCA-System", "ml_models"),
         os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "model")),
@@ -646,9 +647,8 @@ def _compute_rule_based_risk(
     )
 
     level = (
-        "CRITICAL" if composite >= 0.65 else
-        "HIGH" if composite >= 0.45 else
-        "MODERATE" if composite >= 0.25 else
+        "HIGH" if composite >= 0.50 else
+        "MODERATE" if composite >= 0.30 else
         "LOW"
     )
 
@@ -931,38 +931,52 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     ] + QOL_FEATURE_COLS
 
     # 10. Cluster vector
+    # feature_list.json = 30 final clustering features (FINAL_CLUSTER_FEATURES from notebook)
+    # The scaler is trained on all VIF features (scaler.feature_names_in_).
+    # Notebook flow: scale the full VIF feature vector, then select the 30 final columns.
     feature_list_names = _load_json_if_exists("feature_list.json")
     vif_features_for_cluster = _load_json_if_exists("vif_retained_features.json")
 
-    cluster_feature_names = (
-        feature_list_names
-        or vif_features_for_cluster
-        or feature_keys
-    )
-
     # 11. Scale features
     scaler = _load_pickle_if_exists("scaler.pkl")
-    if scaler is not None:
-        expected = int(getattr(scaler, "n_features_in_", 0) or 0)
-        if expected:
-            for candidate in (feature_list_names, vif_features_for_cluster, feature_keys):
-                if isinstance(candidate, list) and len(candidate) == expected:
-                    cluster_feature_names = candidate
-                    break
-
-    cluster_vector = [float(enc.get(k, 0.0)) for k in cluster_feature_names]
-
-    if scaler is not None:
+    if scaler is not None and hasattr(scaler, "feature_names_in_"):
+        # Use scaler's own feature list to build the input vector
+        scaler_input_names = list(scaler.feature_names_in_)
+        scaler_vector = [float(enc.get(k, 0.0)) for k in scaler_input_names]
         try:
-            scaled = scaler.transform([cluster_vector])[0].tolist()
+            scaled_full = scaler.transform([scaler_vector])[0]
         except Exception:
+            arr = np.array(scaler_vector, dtype=np.float64)
+            std = float(arr.std()) or 1.0
+            scaled_full = (arr - arr.mean()) / std
+        # Select the 30 final clustering columns from the scaled output
+        if isinstance(feature_list_names, list) and len(feature_list_names) > 0:
+            cluster_feature_names = feature_list_names
+            scaler_feat_idx = {f: i for i, f in enumerate(scaler_input_names)}
+            scaled = [float(scaled_full[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
+                      for f in cluster_feature_names]
+        else:
+            cluster_feature_names = scaler_input_names
+            scaled = scaled_full.tolist()
+    else:
+        # Fallback: no scaler or no feature_names_in_
+        cluster_feature_names = (
+            feature_list_names
+            or vif_features_for_cluster
+            or feature_keys
+        )
+        cluster_vector = [float(enc.get(k, 0.0)) for k in cluster_feature_names]
+        if scaler is not None:
+            try:
+                scaled = scaler.transform([cluster_vector])[0].tolist()
+            except Exception:
+                arr = np.array(cluster_vector, dtype=np.float64)
+                std = float(arr.std()) or 1.0
+                scaled = ((arr - arr.mean()) / std).tolist()
+        else:
             arr = np.array(cluster_vector, dtype=np.float64)
             std = float(arr.std()) or 1.0
             scaled = ((arr - arr.mean()) / std).tolist()
-    else:
-        arr = np.array(cluster_vector, dtype=np.float64)
-        std = float(arr.std()) or 1.0
-        scaled = ((arr - arr.mean()) / std).tolist()
 
     # 12. UMAP reduction
     # Skipped in batch mode (OSCA_BATCH_MODE=1) because infer() recalculates

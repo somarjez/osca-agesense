@@ -181,7 +181,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | Leaflet.js integration | Add Leaflet.js and leaflet.markercluster to the frontend build |
 | Senior location map (`/gis/map`) | Risk-coloured pins, popup cards, barangay/risk/group filters |
 | POI overlay | Layer toggle for each POI category |
-| Risk heatmap layer | Density heatmap for HIGH/CRITICAL seniors |
+| Risk heatmap layer | Density heatmap for HIGH and urgent-priority seniors |
 | Map coordinate picker | Embed small Leaflet map in the senior profile edit form for manual pin placement |
 
 **Sprint 3.3 — Proximity Scoring + Reports (August 2026)**
@@ -237,7 +237,7 @@ Items below are identified but not yet scheduled into a phase:
 
 | Feature | Rationale | Effort |
 |---|---|---|
-| SMS notifications via Twilio | Alert OSCA staff of new CRITICAL risk seniors; useful in low-bandwidth/no-email environments | Medium |
+| SMS notifications via Twilio | Alert OSCA staff of new urgent-priority seniors; useful in low-bandwidth/no-email environments | Medium |
 | Offline PWA mode | Allow field workers to complete surveys without internet; sync when back online | High |
 | Automated data retention | Permanently delete records older than a configurable retention period per Data Privacy Act | Medium |
 | Senior consent tracking | Record informed consent date and method per senior for RA 10173 compliance | Low |

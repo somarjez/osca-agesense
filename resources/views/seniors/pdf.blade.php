@@ -20,7 +20,6 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .senior-name { font-size: 17px; font-weight: bold; color: #134e4a; }
 .senior-meta { font-size: 10px; color: #0f766e; margin-top: 3px; }
 .risk-badge { padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: bold; }
-.risk-CRITICAL { background: #fee2e2; color: #dc2626; }
 .risk-HIGH     { background: #ffedd5; color: #ea580c; }
 .risk-MODERATE { background: #fef3c7; color: #d97706; }
 .risk-LOW      { background: #dcfce7; color: #16a34a; }
@@ -335,11 +334,10 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
             @php
                 $pct = round(($score ?? 0) * 100);
                 $barColor = match(strtoupper($level ?? '')) {
-                    'CRITICAL' => '#dc2626',
-                    'HIGH'     => '#ea580c',
-                    'MODERATE' => '#d97706',
-                    'LOW'      => '#16a34a',
-                    default    => '#94a3b8',
+                    'HIGH'    => '#ea580c',
+                    'MODERATE'=> '#d97706',
+                    'LOW'     => '#16a34a',
+                    default   => '#94a3b8',
                 };
             @endphp
             <tr>

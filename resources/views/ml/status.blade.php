@@ -57,7 +57,7 @@
     @php
     $healthDisplay = [
         'preprocessor' => ['label' => 'Data Preparation', 'port' => '5001', 'desc' => 'Prepares survey data for analysis'],
-        'inference'     => ['label' => 'Risk Assessment',  'port' => '5002', 'desc' => 'Assigns health groups and risk levels'],
+        'inference'     => ['label' => 'Risk Assessment',  'port' => '5002', 'desc' => 'Indicates possible risk levels for decision support based on multidimensional senior citizen indicators'],
         'local_runner'  => ['label' => 'Backup Process',   'port' => null,   'desc' => 'Runs locally when main services are down'],
     ];
     @endphp
@@ -87,7 +87,7 @@
     {{-- Pipeline Stats --}}
     <div class="grid grid-cols-4 gap-4">
         <x-kpi label="Total Processed" :value="number_format($stats['total_processed'])" accent="forest" />
-        <x-kpi label="Critical Risk"   :value="number_format($stats['critical_count'])"  accent="critical" valueColor="text-critical-700" />
+        <x-kpi label="Urgent Priority" :value="number_format($stats['urgent_count'])"    accent="high"     valueColor="text-high-700" />
         <x-kpi label="Unprocessed"     :value="number_format($stats['unprocessed'])"     accent="high"     valueColor="text-high-700" />
         <x-kpi label="Last Run"        :value="$stats['last_run'] ? \Carbon\Carbon::parse($stats['last_run'])->diffForHumans() : 'Never'" accent="forest" />
     </div>
