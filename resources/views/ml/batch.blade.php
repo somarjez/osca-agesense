@@ -155,12 +155,12 @@
                     <td class="td text-center" data-risk-badge>
                         @if ($ml)
                         <span class="badge {{ match($ml->overall_risk_level) {
-                            'CRITICAL' => 'badge-critical',
                             'HIGH'     => 'badge-high',
                             'MODERATE' => 'badge-moderate',
                             'LOW'      => 'badge-low',
                             default    => 'badge-neutral',
-                        } }}">{{ $ml->overall_risk_level }}</span>
+                        } }} {{ $ml->priority_flag === 'urgent' ? 'ring-1 ring-orange-400' : '' }}">
+                            {{ $ml->overall_risk_level }}{{ $ml->priority_flag === 'urgent' ? ' ⚠' : '' }}</span>
                         @else
                         <span class="text-ink-300 text-xs">No data</span>
                         @endif

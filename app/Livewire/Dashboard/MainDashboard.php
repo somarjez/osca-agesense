@@ -13,6 +13,7 @@ use Livewire\Component;
 class MainDashboard extends Component
 {
     private ClusterAnalyticsService $clusterAnalytics;
+    private ?\Illuminate\Support\Collection $_latestIds = null;
 
     public string $selectedBarangay = '';
     public string $selectedRisk = '';
@@ -25,6 +26,8 @@ class MainDashboard extends Component
 
     public function render()
     {
+        $this->_latestIds = null;
+
         return view('livewire.dashboard.main-dashboard', [
             'stats'               => $this->getStats(),
             'riskDistribution'    => $this->getRiskDistribution(),
@@ -38,38 +41,73 @@ class MainDashboard extends Component
         ]);
     }
 
+    private function latestMlIds(): \Illuminate\Support\Collection
+    {
+        return $this->_latestIds ??= MlResult::select(DB::raw('MAX(id) as id'))->groupBy('senior_citizen_id')->pluck('id');
+    }
+
     private function getStats(): array
     {
-        $total   = SeniorCitizen::active()->count();
-        $surveyed = QolSurvey::where('status','processed')->distinct('senior_citizen_id')->count();
-        $critical = MlResult::where('overall_risk_level','CRITICAL')
-            ->whereIn('id', MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id'))
-            ->count();
-        $highRisk = MlResult::where('overall_risk_level','HIGH')
-            ->whereIn('id', MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id'))
-            ->count();
-        $pendingRecs = Recommendation::where('status','pending')->count();
+        $latestIds = $this->latestMlIds();
 
-        return compact('total','surveyed','critical','highRisk','pendingRecs');
+        $baseQuery = SeniorCitizen::active()
+            ->when($this->selectedBarangay, fn($q) => $q->where('barangay', $this->selectedBarangay))
+            ->when($this->selectedRisk, fn($q) => $q->byRiskLevel($this->selectedRisk));
+
+        $total = $baseQuery->count();
+
+        $surveyed = QolSurvey::where('status', 'processed')
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->distinct('senior_citizen_id')
+            ->count();
+
+        $highRisk = MlResult::whereIn('id', $latestIds)
+            ->where('overall_risk_level', 'HIGH')
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->count();
+
+        $urgent = MlResult::whereIn('id', $latestIds)
+            ->where('priority_flag', 'urgent')
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->count();
+
+        $pendingRecs = Recommendation::where('status', 'pending')
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->count();
+
+        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs');
     }
 
     private function getRiskDistribution(): array
     {
+        $latestIds = $this->latestMlIds();
+
         $latest = MlResult::select('overall_risk_level', DB::raw('COUNT(*) as count'))
-            ->whereIn('id', MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id'))
+            ->whereIn('id', $latestIds)
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->when($this->selectedRisk, fn($q) => $q->where('overall_risk_level', strtoupper($this->selectedRisk)))
             ->groupBy('overall_risk_level')
             ->pluck('count', 'overall_risk_level')
             ->toArray();
 
         return [
-            'labels' => ['CRITICAL','HIGH','MODERATE','LOW'],
+            'labels' => ['HIGH','MODERATE','LOW'],
             'data'   => [
-                $latest['CRITICAL'] ?? 0,
                 $latest['HIGH']     ?? 0,
                 $latest['MODERATE'] ?? 0,
                 $latest['LOW']      ?? 0,
             ],
-            'colors' => ['#dc2626','#ea580c','#ca8a04','#16a34a'],
+            'colors' => ['#ea580c','#ca8a04','#16a34a'],
         ];
     }
 
@@ -80,21 +118,36 @@ class MainDashboard extends Component
 
     private function getBarangayBreakdown(): array
     {
-        return SeniorCitizen::active()
+        $latestIds = $this->latestMlIds();
+
+        $totals = SeniorCitizen::active()
             ->select('barangay', DB::raw('COUNT(*) as total'))
             ->when($this->selectedBarangay, fn($q) => $q->where('barangay', $this->selectedBarangay))
+            ->when($this->selectedRisk, fn($q) => $q->byRiskLevel($this->selectedRisk))
             ->groupBy('barangay')
             ->orderByDesc('total')
+            ->pluck('total', 'barangay');
+
+        $mlCounts = DB::table('ml_results')
+            ->join('senior_citizens', 'senior_citizens.id', '=', 'ml_results.senior_citizen_id')
+            ->whereIn('ml_results.id', $latestIds)
+            ->where('senior_citizens.status', 'active')
+            ->when($this->selectedBarangay, fn($q) => $q->where('senior_citizens.barangay', $this->selectedBarangay))
+            ->select(
+                'senior_citizens.barangay',
+                DB::raw("SUM(CASE WHEN ml_results.overall_risk_level = 'HIGH' THEN 1 ELSE 0 END) as high_count"),
+                DB::raw("SUM(CASE WHEN ml_results.priority_flag = 'urgent' THEN 1 ELSE 0 END) as urgent_count")
+            )
+            ->groupBy('senior_citizens.barangay')
             ->get()
-            ->map(fn($r) => [
-                'barangay' => $r->barangay,
-                'total'    => $r->total,
-                'critical' => SeniorCitizen::active()
-                    ->where('barangay', $r->barangay)
-                    ->byRiskLevel('critical')
-                    ->count(),
-            ])
-            ->toArray();
+            ->keyBy('barangay');
+
+        return $totals->map(fn($total, $barangay) => [
+            'barangay' => $barangay,
+            'total'    => $total,
+            'high'     => (int) ($mlCounts[$barangay]->high_count ?? 0),
+            'urgent'   => (int) ($mlCounts[$barangay]->urgent_count ?? 0),
+        ])->values()->toArray();
     }
 
     private function getRecentSeniors(): \Illuminate\Database\Eloquent\Collection
@@ -113,7 +166,7 @@ class MainDashboard extends Component
         return Recommendation::with(['seniorCitizen'])
             ->pending()
             ->whereHas('seniorCitizen')
-            ->whereIn('urgency', ['immediate','urgent'])
+            ->where('urgency', 'urgent')
             ->orderBy('priority')
             ->limit(8)
             ->get();
@@ -121,7 +174,13 @@ class MainDashboard extends Component
 
     private function getDomainScores(): array
     {
-        $avgs = QolSurvey::where('status','processed')
+        $avgs = QolSurvey::where('status', 'processed')
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->when($this->selectedRisk, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->byRiskLevel($this->selectedRisk)
+            ))
             ->selectRaw('
                 AVG(score_qol) as qol,
                 AVG(score_physical) as physical,
@@ -150,6 +209,8 @@ class MainDashboard extends Component
             : 'TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE())';
 
         $groups = SeniorCitizen::active()
+            ->when($this->selectedBarangay, fn($q) => $q->where('barangay', $this->selectedBarangay))
+            ->when($this->selectedRisk, fn($q) => $q->byRiskLevel($this->selectedRisk))
             ->selectRaw("
                 CASE
                     WHEN {$ageExpr} BETWEEN 60 AND 64 THEN '60–64'
@@ -162,7 +223,7 @@ class MainDashboard extends Component
             ")
             ->groupBy('age_group')
             ->orderBy('age_group')
-            ->pluck('count','age_group');
+            ->pluck('count', 'age_group');
 
         return [
             'labels' => ['60–64','65–69','70–74','75–79','80–84','85+'],
@@ -181,6 +242,12 @@ class MainDashboard extends Component
         }
     }
 
-    public function updatedSelectedBarangay(): void { $this->dispatch('$refresh'); }
-    public function updatedSelectedRisk(): void { $this->dispatch('$refresh'); }
+    public function clearFilters(): void
+    {
+        $this->selectedBarangay = '';
+        $this->selectedRisk     = '';
+    }
+
+    public function updatedSelectedBarangay(): void {}
+    public function updatedSelectedRisk(): void {}
 }

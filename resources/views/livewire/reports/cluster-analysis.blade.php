@@ -66,8 +66,8 @@
 
                 <div class="pt-3 mt-2 border-t border-paper-rule grid grid-cols-2 gap-3 text-xs">
                     <div>
-                        <div class="eyebrow">High/Critical</div>
-                        <div class="font-mono font-semibold text-critical-700 tnum text-base mt-0.5">{{ $summary['critical_count'] + $summary['high_count'] }}</div>
+                        <div class="eyebrow">High Risk</div>
+                        <div class="font-mono font-semibold text-high-700 tnum text-base mt-0.5">{{ $summary['high_count'] }}</div>
                     </div>
                     <div>
                         <div class="eyebrow">Top Barangay</div>
@@ -90,7 +90,7 @@
                 @foreach ($riskByCluster as $clusterId => $dist)
                 @php
                 $total = array_sum($dist);
-                $colors = ['LOW' => 'bg-low-500', 'MODERATE' => 'bg-moderate-500', 'HIGH' => 'bg-high-500', 'CRITICAL' => 'bg-critical-500'];
+                $colors = ['LOW' => 'bg-low-500', 'MODERATE' => 'bg-moderate-500', 'HIGH' => 'bg-high-500'];
                 @endphp
                 <div>
                     <div class="flex items-center gap-2 mb-1.5">

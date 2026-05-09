@@ -1,0 +1,32 @@
+{
+  "1": {
+    "id": 1,
+    "name": "High Functioning",
+    "ic_level": "High",
+    "env_level": "High",
+    "func_level": "High",
+    "interpretation": "Strong WHO Healthy Ageing alignment. Senior is independent, financially stable, and socially engaged.",
+    "color": "#2ecc71",
+    "n_seniors": 60
+  },
+  "2": {
+    "id": 2,
+    "name": "Moderate / Mixed Needs",
+    "ic_level": "Moderate",
+    "env_level": "Moderate",
+    "func_level": "Moderate",
+    "interpretation": "Mixed profile — some domains stable, others at risk. May benefit from social activation and financial support programs.",
+    "color": "#f39c12",
+    "n_seniors": 78
+  },
+  "3": {
+    "id": 3,
+    "name": "Low Functioning / Multi-domain Risk",
+    "ic_level": "Low",
+    "env_level": "Low",
+    "func_level": "Low",
+    "interpretation": "Lowest alignment with all Healthy Ageing domains. Requires immediate multi-domain intervention.",
+    "color": "#e74c3c",
+    "n_seniors": 137
+  }
+}
