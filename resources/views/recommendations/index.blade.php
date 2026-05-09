@@ -42,7 +42,7 @@
             <label class="block text-xs font-medium text-slate-500 mb-1">Risk Level</label>
             <select name="risk" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
                 <option value="">All Levels</option>
-                @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $r)
+                @foreach (['HIGH','MODERATE','LOW'] as $r)
                 <option value="{{ $r }}" {{ strtoupper(request('risk')) === $r ? 'selected' : '' }}>{{ $r }}</option>
                 @endforeach
             </select>
@@ -115,7 +115,6 @@
                             @if ($ml?->overall_risk_level)
                             <span class="text-xs font-bold px-2 py-1 rounded-full
                                 {{ match($ml->overall_risk_level) {
-                                    'CRITICAL' => 'bg-red-100 text-red-700',
                                     'HIGH'     => 'bg-orange-100 text-orange-700',
                                     'MODERATE' => 'bg-amber-100 text-amber-700',
                                     'LOW'      => 'bg-emerald-100 text-emerald-700',

@@ -1,0 +1,50 @@
+{
+  "ic_risk": {
+    "GBR": {
+      "subsample": 1.0,
+      "n_estimators": 200,
+      "min_samples_leaf": 1,
+      "max_depth": 5,
+      "learning_rate": 0.08
+    },
+    "RFR": {
+      "n_estimators": 100,
+      "min_samples_split": 4,
+      "min_samples_leaf": 1,
+      "max_features": 0.7,
+      "max_depth": null
+    }
+  },
+  "env_risk": {
+    "GBR": {
+      "subsample": 0.8,
+      "n_estimators": 300,
+      "min_samples_leaf": 1,
+      "max_depth": 2,
+      "learning_rate": 0.08
+    },
+    "RFR": {
+      "n_estimators": 150,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": 0.5,
+      "max_depth": null
+    }
+  },
+  "func_risk": {
+    "GBR": {
+      "subsample": 0.8,
+      "n_estimators": 300,
+      "min_samples_leaf": 1,
+      "max_depth": 2,
+      "learning_rate": 0.08
+    },
+    "RFR": {
+      "n_estimators": 200,
+      "min_samples_split": 4,
+      "min_samples_leaf": 2,
+      "max_features": 0.5,
+      "max_depth": 12
+    }
+  }
+}

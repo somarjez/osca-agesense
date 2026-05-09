@@ -1,9 +1,10 @@
 @props(['value' => 0, 'showNumber' => true])
 @php
 $pct = round(($value ?? 0) * 100);
-$fill = $value >= 0.65 ? 'bar-fill-critical'
-      : ($value >= 0.45 ? 'bar-fill-high'
-      : ($value >= 0.25 ? 'bar-fill-moderate' : 'bar-fill-low'));
+// 3-level thresholds: HIGH>=0.50, MODERATE>=0.30, LOW<0.30
+// Bar color uses HIGH shade for urgent-range (>=0.70) too — no separate critical color.
+$fill = $value >= 0.50 ? 'bar-fill-high'
+      : ($value >= 0.30 ? 'bar-fill-moderate' : 'bar-fill-low');
 @endphp
 <div class="flex items-center gap-2">
     <div class="bar flex-1"><div class="bar-fill {{ $fill }}" style="width: {{ $pct }}%"></div></div>

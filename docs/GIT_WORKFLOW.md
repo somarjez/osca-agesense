@@ -87,10 +87,10 @@ Then open `.env` and fill in your local database credentials. See the README for
 
 ```bash
 php artisan migrate
-php artisan db:seed --class=OscaSeeder
+php artisan db:seed
 ```
 
-> The `OscaSeeder` generates ~60 random demo seniors so you have data to work with immediately. The real CSV seeder requires `../osca.csv` to exist.
+> The seeder (`OscaCsvSeeder`) reads from `../osca.csv` — one level above the project root. Place the file there before seeding.
 
 ### Step 6 — Verify everything works
 

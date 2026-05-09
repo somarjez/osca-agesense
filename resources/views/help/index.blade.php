@@ -130,10 +130,9 @@
                 <p class="font-semibold text-ink-900 mb-2">What do the risk levels mean?</p>
                 <div class="space-y-2">
                     @foreach ([
-                        ['CRITICAL', 'badge-critical', 'Needs urgent attention. Immediate care or intervention is required.'],
-                        ['HIGH',     'badge-high',     'Significant concerns present. Intervention should be scheduled soon.'],
-                        ['MODERATE', 'badge-moderate', 'Some risk factors present. Monitor regularly and provide support.'],
-                        ['LOW',      'badge-low',      'Senior is generally well. Continue routine check-ins.'],
+                        ['HIGH',     'badge-high',     'Significant concerns present across multiple domains. Priority action or intervention required. Seniors with scores ≥ 0.70 are flagged as urgent-priority.'],
+                        ['MODERATE', 'badge-moderate', 'Some risk factors present. Planned monitoring and targeted support recommended.'],
+                        ['LOW',      'badge-low',      'Senior is generally well. Continue routine check-ins and maintenance programs.'],
                     ] as [$level, $badge, $desc])
                     <div class="flex items-start gap-3">
                         <span class="badge {{ $badge }} flex-shrink-0 mt-0.5">{{ $level }}</span>

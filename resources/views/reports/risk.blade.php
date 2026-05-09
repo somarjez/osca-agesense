@@ -18,9 +18,8 @@
             </select>
             <select name="risk_level"
                     class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none shadow-sm">
-                <option value="">CRITICAL + HIGH</option>
-                <option value="critical" {{ request('risk_level') === 'critical' ? 'selected' : '' }}>CRITICAL only</option>
-                <option value="high"     {{ request('risk_level') === 'high'     ? 'selected' : '' }}>HIGH only</option>
+                <option value="">All HIGH risk</option>
+                <option value="high" {{ request('risk_level') === 'high' ? 'selected' : '' }}>HIGH only</option>
             </select>
             <button type="submit" class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 shadow-sm">Filter</button>
         </form>
@@ -31,9 +30,8 @@
     </div>
 
     {{-- ── Risk Overview Cards ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
         @foreach ([
-            ['CRITICAL', $riskDist['CRITICAL'] ?? 0, 'bg-red-50 border-red-200 text-red-700'],
             ['HIGH',     $riskDist['HIGH']     ?? 0, 'bg-orange-50 border-orange-200 text-orange-700'],
             ['MODERATE', $riskDist['MODERATE'] ?? 0, 'bg-amber-50 border-amber-200 text-amber-700'],
             ['LOW',      $riskDist['LOW']      ?? 0, 'bg-emerald-50 border-emerald-200 text-emerald-700'],
@@ -59,9 +57,8 @@
                 ['Composite',               $domainAvgs?->composite ?? 0],
             ] as [$label, $val])
             @php
-                $barColor = $val >= 0.65 ? 'bg-critical-500'
-                          : ($val >= 0.45 ? 'bg-high-500'
-                          : ($val >= 0.25 ? 'bg-moderate-500' : 'bg-low-500'));
+                $barColor = $val >= 0.50 ? 'bg-high-500'
+                          : ($val >= 0.30 ? 'bg-moderate-500' : 'bg-low-500');
             @endphp
             <div class="mb-3">
                 <div class="flex justify-between text-sm mb-1">
@@ -74,13 +71,13 @@
             </div>
             @endforeach
 
-            {{-- Risk threshold legend (mirrors osca5.ipynb thresholds) --}}
-            <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-4 gap-1 text-center text-xs">
-                <div class="bg-red-50 text-red-700 px-1 py-1 rounded">Critical ≥65%</div>
-                <div class="bg-orange-50 text-orange-700 px-1 py-1 rounded">High 45–65%</div>
-                <div class="bg-amber-50 text-amber-700 px-1 py-1 rounded">Moderate 25–45%</div>
-                <div class="bg-emerald-50 text-emerald-700 px-1 py-1 rounded">Low &lt;25%</div>
+            {{-- Risk threshold legend (3-level system) --}}
+            <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-1 text-center text-xs">
+                <div class="bg-orange-50 text-orange-700 px-1 py-1 rounded">High ≥50%</div>
+                <div class="bg-amber-50 text-amber-700 px-1 py-1 rounded">Moderate 30–50%</div>
+                <div class="bg-emerald-50 text-emerald-700 px-1 py-1 rounded">Low &lt;30%</div>
             </div>
+            <p class="mt-2 text-[10px] text-slate-400">Scores ≥ 70% are High-risk with urgent-priority flag.</p>
         </div>
 
         {{-- Recommendations by Category --}}
@@ -125,7 +122,6 @@
                 <thead class="border-b border-slate-100">
                     <tr class="text-xs text-slate-400">
                         <th class="px-5 py-2.5 text-left font-medium">Barangay</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-red-600">CRITICAL</th>
                         <th class="px-5 py-2.5 text-center font-medium text-orange-600">HIGH</th>
                         <th class="px-5 py-2.5 text-center font-medium text-amber-600">MODERATE</th>
                         <th class="px-5 py-2.5 text-center font-medium text-emerald-600">LOW</th>
@@ -136,15 +132,15 @@
                     @php $byRisk = $rows->keyBy('overall_risk_level'); @endphp
                     <tr class="hover:bg-slate-25">
                         <td class="px-5 py-2.5 font-medium text-slate-700">{{ $brgy }}</td>
-                        @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $level)
+                        @foreach (['HIGH','MODERATE','LOW'] as $level)
                         <td class="px-5 py-2.5 text-center">
                             @php $cnt = $byRisk[$level]?->count ?? 0; @endphp
                             @if ($cnt > 0)
                             <span class="font-semibold {{ match($level) {
-                                'CRITICAL' => 'text-red-700',
                                 'HIGH'     => 'text-orange-600',
                                 'MODERATE' => 'text-amber-600',
                                 'LOW'      => 'text-emerald-600',
+                                default    => 'text-slate-500',
                             } }}">{{ $cnt }}</span>
                             @else
                             <span class="text-slate-300">—</span>
@@ -191,8 +187,7 @@
                         <td class="px-4 py-2.5 text-slate-600">{{ $senior->barangay }}</td>
                         <td class="px-4 py-2.5 text-slate-600">{{ $senior->age }}</td>
                         <td class="px-4 py-2.5">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-full
-                                {{ $senior->overall_risk_level === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700' }}">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
                                 {{ $senior->overall_risk_level }}
                             </span>
                         </td>
@@ -212,7 +207,7 @@
                             <div class="flex justify-center mb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
-                            No critical or high risk seniors found with current filters.
+                            No high risk seniors found with current filters.
                         </td>
                     </tr>
                     @endforelse

@@ -64,10 +64,10 @@ export default {
           700: '#8a2a1f',
         },
         high: {
-          50:  '#faf0df',
-          100: '#f5e3cf',
-          500: '#c47832',
-          700: '#92561a',
+          50:  '#fff0e8',
+          100: '#ffe0cc',
+          500: '#e0621a',
+          700: '#b84a10',
         },
         moderate: {
           50:  '#faf3dc',
@@ -88,9 +88,9 @@ export default {
         },
         // Cluster accents
         cluster: {
-          1: '#4a8a68', // resilient — sage green
-          2: '#c19a3b', // moderate — ochre
-          3: '#b94a3a', // vulnerable — terracotta
+          1: '#3347b0', // high-functioning — blue
+          2: '#c49020', // moderate — amber
+          3: '#b94a3a', // low-functioning — terracotta
         },
       },
       boxShadow: {
@@ -99,6 +99,14 @@ export default {
       },
     },
   },
+  safelist: [
+    'badge-cluster-1',
+    'badge-cluster-2',
+    'badge-cluster-3',
+    'cluster-swatch-1',
+    'cluster-swatch-2',
+    'cluster-swatch-3',
+  ],
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),

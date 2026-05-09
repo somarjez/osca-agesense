@@ -5,13 +5,12 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         @php
         $levels = [
-            'CRITICAL' => ['color' => 'red',    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'],
             'HIGH'     => ['color' => 'orange', 'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'],
             'MODERATE' => ['color' => 'amber',  'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'],
             'LOW'      => ['color' => 'green',  'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'],
         ];
-        $colorBg = ['red' => 'bg-red-50 border-red-200', 'orange' => 'bg-orange-50 border-orange-200', 'amber' => 'bg-amber-50 border-amber-200', 'green' => 'bg-emerald-50 border-emerald-200'];
-        $colorText = ['red' => 'text-red-700', 'orange' => 'text-orange-700', 'amber' => 'text-amber-700', 'green' => 'text-emerald-700'];
+        $colorBg = ['orange' => 'bg-orange-50 border-orange-200', 'amber' => 'bg-amber-50 border-amber-200', 'green' => 'bg-emerald-50 border-emerald-200'];
+        $colorText = ['orange' => 'text-orange-700', 'amber' => 'text-amber-700', 'green' => 'text-emerald-700'];
         @endphp
         @foreach ($levels as $level => $meta)
         @php $stat = $summaryStats[$level] ?? null; @endphp
@@ -32,7 +31,7 @@
         <select wire:model.live="filterRisk"
                 class="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
             <option value="">All Risk Levels</option>
-            @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $lvl)
+            @foreach (['HIGH','MODERATE','LOW'] as $lvl)
             <option value="{{ strtolower($lvl) }}">{{ $lvl }}</option>
             @endforeach
         </select>
@@ -100,7 +99,6 @@
                     @php
                     $senior = $result->seniorCitizen;
                     $riskBg = match($result->overall_risk_level) {
-                        'CRITICAL' => 'bg-red-100 text-red-700 font-bold',
                         'HIGH'     => 'bg-orange-100 text-orange-700 font-semibold',
                         'MODERATE' => 'bg-amber-100 text-amber-700',
                         'LOW'      => 'bg-emerald-100 text-emerald-700',
@@ -113,7 +111,7 @@
                         default => 'bg-slate-100 text-slate-600',
                     };
                     @endphp
-                    <tr class="hover:bg-slate-25 transition-colors {{ $result->overall_risk_level === 'CRITICAL' ? 'bg-red-25' : '' }}">
+                    <tr class="hover:bg-slate-25 transition-colors {{ $result->priority_flag === 'urgent' ? 'bg-orange-25' : '' }}">
                         <td class="px-4 py-3 font-medium text-slate-800">
                             {{ $senior?->full_name ?? '—' }}
                             <span class="text-xs text-slate-400 font-normal ml-1">{{ $senior?->osca_id }}</span>
@@ -128,25 +126,28 @@
                         <td class="px-4 py-3 text-center">
                             <div class="flex items-center justify-center gap-1.5">
                                 <div class="w-14 bg-slate-100 rounded-full h-1.5">
-                                    <div class="h-1.5 rounded-full {{ $result->composite_risk >= 0.65 ? 'bg-critical-500' : ($result->composite_risk >= 0.45 ? 'bg-high-500' : ($result->composite_risk >= 0.25 ? 'bg-moderate-500' : 'bg-low-500')) }}"
+                                    <div class="h-1.5 rounded-full {{ $result->composite_risk >= 0.50 ? 'bg-high-500' : ($result->composite_risk >= 0.30 ? 'bg-moderate-500' : 'bg-low-500') }}"
                                          style="width: {{ round($result->composite_risk * 100) }}%"></div>
                                 </div>
                                 <span class="text-xs font-mono text-slate-700">{{ number_format($result->composite_risk, 3) }}</span>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->ic_risk_level === 'critical' ? 'text-red-600 font-bold' : 'text-slate-500' }}">
+                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->ic_risk_level === 'high' ? 'text-orange-600 font-semibold' : 'text-slate-500' }}">
                             {{ number_format($result->ic_risk, 2) }}
                         </td>
-                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->env_risk_level === 'critical' ? 'text-red-600 font-bold' : 'text-slate-500' }}">
+                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->env_risk_level === 'high' ? 'text-orange-600 font-semibold' : 'text-slate-500' }}">
                             {{ number_format($result->env_risk, 2) }}
                         </td>
-                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->func_risk_level === 'critical' ? 'text-red-600 font-bold' : 'text-slate-500' }}">
+                        <td class="px-4 py-3 text-center text-xs font-mono {{ $result->func_risk_level === 'high' ? 'text-orange-600 font-semibold' : 'text-slate-500' }}">
                             {{ number_format($result->func_risk, 2) }}
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span class="px-2 py-0.5 rounded-full text-xs {{ $riskBg }}">
                                 {{ $result->overall_risk_level }}
                             </span>
+                            @if($result->priority_flag === 'urgent')
+                            <div class="text-[10px] text-orange-600 font-semibold mt-0.5">Urgent priority</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center text-xs font-mono text-slate-500">
                             {{ number_format($result->wellbeing_score, 2) }}

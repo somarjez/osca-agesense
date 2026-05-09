@@ -57,32 +57,43 @@
     @if ($ml)
     <div class="card">
         <div class="card-body">
-            <div class="grid grid-cols-2 lg:grid-cols-6 gap-6 items-start">
-                <div>
-                    <div class="eyebrow mb-2">Overall Risk</div>
-                    <x-risk-badge :level="$ml->overall_risk_level" />
+            <div class="flex flex-wrap gap-x-8 gap-y-4 items-start">
+
+                {{-- Overall Risk + Cluster --}}
+                <div class="flex gap-6 flex-shrink-0">
+                    <div>
+                        <div class="eyebrow mb-2">Overall Risk</div>
+                        <x-risk-badge :level="$ml->overall_risk_level" />
+                    </div>
+                    <div>
+                        <div class="eyebrow mb-2">Cluster</div>
+                        <x-cluster-badge :id="$ml->cluster_named_id" :label="$ml->cluster_name" />
+                    </div>
                 </div>
-                <div>
-                    <div class="eyebrow mb-2">Cluster</div>
-                    <x-cluster-badge :id="$ml->cluster_named_id" :label="$ml->cluster_name" />
+
+                {{-- Domain bars --}}
+                <div class="flex gap-6 flex-1 min-w-0">
+                    @foreach ([
+                        ['Physical Capacity', $ml->ic_risk],
+                        ['Environment',       $ml->env_risk],
+                        ['Daily Functioning', $ml->func_risk],
+                    ] as [$label, $score])
+                    <div class="flex-1 min-w-[90px]">
+                        <div class="eyebrow mb-2">{{ $label }}</div>
+                        <x-risk-bar :value="$score" />
+                    </div>
+                    @endforeach
                 </div>
-                @foreach ([
-                    ['Physical Capacity', $ml->ic_risk, $ml->ic_risk_level],
-                    ['Environment', $ml->env_risk, $ml->env_risk_level],
-                    ['Daily Functioning', $ml->func_risk, $ml->func_risk_level],
-                ] as [$label, $score, $level])
-                <div>
-                    <div class="eyebrow mb-2">{{ $label }}</div>
-                    <x-risk-bar :value="$score" />
-                </div>
-                @endforeach
-                <div class="text-right">
+
+                {{-- Wellbeing --}}
+                <div class="text-right flex-shrink-0">
                     <div class="eyebrow mb-1">Wellbeing</div>
                     <div class="font-serif text-3xl font-semibold tnum">
                         {{ number_format($ml->wellbeing_score * 100, 0) }}<span class="text-sm text-ink-400">/100</span>
                     </div>
                     <div class="text-[11px] text-ink-400 mt-1">Analyzed {{ $ml->processed_at?->diffForHumans() }}</div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -344,6 +355,7 @@
                     'social'     => 'Social',
                     'functional' => 'Functional',
                     'hc_access'  => 'HC Access',
+                    'sensory'    => 'Sensory',
                     'general'    => 'General',
                 ];
                 $grouped = $ml?->recommendations->groupBy('category') ?? collect();
@@ -360,19 +372,20 @@
                             <div class="flex items-start gap-3">
                                 <span class="flex-shrink-0 w-6 h-6 rounded-md grid place-items-center mt-0.5 text-[11px] font-bold tnum
                                     {{ match($rec->urgency) {
-                                        'immediate' => 'bg-critical-100 text-critical-700',
-                                        'urgent'    => 'bg-high-100 text-high-700',
-                                        'planned'   => 'bg-info-100 text-info-700',
-                                        default     => 'bg-paper-2 text-ink-500',
+                                        'urgent'  => 'bg-high-100 text-high-700',
+                                        'planned' => 'bg-info-100 text-info-700',
+                                        default   => 'bg-paper-2 text-ink-500',
                                     } }}">P{{ $rec->priority }}</span>
                                 <div class="flex-1">
                                     <p class="text-[13px] text-ink-900 leading-relaxed">{{ $rec->action }}</p>
+                                    @if ($rec->notes)
+                                    <p class="text-[11px] text-ink-400 mt-0.5 italic">{{ $rec->notes }}</p>
+                                    @endif
                                     <div class="flex items-center gap-2 mt-1.5">
                                         <span class="badge {{ match($rec->urgency) {
-                                            'immediate' => 'badge-critical',
-                                            'urgent'    => 'badge-high',
-                                            'planned'   => 'badge-info',
-                                            default     => 'badge-neutral',
+                                            'urgent'  => 'badge-high',
+                                            'planned' => 'badge-info',
+                                            default   => 'badge-neutral',
                                         } }}">{{ ucfirst($rec->urgency) }}</span>
                                         <span class="text-[11px] text-ink-400">{{ ucfirst($rec->status) }}</span>
                                     </div>

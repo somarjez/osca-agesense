@@ -113,13 +113,13 @@ class ReportController extends Controller
             ->groupBy('overall_risk_level')
             ->pluck('count', 'overall_risk_level');
 
-        // At-risk seniors list (HIGH + CRITICAL)
+        // At-risk seniors list (HIGH risk only — CRITICAL no longer an official level)
         $atRiskSeniors = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                      ->whereIn('ml_results.id', $latestIds);
             })
-            ->whereIn('ml_results.overall_risk_level', ['CRITICAL', 'HIGH'])
+            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
             ->select('senior_citizens.*', 'ml_results.overall_risk_level',
                      'ml_results.composite_risk', 'ml_results.cluster_name',
                      'ml_results.ic_risk', 'ml_results.env_risk', 'ml_results.func_risk')
@@ -229,7 +229,7 @@ class ReportController extends Controller
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                      ->whereIn('ml_results.id', $latestIds);
             })
-            ->whereIn('ml_results.overall_risk_level', ['CRITICAL','HIGH'])
+            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
             ->select(
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name) as name"),

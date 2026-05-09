@@ -37,15 +37,10 @@ class OscaCsvSeeder extends Seeder
             return;
         }
 
-        $rows = 0;
-        $mlSuccess = 0;
-        $mlFallback = 0;
-        $mlErrors = 0;
-
-        $mlService = app(MlService::class);
+        // ── Pass 1: insert all seniors + surveys ──────────────────────────────
+        $pairs = [];
 
         while (($line = fgetcsv($fp)) !== false) {
-            $rows++;
             $row = $this->rowToAssoc($header, $line);
 
             $senior = SeniorCitizen::create([
@@ -79,11 +74,11 @@ class OscaCsvSeeder extends Seeder
                 'monthly_income_range'    => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
                 'problems_needs'          => $this->toList($row['problems_needs'] ?? null),
                 'medical_concern'         => $this->toList($row['medical_concern'] ?? null),
-                'dental_concern'          => $this->strVal($row['dental_concern'] ?? null),
-                'optical_concern'         => $this->strVal($row['optical_concern'] ?? null),
-                'hearing_concern'         => $this->strVal($row['hearing_concern'] ?? null),
+                'dental_concern'          => $this->toList($row['dental_concern'] ?? null),
+                'optical_concern'         => $this->toList($row['optical_concern'] ?? null),
+                'hearing_concern'         => $this->toList($row['hearing_concern'] ?? null),
                 'social_emotional_concern'=> $this->toList($row['social_emotional_concern'] ?? null),
-                'healthcare_difficulty'   => $this->strVal($row['healthcare_difficulty'] ?? null),
+                'healthcare_difficulty'   => $this->toList($row['healthcare_difficulty'] ?? null),
                 'has_medical_checkup'     => $this->boolVal($row['has_medical_checkup'] ?? null),
                 'checkup_schedule'        => $this->strVal($row['checkup_schedule'] ?? null),
                 'status'                  => 'active',
@@ -130,23 +125,23 @@ class OscaCsvSeeder extends Seeder
             ]);
 
             $survey->computeScores();
-
-            try {
-                $result = $mlService->runPipeline($senior, $survey);
-                $status = strtolower((string) ($result->raw_output['status'] ?? ''));
-                if (str_contains($status, 'fallback')) {
-                    $mlFallback++;
-                } else {
-                    $mlSuccess++;
-                }
-            } catch (\Throwable $e) {
-                $mlErrors++;
-            }
+            $pairs[] = ['senior' => $senior, 'survey' => $survey];
         }
 
         fclose($fp);
 
-        $this->command->info("Imported rows: {$rows}");
+        $rows = count($pairs);
+        $this->command->info("Inserted {$rows} seniors + surveys. Running ML batch pipeline...");
+
+        // ── Pass 2: one Python subprocess for all seniors ─────────────────────
+        $mlService  = app(MlService::class);
+        $results    = $mlService->runBatchPipeline($pairs);
+
+        $mlSuccess  = count(array_filter($results, fn($r) => $r['success'] && !str_contains(strtolower((string) ($r['result']?->raw_output['status'] ?? '')), 'fallback')));
+        $mlFallback = count(array_filter($results, fn($r) => $r['success'] && str_contains(strtolower((string) ($r['result']?->raw_output['status'] ?? '')), 'fallback')));
+        $mlErrors   = count(array_filter($results, fn($r) => !$r['success']));
+
+        $this->command->info("Imported rows:  {$rows}");
         $this->command->info("ML success: {$mlSuccess}, fallback: {$mlFallback}, errors: {$mlErrors}");
     }
 
@@ -159,7 +154,6 @@ class OscaCsvSeeder extends Seeder
             DB::table('senior_citizens')->delete();
             DB::table('cluster_snapshots')->delete();
 
-            // Reset sqlite autoincrement counters if sqlite is used.
             if (DB::getDriverName() === 'sqlite') {
                 foreach (['recommendations', 'ml_results', 'qol_surveys', 'senior_citizens', 'cluster_snapshots'] as $table) {
                     DB::statement("DELETE FROM sqlite_sequence WHERE name = '{$table}'");
@@ -239,7 +233,6 @@ class OscaCsvSeeder extends Seeder
             try {
                 return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');
             } catch (\Throwable $e) {
-                // Try next format.
             }
         }
 

@@ -139,10 +139,6 @@ php artisan db:seed
 
 > The default seeder runs `OscaCsvSeeder`, which reads from a file named `osca.csv` located **one directory above** the project root (`../osca.csv`). Place your real or demo dataset there before seeding. If the file is not found, the seeder exits with an error message and no data is imported.
 >
-> To seed with randomly generated demo data instead, run:
-> ```bash
-> php artisan db:seed --class=OscaSeeder
-> ```
 
 ### 8. Build the frontend assets
 
@@ -252,14 +248,6 @@ php artisan db:seed
 ```
 
 The CSV seeder (`database/seeders/OscaCsvSeeder.php`) maps columns including `first_name`, `last_name`, `barangay`, `dob`, `gender`, `education`, `medical_concern`, `qol_enjoy_life`, `phy_energy`, etc. After importing each senior and their QoL survey, it automatically runs the ML pipeline to generate initial results.
-
-**Option B — Generate random demo data:**
-
-```bash
-php artisan db:seed --class=OscaSeeder
-```
-
-Generates ~60 realistic demo seniors with age-biased QoL responses and a natural distribution of risk levels.
 
 ### Reset and re-seed
 
@@ -439,12 +427,14 @@ Weights renormalise proportionally if a model file is unavailable.
 
 ### Risk level thresholds
 
-| Level | Composite risk score |
-|---|---|
-| CRITICAL | ≥ 0.65 |
-| HIGH | ≥ 0.45 |
-| MODERATE | ≥ 0.25 |
-| LOW | < 0.25 |
+| Level | Composite risk score | Priority flag |
+|---|---|---|
+| HIGH (Urgent) | ≥ 0.70 | `urgent` |
+| HIGH | 0.50 – 0.69 | `priority_action` |
+| MODERATE | 0.30 – 0.49 | `planned_monitoring` |
+| LOW | < 0.30 | `maintenance` |
+
+There is no CRITICAL level. Seniors with composite ≥ 0.70 are displayed as **High Risk + Urgent** in the UI via `priority_flag = urgent`.
 
 ---
 
@@ -452,12 +442,12 @@ Weights renormalise proportionally if a model file is unavailable.
 
 The system uses Laravel session-based authentication. All application routes require login.
 
-| Field | Value |
-|---|---|
-| Email | `admin@osca.local` |
-| Password | `password` |
+A default admin account is created when seeding the database. **Change the password immediately** before use in any shared or non-development environment:
 
-> **Change this password immediately** in any non-development environment.
+```bash
+php artisan tinker
+> App\Models\User::where('email','admin@osca.local')->update(['password' => bcrypt('your-new-password')]);
+```
 
 Currently all authenticated users have full access to all features. A role/permission system (`spatie/laravel-permission`) is installed but not yet configured.
 
@@ -508,8 +498,7 @@ osca-system/
 │   │   └── 2026_04_27_000001_add_domain_risks_to_ml_results.php
 │   └── seeders/
 │       ├── DatabaseSeeder.php            # Entry point → calls OscaCsvSeeder
-│       ├── OscaCsvSeeder.php             # Production seeder from osca.csv
-│       └── OscaSeeder.php                # Demo seeder: ~60 random seniors
+│       └── OscaCsvSeeder.php             # Seeder: imports from osca.csv + runs ML pipeline
 │
 ├── docs/
 │   ├── GIT_WORKFLOW.md                  # Step-by-step guide: clone, branch, commit, PR
@@ -522,7 +511,6 @@ osca-system/
 │   │   ├── local_ml_runner.py            # Subprocess runner (preprocess/infer/combined/batch)
 │   │   └── preprocess_service.py         # Flask: feature engineering (port 5001)
 │   ├── tests/
-│   │   ├── pyrightconfig.json            # Pyright/Pylance extra path for import resolution
 │   │   └── test_ml_pipeline.py           # Integration tests for the full ML pipeline
 │   ├── venv/                             # Python virtual environment (do not commit)
 │   ├── requirements.txt                  # Python package dependencies
@@ -578,7 +566,7 @@ osca-system/
 | `database/seeders/` | CSV-based production seeder and randomised demo seeder |
 | `python/services/` | Flask microservices for feature engineering, clustering, risk scoring, and recommendations |
 | `python/services/local_ml_runner.py` | Subprocess entry point — activated when HTTP services are unavailable |
-| `python/services/test_ml_pipeline.py` | Integration tests — run before deploying new model artefacts |
+| `python/tests/test_ml_pipeline.py` | Integration tests — run before deploying new model artefacts |
 | `resources/views/livewire/` | Blade templates rendered and controlled by Livewire components |
 | `resources/views/components/` | Reusable UI primitives: KPI cards, risk badges, cluster badges, progress bars |
 | `storage/app/ml_models/` | Trained scikit-learn and UMAP model artefacts consumed by the Python services |
@@ -592,10 +580,10 @@ osca-system/
 | **Senior Citizen Profiles** | 6-step Livewire form capturing demographics, family, education, household, economic, and health data. Supports create, edit, soft delete, archive, restore, and PDF export per senior. |
 | **QoL Survey** | 8-step WHO-aligned Quality of Life questionnaire (31 items across 8 domains). Domain scores are computed and normalised (0–1) on submission. |
 | **ML Pipeline** | Feature engineering → UMAP reduction → K-Means clustering → GBR+RFR risk ensemble → recommendation generation. Three-tier fallback: HTTP services → local Python → PHP heuristic. |
-| **Dashboard** | Real-time KPIs (total seniors, surveyed count, critical risk, pending recommendations), interactive Chart.js charts, barangay breakdown table, and recent activity panels. Filterable by barangay and risk level. |
+| **Dashboard** | Real-time KPIs (total seniors, surveyed count, high-risk + urgent count, pending recommendations), interactive Chart.js charts, barangay breakdown table, and recent activity panels. Filterable by barangay and risk level. |
 | **Cluster Analysis Report** | Full cluster summaries, WHO domain risk comparison chart, cluster evaluation metrics (Silhouette, Davies-Bouldin, Calinski-Harabász), barangay × cluster breakdown, and interactive member table. |
-| **Risk Report** | Paginated at-risk senior list (HIGH + CRITICAL), domain-level risk averages, barangay risk breakdown, CSV export. Filterable and sortable. |
-| **Recommendations** | Per-senior prioritised action list driven by ML risk scores and senior profile data. Urgency levels: immediate / urgent / planned / maintenance. Supports status tracking and staff assignment. |
+| **Risk Report** | Paginated at-risk senior list (HIGH + urgent), domain-level risk averages, barangay risk breakdown, CSV export. Filterable and sortable. |
+| **Recommendations** | Per-senior prioritised action list driven by ML risk scores and senior profile data. Urgency levels: urgent / priority_action / planned_monitoring / maintenance. Supports status tracking and staff assignment. |
 | **ML Service Management** | Health status monitoring, batch inference runner (100-senior chunks, one Python process per chunk), single-record re-analysis trigger. |
 | **Archives** | Soft-deleted senior records with restore and permanent-delete capability. |
 | **Exports** | Cluster analysis CSV, risk report CSV, individual senior PDF profile. |
@@ -631,7 +619,7 @@ Senior Profile + QoL Survey (Laravel)
   │   ├─ ENV risk (gbr_env_risk.pkl + rfr_env_risk.pkl)
   │   ├─ FUNC risk (gbr_func_risk.pkl + rfr_func_risk.pkl)
   │   └─ Composite risk (gbr_composite_risk.pkl + rfr_composite_risk.pkl)
-  ├─ Risk level classification (CRITICAL / HIGH / MODERATE / LOW)
+  ├─ Risk level classification (HIGH / MODERATE / LOW + priority_flag for urgency)
   └─ Prescriptive recommendation generation
         │
         ▼
@@ -662,7 +650,7 @@ Recommendations are generated entirely from model output and senior profile data
 | `functional_actions()` | `phy_mobility_outside/indoor`, `func_independence`, `age`, `checkup_enc` |
 | `hc_access_actions()` | `healthcare_difficulty` text, `env_service_access`, `sec5_movable_asset_score` |
 
-Urgency is set from the overall risk level: CRITICAL → immediate, HIGH → urgent, MODERATE → planned, LOW → maintenance.
+Urgency is set from the overall risk level: urgent (≥ 0.70) → urgent, HIGH → priority_action, MODERATE → planned_monitoring, LOW → maintenance.
 
 ---
 
@@ -689,9 +677,6 @@ php artisan migrate:fresh --seed
 
 # Seed from osca.csv (requires file at ../osca.csv)
 php artisan db:seed
-
-# Seed with random demo data
-php artisan db:seed --class=OscaSeeder
 
 # Clear all compiled caches
 php artisan optimize:clear
@@ -828,11 +813,7 @@ Run `php artisan migrate` to ensure all required tables exist before starting th
 
 ### `osca.csv not found` during seeding
 
-`OscaCsvSeeder` expects the CSV at `../osca.csv` — one level above the project root. Either place the file there or use the demo seeder:
-
-```bash
-php artisan db:seed --class=OscaSeeder
-```
+`OscaCsvSeeder` expects the CSV at `../osca.csv` — one level above the project root. Place the file there and re-run `php artisan db:seed`.
 
 ### Vite manifest not found
 

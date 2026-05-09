@@ -31,17 +31,14 @@
             <div class="px-5 py-4 flex items-start gap-3">
                 <span class="flex-shrink-0 w-6 h-6 rounded-md grid place-items-center text-[11px] font-bold mt-0.5
                     {{ match($rec->urgency) {
-                        'immediate' => 'bg-critical-100 text-critical-700',
-                        'urgent'    => 'bg-high-100 text-high-700',
-                        'planned'   => 'bg-info-100 text-info-700',
-                        default     => 'bg-paper-2 text-ink-500',
+                        'urgent'  => 'bg-high-100 text-high-700',
+                        'planned' => 'bg-info-100 text-info-700',
+                        default   => 'bg-paper-2 text-ink-500',
                     } }}">{{ $rec->priority }}</span>
                 <div class="flex-1">
                     <p class="text-[13px] text-ink-800">{{ $rec->action }}</p>
                     <div class="flex items-center gap-3 mt-1.5 flex-wrap">
-                        @if ($rec->urgency === 'immediate')
-                            <span class="badge badge-critical">{{ ucfirst($rec->urgency) }}</span>
-                        @elseif ($rec->urgency === 'urgent')
+                        @if ($rec->urgency === 'urgent')
                             <span class="badge badge-high">{{ ucfirst($rec->urgency) }}</span>
                         @elseif ($rec->urgency === 'planned')
                             <span class="badge badge-info">{{ ucfirst($rec->urgency) }}</span>

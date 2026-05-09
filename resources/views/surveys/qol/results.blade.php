@@ -69,13 +69,12 @@
                 <div class="flex items-center gap-3">
                     <span class="text-xs text-slate-500 w-20 flex-shrink-0">{{ $label }}</span>
                     <div class="flex-1 bg-slate-200 rounded-full h-1.5">
-                        <div class="h-1.5 rounded-full {{ $score >= 0.65 ? 'bg-critical-500' : ($score >= 0.45 ? 'bg-high-500' : ($score >= 0.25 ? 'bg-moderate-500' : 'bg-low-500')) }}"
+                        <div class="h-1.5 rounded-full {{ $score >= 0.50 ? 'bg-high-500' : ($score >= 0.30 ? 'bg-moderate-500' : 'bg-low-500') }}"
                              style="width: {{ round($score * 100) }}%"></div>
                     </div>
                     <span class="text-xs font-semibold w-12 text-right text-slate-700">{{ round($score * 100, 1) }}%</span>
                     <span class="text-xs px-1.5 py-0.5 rounded font-bold
                         {{ match(strtoupper($level)) {
-                            'CRITICAL' => 'bg-red-100 text-red-700',
                             'HIGH'     => 'bg-orange-100 text-orange-700',
                             'MODERATE' => 'bg-amber-100 text-amber-700',
                             default    => 'bg-emerald-100 text-emerald-700',

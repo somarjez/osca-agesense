@@ -6,10 +6,29 @@
 <div class="space-y-6">
 
     {{-- Stats strip --}}
-    <div class="grid grid-cols-3 gap-4">
-        <x-kpi label="Total Active"  :value="number_format($stats['total'])"    accent="forest" />
-        <x-kpi label="Critical Risk" :value="number_format($stats['critical'])" accent="critical" valueColor="text-critical-700" />
-        <x-kpi label="High Risk"     :value="number_format($stats['high'])"     accent="high"     valueColor="text-high-700" />
+    <div class="grid grid-cols-2 gap-4">
+        <x-kpi label="Total Active" :value="number_format($stats['total'])" accent="forest" sub="Active records · Pagsanjan, Laguna" />
+
+        {{-- High Risk merged with Urgent Priority --}}
+        <div class="kpi kpi-high relative overflow-hidden">
+            <div class="kpi-rule bg-high-500"></div>
+            <div class="kpi-label">High Risk</div>
+            <div class="flex items-baseline gap-2">
+                <div class="kpi-value text-high-700">{{ number_format($stats['high']) }}</div>
+                @if (($stats['urgent'] ?? 0) > 0)
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-200 px-1.5 py-0.5 rounded">
+                    <span class="w-1.5 h-1.5 rounded-full bg-high-500 animate-pulse flex-shrink-0"></span>
+                    {{ $stats['urgent'] }} urgent
+                </span>
+                @endif
+            </div>
+            <div class="kpi-delta text-high-600">
+                Need priority action
+                @if (($stats['urgent'] ?? 0) > 0)
+                · <span class="font-semibold">{{ $stats['urgent'] }}</span> score ≥ 0.70
+                @endif
+            </div>
+        </div>
     </div>
 
     {{-- Filter + Search --}}
@@ -41,7 +60,7 @@
                 <label class="eyebrow block mb-1.5">Risk Level</label>
                 <select name="risk" class="form-select">
                     <option value="">All</option>
-                    @foreach (['CRITICAL','HIGH','MODERATE','LOW'] as $r)
+                    @foreach (['HIGH','MODERATE','LOW'] as $r)
                         <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ ucfirst(strtolower($r)) }}</option>
                     @endforeach
                 </select>
@@ -104,21 +123,48 @@
                     <td class="td text-center font-mono tnum text-ink-900">{{ $senior->age }}</td>
                     <td class="td text-center">
                         @if ($ml?->cluster_named_id)
+                        @php
+                        $clusterTips = [
+                            1 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 1 · High Functioning</strong><br>Generally independent seniors with good physical capacity and strong social support. Lower care needs; focus on maintenance and preventive programs.',
+                            2 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 2 · Moderate</strong><br>Seniors with moderate limitations in at least one domain. May need assistance with some daily activities or show early signs of decline.',
+                            3 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 3 · Low Functioning</strong><br>Seniors with significant impairments across multiple domains. Higher dependency and care needs; priority for targeted interventions.',
+                        ];
+                        @endphp
+                        <x-tooltip :text="$clusterTips[$ml->cluster_named_id] ?? ''" position="top" width="w-64">
                             <x-cluster-badge :id="$ml->cluster_named_id" />
+                        </x-tooltip>
                         @else
                             <span class="text-ink-300">—</span>
                         @endif
                     </td>
                     <td class="td text-center">
                         @if ($ml?->overall_risk_level)
-                            <x-risk-badge :level="$ml->overall_risk_level" />
+                        @php
+                        $riskTips = [
+                            'LOW'      => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Low Risk</strong><br>Minimal vulnerabilities detected. Senior is largely self-sufficient with stable health and support conditions.',
+                            'MODERATE' => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Moderate Risk</strong><br>Some vulnerabilities present. Monitor closely and consider light-touch interventions to prevent further decline.',
+                            'HIGH'     => '<strong class="text-ink-900 dark:text-[#e4e1d8]">High Risk</strong><br>Multiple risk factors identified. Priority action recommended. Seniors with score ≥ 0.70 are flagged urgent-priority.',
+                        ];
+                        @endphp
+                        <x-tooltip :text="$riskTips[strtoupper($ml->overall_risk_level)] ?? ''" position="top" width="w-64">
+                            <x-risk-badge :level="$ml->overall_risk_level" :priority="$ml->priority_flag" />
+                        </x-tooltip>
                         @else
                             <span class="text-ink-300 text-[11px]">Unassessed</span>
                         @endif
                     </td>
                     <td class="td">
                         @if ($ml?->composite_risk !== null)
+                        @php
+                        $pct = round($ml->composite_risk * 100);
+                        $urgentNote = ($ml->priority_flag === 'urgent') ? ' · Urgent-priority (≥70%)' : '';
+                        $compositeTip = '<strong class="text-ink-900 dark:text-[#e4e1d8]">Composite Risk Score: ' . $pct . '%</strong><br>'
+                            . 'A weighted aggregate of physical, environmental, and functional risk scores from the ML assessment.' . $urgentNote . '<br>'
+                            . '<span class="mt-1.5 inline-block text-ink-400">0–29% Low &nbsp;·&nbsp; 30–49% Moderate &nbsp;·&nbsp; 50%+ High &nbsp;·&nbsp; 70%+ Urgent-priority</span>';
+                        @endphp
+                        <x-tooltip :text="$compositeTip" position="top" width="w-72">
                             <x-risk-bar :value="$ml->composite_risk" />
+                        </x-tooltip>
                         @else
                             <span class="text-ink-300 text-xs">—</span>
                         @endif
