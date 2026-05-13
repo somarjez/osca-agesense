@@ -152,9 +152,30 @@ class MlService
             return false;
         }
 
+        // If both services are already up, skip the kill/restart cycle entirely.
+        $allUp = true;
+        foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
+            try {
+                $resp = Http::timeout(3)->connectTimeout(2)->get($url);
+                if (!$resp->successful()) {
+                    $allUp = false;
+                    break;
+                }
+            } catch (\Exception) {
+                $allUp = false;
+                break;
+            }
+        }
+        if ($allUp) {
+            return true;
+        }
+
+        // Pass ML_MODELS_PATH explicitly so the subprocess doesn't fall back to a hardcoded path.
+        $env = ['ML_MODELS_PATH' => env('ML_MODELS_PATH', base_path('python/models'))];
+
         try {
-            $process = new Process(['powershell.exe', '-NoProfile', '-File', $startScript], base_path());
-            $process->setTimeout(20);
+            $process = new Process(['powershell.exe', '-NoProfile', '-File', $startScript], base_path(), $env);
+            $process->setTimeout(60);
             $process->run();
         } catch (\Throwable) {
             // best-effort
@@ -162,7 +183,7 @@ class MlService
 
         foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
             $ready = false;
-            for ($attempt = 1; $attempt <= 10; $attempt++) {
+            for ($attempt = 1; $attempt <= 20; $attempt++) {
                 try {
                     $resp = Http::timeout(4)->connectTimeout(3)->get($url);
                     if ($resp->successful()) {
@@ -172,7 +193,7 @@ class MlService
                 } catch (\Exception) {
                     // service not ready yet
                 }
-                if ($attempt < 10) {
+                if ($attempt < 20) {
                     sleep(2);
                 }
             }
