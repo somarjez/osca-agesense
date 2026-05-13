@@ -110,6 +110,13 @@
                 <x-heroicon-o-clipboard-document-check class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
+            <a href="{{ route('reports.registry.export') }}"
+               class="nav-link"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Export Registry'">
+                <x-heroicon-o-table-cells class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Export Registry</span>
+            </a>
 
             <div x-show="sidebarOpen" x-cloak
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Archives</div>

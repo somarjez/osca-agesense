@@ -6,11 +6,34 @@
 @section('content')
 <div class="space-y-5">
 
-    {{-- ── Export Bar ── --}}
+    {{-- ── Action Bar ── --}}
+    @if (session('success'))
+    <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+        <x-heroicon-o-check-circle class="w-4 h-4 flex-shrink-0" />
+        {{ session('success') }}
+    </div>
+    @endif
+    @if (session('error'))
+    <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+        <x-heroicon-o-exclamation-circle class="w-4 h-4 flex-shrink-0" />
+        {{ session('error') }}
+    </div>
+    @endif
+
     <div class="flex justify-end gap-2">
+        <form method="POST" action="{{ route('reports.cluster.snapshot') }}">
+            @csrf
+            <button type="submit"
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
+                    title="Save today's cluster composition for longitudinal tracking">
+                <x-heroicon-o-camera class="w-4 h-4" />
+                Take Snapshot
+            </button>
+        </form>
         <a href="{{ route('reports.cluster.export') }}"
            class="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
-            ⬇ Export CSV
+            <x-heroicon-o-arrow-down-tray class="w-4 h-4" />
+            Export CSV
         </a>
     </div>
 
