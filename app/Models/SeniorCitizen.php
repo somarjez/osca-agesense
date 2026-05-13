@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedOrPlainText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -27,6 +28,7 @@ class SeniorCitizen extends Model
         'medical_concern', 'dental_concern', 'optical_concern',
         'hearing_concern', 'social_emotional_concern',
         'healthcare_difficulty', 'has_medical_checkup', 'checkup_schedule',
+        'latitude', 'longitude', 'location_source', 'location_accuracy', 'location_verified_at',
         'status', 'encoded_by',
         'consent_given_at', 'consent_method',
     ];
@@ -36,9 +38,12 @@ class SeniorCitizen extends Model
         'consent_given_at'       => 'datetime',
         'has_medical_checkup'    => 'boolean',
         // Non-searchable PII encrypted at rest
-        'contact_number'         => 'encrypted',
-        'place_of_birth'         => 'encrypted',
-        'philsys_id'             => 'encrypted',
+        'contact_number'         => EncryptedOrPlainText::class,
+        'place_of_birth'         => EncryptedOrPlainText::class,
+        'philsys_id'             => EncryptedOrPlainText::class,
+        'latitude'               => 'decimal:7',
+        'longitude'              => 'decimal:7',
+        'location_verified_at'   => 'datetime',
         'specialization'         => 'array',
         'community_service'      => 'array',
         'living_with'            => 'array',
@@ -98,6 +103,16 @@ class SeniorCitizen extends Model
     public function recommendations(): HasMany
     {
         return $this->hasMany(Recommendation::class);
+    }
+
+    public function accessibilityMetrics(): HasMany
+    {
+        return $this->hasMany(SeniorAccessibilityMetric::class);
+    }
+
+    public function latestAccessibilityMetric(): HasOne
+    {
+        return $this->hasOne(SeniorAccessibilityMetric::class)->latestOfMany();
     }
 
     // ── Scopes ────────────────────────────────────────────────────────────────
