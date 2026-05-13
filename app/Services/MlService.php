@@ -161,10 +161,22 @@ class MlService
         }
 
         foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
-            try {
-                $resp = Http::timeout(4)->connectTimeout(3)->get($url);
-                if (!$resp->successful()) return false;
-            } catch (\Exception) {
+            $ready = false;
+            for ($attempt = 1; $attempt <= 10; $attempt++) {
+                try {
+                    $resp = Http::timeout(4)->connectTimeout(3)->get($url);
+                    if ($resp->successful()) {
+                        $ready = true;
+                        break;
+                    }
+                } catch (\Exception) {
+                    // service not ready yet
+                }
+                if ($attempt < 10) {
+                    sleep(2);
+                }
+            }
+            if (!$ready) {
                 return false;
             }
         }
