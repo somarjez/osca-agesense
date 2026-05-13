@@ -38,7 +38,7 @@ All models were trained in a Jupyter notebook (`osca5.ipynb`) on the Pagsanjan O
 
 ## Model Artefacts
 
-All artefacts live in `storage/app/ml_models/` (overridable via `ML_MODELS_PATH` in `.env`).
+All artefacts live in `python/models/` (overridable via `ML_MODELS_PATH` in `.env`). The models are committed to the repository — no manual placement is needed after cloning.
 
 ### Trained models
 
@@ -52,22 +52,23 @@ All artefacts live in `storage/app/ml_models/` (overridable via `ML_MODELS_PATH`
 | `gbr_ic_risk.pkl` | GradientBoostingRegressor | Risk feature vector | IC risk score [0,1] |
 | `gbr_env_risk.pkl` | GradientBoostingRegressor | Risk feature vector | ENV risk score [0,1] |
 | `gbr_func_risk.pkl` | GradientBoostingRegressor | Risk feature vector | FUNC risk score [0,1] |
-| `gbr_composite_risk.pkl` | GradientBoostingRegressor | Risk feature vector | Composite risk [0,1] |
 | `rfr_ic_risk.pkl` | RandomForestRegressor | Risk feature vector | IC risk score [0,1] |
 | `rfr_env_risk.pkl` | RandomForestRegressor | Risk feature vector | ENV risk score [0,1] |
 | `rfr_func_risk.pkl` | RandomForestRegressor | Risk feature vector | FUNC risk score [0,1] |
-| `rfr_composite_risk.pkl` | RandomForestRegressor | Risk feature vector | Composite risk [0,1] |
 
 ### Configuration files
 
 | File | Purpose |
 |---|---|
 | `feature_list.json` | Ordered list of feature names expected by `scaler.pkl` |
+| `final_feature_list.json` | Final post-VIF feature list used in training (alias kept for compatibility) |
 | `vif_retained_features.json` | VIF-filtered subset — used as fallback feature list for clustering |
 | `ml_risk_features.json` | Feature names expected by the GBR/RFR risk models |
 | `cluster_mapping.json` | Maps raw KMeans IDs `{0,1,2}` → named IDs `{1,2,3}` |
 | `asset_weights.json` | Runtime-overridable scoring weights (see [Runtime Configuration](#runtime-configuration)) |
 | `cluster_metadata.json` | Optional — overrides cluster names/descriptions without code changes |
+| `predictions/senior_predictions.csv` | Notebook-validated composite scores, cluster IDs, and risk levels per senior |
+| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat, one row per action) |
 
 ---
 
@@ -276,11 +277,11 @@ Step 3: infer() for each senior
         Only runs risk ensemble + recommendation generation per senior
 ```
 
-**Performance impact:** For 178 seniors, UMAP runs once (not 178 times). This is the primary cost driver — UMAP transform with numba JIT on Windows takes ~5–10 seconds the first call and ~1–2 seconds subsequently.
+**Performance impact:** For 275 seniors, UMAP runs once (not 275 times). This is the primary cost driver — UMAP transform with numba JIT on Windows takes ~5–10 seconds the first call and ~1–2 seconds subsequently. In HTTP mode (Flask services running), full batch analysis for 275 seniors completes in under 60 seconds.
 
 **Fallback within batch:** If `batch_cluster_assign()` fails (model unavailable), each senior's `infer()` call independently falls back to the wellbeing heuristic.
 
-**Chunk size:** Laravel's `chunk(100)` splits large batches into 100-senior subsets, each spawning one Python subprocess. For 178 seniors: 2 subprocess calls.
+**Chunk size:** Laravel's `chunk(100)` splits large batches into 100-senior subsets, each spawning one Python subprocess. For 275 seniors: 3 subprocess calls.
 
 ---
 
@@ -361,24 +362,30 @@ All three cluster IDs must be present or the file is ignored and hardcoded defau
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
-When `true`, the inference service matches each senior against a pre-exported `senior_predictions.csv` from the training notebook. If a match is found, the notebook's cluster ID and risk scores are used instead of live model output.
+**Default: `true`** (set in `.env.example`).
 
-**This is a validation and debugging feature only.** Keep it `false` in production to ensure all results come from the live trained models.
+When `true`, the inference service matches each senior against `python/models/predictions/senior_predictions.csv` (committed to the repository). If a match is found, the notebook's cluster ID, composite risk, and risk level are used instead of live model output. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences.
+
+Set to `false` only when deliberately testing raw live model output against the notebook values. The `ENABLE_NOTEBOOK_OVERRIDES=false` path is used during active model development/validation only.
 
 ---
 
 ## Testing the Pipeline
 
-Run the integration test suite from the `python/tests/` directory with the virtual environment activated:
+Three test suites exist in `python/tests/`. Run all with the virtual environment activated:
 
 ```bash
 cd python
 venv\Scripts\activate      # Windows
 # source venv/bin/activate  # macOS/Linux
 python tests/test_ml_pipeline.py
+python tests/test_inference_paths.py
+python tests/test_inference_e2e.py
 ```
 
 ### Test coverage
+
+**`test_ml_pipeline.py`** — Integration tests for the preprocessing and inference pipeline:
 
 | Test | What it verifies |
 |---|---|
@@ -388,6 +395,10 @@ python tests/test_ml_pipeline.py
 | 4. Missing cluster_metadata.json | Inference succeeds and uses hardcoded cluster profiles when the file is absent |
 | 5. Modified cluster_metadata.json | Cluster names change at runtime without code changes |
 | 6. Modified asset_weights.json | Asset scores change at runtime when weights file is modified |
+
+**`test_inference_paths.py`** — Validates model files, prediction CSVs, urgency logic, and priority flag thresholds.
+
+**`test_inference_e2e.py`** — End-to-end inference on known seniors (Norlito Basa urgent, Rosa Amante moderate); checks composite risk within 0.001 of CSV value, `notebook_override_applied=True`.
 
 All tests must pass before deploying new model artefacts. A failed test 2 ("no heuristic fallback") means a model file is missing or incompatible with the current feature list.
 

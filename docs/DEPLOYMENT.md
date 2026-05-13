@@ -2,7 +2,7 @@
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
 > **Audience:** System administrators and developers setting up the system for the first time or deploying to a new environment.
-> **Last Updated:** 2026-05-03
+> **Last Updated:** 2026-05-14
 
 ---
 
@@ -81,6 +81,26 @@ osca-system/
 
 ## 3. Installation — Development (Windows)
 
+### Recommended path — `setup.bat` (automated)
+
+For any machine cloning the project for the first time (including collaborators), the recommended approach is the automated batch script:
+
+```
+1. git clone https://github.com/somarjez/osca-agesense.git
+2. cd osca-agesense
+3. Create the MySQL database: CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+4. Place osca.csv in the project root (if seeding with real data)
+5. Double-click setup.bat
+```
+
+`setup.bat` handles: `composer install`, `npm install`, `.env` creation and key generation, database migrations, CSV seeding (if `osca.csv` is present), frontend build, Python virtual environment creation, and Python dependency installation.
+
+After first-time setup, use `start.bat` to launch the system every session.
+
+---
+
+### Manual setup (alternative)
+
 ### Step 1 — Clone the repository
 
 ```powershell
@@ -143,7 +163,7 @@ cd ..
 php artisan serve
 ```
 
-The application opens at `http://127.0.0.1:8000`. The Python services start automatically when using `php artisan serve` via the custom `ServeCommand`.
+The application opens at `http://127.0.0.1:8000`. The Python services start automatically when using `php artisan serve` via the custom `ServeCommand` (Windows only — calls `start_services.ps1`).
 
 ---
 
@@ -177,17 +197,18 @@ Key `.env` variables:
 |---|---|---|
 | `SESSION_DRIVER` | `database` | Stores sessions in the database |
 | `SESSION_LIFETIME` | `120` | Session expiry in minutes |
-| `CACHE_STORE` | `file` | Cache driver |
+| `CACHE_STORE` | `database` | Cache driver |
+| `QUEUE_CONNECTION` | `database` | Queue driver (uses `jobs` table) |
 
 ### ML Services
 
 | Variable | Default | Description |
 |---|---|---|
-| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python microservices |
+| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python microservices (no port suffix) |
 | `ML_PREPROCESS_PORT` | `5001` | Preprocessor service port |
 | `ML_INFERENCE_PORT` | `5002` | Inference service port |
-| `ML_MODELS_PATH` | *(auto)* | Path to `.pkl` model artefacts directory |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | Use notebook predictions instead of live models — keep `false` in production |
+| `ML_MODELS_PATH` | `python/models` | Path to `.pkl` model artefacts directory (committed to repo) |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` instead of computing live — ensures identical results across all machines. Keep `true` unless deliberately testing live model output. |
 
 ### Mail (notifications)
 
@@ -243,9 +264,13 @@ pip install -r requirements.txt
 ### Start services manually
 
 ```powershell
-# PowerShell — start both services
+# Windows (PowerShell) — start both services
 cd python
 .\start_services.ps1
+
+# Linux/macOS (bash) — start both services
+cd python
+bash start_services.sh
 
 # Or start individually
 cd python/services
@@ -264,13 +289,13 @@ Both should return `{"status": "ok"}`.
 
 ### Model artefacts
 
-The trained `.pkl` files must be present in `storage/app/ml_models/`. If they are missing, the system falls back to Tier 2 (local subprocess) or Tier 3 (PHP heuristic). Verify with:
+The trained `.pkl` files are committed to `python/models/` and are downloaded automatically on `git clone` or `git pull`. If they are missing (e.g., selective clone), the system falls back to Tier 2 (local subprocess) or Tier 3 (PHP heuristic). Verify with:
 
 ```powershell
-dir storage\app\ml_models\
+dir python\models\
 ```
 
-Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `gbr_composite_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `rfr_composite_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`.
+Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`, `predictions/senior_predictions.csv`, `predictions/senior_recommendations_flat.csv`.
 
 ---
 
@@ -333,6 +358,11 @@ npm run dev
    User=www-data
    ```
 
+   Alternatively, use the provided shell script:
+   ```bash
+   bash /var/www/osca-agesense/python/start_services.sh
+   ```
+
 ---
 
 ## 8. First Login and Default Credentials
@@ -381,11 +411,11 @@ Before going live with real data:
 - [ ] Set `APP_DEBUG=false` in `.env`
 - [ ] Set `APP_ENV=production` in `.env`
 - [ ] Confirm `SESSION_DRIVER=database` and sessions table exists
-- [ ] Confirm ML model artefacts are present in `storage/app/ml_models/`
-- [ ] Verify Python services start on boot (systemd or equivalent)
+- [ ] Confirm ML model artefacts are present in `python/models/` (auto-present after `git clone`)
+- [ ] Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` (default) so results match validated notebook output
+- [ ] Verify Python services start on boot (systemd or equivalent — see `start_services.sh`)
 - [ ] Set up automated database backups (daily minimum)
 - [ ] Review and configure `MAIL_MAILER` for notifications
-- [ ] Set `ENABLE_NOTEBOOK_OVERRIDES=false`
 - [ ] Implement role-based access control before multi-staff deployment (see SYSTEM_FUNCTIONALITY.md §17)
 - [ ] Review Philippine Data Privacy Act compliance (see SYSTEM_FUNCTIONALITY.md §16)
 - [ ] Configure HTTPS (TLS certificate — Let's Encrypt recommended for production)
@@ -400,6 +430,7 @@ Before going live with real data:
 | `php artisan migrate` fails with "Access denied" | Wrong DB credentials | Check `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST` in `.env` |
 | `composer install` fails with PHP version error | PHP < 8.2 installed | Install PHP 8.2+ and confirm `php --version` |
 | Python services show "Offline" in the dashboard | Services not started | Run `.\python\start_services.ps1` in a separate terminal |
+| Wrong risk distribution after seeding (e.g. HIGH≠53) | `ENABLE_NOTEBOOK_OVERRIDES` is `false` or missing | Set `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env` (or run `start.bat` to sync from `.env.example`), then re-seed |
 | `WinError 10106` in Python service logs | Numba socket conflict on Windows | The `ServeCommand` sets `NUMBA_DISABLE_JIT=0` and threading overrides automatically; restart the service |
 | `UMAP` import error on Python startup | Missing packages | Re-run `pip install -r python/requirements.txt` with venv activated |
 | Git `index.lock` error during branch switch | Another git process is running | Delete `.git/index.lock` manually: `Remove-Item .git\index.lock -Force` |
