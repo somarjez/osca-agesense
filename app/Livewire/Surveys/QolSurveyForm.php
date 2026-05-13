@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Surveys;
 
+use App\Jobs\RunMlPipeline;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
-use App\Services\MlService;
 use Livewire\Component;
 
 class QolSurveyForm extends Component
@@ -178,13 +178,9 @@ class QolSurveyForm extends Component
         // Compute domain scores
         $this->survey->computeScores();
 
-        // Trigger ML pipeline
-        try {
-            app(MlService::class)->runPipeline($this->senior, $this->survey);
-            session()->flash('success', 'QoL Survey submitted and ML analysis completed successfully.');
-        } catch (\Exception $e) {
-            session()->flash('warning', 'Survey saved. ML analysis will be processed in background.');
-        }
+        // Dispatch ML pipeline as a background job to avoid HTTP timeout
+        RunMlPipeline::dispatch($this->senior->id, $this->survey->id);
+        session()->flash('success', 'QoL Survey submitted. ML analysis is running in the background.');
 
         $this->isProcessing = false;
         $this->redirect(route('seniors.show', $this->senior->id));

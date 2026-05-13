@@ -485,18 +485,60 @@ class MlService
             return null;
         }
 
+        // Use storage/app as temp dir so proc_open can write its lock/output files
+        // even when called from a restricted context (e.g. detached background process).
+        $tmpDir  = storage_path('app');
+        $outFile = $tmpDir . DIRECTORY_SEPARATOR . 'ml_out_' . uniqid('', true) . '.json';
+        $errFile = $tmpDir . DIRECTORY_SEPARATOR . 'ml_err_' . uniqid('', true) . '.txt';
+
         try {
-            $process = new Process(
-                [$this->localPythonExecutable, $this->localPythonRunner, $stage],
-                base_path(),
-                $this->pythonEnvironment()
-            );
+            $input    = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $env      = $this->pythonEnvironment();
+            $envPairs = [];
+            foreach ($env as $k => $v) {
+                $envPairs[] = $k . '=' . $v;
+            }
 
-            $process->setInput(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-            $process->setTimeout(max($this->timeout, $this->coldStartTimeout));
-            $process->mustRun();
+            $cmd = [
+                $this->localPythonExecutable,
+                $this->localPythonRunner,
+                $stage,
+            ];
 
-            $decoded = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+            $descriptors = [
+                0 => ['pipe', 'r'],  // stdin
+                1 => ['file', $outFile, 'w'],
+                2 => ['file', $errFile, 'w'],
+            ];
+
+            $proc = proc_open($cmd, $descriptors, $pipes, base_path(), $env);
+
+            if (!is_resource($proc)) {
+                throw new \RuntimeException('proc_open failed to start Python.');
+            }
+
+            fwrite($pipes[0], $input);
+            fclose($pipes[0]);
+
+            $timeout   = max($this->timeout, $this->coldStartTimeout);
+            $startTime = time();
+            while (proc_get_status($proc)['running']) {
+                if (time() - $startTime > $timeout) {
+                    proc_terminate($proc);
+                    throw new \RuntimeException("Python stage '{$stage}' timed out after {$timeout}s.");
+                }
+                usleep(100_000);
+            }
+
+            $exitCode = proc_close($proc);
+            $output   = is_file($outFile) ? file_get_contents($outFile) : '';
+            $stderr   = is_file($errFile) ? trim(file_get_contents($errFile)) : '';
+
+            if ($exitCode !== 0) {
+                throw new \RuntimeException("Python exited {$exitCode}. stderr: {$stderr}");
+            }
+
+            $decoded = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
             if (!is_array($decoded)) {
                 throw new \RuntimeException('Local Python stage returned a non-array payload.');
@@ -510,16 +552,14 @@ class MlService
             }
 
             return $decoded;
-        } catch (ProcessFailedException $e) {
-            Log::warning('Local Python ML stage failed', [
-                'stage' => $stage,
-                'error' => trim($e->getProcess()->getErrorOutput()) ?: $e->getMessage(),
-            ]);
         } catch (\Throwable $e) {
             Log::warning('Local Python ML stage failed', [
                 'stage' => $stage,
                 'error' => $e->getMessage(),
             ]);
+        } finally {
+            if (isset($outFile) && is_file($outFile)) @unlink($outFile);
+            if (isset($errFile) && is_file($errFile)) @unlink($errFile);
         }
 
         return null;

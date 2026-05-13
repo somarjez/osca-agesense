@@ -8,4 +8,5 @@ Route::prefix('ml')->name('ml.')->group(function () {
     Route::get('/batch',          [MlController::class, 'batchIndex'])->name('batch');
     Route::post('/batch/run',     [MlController::class, 'batchRun'])->name('batch.run');
     Route::post('/run/{senior}',  [MlController::class, 'runSingle'])->name('run.single');
+    Route::get('/result/{senior}', [MlController::class, 'resultStatus'])->name('result.senior');
 });

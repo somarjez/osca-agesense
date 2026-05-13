@@ -112,35 +112,50 @@ class MlController extends Controller
     }
 
     /**
-     * Run ML inference for a single senior citizen.
-     * Uses combined local mode (one subprocess) to prevent timeout errors.
+     * Spawn a hidden background PHP process to run ML for this senior, then return immediately.
+     * Writes a temporary .ps1 launcher to avoid shell-escaping issues with spaces in the project path.
      */
     public function runSingle(SeniorCitizen $senior)
     {
-        // Prevent PHP from killing the process mid-run while Python loads models
-        @set_time_limit(0);
-        @ini_set('max_execution_time', '0');
-
         $survey = $senior->latestQolSurvey;
 
         if (!$survey) {
-            return response()->json(['error' => 'No QoL survey found.'], 422);
+            return response()->json(['error' => 'No QoL survey found for this senior.'], 422);
         }
 
-        try {
-            $result = $this->ml->runPipeline($senior, $survey);
-            return response()->json([
-                'success'        => true,
-                'risk_level'     => $result->overall_risk_level,
-                'cluster_name'   => $result->cluster_name,
-                'composite_risk' => $result->composite_risk,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('ML runSingle failed', [
-                'senior_id' => $senior->id,
-                'error'     => $e->getMessage(),
-            ]);
-            return response()->json(['error' => $e->getMessage()], 500);
+        $php    = PHP_BINARY;
+        $artisan = base_path('artisan');
+        $outLog  = storage_path('logs/ml_single_' . $senior->id . '.log');
+        $errLog  = storage_path('logs/ml_single_' . $senior->id . '.err.log');
+        $ps1    = storage_path('logs/ml_launch_' . $senior->id . '.ps1');
+
+        // Write a .ps1 script — no escaping needed, paths are embedded as string literals.
+        file_put_contents($ps1, "& \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id} > \"$outLog\" 2> \"$errLog\"\nRemove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue\n");
+
+        // -WindowStyle Hidden + -NonInteractive: fully invisible, no CMD or PS window.
+        popen("powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File \"$ps1\"", 'r');
+
+        return response()->json(['queued' => true]);
+    }
+
+    /**
+     * Return the current ML result for a senior — used for polling after dispatch.
+     * processed_at is a Unix timestamp so JS can compare numbers regardless of timezone.
+     */
+    public function resultStatus(SeniorCitizen $senior)
+    {
+        $result = $senior->latestMlResult;
+
+        if (!$result) {
+            return response()->json(['ready' => false]);
         }
+
+        return response()->json([
+            'ready'          => true,
+            'risk_level'     => $result->overall_risk_level,
+            'cluster_name'   => $result->cluster_name,
+            'composite_risk' => $result->composite_risk,
+            'processed_at'   => $result->processed_at?->timestamp,
+        ]);
     }
 }
