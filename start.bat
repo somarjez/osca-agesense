@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
-title AgeSense — OSCA System Launcher
+chcp 65001 >nul
+title AgeSense - OSCA System Launcher
 color 0A
 
 echo.
