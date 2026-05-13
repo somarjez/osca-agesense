@@ -739,7 +739,7 @@ The following features are either partially implemented or explicitly absent fro
 | Automated ML model retraining | Not implemented | Models are static artefacts; no retraining pipeline in the web app |
 | Survey instrument versioning UI | Partially implemented | `survey_version` field exists; no UI to manage multiple versions |
 | Senior citizen photo upload | Not implemented | No photo field or upload feature in the profile form |
-| Export full database to Excel | Not implemented | `maatwebsite/excel` is installed but no Excel export is implemented |
+| Export full database to Excel | ✅ Implemented | `/reports/registry/export` — xlsx with all active seniors + latest ML result; sidebar under Administration |
 | GIS / interactive senior location map | Planned | See Section 18 for full specification |
 | Points of Interest proximity scoring | Planned | Requires `points_of_interest` table and GIS fields on `senior_citizens` |
 | Leaflet.js map view (`/gis/map`) | Planned | Depends on coordinate data collection |
@@ -927,7 +927,7 @@ The system is currently in a **pre-production state** (Phase 2 in progress) with
 | **Low** | Cluster snapshots are not generated — longitudinal tracking is not yet possible |
 | **Low** | No notification system — critical risk events are not automatically communicated |
 
-**Phase 2 gaps resolved (May 2026):** Activity audit logging ✅, queued batch ML inference ✅, dynamic cluster metrics ✅, Data Privacy Act compliance (encryption + consent + retention) ✅, barangay report page ✅.
+**Phase 2 gaps resolved (May 2026):** Activity audit logging ✅, queued batch ML inference ✅, dynamic cluster metrics ✅, Data Privacy Act compliance (encryption + consent + retention) ✅, barangay report page ✅, Excel registry export ✅, cluster snapshot generation ✅.
 
 **Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested across all modes (HTTP, subprocess, PHP heuristic). The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines. The codebase follows Laravel conventions throughout and is well-organized for continued development.
 

@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClusterSnapshot;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -281,6 +282,96 @@ class ReportController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Excel registry export — all active seniors + latest ML result.
+     */
+    public function exportRegistry()
+    {
+        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
+        $seniors = SeniorCitizen::active()
+            ->leftJoin('ml_results', function ($join) use ($latestIds) {
+                $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
+                     ->whereIn('ml_results.id', $latestIds);
+            })
+            ->select(
+                'senior_citizens.osca_id',
+                'senior_citizens.last_name',
+                'senior_citizens.first_name',
+                'senior_citizens.middle_name',
+                'senior_citizens.date_of_birth',
+                DB::raw('TIMESTAMPDIFF(YEAR, senior_citizens.date_of_birth, CURDATE()) as age'),
+                'senior_citizens.gender',
+                'senior_citizens.marital_status',
+                'senior_citizens.barangay',
+                'senior_citizens.monthly_income_range',
+                'senior_citizens.status',
+                'ml_results.cluster_named_id as cluster',
+                'ml_results.cluster_name',
+                'ml_results.overall_risk_level as risk_level',
+                'ml_results.composite_risk',
+                'ml_results.ic_risk',
+                'ml_results.env_risk',
+                'ml_results.func_risk',
+                'ml_results.wellbeing_score',
+                'ml_results.priority_flag',
+                'ml_results.processed_at as ml_processed_at'
+            )
+            ->orderBy('senior_citizens.barangay')
+            ->orderBy('senior_citizens.last_name')
+            ->get();
+
+        $filename = 'osca_senior_registry_' . now()->format('Ymd_His') . '.xlsx';
+
+        // Build array data for SimpleExcel write-through
+        $rows = [];
+        $rows[] = [
+            'OSCA ID', 'Last Name', 'First Name', 'Middle Name',
+            'Date of Birth', 'Age', 'Gender', 'Marital Status', 'Barangay',
+            'Monthly Income Range', 'Status',
+            'Cluster', 'Cluster Name', 'Risk Level',
+            'Composite Risk', 'IC Risk', 'Env Risk', 'Func Risk',
+            'Wellbeing Score', 'Priority Flag', 'ML Processed At',
+        ];
+
+        foreach ($seniors as $s) {
+            $rows[] = [
+                $s->osca_id, $s->last_name, $s->first_name, $s->middle_name,
+                $s->date_of_birth, $s->age, $s->gender, $s->marital_status, $s->barangay,
+                $s->monthly_income_range, $s->status,
+                $s->cluster, $s->cluster_name, $s->risk_level,
+                $s->composite_risk, $s->ic_risk, $s->env_risk, $s->func_risk,
+                $s->wellbeing_score, $s->priority_flag, $s->ml_processed_at,
+            ];
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ArrayExport($rows),
+            $filename
+        );
+    }
+
+    /**
+     * Trigger an on-demand cluster snapshot (POST from the cluster report page).
+     */
+    public function snapshotClusters(Request $request)
+    {
+        $today    = now()->toDateString();
+        $existing = ClusterSnapshot::whereDate('snapshot_date', $today)->exists();
+
+        $exitCode = Artisan::call('osca:snapshot-clusters', [
+            '--force' => $existing,
+        ]);
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'Snapshot failed — no ML results found. Run Batch Analysis first.');
+        }
+
+        return back()->with('success', "Cluster snapshot saved for {$today}.");
     }
 
     /**

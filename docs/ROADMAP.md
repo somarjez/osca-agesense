@@ -150,8 +150,8 @@ This phase addresses the security, reliability, and operational gaps identified 
 | Barangay report page | Medium | ✅ Done | Complete the `reports.barangay` route with view and controller |
 | Queued batch ML inference | Medium | ✅ Done | `ProcessMlBatch` job dispatched via Laravel queue |
 | Email / notification system | Medium | ⏳ Pending | Critical risk alerts, recommendation assignment notifications |
-| Excel export | Low | ⏳ Pending | Full registry export via `maatwebsite/excel` |
-| Cluster snapshot generation | Low | ⏳ Pending | Scheduled artisan command for daily snapshots |
+| Excel export | Low | ✅ Done | Full registry export via `maatwebsite/excel` at `/reports/registry/export`; sidebar link under Administration |
+| Cluster snapshot generation | Low | ✅ Done | `osca:snapshot-clusters` command; scheduled daily at 23:55; on-demand "Take Snapshot" button on cluster report |
 | Linux/macOS ML service startup | Low | ✅ Done | `start_services.sh` committed alongside the PowerShell script |
 
 ---
