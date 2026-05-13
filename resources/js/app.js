@@ -1,5 +1,7 @@
 import './bootstrap'
 import Chart from 'chart.js/auto'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 // Alpine.js is managed by Livewire 3's bundled copy — do NOT import or start it
 // here. Importing a second Alpine instance breaks wire:click / wire:model.
@@ -35,6 +37,7 @@ Chart.defaults.scale.ticks.color              = '#94a3b8'
 
 // Make Chart.js available globally for Blade scripts
 window.Chart = Chart
+window.L = L
 
 // ── Livewire scroll preservation ─────────────────────────────────────────────
 // The layout uses <main class="overflow-y-auto"> as the scroll container.
