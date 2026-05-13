@@ -168,27 +168,43 @@
                     <td class="td text-center"
                         x-data="{
                             loading: false, done: false, err: '',
-                            riskLevel: '{{ $ml?->overall_risk_level ?? '' }}',
-                            clusterName: '{{ $ml?->cluster_name ?? '' }}',
+                            pollTimer: null, pollCount: 0, pollMax: 60,
+                            baseTs: {{ $ml?->processed_at?->timestamp ?? 0 }},
+                            resultUrl: '{{ route('ml.result.senior', $senior) }}',
                             run() {
-                                this.loading = true; this.err = '';
+                                this.loading = true; this.err = ''; this.pollCount = 0;
                                 fetch('{{ route('ml.run.single', $senior) }}', {
                                     method: 'POST',
                                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
                                 })
                                 .then(r => r.json())
                                 .then(d => {
-                                    this.loading = false;
-                                    if (d.success) {
-                                        this.done = true;
-                                        this.riskLevel = d.risk_level;
-                                        this.clusterName = d.cluster_name;
-                                        this.$el.closest('tr').querySelector('[data-risk-badge]').innerHTML = d.risk_level;
-                                    } else {
-                                        this.err = d.error || 'Failed';
-                                    }
+                                    if (d.error) { this.loading = false; this.err = d.error; return; }
+                                    this.poll();
                                 })
                                 .catch(() => { this.loading = false; this.err = 'Request failed'; });
+                            },
+                            poll() {
+                                this.pollTimer = setInterval(() => {
+                                    this.pollCount++;
+                                    if (this.pollCount >= this.pollMax) {
+                                        clearInterval(this.pollTimer);
+                                        this.loading = false;
+                                        this.err = 'Timed out. Refresh to see result.';
+                                        return;
+                                    }
+                                    fetch(this.resultUrl, { headers: { 'Accept': 'application/json' } })
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.ready && d.processed_at && d.processed_at > this.baseTs) {
+                                            clearInterval(this.pollTimer);
+                                            this.loading = false;
+                                            this.done = true;
+                                            this.$el.closest('tr').querySelector('[data-risk-badge]').innerHTML = d.risk_level;
+                                        }
+                                    })
+                                    .catch(() => {});
+                                }, 3000);
                             }
                         }">
                         <button @click="run()" :disabled="loading"
