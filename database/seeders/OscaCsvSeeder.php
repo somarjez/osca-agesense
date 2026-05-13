@@ -242,7 +242,16 @@ class OscaCsvSeeder extends Seeder
             return null;
         }
 
-        $formats = ['m/d/Y H:i', 'm/d/Y', 'Y-m-d'];
+        // Try unambiguous formats first (d/m/Y only when day > 12 so it can't be a month)
+        $ambiguous = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $v, $m);
+        if ($ambiguous && (int)$m[1] > 12) {
+            // Day-first: 19/02/1950 style — day cannot be a month so parse as d/m/Y
+            try {
+                return Carbon::createFromFormat('d/m/Y', $v)->format('Y-m-d');
+            } catch (\Throwable $e) {}
+        }
+
+        $formats = ['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'];
         foreach ($formats as $fmt) {
             try {
                 return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');

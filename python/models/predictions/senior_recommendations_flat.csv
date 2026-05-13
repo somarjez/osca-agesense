@@ -2103,3 +2103,19 @@ senior_id,name,barangay,cluster_id,cluster_name,risk_level,composite_risk,predic
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,financial,Planned,Assess eligibility for OSCA monthly stipend and PhilHealth senior benefits.,"income_enc=2, eco_stability=0.67"
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,social,Planned,Conduct family assessment for support capacity and caregiver stress.,"lives_alone=0, soc_support=4.0"
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,functional,Planned,Schedule immediate health screening at barangay health center (BHC).,"mobility_outside=4.0, age=77"
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Monitor blood pressure at least twice weekly.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,"Advise DASH diet (low sodium, high potassium).",
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Verify anti-hypertensive medication adherence.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Alert for signs of hypertensive crisis (BP >180/120).,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Schedule comprehensive health assessment at barangay health center.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Ensure annual physical examination and laboratory workup.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Review current medications for interactions or adverse effects.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Apply for DSWD Sustainable Livelihood Program (SLP) and Pantawid Pamilyang Pilipino Program (4Ps).,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Request OSCA indigent assessment for free medicine allocation.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Apply for PCSO Individual Medical Assistance Program (IMAP).,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Verify Malasakit Center enrollment for hospital bill reduction.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Refer to Botika ng Barangay for subsidized medicine access.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Link to local OSCA emergency financial assistance for utility bills.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,functional,planned,Schedule immediate health screening at barangay health center (BHC).,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,hc_access,planned,Apply for Malasakit Center for reduced hospital costs.,
+,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,hc_access,planned,Verify PhilHealth active status for outpatient/inpatient coverage.,
