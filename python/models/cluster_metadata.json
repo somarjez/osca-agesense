@@ -7,7 +7,7 @@
     "func_level": "High",
     "interpretation": "Strong WHO Healthy Ageing alignment. Senior is independent, financially stable, and socially engaged.",
     "color": "#2ecc71",
-    "n_seniors": 60
+    "n_seniors": 61
   },
   "2": {
     "id": 2,
@@ -17,7 +17,7 @@
     "func_level": "Moderate",
     "interpretation": "Mixed profile — some domains stable, others at risk. May benefit from social activation and financial support programs.",
     "color": "#f39c12",
-    "n_seniors": 78
+    "n_seniors": 79
   },
   "3": {
     "id": 3,
@@ -27,6 +27,6 @@
     "func_level": "Low",
     "interpretation": "Lowest alignment with all Healthy Ageing domains. Requires immediate multi-domain intervention.",
     "color": "#e74c3c",
-    "n_seniors": 137
+    "n_seniors": 135
   }
 }

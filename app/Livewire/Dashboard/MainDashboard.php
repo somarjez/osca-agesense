@@ -166,7 +166,8 @@ class MainDashboard extends Component
         return Recommendation::with(['seniorCitizen'])
             ->pending()
             ->whereHas('seniorCitizen')
-            ->where('urgency', 'urgent')
+            ->whereIn('urgency', ['urgent', 'immediate'])
+            ->orderBy('urgency')
             ->orderBy('priority')
             ->limit(8)
             ->get();
