@@ -9,11 +9,11 @@ class ServeCommand extends BaseServeCommand
 {
     public function handle()
     {
-        $this->startMlServices();
+        $this->launchMlServicesInBackground();
         return parent::handle();
     }
 
-    private function startMlServices(): void
+    private function launchMlServicesInBackground(): void
     {
         $startScript = base_path('python/start_services.ps1');
 
@@ -22,20 +22,18 @@ class ServeCommand extends BaseServeCommand
             return;
         }
 
-        $this->info('  <fg=cyan>[ML]</> Starting Python ML services...');
+        $this->info('  <fg=cyan>[ML]</> Starting Python ML services in background (first run may take a few minutes)...');
 
-        try {
-            /** @var MlService $ml */
-            $ml = $this->laravel->make(MlService::class);
-            $started = $ml->startServices();
+        // Run the ML startup in a detached background process so the Laravel
+        // server starts immediately and request logs appear without delay.
+        $logPath = storage_path('logs/ml_serve_startup.log');
+        $cmd = 'powershell.exe -NoProfile -File ' . escapeshellarg($startScript)
+            . ' > ' . escapeshellarg($logPath) . ' 2>&1';
 
-            if ($started) {
-                $this->info('  <fg=green>[ML]</> Preprocessor :5001 and Inference :5002 are online.');
-            } else {
-                $this->warn('  <fg=yellow>[ML]</> Services did not respond in time — system will use local Python fallback.');
-            }
-        } catch (\Throwable $e) {
-            $this->warn('  <fg=yellow>[ML]</> Could not start ML services: ' . $e->getMessage());
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen('start /B ' . $cmd, 'r'));
+        } else {
+            exec($cmd . ' &');
         }
     }
 }
