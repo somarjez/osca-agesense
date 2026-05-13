@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
-title AgeSense — First-Time Setup
+chcp 65001 >nul
+title AgeSense - First-Time Setup
 color 0B
 
 echo.
