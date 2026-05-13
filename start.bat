@@ -83,20 +83,24 @@ start "" /B powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden ^
     -File "%PROJECT%\python\start_services.ps1" ^
     > "%PROJECT%\storage\logs\ml_startup.log" 2>&1
 
-echo  [2/3] Opening browser in 5 seconds...
-timeout /t 5 /nobreak >nul
-start "" http://127.0.0.1:8000
+echo  [2/3] Starting Laravel queue worker in background...
+powershell -NoProfile -WindowStyle Hidden -Command ^
+    "Start-Process 'php' '-d max_execution_time=0 artisan queue:work --queue=default --tries=1 --sleep=3' -WorkingDirectory '%PROJECT%' -WindowStyle Hidden -RedirectStandardOutput '%PROJECT%\storage\logs\queue.log' -RedirectStandardError '%PROJECT%\storage\logs\queue.err.log'"
 
 echo  [3/3] Starting Laravel development server...
+echo        (Browser opening in 5 seconds)
+timeout /t 5 /nobreak >nul
+start "" http://127.0.0.1:8000
+echo.
 echo.
 echo  -----------------------------------------------
 echo   System URL : http://127.0.0.1:8000
 echo   Email      : admin@osca.local
 echo   Password   : password
 echo.
-echo   ML services start in the background.
-echo   Check storage\logs\preprocess.log if analysis
-echo   returns errors on the first run.
+echo   ML services and queue worker start silently in background.
+echo   Logs: storage\logs\preprocess.log  (ML services)
+echo         storage\logs\queue.log       (queue worker)
 echo.
 echo   Press Ctrl+C to stop the server.
 echo  -----------------------------------------------

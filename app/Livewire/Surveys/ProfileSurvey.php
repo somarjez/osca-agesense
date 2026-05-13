@@ -64,6 +64,10 @@ class ProfileSurvey extends Component
     public string $checkupSchedule = '';
     public string $checkupScheduleOther = '';
 
+    // ── Data Privacy / Consent ────────────────────────────────────────────────
+    public string $consentGivenAt = '';
+    public string $consentMethod  = '';
+
     public function mount(?int $seniorId = null): void
     {
         if ($seniorId) {
@@ -134,6 +138,8 @@ class ProfileSurvey extends Component
             'has_medical_checkup'     => $this->hasMedicalCheckup,
             'checkup_schedule'        => $this->buildCheckupSchedule(),
             'encoded_by'              => Auth::user()?->name,
+            'consent_given_at'        => $this->consentGivenAt ?: null,
+            'consent_method'          => $this->consentMethod ?: null,
         ];
 
         if ($this->senior) {
@@ -199,6 +205,8 @@ class ProfileSurvey extends Component
         $this->healthcareDifficulty  = $s->healthcare_difficulty ?? [];
         $this->hasMedicalCheckup     = $s->has_medical_checkup;
         [$this->checkupSchedule, $this->checkupScheduleOther] = $this->parseCheckupSchedule($s->checkup_schedule ?? '');
+        $this->consentGivenAt        = $s->consent_given_at?->format('Y-m-d') ?? '';
+        $this->consentMethod         = $s->consent_method ?? '';
     }
 
     private function buildCheckupSchedule(): ?string

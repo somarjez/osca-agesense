@@ -14,11 +14,20 @@
             resultMsg: '',
             elapsed: 0,
             timer: null,
+            pollTimer: null,
+            processed: 0,
+            failed: 0,
+            total: {{ $totalEligible }},
+            progress: 0,
             csrfToken: '{{ csrf_token() }}',
             batchUrl: '{{ route('ml.batch.run') }}',
+            statusUrl: '{{ route('ml.batch.status') }}',
+            cacheKey: '',
+            batchId: '',
             start() {
                 this.showConfirm = false;
                 this.running = true; this.done = false; this.errMsg = ''; this.resultMsg = '';
+                this.processed = 0; this.failed = 0; this.progress = 0;
                 this.elapsed = 0;
                 this.timer = setInterval(() => this.elapsed++, 1000);
                 fetch(this.batchUrl, {
@@ -27,17 +36,45 @@
                 })
                 .then(r => r.json())
                 .then(d => {
-                    clearInterval(this.timer);
-                    this.running = false; this.done = true;
-                    this.resultMsg = d.message || (d.success ? 'Batch complete.' : 'Batch finished with errors.');
-                    if (!d.success) this.errMsg = d.message;
-                    setTimeout(() => location.reload(), 2000);
+                    if (d.error) {
+                        clearInterval(this.timer);
+                        this.running = false;
+                        this.errMsg = d.error;
+                        return;
+                    }
+                    this.cacheKey = d.cache_key;
+                    this.batchId  = d.batch_id;
+                    this.total    = d.total;
+                    this.poll();
                 })
                 .catch(() => {
                     clearInterval(this.timer);
                     this.running = false;
-                    this.errMsg = 'Request failed or timed out. Check server logs.';
+                    this.errMsg = 'Request failed. Check server logs.';
                 });
+            },
+            poll() {
+                this.pollTimer = setInterval(() => {
+                    fetch(`${this.statusUrl}?cache_key=${this.cacheKey}&batch_id=${this.batchId}`, {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(r => r.json())
+                    .then(d => {
+                        this.processed = d.processed;
+                        this.failed    = d.failed;
+                        this.progress  = d.progress;
+                        if (d.finished || d.cancelled) {
+                            clearInterval(this.pollTimer);
+                            clearInterval(this.timer);
+                            this.running = false;
+                            this.done    = true;
+                            this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`;
+                            if (d.failed > 0) this.errMsg = `${d.failed} senior(s) failed. Check the queue failed_jobs table.`;
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                    })
+                    .catch(() => {});
+                }, 3000);
             },
             fmt(s) {
                 const m = Math.floor(s / 60), sec = s % 60;
@@ -74,14 +111,16 @@
 
                 {{-- Progress bar while running --}}
                 <div x-show="running" class="space-y-1.5" x-cloak>
-                    <div class="flex items-center gap-2 text-sm text-forest-700 font-medium">
-                        <span>Processing {{ $totalEligible }} seniors…</span>
+                    <div class="flex items-center justify-between text-sm text-forest-700 font-medium">
+                        <span x-text="`Processing ${total} seniors… ${processed} done`"></span>
                         <span x-text="fmt(elapsed)" class="text-ink-400 font-normal text-xs"></span>
                     </div>
                     <div class="bar">
-                        <div class="bar-fill bg-forest-600 animate-pulse" style="width:100%"></div>
+                        <div class="bar-fill bg-forest-600 transition-all duration-500"
+                             :style="`width:${progress > 0 ? progress : 100}%`"
+                             :class="progress === 0 ? 'animate-pulse' : ''"></div>
                     </div>
-                    <p class="text-xs text-ink-400">Do not close this tab. The page will refresh automatically when done.</p>
+                    <p class="text-xs text-ink-400">Queued — worker is processing in the background. You can safely close this tab.</p>
                 </div>
             </div>
 
@@ -110,7 +149,7 @@
                         <p class="text-sm text-slate-500 mt-1">
                             This will assess <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong>: prepare data → assign health group → score risk → generate recommendations.
                         </p>
-                        <p class="text-xs text-slate-400 mt-2">Estimated time: 1–3 minutes. Progress is shown inline — the page will not hang.</p>
+                        <p class="text-xs text-slate-400 mt-2">Jobs are queued and processed in the background. Progress updates every 3 seconds. You can safely close this tab — the queue worker continues independently.</p>
                     </div>
                 </div>
                 <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">

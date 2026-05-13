@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HelpController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/help', HelpController::class)->name('help');
+    Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
 
     require __DIR__ . '/seniors.php';
     require __DIR__ . '/surveys.php';

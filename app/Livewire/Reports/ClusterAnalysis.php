@@ -77,13 +77,7 @@ class ClusterAnalysis extends Component
             ];
         });
 
-        // Silhouette / evaluation metrics (stored in model or config)
-        $evalMetrics = [
-            'silhouette'       => 0.412,   // from notebook
-            'davies_bouldin'   => 1.198,
-            'calinski_harabasz' => 84.3,
-            'k_chosen'         => 3,
-        ];
+        $evalMetrics = \App\Support\ClusterMetrics::load();
 
         return view('livewire.reports.cluster-analysis', compact(
             'results', 'records', 'clusterSummaries', 'domainChart', 'riskByCluster', 'evalMetrics'

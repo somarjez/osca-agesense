@@ -1,0 +1,8 @@
+{
+  "silhouette": 0.412,
+  "davies_bouldin": 1.198,
+  "calinski_harabasz": 84.3,
+  "inertia": null,
+  "k_chosen": 3,
+  "generated_by": "osca5_executed.ipynb"
+}

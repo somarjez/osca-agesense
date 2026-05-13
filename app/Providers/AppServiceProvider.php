@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\QolSurvey;
+use App\Models\Recommendation;
+use App\Models\SeniorCitizen;
+use App\Observers\ActivityLogObserver;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,5 +29,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::defaultView('vendor.pagination.custom');
+
+        // Activity audit logging
+        SeniorCitizen::observe(ActivityLogObserver::class);
+        QolSurvey::observe(ActivityLogObserver::class);
+        Recommendation::observe(ActivityLogObserver::class);
     }
 }
