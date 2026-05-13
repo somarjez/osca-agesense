@@ -1,7 +1,7 @@
 # Database Schema — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-05-03
+> **Last Updated:** 2026-05-14
 > **Database:** MySQL 8.0+ / MariaDB 10.6+, charset `utf8mb4_unicode_ci`
 
 ---
@@ -326,7 +326,7 @@ Stores user session data. Used when `SESSION_DRIVER=database`.
 
 ## 10. Table: `jobs`
 
-Laravel queue jobs table. Used for async processing when the queue driver is enabled (currently `QUEUE_CONNECTION=sync`).
+Laravel queue jobs table. Used for async processing when the queue driver is enabled. Default `QUEUE_CONNECTION=database` (set in `.env.example`). Batch ML inference currently runs synchronously — this table is reserved for future queued batch processing.
 
 | Column | Type | Description |
 |---|---|---|

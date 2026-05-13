@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-05-03 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), and GIS module planning.
+> **Last Updated:** 2026-05-14 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), GIS module planning, `setup.bat`/`start.bat` launcher workflow, model files relocated to `python/models/`, `ENABLE_NOTEBOOK_OVERRIDES` flag, notebook-validated prediction CSVs, Linux/macOS ML service startup script (`start_services.sh`), and 275 seniors seeded.
 
 ---
 
@@ -180,8 +180,8 @@ The dashboard provides a real-time overview of the senior citizen population. It
 **KPI panels:**
 - Total Seniors (all active records)
 - QoL Surveyed (seniors with at least one survey)
-- Critical Risk count
-- High Risk count
+- High Risk count (including urgent sub-count)
+- Moderate Risk count
 - Pending Recommendations count
 
 **Charts (Chart.js 4):**
@@ -693,7 +693,7 @@ The following table defines terms as they are used throughout the codebase, data
 
 5. **`SeniorCitizenController::store()` and `update()` are stubs:** Profile creation and editing are handled by the `ProfileSurvey` Livewire component. The corresponding controller methods simply redirect without any validation or persistence logic, which could cause confusion during maintenance.
 
-6. **Windows-only auto-start:** The ML service startup script (`python/start_services.ps1`) and the `ServeCommand` integration are PowerShell-dependent, limiting easy deployment on Linux or macOS without modification.
+6. **Auto-start platform limitation:** `php artisan serve` auto-starts ML services via `python/start_services.ps1` (PowerShell). A shell equivalent `python/start_services.sh` is committed for Linux/macOS, but the `ServeCommand` auto-launcher only calls the PS1 script. Linux/macOS users start services manually via `start_services.sh`.
 
 7. **No batch queue for ML inference:** Batch processing runs synchronously within a single HTTP request with `set_time_limit(0)`. For very large datasets, this blocks the web process and is unsuitable for a production multi-user environment.
 
@@ -743,7 +743,7 @@ The following features are either partially implemented or explicitly absent fro
 | Queued ML batch inference | Not implemented | Currently synchronous; `jobs` table exists and queue is configured |
 | Email/notification system | Not implemented | `MAIL_MAILER=log`; no Notification classes or mail templates |
 | User management interface | Not implemented | No routes for creating/editing users in the application UI |
-| Linux/macOS ML service startup | Not implemented | Only `start_services.ps1` (PowerShell) exists |
+| Linux/macOS ML service startup | Implemented | `start_services.sh` committed alongside `start_services.ps1`; `ServeCommand` auto-launcher still calls PS1 only |
 | Automated ML model retraining | Not implemented | Models are static artefacts; no retraining pipeline in the web app |
 | Dynamic cluster evaluation metrics | Not implemented | Metrics are hardcoded constants in `ClusterAnalysis.php` |
 | Data retention and archival policy | Not implemented | No automated archival schedules or deletion policies |
@@ -893,7 +893,7 @@ CREATE TABLE points_of_interest (
 
 5. **Dynamic cluster evaluation metrics.** Store evaluation metrics in the database (or a JSON file) alongside the trained model artefacts, and read them dynamically rather than hardcoding them in the Livewire component.
 
-6. **Linux/macOS support for ML services.** Create a shell script (`start_services.sh`) equivalent to `start_services.ps1`, and update `ServeCommand` to detect the OS and call the appropriate script.
+6. **Full Linux/macOS auto-start.** `start_services.sh` is implemented and committed. The remaining step is to update `ServeCommand` to detect the OS and call the appropriate script automatically instead of always calling the PS1 script.
 
 7. **Model versioning and retraining pipeline.** Add a database field or config entry for the active model version, and create a retraining workflow (even if offline) that updates the artefact files and records version history in `ml_results.model_version`.
 
@@ -917,7 +917,9 @@ CREATE TABLE points_of_interest (
 
 AgeSense is a **functionally complete core system** suitable for supervised pilot deployment. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, and recommendation management — are implemented and operational. The dashboard, cluster analysis, and risk reporting features provide meaningful analytics for OSCA staff.
 
-The system is currently in a **pre-production state** with the following gaps that should be addressed before full operational deployment:
+The dataset comprises **275 senior citizens** (seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=53, MODERATE=186, LOW=36, Urgent=1 (Norlito M. Basa), Pending recommendations ≈ 2,114.
+
+The system is currently in a **pre-production state** (Phase 2 in progress) with the following gaps that should be addressed before full operational deployment:
 
 | Priority | Gap |
 |---|---|
@@ -929,6 +931,6 @@ The system is currently in a **pre-production state** with the following gaps th
 | **Low** | Cluster snapshots are not generated — longitudinal tracking is not yet possible |
 | **Low** | No notification system — critical risk events are not automatically communicated |
 
-**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested across all modes (HTTP, subprocess, PHP heuristic). The codebase follows Laravel conventions throughout and is well-organized for continued development.
+**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested across all modes (HTTP, subprocess, PHP heuristic). The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines. The codebase follows Laravel conventions throughout and is well-organized for continued development.
 
 **Academic readiness:** The system's use of WHO Healthy Ageing framework terminology, WHOQOL-BREF-derived instrument, K-Means clustering with UMAP, interpretable domain-level risk scores, and prescriptive recommendation generation makes it suitable as a thesis research system prototype. The documented cluster evaluation metrics and feature engineering pipeline provide sufficient methodological grounding for academic presentation.

@@ -1,8 +1,8 @@
 # Project Roadmap — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-05-03
-> **Status:** Core system functionally complete. GIS module and production-hardening in planning.
+> **Last Updated:** 2026-05-14
+> **Status:** Core system functionally complete. Production-hardening (Phase 2) in progress. GIS module planned.
 
 ---
 
@@ -24,7 +24,7 @@
 | Phase | Name | Target Period | Status |
 |---|---|---|---|
 | Phase 1 | Core System | Jan 2026 – Apr 2026 | ✅ Complete |
-| Phase 2 | Production Hardening | May 2026 – Jun 2026 | 🔄 In Progress |
+| Phase 2 | Production Hardening | May 2026 – Jul 2026 | 🔄 In Progress |
 | Phase 3 | GIS Module | Jun 2026 – Aug 2026 | 📋 Planned |
 | Phase 4 | Advanced Features | Sep 2026 – Dec 2026 | 📋 Planned |
 
@@ -72,7 +72,7 @@ Data Privacy Act compliance review      ░░░░ ░░░░ ░░░░ �
 Barangay report page (complete stub)    ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░
 Excel export (maatwebsite/excel)        ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
 Cluster snapshot generation             ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Linux/macOS ML service startup script  ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░
+Linux/macOS ML service startup script  ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░  ✓
 
 PHASE 3 — GIS MODULE
 ─────────────────────
@@ -135,7 +135,7 @@ All primary workflows are implemented and tested:
 
 ## 4. Phase 2 — Production Hardening (In Progress)
 
-**Period:** May 2026 – June 2026
+**Period:** May 2026 – July 2026
 **Status:** 🔄 In Progress
 
 This phase addresses the security, reliability, and operational gaps identified before pilot deployment.
@@ -152,7 +152,7 @@ This phase addresses the security, reliability, and operational gaps identified 
 | Email / notification system | Medium | ⏳ Pending | Critical risk alerts, recommendation assignment notifications |
 | Excel export | Low | ⏳ Pending | Full registry export via `maatwebsite/excel` |
 | Cluster snapshot generation | Low | ⏳ Pending | Scheduled artisan command for daily snapshots |
-| Linux/macOS ML service startup | Low | ⏳ Pending | `start_services.sh` equivalent to the PS1 script |
+| Linux/macOS ML service startup | Low | ✅ Done | `start_services.sh` committed alongside the PowerShell script |
 
 ---
 
@@ -223,7 +223,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | Milestone | Criteria |
 |---|---|
 | **M1 — Core Complete** | All Phase 1 deliverables implemented and passing CI checks. ✅ Achieved April 2026. |
-| **M2 — Pilot Ready** | RBAC implemented, audit logging active, default credentials changed, Data Privacy review complete. Target: June 2026. |
+| **M2 — Pilot Ready** | RBAC implemented, audit logging active, default credentials changed, Data Privacy review complete. Target: July 2026. |
 | **M3 — GIS MVP** | Map view live with senior pins and POI overlay; basic proximity report available. Target: July 2026. |
 | **M4 — GIS Full** | Proximity scoring wired into ML pipeline; GIS report page and CSV export complete. Target: August 2026. |
 | **M5 — Production** | All Phase 2 and 3 complete; system deployed on a production server with HTTPS and automated backups. Target: September 2026. |

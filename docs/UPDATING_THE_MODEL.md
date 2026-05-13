@@ -138,9 +138,10 @@ xcopy /Y ..\osca_output\predictions\senior_recommendations_flat.csv python\model
 
 ### Step 3 — Validate
 
-Run the two validation scripts to confirm the new files are correct before pushing:
+Run all three validation scripts to confirm the new files are correct before pushing:
 
 ```bat
+python\venv\Scripts\python python\tests\test_ml_pipeline.py
 python\venv\Scripts\python python\tests\test_inference_paths.py
 python\venv\Scripts\python python\tests\test_inference_e2e.py
 ```
@@ -148,8 +149,9 @@ python\venv\Scripts\python python\tests\test_inference_e2e.py
 Expected output: all tests pass. If any test fails, do not push — fix the issue first.
 
 What these tests check:
+- `test_ml_pipeline.py` — single-senior combined inference, batch KMeans, missing config file graceful fallback, runtime override files
 - `test_inference_paths.py` — model files exist, CSV loads, urgency logic, priority flag thresholds
-- `test_inference_e2e.py` — end-to-end infer() on known seniors (Norlito Basa urgent, Rosa Amante moderate), checks composite within 0.001 of CSV value, notebook_override_applied=True
+- `test_inference_e2e.py` — end-to-end infer() on known seniors (Norlito Basa urgent, Rosa Amante moderate), checks composite within 0.001 of CSV value, `notebook_override_applied=True`
 
 ---
 
@@ -252,8 +254,8 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 
 - [ ] Notebook ran without errors; `osca_output/` was generated
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/`
-- [ ] Both validation scripts passed
-- [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36)
+- [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
+- [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36, Urgent=1)
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
 
