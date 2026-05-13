@@ -24,7 +24,7 @@ return new class extends Migration
             // column because MySQL 8 disallows CURDATE() in generated stored columns.
             $table->integer('age')->nullable();
             $table->string('contact_number')->nullable();
-            $table->string('place_of_birth')->nullable();
+            $table->text('place_of_birth')->nullable();
             $table->enum('marital_status', ['Single','Married','Widowed','Separated','Divorced','Annulled'])->nullable();
             $table->enum('gender', ['Male','Female','Prefer not to say'])->nullable();
             $table->string('religion')->nullable();

@@ -3,15 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessMlBatch;
+use App\Jobs\ProcessMlSingle;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
-use Illuminate\Bus\Batch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class MlController extends Controller
 {
@@ -131,11 +130,6 @@ class MlController extends Controller
         ]);
     }
 
-    /**
-     * Spawn a detached background PHP process to run ML for this senior, then return immediately.
-     * Writes a .bat launcher: start /b detaches the PHP child so cmd exits immediately,
-     * unblocking popen without waiting for the ML job to finish.
-     */
     public function runSingle(SeniorCitizen $senior)
     {
         $survey = $senior->latestQolSurvey;
@@ -144,20 +138,7 @@ class MlController extends Controller
             return response()->json(['error' => 'No QoL survey found for this senior.'], 422);
         }
 
-        $php     = PHP_BINARY;
-        $artisan = base_path('artisan');
-        $bat     = storage_path('logs/ml_launch_' . $senior->id . '.bat');
-
-        // start /b detaches the PHP process — cmd.exe exits immediately so popen unblocks.
-        // No output redirection: start /b redirection captures nothing from the detached child.
-        // Success is determined by the poll checking processed_at in the DB, not log files.
-        file_put_contents($bat, implode("\r\n", [
-            '@echo off',
-            "start /b \"\" \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id}",
-            "del /f /q \"%~f0\"",
-        ]));
-
-        pclose(popen("cmd /c \"$bat\"", 'r'));
+        ProcessMlSingle::dispatch($senior->id, $survey->id);
 
         return response()->json(['queued' => true]);
     }
