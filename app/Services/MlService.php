@@ -175,7 +175,7 @@ class MlService
 
         try {
             $process = new Process(['powershell.exe', '-NoProfile', '-File', $startScript], base_path(), $env);
-            $process->setTimeout(60);
+            $process->setTimeout(600); // up to 10 min on first run (venv creation + pip install)
             $process->run();
         } catch (\Throwable) {
             // best-effort

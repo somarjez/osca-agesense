@@ -9,7 +9,9 @@ $modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path 
 $enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
 
 if (-not (Test-Path $venvPython)) {
-    # Venv missing — try system python as fallback (PS 5.1 compatible, no ?. operator)
+    Write-Output "[ML] Venv not found — creating it now (first run takes a few minutes)..."
+
+    # Find any system Python to bootstrap the venv
     $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
     $systemPython = if ($pythonCmd) { $pythonCmd.Source } else { $null }
     if (-not $systemPython) {
@@ -17,11 +19,29 @@ if (-not (Test-Path $venvPython)) {
         $systemPython = if ($python3Cmd) { $python3Cmd.Source } else { $null }
     }
     if (-not $systemPython) {
-        Write-Error "No Python found. Run: cd python && python -m venv venv && venv\Scripts\pip install -r requirements.txt"
+        Write-Error "[ML] No Python found on PATH. Install Python 3.10+ and re-run."
         exit 1
     }
-    $venvPython = $systemPython
-    Write-Warning "Venv not found — using system Python at $venvPython. Run setup to avoid this."
+
+    # Create venv
+    $venvDir = Join-Path $scriptDir 'venv'
+    & $systemPython -m venv $venvDir
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[ML] Failed to create venv."
+        exit 1
+    }
+
+    # Install dependencies
+    $venvPip = Join-Path $scriptDir 'venv\Scripts\pip.exe'
+    $requirements = Join-Path $scriptDir 'requirements.txt'
+    Write-Output "[ML] Installing Python dependencies (this may take several minutes)..."
+    & $venvPip install -r $requirements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[ML] pip install failed. Check python/requirements.txt."
+        exit 1
+    }
+
+    Write-Output "[ML] Venv ready."
 }
 
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
