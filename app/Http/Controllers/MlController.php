@@ -134,11 +134,18 @@ class MlController extends Controller
         $errLog  = storage_path('logs/ml_single_' . $senior->id . '.err.log');
         $ps1    = storage_path('logs/ml_launch_' . $senior->id . '.ps1');
 
-        // Write a .ps1 script — no escaping needed, paths are embedded as string literals.
-        file_put_contents($ps1, "& \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id} > \"$outLog\" 2> \"$errLog\"\nRemove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue\n");
+        // Write a .ps1 that uses Start-Process to truly detach the ML job.
+        // popen/pclose on Windows blocks until the child exits — Start-Process returns immediately.
+        file_put_contents($ps1, implode("\n", [
+            "Start-Process -FilePath \"$php\" \\",
+            "    -ArgumentList \"$artisan\", \"ml:run-single\", \"{$senior->id}\", \"{$survey->id}\" \\",
+            "    -RedirectStandardOutput \"$outLog\" \\",
+            "    -RedirectStandardError  \"$errLog\" \\",
+            "    -NoNewWindow",
+            "Remove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue",
+        ]));
 
-        // -WindowStyle Hidden + -NonInteractive: fully invisible, no CMD or PS window.
-        // pclose() immediately so PHP doesn't hold the handle open for the full ML run duration.
+        // popen/pclose here only runs the short wrapper .ps1 (Start-Process returns instantly).
         pclose(popen("powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File \"$ps1\"", 'r'));
 
         return response()->json(['queued' => true]);
