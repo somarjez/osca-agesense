@@ -54,17 +54,10 @@
         @endif
 
         <div class="ml-auto flex items-center gap-3 text-[11.5px] text-ink-500">
-            <span class="eyebrow">Analysis Services</span>
-            @foreach ($mlHealth as $service => $status)
-                @if ($service === 'mode')
-                    @continue
-                @endif
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="status-dot {{ $status === 'ok' ? 'status-dot-ok' : 'status-dot-err' }}"></span>
-                    <span class="text-ink-700 font-medium">{{ ucfirst($service) }}</span>
-                    <span class="text-ink-400">{{ $status }}</span>
-                </span>
-            @endforeach
+            <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 hover:text-ink-900 transition-colors">
+                <span class="eyebrow">Analysis Services</span>
+                <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3 opacity-60" />
+            </a>
         </div>
     </div>
 

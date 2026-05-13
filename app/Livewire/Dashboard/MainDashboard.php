@@ -37,7 +37,6 @@ class MainDashboard extends Component
             'pendingRecs'         => $this->getPendingRecommendations(),
             'domainScoreChart'    => $this->getDomainScores(),
             'ageGroupChart'       => $this->getAgeGroupDistribution(),
-            'mlHealth'            => $this->getMlServiceHealth(),
         ]);
     }
 
@@ -232,15 +231,6 @@ class MainDashboard extends Component
                 ->map(fn($g) => $groups[$g] ?? 0)
                 ->toArray(),
         ];
-    }
-
-    private function getMlServiceHealth(): array
-    {
-        try {
-            return app(\App\Services\MlService::class)->healthCheck();
-        } catch (\Exception $e) {
-            return ['preprocessor' => 'unreachable', 'inference' => 'unreachable'];
-        }
     }
 
     public function clearFilters(): void
