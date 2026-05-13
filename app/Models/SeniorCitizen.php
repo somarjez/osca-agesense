@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedOrPlainText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -37,9 +38,9 @@ class SeniorCitizen extends Model
         'consent_given_at'       => 'datetime',
         'has_medical_checkup'    => 'boolean',
         // Non-searchable PII encrypted at rest
-        'contact_number'         => 'encrypted',
-        'place_of_birth'         => 'encrypted',
-        'philsys_id'             => 'encrypted',
+        'contact_number'         => EncryptedOrPlainText::class,
+        'place_of_birth'         => EncryptedOrPlainText::class,
+        'philsys_id'             => EncryptedOrPlainText::class,
         'latitude'               => 'decimal:7',
         'longitude'              => 'decimal:7',
         'location_verified_at'   => 'datetime',
