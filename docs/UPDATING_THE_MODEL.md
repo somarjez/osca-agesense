@@ -69,6 +69,7 @@ These are the trained `.pkl` and `.json` artefacts the system loads at startup:
 | `ml_risk_features.json` | You change which features go into risk scoring |
 | `cluster_mapping.json` | You change how raw KMeans IDs map to group names |
 | `cluster_metadata.json` | You update cluster names or descriptions |
+| `cluster_eval_metrics.json` | You retrain (contains silhouette, Davies-Bouldin, Calinski-Harabász, k) |
 | `vif_retained_features.json` | You change the VIF filtering step |
 | `asset_weights.json` | You update scoring weights |
 
@@ -136,7 +137,33 @@ xcopy /Y ..\osca_output\predictions\senior_recommendations_flat.csv python\model
 
 ---
 
-### Step 3 — Validate
+### Step 3 — Export cluster evaluation metrics
+
+After retraining, export the clustering quality metrics to `cluster_eval_metrics.json` so the Health Group Analysis report shows accurate numbers. In your notebook, add a cell like:
+
+```python
+import json, os
+
+metrics = {
+    "silhouette":          float(silhouette_avg),
+    "davies_bouldin":      float(db_score),
+    "calinski_harabasz":   float(ch_score),
+    "inertia":             float(kmeans.inertia_) if hasattr(kmeans, 'inertia_') else None,
+    "k_chosen":            3,
+    "generated_by":        "osca5.ipynb"
+}
+
+out_path = os.path.join(output_dir, "model", "cluster_eval_metrics.json")
+with open(out_path, "w") as f:
+    json.dump(metrics, f, indent=2)
+print("Saved:", out_path)
+```
+
+The sync step (Step 2) will copy this file into `python/models/` automatically. The Health Group Analysis report at `/reports/cluster` reads this file directly — no seeding required.
+
+---
+
+### Step 4 — Validate
 
 Run all three validation scripts to confirm the new files are correct before pushing:
 
@@ -155,7 +182,7 @@ What these tests check:
 
 ---
 
-### Step 4 — Restart Flask services and verify the dashboard
+### Step 5 — Restart Flask services and verify the dashboard
 
 Before committing, do a quick sanity check:
 
@@ -163,12 +190,13 @@ Before committing, do a quick sanity check:
 2. Go to `/ml/status` — confirm both services show `ok`
 3. Go to the dashboard — confirm the risk distribution matches your notebook output:
    - HIGH: 53, MODERATE: 186, LOW: 36, Urgent: 1
+4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
-If the numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
+If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
 
 ---
 
-### Step 5 — Commit and push
+### Step 6 — Commit and push
 
 ```bash
 git add python/models/
@@ -178,7 +206,7 @@ git push
 
 Replace `YYYY-MM-DD` with today's date (e.g., `model: update trained files from notebook rerun 2026-05-13`).
 
-> Only add `python/models/` — do not accidentally commit `osca.csv`, `.env`, `osca_output/`, or `python/venv/`.
+> Only add `python/models/` — do not accidentally commit `osca.csv`, `.env`, `osca_output/`, or `python/venv/`. The `cluster_eval_metrics.json` file is inside `python/models/` and will be included automatically.
 
 ---
 
@@ -253,9 +281,11 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 ### Training machine (after each retrain)
 
 - [ ] Notebook ran without errors; `osca_output/` was generated
-- [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/`
+- [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
+- [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
 - [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36, Urgent=1)
+- [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
 
