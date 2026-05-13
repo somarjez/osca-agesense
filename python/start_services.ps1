@@ -9,10 +9,12 @@ $modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path 
 $enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
 
 if (-not (Test-Path $venvPython)) {
-    # Venv missing — try system python as fallback
-    $systemPython = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+    # Venv missing — try system python as fallback (PS 5.1 compatible, no ?. operator)
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    $systemPython = if ($pythonCmd) { $pythonCmd.Source } else { $null }
     if (-not $systemPython) {
-        $systemPython = (Get-Command python3 -ErrorAction SilentlyContinue)?.Source
+        $python3Cmd = Get-Command python3 -ErrorAction SilentlyContinue
+        $systemPython = if ($python3Cmd) { $python3Cmd.Source } else { $null }
     }
     if (-not $systemPython) {
         Write-Error "No Python found. Run: cd python && python -m venv venv && venv\Scripts\pip install -r requirements.txt"
