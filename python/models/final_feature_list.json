@@ -1,19 +1,19 @@
 {
   "original_vif_feature_count": 36,
-  "significant_features_count": 33,
-  "final_clustering_feature_count": 30,
+  "significant_features_count": 32,
+  "final_clustering_feature_count": 31,
   "non_significant_features": [
     "living_with_count",
+    "sec3_skill_score",
     "sec5_income_source_score",
-    "sec2_family_support"
+    "sec5_real_asset_score"
   ],
   "excluded_from_clustering": [
     "sec4_household_risk",
     "living_with_count",
     "sec3_skill_score",
     "sec5_income_source_score",
-    "sec5_real_asset_score",
-    "sec2_family_support"
+    "sec5_real_asset_score"
   ],
   "final_clustering_features": [
     "phy_energy",
@@ -45,7 +45,8 @@
     "sec5_movable_asset_score",
     "sec3_community_score",
     "education_enc",
-    "checkup_enc"
+    "checkup_enc",
+    "sec2_family_support"
   ],
   "vif_retained": [
     "phy_energy",
@@ -85,6 +86,6 @@
     "sec3_skill_score",
     "sec2_family_support"
   ],
-  "decision": "30 features used for final UMAP+KMeans clustering. 6 domain-redundant features excluded: ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score', 'sec2_family_support']. Silhouette baseline (36-feat): 0.3864, final (30-feat): 0.4210.",
+  "decision": "31 features used for final UMAP+KMeans clustering. 5 domain-redundant features excluded: ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Silhouette baseline (36-feat): 0.3864, final (31-feat): 0.4213.",
   "note": "The final 31-feature clustering set was selected based on feature ablation and clustering performance. Excluded features may still be used for scoring, recommendations, reports, and WHO-domain interpretation."
 }

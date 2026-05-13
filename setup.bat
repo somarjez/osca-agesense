@@ -19,6 +19,7 @@ echo    7. Seed sample data (if osca.csv is present)
 echo    8. Build frontend assets
 echo    9. Create Python virtual environment
 echo   10. Install Python ML dependencies
+echo   11. Sync ML model files from osca_output (if notebook was re-run)
 echo.
 echo  Estimated time: 5-15 minutes (depending on internet speed)
 echo.
@@ -262,6 +263,35 @@ if errorlevel 1 (
     exit /b 1
 )
 echo  [ OK ] Python ML dependencies installed.
+echo.
+
+:: ═══════════════════════════════════════════════════════════════════
+::  STEP 9 (optional) — Sync ML model files from osca_output
+::
+::  When you retrain the notebook and get a new osca_output/, run this
+::  step (or re-run setup.bat) to copy the fresh models + prediction
+::  CSVs into python/models/ so they are picked up by the inference
+::  service and can be committed to git for other devices.
+:: ═══════════════════════════════════════════════════════════════════
+echo  ── [11/11] Syncing ML model files from osca_output ─────────────
+set "OSCA_OUTPUT=%PROJECT%\..\osca_output"
+if exist "%OSCA_OUTPUT%\model" (
+    echo  Found osca_output\model — copying model files to python\models ...
+    xcopy /Y /Q "%OSCA_OUTPUT%\model\*.pkl"  "%PROJECT%\python\models\" >nul
+    xcopy /Y /Q "%OSCA_OUTPUT%\model\*.json" "%PROJECT%\python\models\" >nul
+    echo  [ OK ] Model files synced.
+) else (
+    echo  osca_output\model not found — keeping existing python\models files.
+)
+if exist "%OSCA_OUTPUT%\predictions" (
+    echo  Found osca_output\predictions — copying prediction CSVs ...
+    if not exist "%PROJECT%\python\models\predictions" mkdir "%PROJECT%\python\models\predictions"
+    xcopy /Y /Q "%OSCA_OUTPUT%\predictions\senior_predictions.csv"           "%PROJECT%\python\models\predictions\" >nul
+    xcopy /Y /Q "%OSCA_OUTPUT%\predictions\senior_recommendations_flat.csv"  "%PROJECT%\python\models\predictions\" >nul
+    echo  [ OK ] Prediction CSVs synced to python\models\predictions\.
+) else (
+    echo  osca_output\predictions not found — keeping existing prediction CSVs.
+)
 echo.
 
 :: ═══════════════════════════════════════════════════════════════════

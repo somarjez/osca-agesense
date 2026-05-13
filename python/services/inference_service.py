@@ -273,11 +273,17 @@ DISEASE_ACTIONS = {
 }
 
 NOTEBOOK_PREDICTIONS_CANDIDATES = [
+    # Primary: inside the repo under python/models/predictions/ (version-controlled)
+    os.path.join(MODEL_DIR, "predictions", "senior_predictions.csv"),
+    # Legacy fallbacks: outside the repo in osca_output/ (kept for local notebook runs)
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "predictions", "senior_predictions.csv")),
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_predictions.csv")),
 ]
 
 NOTEBOOK_RECOMMENDATIONS_CANDIDATES = [
+    # Primary: inside the repo under python/models/predictions/ (version-controlled)
+    os.path.join(MODEL_DIR, "predictions", "senior_recommendations_flat.csv"),
+    # Legacy fallbacks: outside the repo in osca_output/ (kept for local notebook runs)
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "predictions", "senior_recommendations_flat.csv")),
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_recommendations_flat.csv")),
 ]
@@ -650,9 +656,14 @@ def _fallback_cluster_from_wellbeing(wb: float) -> int:
     return 2
 
 
-def _recommendation_urgency(overall_level: str) -> str:
+def _recommendation_urgency(overall_level: str, priority_flag: str = "") -> str:
+    # Only truly urgent seniors (composite >= 0.70, priority_flag="urgent") get
+    # urgency="urgent".  All other HIGH seniors are "planned" — they need action
+    # but should not flood the urgent-priority queue.
+    if priority_flag == "urgent":
+        return "urgent"
     return {
-        "HIGH": "urgent",
+        "HIGH": "planned",
         "MODERATE": "planned",
         "LOW": "maintenance",
     }.get(overall_level, "planned")
@@ -812,6 +823,7 @@ def _build_recommendations(
     feature_map: Dict[str, Any],
     section_scores: Dict[str, float],
     raw_context: Dict[str, Any],
+    priority_flag: str = "",
 ) -> List[Dict[str, Any]]:
     merged = dict(feature_map)
     merged.update(section_scores)
@@ -831,7 +843,7 @@ def _build_recommendations(
 
     recs: List[Dict[str, Any]] = []
     priority = 1
-    urgency = _recommendation_urgency(overall_level)
+    urgency = _recommendation_urgency(overall_level, priority_flag)
     for domain, actions in grouped.items():
         for action in actions:
             recs.append({
@@ -1056,13 +1068,15 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         env_level = _get_risk_level(env_risk_raw)
         func_level = _get_risk_level(func_risk_raw)
 
-    # 4. Recommendations
+    # 4. Recommendations — compute priority_flag first so urgency assignment is correct
+    computed_priority_flag = _priority_flag(composite_risk)
     recs = _build_recommendations(
         named_id=named_id,
         overall_level=overall_level,
         feature_map=feature_map,
         section_scores=section_scores,
         raw_context=raw_context,
+        priority_flag=computed_priority_flag,
     )
     if notebook_recommendations:
         recs = notebook_recommendations
@@ -1092,7 +1106,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "func": func_level,
             "overall": overall_level,
         },
-        "priority_flag": _priority_flag(composite_risk),
+        "priority_flag": computed_priority_flag,
         "domain_risks": {
             "risk_medical":    round(float(rule_scores.get("risk_medical",    0.0)), 4),
             "risk_financial":  round(float(rule_scores.get("risk_financial",  0.0)), 4),
