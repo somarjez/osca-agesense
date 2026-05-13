@@ -136,12 +136,9 @@ class MlController extends Controller
 
         // Write a .ps1 that uses Start-Process to truly detach the ML job.
         // popen/pclose on Windows blocks until the child exits — Start-Process returns immediately.
+        // Single-line: no continuation characters needed, avoids PowerShell parsing issues.
         file_put_contents($ps1, implode("\n", [
-            "Start-Process -FilePath \"$php\" \\",
-            "    -ArgumentList \"$artisan\", \"ml:run-single\", \"{$senior->id}\", \"{$survey->id}\" \\",
-            "    -RedirectStandardOutput \"$outLog\" \\",
-            "    -RedirectStandardError  \"$errLog\" \\",
-            "    -NoNewWindow",
+            "Start-Process -FilePath \"$php\" -ArgumentList \"$artisan\", \"ml:run-single\", \"{$senior->id}\", \"{$survey->id}\" -RedirectStandardOutput \"$outLog\" -RedirectStandardError \"$errLog\" -NoNewWindow",
             "Remove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue",
         ]));
 
