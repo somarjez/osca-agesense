@@ -117,8 +117,8 @@ class MlController extends Controller
     }
 
     /**
-     * Spawn a hidden background PHP process to run ML for this senior, then return immediately.
-     * Writes a temporary .ps1 launcher to avoid shell-escaping issues with spaces in the project path.
+     * Spawn a detached background PHP process to run ML for this senior, then return immediately.
+     * Uses cmd /c start /b so popen returns instantly without waiting for the ML job to finish.
      */
     public function runSingle(SeniorCitizen $senior)
     {
@@ -128,22 +128,18 @@ class MlController extends Controller
             return response()->json(['error' => 'No QoL survey found for this senior.'], 422);
         }
 
-        $php    = PHP_BINARY;
+        $php     = PHP_BINARY;
         $artisan = base_path('artisan');
         $outLog  = storage_path('logs/ml_single_' . $senior->id . '.log');
         $errLog  = storage_path('logs/ml_single_' . $senior->id . '.err.log');
-        $ps1    = storage_path('logs/ml_launch_' . $senior->id . '.ps1');
 
-        // Write a .ps1 that uses Start-Process to truly detach the ML job.
-        // popen/pclose on Windows blocks until the child exits — Start-Process returns immediately.
-        // Single-line: no continuation characters needed, avoids PowerShell parsing issues.
-        file_put_contents($ps1, implode("\n", [
-            "Start-Process -FilePath \"$php\" -ArgumentList \"$artisan\", \"ml:run-single\", \"{$senior->id}\", \"{$survey->id}\" -RedirectStandardOutput \"$outLog\" -RedirectStandardError \"$errLog\" -NoNewWindow",
-            "Remove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue",
-        ]));
+        // Use cmd /c start /b to fire-and-forget the PHP process.
+        // This avoids PowerShell argument parsing issues with spaces in paths.
+        // start /b runs the command in the background without opening a new window.
+        $cmd = "cmd /c start /b \"\" \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id}"
+            . " > \"$outLog\" 2> \"$errLog\"";
 
-        // popen/pclose here only runs the short wrapper .ps1 (Start-Process returns instantly).
-        pclose(popen("powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File \"$ps1\"", 'r'));
+        pclose(popen($cmd, 'r'));
 
         return response()->json(['queued' => true]);
     }
