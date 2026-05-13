@@ -65,20 +65,26 @@ MOVABLE_ASSET_WEIGHTS = {
 
 INCOME_SOURCE_WEIGHTS = {
     "own pension": 1.00, "spouse pension": 0.85, "own earnings": 0.75,
-    "own earnings / salary": 0.75, "insurance": 0.70, "stocks": 0.65,
-    "dividends": 0.65, "rentals": 0.65, "sharecrops": 0.55,
+    "own earnings / salary": 0.75, "own earnings/salary": 0.75,
+    "insurance": 0.70, "stocks": 0.65,
+    "dividends": 0.65, "rentals": 0.65, "rentals/sharecrops": 0.60,
+    "sharecrops": 0.55,
     "business": 0.60, "savings": 0.55, "spouse salary": 0.50,
-    "livestock": 0.45, "farm": 0.45, "orchard": 0.45, "fishing": 0.40,
-    "dependent on children": 0.35, "dependent on relatives": 0.30,
+    "livestock": 0.45, "livestock/farm": 0.45, "farm": 0.45,
+    "orchard": 0.45, "fishing": 0.40,
+    "dependent on children": 0.35, "dependent on children/relatives": 0.35,
+    "dependent on relatives": 0.30,
 }
 
 COMMUNITY_WEIGHTS = {
     "community leader": 1.00,
     "health / wellness volunteer": 0.90,
+    "health/wellness volunteer": 0.90,
     "disaster response volunteer": 0.85,
     "barangay volunteer": 0.80,
     "senior citizen association member": 0.75,
     "counseling / referral": 0.70,
+    "counseling/referral": 0.70,
     "resource volunteer": 0.65,
     "friendly visits": 0.60,
     "religious": 0.55,
@@ -196,7 +202,7 @@ INCOME_RISK = {
 EDU_ORDER = [
     "Not Attended School", "Elementary Level", "Elementary Graduate",
     "High School Level", "High School Graduate", "Vocational",
-    "College Level", "College Graduate", "Post-Graduate"
+    "College Level", "College Graduate", "Post Graduate", "Post-Graduate"
 ]
 
 INCOME_ORDER = [
