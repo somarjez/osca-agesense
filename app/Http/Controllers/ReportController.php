@@ -6,6 +6,7 @@ use App\Models\ClusterSnapshot;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
+use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use App\Support\DbHelper;
 use Illuminate\Http\Request;
@@ -19,11 +20,16 @@ class ReportController extends Controller
      */
     public function gis()
     {
+        $mappedCount = SeniorCitizen::active()->count();
+        $highRiskMapped = SeniorCitizen::active()
+            ->whereHas('latestMlResult', fn($q) => $q->where('overall_risk_level', 'HIGH'))
+            ->count();
+
         $stats = [
-            'mapped_seniors' => 6,
-            'high_risk_mapped' => 2,
-            'barangays_covered' => 6,
-            'facilities_recorded' => 3,
+            'mapped_seniors' => $mappedCount,
+            'high_risk_mapped' => $highRiskMapped,
+            'barangays_covered' => SeniorCitizen::active()->distinct('barangay')->count('barangay'),
+            'facilities_recorded' => Facility::query()->count(),
         ];
 
         return view('reports.gis', compact('stats'));

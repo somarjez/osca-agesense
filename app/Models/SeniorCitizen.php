@@ -27,6 +27,7 @@ class SeniorCitizen extends Model
         'medical_concern', 'dental_concern', 'optical_concern',
         'hearing_concern', 'social_emotional_concern',
         'healthcare_difficulty', 'has_medical_checkup', 'checkup_schedule',
+        'latitude', 'longitude', 'location_source', 'location_accuracy', 'location_verified_at',
         'status', 'encoded_by',
         'consent_given_at', 'consent_method',
     ];
@@ -39,6 +40,9 @@ class SeniorCitizen extends Model
         'contact_number'         => 'encrypted',
         'place_of_birth'         => 'encrypted',
         'philsys_id'             => 'encrypted',
+        'latitude'               => 'decimal:7',
+        'longitude'              => 'decimal:7',
+        'location_verified_at'   => 'datetime',
         'specialization'         => 'array',
         'community_service'      => 'array',
         'living_with'            => 'array',
@@ -98,6 +102,16 @@ class SeniorCitizen extends Model
     public function recommendations(): HasMany
     {
         return $this->hasMany(Recommendation::class);
+    }
+
+    public function accessibilityMetrics(): HasMany
+    {
+        return $this->hasMany(SeniorAccessibilityMetric::class);
+    }
+
+    public function latestAccessibilityMetric(): HasOne
+    {
+        return $this->hasOne(SeniorAccessibilityMetric::class)->latestOfMany();
     }
 
     // ── Scopes ────────────────────────────────────────────────────────────────
