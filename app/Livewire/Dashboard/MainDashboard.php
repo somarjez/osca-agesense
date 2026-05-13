@@ -7,6 +7,7 @@ use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Services\ClusterAnalyticsService;
+use App\Support\DbHelper;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -203,10 +204,7 @@ class MainDashboard extends Component
 
     private function getAgeGroupDistribution(): array
     {
-        $driver = DB::connection()->getDriverName();
-        $ageExpr = $driver === 'sqlite'
-            ? "(CAST(strftime('%Y','now') AS INTEGER) - CAST(strftime('%Y', date_of_birth) AS INTEGER) - (strftime('%m-%d','now') < strftime('%m-%d', date_of_birth)))"
-            : 'TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE())';
+        $ageExpr = DbHelper::ageExpr('date_of_birth', '');
 
         $groups = SeniorCitizen::active()
             ->when($this->selectedBarangay, fn($q) => $q->where('barangay', $this->selectedBarangay))
