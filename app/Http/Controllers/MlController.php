@@ -133,7 +133,8 @@ class MlController extends Controller
         file_put_contents($ps1, "& \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id} > \"$outLog\" 2> \"$errLog\"\nRemove-Item -LiteralPath \"$ps1\" -ErrorAction SilentlyContinue\n");
 
         // -WindowStyle Hidden + -NonInteractive: fully invisible, no CMD or PS window.
-        popen("powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File \"$ps1\"", 'r');
+        // pclose() immediately so PHP doesn't hold the handle open for the full ML run duration.
+        pclose(popen("powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File \"$ps1\"", 'r'));
 
         return response()->json(['queued' => true]);
     }
