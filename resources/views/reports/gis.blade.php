@@ -75,7 +75,10 @@
 
             <div id="gis-map"
                  class="rounded-2xl border border-slate-200 bg-slate-50 min-h-[420px] md:min-h-[460px]"
-                 data-geojson-url="{{ route('api.gis.seniors', [], false) }}">
+                 data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
+                 data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
+                 data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
+                 data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
             </div>
             <div>
                 <p id="gis-map-status" class="text-xs text-slate-500">Loading sample generalized GIS data...</p>
@@ -84,6 +87,7 @@
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
             </div>
         </div>
@@ -106,14 +110,28 @@
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
     const BARANGAY_STAT_ID = 'gis-stat-barangays';
     const SOURCE_STAT_ID = 'gis-stat-source';
-    const center = [14.2708, 121.4560];
-    const zoom = 15;
-    const pagsanjanBounds = [
-        [14.2635, 121.4485],
-        [14.2768, 121.4638],
+    const PAGSANJAN_CENTER = [14.2708, 121.4560];
+    const DEFAULT_ZOOM = 15;
+    const MIN_ZOOM = 13;
+    const MAX_ZOOM = 18;
+    const DEFAULT_FOCUS_BOUNDS_COORDS = [
+        [14.2585, 121.4425],
+        [14.2835, 121.4685],
     ];
+    const NAVIGATION_BOUNDS_COORDS = [
+        [14.2470, 121.4300],
+        [14.2950, 121.4815],
+    ];
+    const MAP_FIT_OPTIONS = {
+        padding: [24, 24],
+        maxZoom: 15,
+        animate: false,
+    };
     let latestRequestId = 0;
-    let latestGeoJson = null;
+    let latestSeniorGeoJson = null;
+    let latestFacilityGeoJson = null;
+    let latestMunicipalBoundaryGeoJson = null;
+    let latestBarangayBoundaryGeoJson = null;
 
     function riskColor(level) {
         switch ((level || '').toUpperCase()) {
@@ -199,15 +217,34 @@
         }
     }
 
+    function boundsFromCoords(coords) {
+        return window.L.latLngBounds(coords[0], coords[1]);
+    }
+
+    function hasBoundaryFeatures(geojson) {
+        return Array.isArray(geojson?.features) && geojson.features.length > 0;
+    }
+
     function updateLegend(mode) {
         const legendEl = document.getElementById(LEGEND_ID);
         if (!legendEl) return;
+
+        const boundaryLegend = [
+            hasBoundaryFeatures(latestMunicipalBoundaryGeoJson)
+                ? '<span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full bg-slate-700 inline-block"></span>Municipal Boundary</span>'
+                : '',
+            hasBoundaryFeatures(latestBarangayBoundaryGeoJson)
+                ? '<span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full bg-slate-400 inline-block"></span>Barangay Boundaries</span>'
+                : '',
+        ].filter(Boolean).join('');
 
         if (mode === 'markers') {
             legendEl.innerHTML = `
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
+                ${boundaryLegend}
             `;
             return;
         }
@@ -216,13 +253,15 @@
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
+            ${boundaryLegend}
         `;
     }
 
     function sourceStatusText(geojson) {
         if (geojson?.source === 'database') {
-            return `${geojson.features?.length ?? 0} senior records loaded using generalized barangay-based placement.`;
+            return `${geojson?.total ?? geojson.features?.length ?? 0} senior records loaded using generalized barangay-based placement.`;
         }
 
         return 'Sample generalized GIS data loaded for prototype testing.';
@@ -242,6 +281,16 @@
         }
 
         return null;
+    }
+
+    function emptyFeatureCollection(source = 'database') {
+        return {
+            type: 'FeatureCollection',
+            source,
+            placement: null,
+            total: 0,
+            features: [],
+        };
     }
 
     function uniqueSortedValues(features, key) {
@@ -320,7 +369,7 @@
             })
             .filter(Boolean);
 
-        if (!points.length) return window.L.latLng(center[0], center[1]);
+        if (!points.length) return window.L.latLng(PAGSANJAN_CENTER[0], PAGSANJAN_CENTER[1]);
 
         const totals = points.reduce((acc, point) => {
             acc.lat += point.latlng.lat * point.weight;
@@ -394,6 +443,7 @@
                 weight: zone.weight,
                 fillColor: zone.color,
                 fillOpacity: zone.fillOpacity,
+                pane: 'gis-risk-pane',
             }).addTo(overlayGroup);
         });
 
@@ -403,6 +453,7 @@
             weight: 2,
             fillColor: '#334155',
             fillOpacity: 0.95,
+            pane: 'gis-risk-pane',
         }).bindPopup(
             mode === 'accessibility-zones'
                 ? 'Cluster zone center for the active sample points.'
@@ -425,15 +476,14 @@
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 0.88,
+                    pane: 'gis-senior-pane',
                 });
             },
             onEachFeature(feature, layer) {
+                // Privacy: popups only show anonymized, generalized GIS fields.
                 layer.bindPopup(popupHtml(feature.properties));
             },
         });
-
-        overlayGroup.addLayer(pointLayer);
-        overlayGroup.addTo(map);
 
         return { overlayGroup, pointLayer };
     }
@@ -448,6 +498,16 @@
         });
     }
 
+    function createFacilityIcon() {
+        return window.L.divIcon({
+            className: 'gis-facility-icon',
+            html: `<span style="display:block;width:16px;height:16px;border-radius:4px;background:#0284c7;border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);transform:rotate(45deg);"></span>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+            popupAnchor: [0, -8],
+        });
+    }
+
     function popupHtml(properties) {
         const p = properties || {};
         return `
@@ -458,6 +518,18 @@
                 <div><strong>Risk Level:</strong> ${p.risk_level ?? 'N/A'}</div>
                 <div><strong>Cluster:</strong> ${p.cluster ?? 'N/A'}</div>
                 ${p.composite_risk !== null && p.composite_risk !== undefined ? `<div><strong>Composite Risk:</strong> ${Number(p.composite_risk).toFixed(2)}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function facilityPopupHtml(properties) {
+        const p = properties || {};
+        return `
+            <div class="space-y-1 text-[12px] leading-snug">
+                <div><strong>Facility:</strong> ${p.name ?? 'N/A'}</div>
+                <div><strong>Type:</strong> ${p.type ?? 'N/A'}</div>
+                <div><strong>Barangay:</strong> ${p.barangay ?? 'N/A'}</div>
+                <div><strong>Source:</strong> ${p.source ?? 'N/A'}</div>
             </div>
         `;
     }
@@ -487,18 +559,184 @@
         }
     }
 
-    function renderGeoJsonOnMap(map, geojson) {
-        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
-        const activeFeatures = filteredFeatures(geojson.features || []);
+    function buildFacilityLayer(featureCollection) {
+        return window.L.geoJSON(featureCollection, {
+            pointToLayer(feature, latlng) {
+                const marker = window.L.marker(latlng, {
+                    icon: createFacilityIcon(),
+                    keyboard: false,
+                    pane: 'gis-facility-pane',
+                });
 
-        if (map._gisLayerGroup) {
-            map.removeLayer(map._gisLayerGroup);
-            map._gisLayerGroup = null;
+                marker.bindPopup(facilityPopupHtml(feature.properties));
+
+                return marker;
+            },
+        });
+    }
+
+    function boundaryLabel(properties) {
+        const p = properties || {};
+        return p.name || p.NAME || p.barangay || p.BARANGAY || p.brgy_name || p.BRGY_NAME || p.ADM4_EN || p.adm4_en || 'Barangay boundary';
+    }
+
+    function buildBoundaryLayer(featureCollection, options = {}) {
+        return window.L.geoJSON(featureCollection, {
+            pane: options.pane,
+            style() {
+                return options.style;
+            },
+            onEachFeature(feature, layer) {
+                if (options.tooltip) {
+                    layer.bindTooltip(boundaryLabel(feature.properties), {
+                        sticky: true,
+                        direction: 'center',
+                        opacity: 0.9,
+                        className: 'gis-boundary-tooltip',
+                    });
+                }
+            },
+        });
+    }
+
+    function ensureMapPanes(map) {
+        if (!map.getPane('gis-barangay-pane')) {
+            map.createPane('gis-barangay-pane');
+            map.getPane('gis-barangay-pane').style.zIndex = 380;
         }
 
+        if (!map.getPane('gis-municipal-pane')) {
+            map.createPane('gis-municipal-pane');
+            map.getPane('gis-municipal-pane').style.zIndex = 390;
+        }
+
+        if (!map.getPane('gis-risk-pane')) {
+            map.createPane('gis-risk-pane');
+            map.getPane('gis-risk-pane').style.zIndex = 420;
+        }
+
+        if (!map.getPane('gis-facility-pane')) {
+            map.createPane('gis-facility-pane');
+            map.getPane('gis-facility-pane').style.zIndex = 610;
+        }
+
+        if (!map.getPane('gis-senior-pane')) {
+            map.createPane('gis-senior-pane');
+            map.getPane('gis-senior-pane').style.zIndex = 620;
+        }
+    }
+
+    function ensureLayerRegistry(map) {
+        if (map._gisLayerRegistry) {
+            return map._gisLayerRegistry;
+        }
+
+        const registry = {
+            barangayBoundaries: window.L.layerGroup().addTo(map),
+            municipalBoundary: window.L.layerGroup().addTo(map),
+            riskOverlay: window.L.layerGroup().addTo(map),
+            facilities: window.L.layerGroup().addTo(map),
+            seniors: window.L.layerGroup().addTo(map),
+        };
+
+        map._gisLayerRegistry = registry;
+
+        return registry;
+    }
+
+    function clearDynamicLayers(map) {
+        const layers = ensureLayerRegistry(map);
+        layers.riskOverlay.clearLayers();
+        layers.facilities.clearLayers();
+        layers.seniors.clearLayers();
+    }
+
+    function renderBoundaryLayers(map, municipalGeoJson, barangayGeoJson) {
+        const layers = ensureLayerRegistry(map);
+        layers.municipalBoundary.clearLayers();
+        layers.barangayBoundaries.clearLayers();
+
+        if (hasBoundaryFeatures(barangayGeoJson)) {
+            layers.barangayBoundaries.addLayer(buildBoundaryLayer(barangayGeoJson, {
+                pane: 'gis-barangay-pane',
+                tooltip: true,
+                style: {
+                    color: '#94a3b8',
+                    weight: 1,
+                    opacity: 0.65,
+                    fillColor: '#cbd5e1',
+                    fillOpacity: 0.06,
+                },
+            }));
+        }
+
+        if (hasBoundaryFeatures(municipalGeoJson)) {
+            layers.municipalBoundary.addLayer(buildBoundaryLayer(municipalGeoJson, {
+                pane: 'gis-municipal-pane',
+                tooltip: false,
+                style: {
+                    color: '#334155',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0,
+                },
+            }));
+        }
+    }
+
+    function combinedBoundsFromFeatures(features) {
+        const points = features
+            .map(featureLatLng)
+            .filter(Boolean);
+
+        return points.length ? window.L.latLngBounds(points) : null;
+    }
+
+    function focusMapOnPagsanjan(map) {
+        map.fitBounds(boundsFromCoords(DEFAULT_FOCUS_BOUNDS_COORDS), MAP_FIT_OPTIONS);
+    }
+
+    function focusMapOnActiveLayer(map, activeFeatures) {
+        if (activeFeatures.length === 1) {
+            const point = featureLatLng(activeFeatures[0]);
+            if (point) {
+                map.setView(point, Math.max(DEFAULT_ZOOM, 15), { animate: false });
+                return;
+            }
+        }
+
+        const bounds = combinedBoundsFromFeatures(activeFeatures);
+        if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.35), MAP_FIT_OPTIONS);
+            return;
+        }
+
+        if (hasBoundaryFeatures(latestMunicipalBoundaryGeoJson)) {
+            const municipalBounds = window.L.geoJSON(latestMunicipalBoundaryGeoJson).getBounds();
+            if (municipalBounds.isValid()) {
+                map.fitBounds(municipalBounds.pad(0.08), MAP_FIT_OPTIONS);
+                return;
+            }
+        }
+
+        focusMapOnPagsanjan(map);
+    }
+
+    function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const activeFeatures = filteredFeatures(seniorGeoJson.features || []);
+        const facilityCollection = {
+            type: 'FeatureCollection',
+            features: facilityGeoJson?.features || [],
+        };
+        const layers = ensureLayerRegistry(map);
+        clearDynamicLayers(map);
+        updateLegend(mode);
+        updateSummaryCards(seniorGeoJson, activeFeatures);
+
         if (!activeFeatures.length) {
-            map.fitBounds(pagsanjanBounds, { padding: [10, 10], maxZoom: 15 });
-            updateSummaryCards(geojson, activeFeatures);
+            updateSummaryCards(seniorGeoJson, activeFeatures);
+            focusMapOnPagsanjan(map);
             setStatus('No senior records matched the selected filters.', 'neutral');
             return;
         }
@@ -507,11 +745,7 @@
             type: 'FeatureCollection',
             features: activeFeatures,
         };
-
-        const layerGroup = window.L.layerGroup();
-        map._gisLayerGroup = layerGroup;
-        updateLegend(mode);
-        updateSummaryCards(geojson, activeFeatures);
+        const facilityLayer = buildFacilityLayer(facilityCollection);
 
         if (mode === 'markers') {
             const markerClusterLayer = window.L.markerClusterGroup({
@@ -538,6 +772,7 @@
                     const marker = window.L.marker(latlng, {
                         icon: createMarkerIcon(riskColor(feature.properties?.risk_level)),
                         gisRiskLevel: feature.properties?.risk_level,
+                        pane: 'gis-senior-pane',
                     });
 
                     marker.bindPopup(popupHtml(feature.properties));
@@ -547,94 +782,178 @@
             });
 
             markerClusterLayer.addLayer(markerLayer);
-            layerGroup.addLayer(markerClusterLayer).addTo(map);
+            layers.seniors.addLayer(markerClusterLayer);
+            if (facilityGeoJson?.features?.length) {
+                layers.facilities.addLayer(facilityLayer);
+            }
 
-            const bounds = markerLayer.getBounds();
-            map.fitBounds(bounds.isValid() ? bounds.pad(0.08) : pagsanjanBounds, { padding: [16, 16], maxZoom: 15 });
-            setStatus(sourceStatusText(geojson), 'success');
+            focusMapOnActiveLayer(map, activeFeatures);
+            setStatus(sourceStatusText(seniorGeoJson), 'success');
             return;
         }
 
         const { overlayGroup, pointLayer } = buildZoneOverlay(map, activeFeatures, mode);
-        map._gisLayerGroup = overlayGroup;
-
-        const bounds = pointLayer.getBounds();
-        map.fitBounds(bounds.isValid() ? bounds.pad(0.08) : pagsanjanBounds, { padding: [16, 16], maxZoom: 15 });
-        setStatus(sourceStatusText(geojson), 'success');
+        layers.riskOverlay.addLayer(overlayGroup);
+        if (facilityGeoJson?.features?.length) {
+            layers.facilities.addLayer(facilityLayer);
+        }
+        layers.seniors.addLayer(pointLayer);
+        focusMapOnActiveLayer(map, activeFeatures);
+        setStatus(sourceStatusText(seniorGeoJson), 'success');
     }
 
     function refreshRenderedLayer() {
         const el = document.getElementById(MAP_ID);
         const map = el?._leaflet_map_instance;
-        if (!el || !map || !latestGeoJson) return;
+        if (!el || !map || !latestSeniorGeoJson) return;
 
-        renderGeoJsonOnMap(map, latestGeoJson);
+        renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+    }
+
+    function syncMapSize(map) {
+        if (!map) return;
+
+        map.invalidateSize({
+            pan: false,
+            debounceMoveend: true,
+        });
+    }
+
+    function scheduleMapSizeSync(map) {
+        window.requestAnimationFrame(() => syncMapSize(map));
+        window.setTimeout(() => syncMapSize(map), 120);
+        window.setTimeout(() => syncMapSize(map), 280);
+    }
+
+    function attachResizeObserver(map, el) {
+        if (el._gisResizeObserver) {
+            el._gisResizeObserver.disconnect();
+        }
+
+        if (typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        const observer = new ResizeObserver(() => syncMapSize(map));
+        observer.observe(el);
+        el._gisResizeObserver = observer;
+    }
+
+    async function fetchGeoJson(url, requestId, label, fallbackPayload = null) {
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+
+        if (requestId !== latestRequestId) {
+            throw new Error(`Stale ${label} GIS request ignored.`);
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok) {
+            const body = await response.text();
+            if (fallbackPayload) {
+                console.warn(`${label} GIS request failed with status ${response.status}. Falling back to empty layer.`, body.slice(0, 200));
+                return fallbackPayload;
+            }
+
+            throw new Error(`${label} GIS API request failed with status ${response.status}. Body: ${body.slice(0, 200)}`);
+        }
+
+        if (!isAcceptedGeoJsonType(contentType)) {
+            const body = await response.text();
+            if (fallbackPayload) {
+                console.warn(`${label} GIS API returned non-JSON content-type "${contentType}". Falling back to empty layer.`, body.slice(0, 200));
+                return fallbackPayload;
+            }
+
+            throw new Error(`${label} GIS API returned non-JSON content-type "${contentType}". Body: ${body.slice(0, 200)}`);
+        }
+
+        const payload = await response.json();
+        const geojson = normalizeGeoJsonPayload(payload);
+        if (!geojson) {
+            if (fallbackPayload) {
+                console.warn(`${label} GIS API returned an invalid payload. Falling back to empty layer.`, payload);
+                return fallbackPayload;
+            }
+
+            throw new Error(`${label} GIS API returned an invalid GeoJSON FeatureCollection.`);
+        }
+
+        return geojson;
     }
 
     function renderMap() {
         const el = document.getElementById(MAP_ID);
         if (!el || !window.L) return;
         const requestId = ++latestRequestId;
-        latestGeoJson = null;
-        setStatus('Loading sample generalized GIS data...', 'neutral');
+        latestSeniorGeoJson = null;
+        latestFacilityGeoJson = null;
+        latestMunicipalBoundaryGeoJson = null;
+        latestBarangayBoundaryGeoJson = null;
+        setStatus('Loading GIS layers for Pagsanjan...', 'neutral');
 
         if (el._leaflet_id) {
             if (el._leaflet_map_instance) {
                 el._leaflet_map_instance.off();
                 el._leaflet_map_instance.remove();
             }
+            if (el._gisResizeObserver) {
+                el._gisResizeObserver.disconnect();
+                el._gisResizeObserver = null;
+            }
             el.innerHTML = '';
         }
 
         const map = window.L.map(el, {
-            maxBounds: pagsanjanBounds,
-            maxBoundsViscosity: 1.0,
-            minZoom: 14,
-        }).setView(center, zoom);
+            minZoom: MIN_ZOOM,
+            maxZoom: MAX_ZOOM,
+            zoomControl: true,
+            zoomSnap: 0.5,
+            zoomDelta: 0.5,
+            preferCanvas: true,
+        }).setView(PAGSANJAN_CENTER, DEFAULT_ZOOM);
         el._leaflet_map_instance = map;
+        ensureMapPanes(map);
+        ensureLayerRegistry(map);
+        map.setMaxBounds(boundsFromCoords(NAVIGATION_BOUNDS_COORDS));
+        map.options.maxBoundsViscosity = 0.25;
 
         window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors',
+            updateWhenIdle: true,
+            keepBuffer: 4,
         }).addTo(map);
 
-        fetch(el.dataset.geojsonUrl, {
-            headers: {
-                'Accept': 'application/json',
-            },
-        })
-            .then(async (response) => {
-                if (requestId !== latestRequestId) {
-                    throw new Error('Stale GIS request ignored.');
-                }
+        focusMapOnPagsanjan(map);
+        attachResizeObserver(map, el);
+        scheduleMapSizeSync(map);
 
-                const contentType = response.headers.get('content-type') || '';
-                if (!response.ok) {
-                    const body = await response.text();
-                    throw new Error(`GIS API request failed with status ${response.status}. Body: ${body.slice(0, 200)}`);
-                }
-                if (!isAcceptedGeoJsonType(contentType)) {
-                    const body = await response.text();
-                    throw new Error(`GIS API returned non-JSON content-type "${contentType}". Body: ${body.slice(0, 200)}`);
-                }
-                return response.json();
-            })
-            .then((payload) => {
+        Promise.all([
+            fetchGeoJson(el.dataset.geojsonUrl, requestId, 'Senior'),
+            fetchGeoJson(el.dataset.facilitiesUrl, requestId, 'Facility', emptyFeatureCollection('database')),
+            fetchGeoJson(el.dataset.pagsanjanBoundaryUrl, requestId, 'Pagsanjan boundary', emptyFeatureCollection('file')),
+            fetchGeoJson(el.dataset.barangayBoundariesUrl, requestId, 'Barangay boundaries', emptyFeatureCollection('file')),
+        ])
+            .then(([seniorGeoJson, facilityGeoJson, municipalBoundaryGeoJson, barangayBoundaryGeoJson]) => {
                 if (requestId !== latestRequestId) return;
 
-                const geojson = normalizeGeoJsonPayload(payload);
-                if (!geojson) {
-                    throw new Error('GIS API returned an invalid GeoJSON FeatureCollection.');
-                }
-
-                latestGeoJson = geojson;
-                initializeFilters(geojson.features || []);
-                renderGeoJsonOnMap(map, geojson);
+                latestSeniorGeoJson = seniorGeoJson;
+                latestFacilityGeoJson = facilityGeoJson;
+                latestMunicipalBoundaryGeoJson = municipalBoundaryGeoJson;
+                latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
+                initializeFilters(seniorGeoJson.features || []);
+                renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
+                renderDataLayers(map, seniorGeoJson, facilityGeoJson);
+                scheduleMapSizeSync(map);
             })
             .catch((error) => {
                 if (requestId !== latestRequestId) return;
 
-                console.error('Failed to load GIS sample data:', error);
+                console.error('Failed to load GIS data:', error);
                 setStatus('GIS data could not be loaded.', 'error');
             });
     }
@@ -644,9 +963,12 @@
             refreshRenderedLayer();
         }
     });
-
     document.addEventListener('DOMContentLoaded', renderMap);
     document.addEventListener('livewire:navigated', () => setTimeout(renderMap, 0));
+    window.addEventListener('resize', () => {
+        const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+        syncMapSize(map);
+    });
 })();
 </script>
 @endpush

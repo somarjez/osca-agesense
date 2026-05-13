@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 class GisApiController extends Controller
 {
@@ -19,7 +20,11 @@ class GisApiController extends Controller
             return $this->geoJsonResponse(
                 $this->sampleSeniorFeatures(),
                 'sample',
-                'Sample generalized GIS data loaded for prototype testing.'
+                'Sample generalized GIS data loaded for prototype testing.',
+                [
+                    'placement' => 'generalized_sample_points',
+                    'total' => count($this->sampleSeniorFeatures()),
+                ]
             );
         }
 
@@ -51,7 +56,11 @@ class GisApiController extends Controller
         return $this->geoJsonResponse(
             $features,
             'database',
-            'Database-backed generalized GIS data loaded for prototype testing.'
+            'Database-backed generalized GIS data loaded for prototype testing.',
+            [
+                'placement' => 'stored_coordinates_and_generalized_barangay_fallback',
+                'total' => count($features),
+            ]
         );
     }
 
@@ -85,17 +94,40 @@ class GisApiController extends Controller
         return $this->geoJsonResponse(
             $features,
             'database',
-            'Database-backed facility GIS data loaded.'
+            'Database-backed facility GIS data loaded.',
+            [
+                'placement' => 'public_facility_coordinates',
+                'total' => count($features),
+            ]
         );
     }
 
-    private function geoJsonResponse(array $features, string $source, string $note): JsonResponse
+    public function pagsanjanBoundary(): JsonResponse
+    {
+        return $this->boundaryResponse(
+            'gis/boundaries/pagsanjan_boundary.geojson',
+            'Pagsanjan municipal boundary'
+        );
+    }
+
+    public function barangayBoundaries(): JsonResponse
+    {
+        return $this->boundaryResponse(
+            'gis/boundaries/pagsanjan_barangays.geojson',
+            'Pagsanjan barangay boundaries'
+        );
+    }
+
+    private function geoJsonResponse(array $features, string $source, string $note, array $meta = []): JsonResponse
     {
         return response()->json(
             [
                 'type' => 'FeatureCollection',
                 'source' => $source,
+                'placement' => $meta['placement'] ?? null,
+                'total' => $meta['total'] ?? count($features),
                 'note' => $note,
+                'metadata' => $meta['metadata'] ?? null,
                 'features' => $features,
             ],
             200,
@@ -121,10 +153,64 @@ class GisApiController extends Controller
         $latOffset = $this->hashToOffset(substr($hash, 0, 8), 0.0016);
         $lngOffset = $this->hashToOffset(substr($hash, 8, 8), 0.0018);
 
+        // Generalize each point around a barangay anchor so the GIS view remains
+        // useful without revealing exact home locations.
         return [
             round($anchor[0] + $latOffset, 7),
             round($anchor[1] + $lngOffset, 7),
         ];
+    }
+
+    private function boundaryResponse(string $path, string $label): JsonResponse
+    {
+        if (!Storage::disk('local')->exists($path)) {
+            return $this->geoJsonResponse(
+                [],
+                'file',
+                "{$label} file is not available yet.",
+                [
+                    'placement' => 'optional_boundary_file',
+                    'total' => 0,
+                    'metadata' => [
+                        'status' => 'file_missing',
+                        'path' => $path,
+                    ],
+                ]
+            );
+        }
+
+        $decoded = json_decode(Storage::disk('local')->get($path), true);
+
+        if (!is_array($decoded) || ($decoded['type'] ?? null) !== 'FeatureCollection' || !isset($decoded['features']) || !is_array($decoded['features'])) {
+            return $this->geoJsonResponse(
+                [],
+                'file',
+                "{$label} file could not be parsed as GeoJSON.",
+                [
+                    'placement' => 'optional_boundary_file',
+                    'total' => 0,
+                    'metadata' => [
+                        'status' => 'invalid_geojson',
+                        'path' => $path,
+                    ],
+                ]
+            );
+        }
+
+        return response()->json(
+            array_merge($decoded, [
+                'source' => 'file',
+                'placement' => 'optional_boundary_file',
+                'total' => count($decoded['features']),
+                'note' => "{$label} loaded from local storage.",
+                'metadata' => [
+                    'status' => 'loaded',
+                    'path' => $path,
+                ],
+            ]),
+            200,
+            ['Content-Type' => 'application/geo+json; charset=UTF-8']
+        );
     }
 
     private function hashToOffset(string $hex, float $spread): float

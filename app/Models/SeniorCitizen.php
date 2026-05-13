@@ -110,6 +110,11 @@ class SeniorCitizen extends Model
         return $this->hasMany(SeniorAccessibilityMetric::class);
     }
 
+    public function accessibilityMetric(): HasOne
+    {
+        return $this->hasOne(SeniorAccessibilityMetric::class);
+    }
+
     public function latestAccessibilityMetric(): HasOne
     {
         return $this->hasOne(SeniorAccessibilityMetric::class)->latestOfMany();
