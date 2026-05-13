@@ -111,6 +111,77 @@ if not defined PHP (
 
 echo  Using PHP: %PHP%
 
+:: ── Auto-start MySQL if DB_CONNECTION=mysql and MySQL is not responding ─────────
+for /f "tokens=2 delims==" %%v in ('findstr /i "^DB_CONNECTION=" "%PROJECT%\.env"') do set DB_CONN=%%v
+if /i "%DB_CONN%"=="mysql" (
+    echo  Checking MySQL...
+    "%PHP%" -r "
+        \$h = @fsockopen('127.0.0.1', 3306, \$e, \$m, 2);
+        exit(\$h ? 0 : 1);
+    " >nul 2>&1
+    if errorlevel 1 (
+        echo  MySQL is not running — attempting to start...
+        set "MYSQL_STARTED=0"
+
+        :: Try Laragon's mysqld (user and system install paths)
+        for %%d in (
+            "%USERPROFILE%\laragon\bin\mysql"
+            "C:\laragon\bin\mysql"
+        ) do (
+            if "!MYSQL_STARTED!"=="0" (
+                for /d %%v in ("%%~d\mysql*" "%%~d\mariadb*") do (
+                    if "!MYSQL_STARTED!"=="0" (
+                        if exist "%%~v\bin\mysqld.exe" (
+                            echo  Starting Laragon MySQL: %%~v\bin\mysqld.exe
+                            start "" /B "%%~v\bin\mysqld.exe" --no-defaults --port=3306 --datadir="%%~v\data"
+                            set MYSQL_STARTED=1
+                        )
+                    )
+                )
+            )
+        )
+
+        :: Try XAMPP mysql
+        if "!MYSQL_STARTED!"=="0" (
+            for %%d in ("C:\xampp\mysql\bin\mysqld.exe" "D:\xampp\mysql\bin\mysqld.exe") do (
+                if "!MYSQL_STARTED!"=="0" (
+                    if exist "%%~d" (
+                        echo  Starting XAMPP MySQL: %%~d
+                        start "" /B "%%~d" --no-defaults
+                        set MYSQL_STARTED=1
+                    )
+                )
+            )
+        )
+
+        if "!MYSQL_STARTED!"=="0" (
+            echo  [WARN] Could not find mysqld.exe in Laragon or XAMPP.
+            echo         Start MySQL manually before continuing.
+            pause
+        ) else (
+            echo  Waiting for MySQL to be ready...
+            set /a MYSQL_WAIT=0
+            :wait_mysql
+            timeout /t 2 /nobreak >nul
+            "%PHP%" -r "
+                \$h = @fsockopen('127.0.0.1', 3306, \$e, \$m, 2);
+                exit(\$h ? 0 : 1);
+            " >nul 2>&1
+            if errorlevel 1 (
+                set /a MYSQL_WAIT+=2
+                if !MYSQL_WAIT! LSS 30 goto wait_mysql
+                echo  [WARN] MySQL did not respond after 30 seconds.
+                echo         Check Laragon / XAMPP and try again.
+                pause
+            ) else (
+                echo  [ OK ] MySQL is ready.
+            )
+        )
+    ) else (
+        echo  [ OK ] MySQL already running.
+    )
+)
+
 echo  Clearing compiled view cache...
 "%PHP%" artisan view:clear >nul 2>&1
 
