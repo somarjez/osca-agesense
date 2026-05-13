@@ -9,7 +9,17 @@ $modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path 
 $enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
 
 if (-not (Test-Path $venvPython)) {
-    throw "Python venv not found at $venvPython"
+    # Venv missing — try system python as fallback
+    $systemPython = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+    if (-not $systemPython) {
+        $systemPython = (Get-Command python3 -ErrorAction SilentlyContinue)?.Source
+    }
+    if (-not $systemPython) {
+        Write-Error "No Python found. Run: cd python && python -m venv venv && venv\Scripts\pip install -r requirements.txt"
+        exit 1
+    }
+    $venvPython = $systemPython
+    Write-Warning "Venv not found — using system Python at $venvPython. Run setup to avoid this."
 }
 
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
