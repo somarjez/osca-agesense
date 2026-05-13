@@ -66,6 +66,11 @@ class MlController extends Controller
         @ini_set('max_execution_time', '0');
         @ignore_user_abort(true);
 
+        // Bring Flask services up before processing so runBatchPipeline() uses
+        // fast HTTP mode (2 HTTP calls for all seniors) instead of spawning a
+        // local Python subprocess that cold-starts UMAP + models per chunk.
+        $this->ml->startServices();
+
         $success = 0;
         $failed  = 0;
         $errors  = [];

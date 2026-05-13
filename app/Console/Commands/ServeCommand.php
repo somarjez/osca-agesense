@@ -24,15 +24,27 @@ class ServeCommand extends BaseServeCommand
 
         $this->info('  <fg=cyan>[ML]</> Starting Python ML services in background (first run may take a few minutes)...');
 
-        // Run the ML startup in a detached background process so the Laravel
-        // server starts immediately and request logs appear without delay.
-        $logPath = storage_path('logs/ml_serve_startup.log');
-        $cmd = 'powershell.exe -NoProfile -File ' . escapeshellarg($startScript)
-            . ' > ' . escapeshellarg($logPath) . ' 2>&1';
+        $logPath     = storage_path('logs/ml_serve_startup.log');
+        $launcherPs1 = storage_path('logs/ml_serve_launch.ps1');
 
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen('start /B ' . $cmd, 'r'));
+            // Write a .ps1 launcher — paths embedded as double-quoted string literals
+            // so spaces in the project path need no shell escaping.
+            // Start-Process fully detaches the child from the PHP serve process.
+            // popen/start /B keeps a handle open on some Windows configurations,
+            // which blocks PHP's request-log output from appearing.
+            file_put_contents($launcherPs1,
+                "Start-Process powershell.exe"
+                . " -ArgumentList @('-NoProfile', '-NonInteractive', '-File', \"$startScript\")"
+                . " -RedirectStandardOutput \"$logPath\""
+                . " -RedirectStandardError \"$logPath\""
+                . " -WindowStyle Hidden\n"
+                . "Remove-Item -LiteralPath \"$launcherPs1\" -ErrorAction SilentlyContinue\n"
+            );
+            pclose(popen('powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File "' . $launcherPs1 . '"', 'r'));
         } else {
+            $cmd = 'powershell.exe -NoProfile -File ' . escapeshellarg($startScript)
+                . ' > ' . escapeshellarg($logPath) . ' 2>&1';
             exec($cmd . ' &');
         }
     }

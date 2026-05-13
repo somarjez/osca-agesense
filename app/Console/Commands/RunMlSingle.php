@@ -22,6 +22,15 @@ class RunMlSingle extends Command
             return self::FAILURE;
         }
 
+        // Attempt to bring Flask services up before running the pipeline.
+        // This command runs as a detached background process, so blocking here
+        // is fine — the web request already returned immediately.
+        // If Flask starts, runPipeline() uses fast HTTP mode (~2s per senior);
+        // otherwise runPipeline() falls back to local Python subprocess (~60s cold-start).
+        // startServices() waits up to 10 min for venv creation on first run,
+        // then polls up to 40s for the health endpoint.
+        $ml->startServices();
+
         try {
             $ml->runPipeline($senior, $survey);
             return self::SUCCESS;
