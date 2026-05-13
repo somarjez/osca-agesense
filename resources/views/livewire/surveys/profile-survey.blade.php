@@ -156,6 +156,28 @@
                            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
                 </div>
             </div>
+
+            {{-- Data Privacy Consent --}}
+            <div class="mt-5 pt-4 border-t border-slate-100">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Data Privacy Consent (RA 10173)</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Consent Date</label>
+                        <input type="date" wire:model="consentGivenAt"
+                               class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Consent Method</label>
+                        <select wire:model="consentMethod"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500">
+                            <option value="">Not recorded</option>
+                            <option value="verbal">Verbal</option>
+                            <option value="written">Written</option>
+                            <option value="digital">Digital</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             @endif
 
             {{-- ─── STEP 2: Family Composition ─── --}}

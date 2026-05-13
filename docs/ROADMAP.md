@@ -143,12 +143,12 @@ This phase addresses the security, reliability, and operational gaps identified 
 | Deliverable | Priority | Status | Description |
 |---|---|---|---|
 | Role-based access control (RBAC) | High | ⏳ Pending | Use `spatie/laravel-permission`. Roles: `admin`, `encoder`, `viewer` |
-| Activity audit logging | High | ⏳ Pending | Eloquent observers on Senior, Survey, Recommendation models |
+| Activity audit logging | High | ✅ Done | Eloquent observers on Senior, Survey, Recommendation models |
 | User management UI | High | ⏳ Pending | Create/edit/deactivate user accounts within the web app |
-| Dynamic cluster evaluation metrics | Medium | ⏳ Pending | Read metrics from JSON file alongside model artefacts |
-| Data Privacy Act compliance review | High | ⏳ Pending | Field-level encryption for PII, consent field, retention policy |
-| Barangay report page | Medium | ⏳ Pending | Complete the `reports.barangay` route with view and controller |
-| Queued batch ML inference | Medium | ⏳ Pending | `ProcessMlBatch` job dispatched via Laravel queue |
+| Dynamic cluster evaluation metrics | Medium | ✅ Done | Read metrics from JSON file alongside model artefacts |
+| Data Privacy Act compliance review | High | ✅ Done | Field-level encryption for PII, consent field, retention policy |
+| Barangay report page | Medium | ✅ Done | Complete the `reports.barangay` route with view and controller |
+| Queued batch ML inference | Medium | ✅ Done | `ProcessMlBatch` job dispatched via Laravel queue |
 | Email / notification system | Medium | ⏳ Pending | Critical risk alerts, recommendation assignment notifications |
 | Excel export | Low | ⏳ Pending | Full registry export via `maatwebsite/excel` |
 | Cluster snapshot generation | Low | ⏳ Pending | Scheduled artisan command for daily snapshots |

@@ -28,11 +28,17 @@ class SeniorCitizen extends Model
         'hearing_concern', 'social_emotional_concern',
         'healthcare_difficulty', 'has_medical_checkup', 'checkup_schedule',
         'status', 'encoded_by',
+        'consent_given_at', 'consent_method',
     ];
 
     protected $casts = [
         'date_of_birth'          => 'date',
+        'consent_given_at'       => 'datetime',
         'has_medical_checkup'    => 'boolean',
+        // Non-searchable PII encrypted at rest
+        'contact_number'         => 'encrypted',
+        'place_of_birth'         => 'encrypted',
+        'philsys_id'             => 'encrypted',
         'specialization'         => 'array',
         'community_service'      => 'array',
         'living_with'            => 'array',

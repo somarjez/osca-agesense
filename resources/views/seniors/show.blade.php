@@ -201,6 +201,11 @@
                     <x-profile-field label="Contact"            :value="$senior->contact_number"/>
                     <x-profile-field label="PhilSys / Nat'l ID" :value="$senior->philsys_id"/>
                     <x-profile-field label="Encoded By"         :value="$senior->encoded_by"/>
+                    <x-profile-field label="Consent"
+                        :value="$senior->consent_given_at
+                            ? 'Given ' . $senior->consent_given_at->format('M d, Y') . ($senior->consent_method ? ' (' . $senior->consent_method . ')' : '')
+                            : null"
+                        empty="Not recorded" />
                 </div>
             </x-card>
 

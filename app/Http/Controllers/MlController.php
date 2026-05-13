@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessMlBatch;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
+use Illuminate\Bus\Batch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -56,64 +60,75 @@ class MlController extends Controller
     }
 
     /**
-     * Batch ML analysis — processes all eligible seniors in bulk.
-     * Uses runBatchPipeline() to spawn one Python process per chunk
-     * instead of two processes per senior.
+     * Dispatch batch ML analysis as queued jobs — returns immediately with a batch ID.
+     * The queue worker processes chunks in the background; poll batchStatus() for progress.
      */
     public function batchRun(Request $request)
     {
-        @set_time_limit(0);
-        @ini_set('max_execution_time', '0');
-        @ignore_user_abort(true);
+        $cacheKey = 'ml_batch_' . now()->format('YmdHis');
 
-        // Bring Flask services up before processing so runBatchPipeline() uses
-        // fast HTTP mode (2 HTTP calls for all seniors) instead of spawning a
-        // local Python subprocess that cold-starts UMAP + models per chunk.
-        $this->ml->startServices();
-
-        $success = 0;
-        $failed  = 0;
-        $errors  = [];
-
-        SeniorCitizen::active()
+        $seniorIds = SeniorCitizen::active()
             ->whereHas('latestQolSurvey', fn($q) => $q->where('status', 'processed'))
-            ->with(['latestQolSurvey'])
             ->orderBy('id')
-            ->chunk(100, function ($seniors) use (&$success, &$failed, &$errors) {
-                // Build items array for batch pipeline
-                $items = $seniors->map(fn($s) => [
-                    'senior' => $s,
-                    'survey' => $s->latestQolSurvey,
-                ])->all();
+            ->pluck('id')
+            ->all();
 
-                $results = $this->ml->runBatchPipeline($items);
-
-                foreach ($results as $i => $entry) {
-                    if ($entry['success']) {
-                        $success++;
-                    } else {
-                        $failed++;
-                        if (count($errors) < 5) {
-                            $name = $items[$i]['senior']->full_name ?? "Senior #{$i}";
-                            $errors[] = "{$name}: " . ($entry['error'] ?? 'Unknown error');
-                        }
-                    }
-                }
-            });
-
-        $message = "Batch complete. Processed: {$success}. Failed: {$failed}."
-            . ($errors ? ' Errors: ' . implode('; ', $errors) : '');
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success'   => $failed === 0,
-                'processed' => $success,
-                'failed'    => $failed,
-                'message'   => $message,
-            ]);
+        if (empty($seniorIds)) {
+            return response()->json(['error' => 'No eligible seniors found.'], 422);
         }
 
-        return back()->with('success', $message);
+        $chunks = array_chunk($seniorIds, 100);
+        $jobs   = array_map(fn($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
+
+        $batch = Bus::batch($jobs)
+            ->name('ML Batch — ' . now()->format('Y-m-d H:i'))
+            ->allowFailures()
+            ->dispatch();
+
+        Cache::put("{$cacheKey}:batch_id",  $batch->id,     now()->addHours(2));
+        Cache::put("{$cacheKey}:total",      count($seniorIds), now()->addHours(2));
+        Cache::put("{$cacheKey}:processed",  0,              now()->addHours(2));
+        Cache::put("{$cacheKey}:failed",     0,              now()->addHours(2));
+
+        return response()->json([
+            'queued'    => true,
+            'batch_id'  => $batch->id,
+            'cache_key' => $cacheKey,
+            'total'     => count($seniorIds),
+        ]);
+    }
+
+    /**
+     * Return progress for a running batch job — polled by the batch view.
+     */
+    public function batchStatus(Request $request)
+    {
+        $cacheKey = $request->input('cache_key');
+        $batchId  = $request->input('batch_id');
+
+        if (!$cacheKey || !$batchId) {
+            return response()->json(['error' => 'Missing parameters.'], 422);
+        }
+
+        $batch = Bus::findBatch($batchId);
+
+        if (!$batch) {
+            return response()->json(['error' => 'Batch not found.'], 404);
+        }
+
+        $processed = (int) Cache::get("{$cacheKey}:processed", 0);
+        $failed    = (int) Cache::get("{$cacheKey}:failed",    0);
+        $total     = (int) Cache::get("{$cacheKey}:total",     $batch->totalJobs * 100);
+
+        return response()->json([
+            'finished'       => $batch->finished(),
+            'cancelled'      => $batch->cancelled(),
+            'total'          => $total,
+            'processed'      => $processed,
+            'failed'         => $failed,
+            'pending_jobs'   => $batch->pendingJobs,
+            'progress'       => $total > 0 ? round($processed / $total * 100) : 0,
+        ]);
     }
 
     /**

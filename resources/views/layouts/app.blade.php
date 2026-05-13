@@ -65,13 +65,14 @@
                 ['route'=>'surveys.qol.index',    'label'=>'QoL Surveys',       'icon'=>'clipboard-document-list'],
                 ['route'=>'reports.cluster',      'label'=>'Health Groups',     'icon'=>'squares-2x2'],
                 ['route'=>'reports.risk',         'label'=>'Risk Reports',      'icon'=>'shield-check'],
+                ['route'=>'reports.barangay.index','label'=>'Barangay Report',   'icon'=>'map-pin','active'=>'reports.barangay*'],
                 ['route'=>'recommendations.index','label'=>'Recommendations',   'icon'=>'light-bulb'],
             ];
             @endphp
 
             @foreach ($navItems as $item)
             <a href="{{ route($item['route']) }}"
-               class="nav-link {{ request()->routeIs($item['route'].'*') ? 'nav-link-active' : '' }}"
+               class="nav-link {{ request()->routeIs($item['active'] ?? $item['route'].'*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : '{{ $item['label'] }}'">
                 <x-dynamic-component :component="'heroicon-o-'.$item['icon']" class="w-4 h-4 flex-shrink-0" />
@@ -96,6 +97,18 @@
                :title="sidebarOpen ? '' : 'Batch Analysis'">
                 <x-heroicon-o-arrow-path class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Batch Analysis</span>
+            </a>
+
+            <div x-show="sidebarOpen" x-cloak
+                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Administration</div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
+
+            <a href="{{ route('activity-log.index') }}"
+               class="nav-link {{ request()->routeIs('activity-log*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Activity Log'">
+                <x-heroicon-o-clipboard-document-check class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
 
             <div x-show="sidebarOpen" x-cloak

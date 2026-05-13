@@ -84,13 +84,7 @@ class ReportController extends Controller
             ->get()
             ->keyBy('cluster_named_id');
 
-        // Silhouette & evaluation (stored in latest batch run metadata if available)
-        $evalMetrics = cache()->remember('cluster_eval_metrics', 3600, fn() => [
-            'silhouette'       => null,
-            'davies_bouldin'   => null,
-            'calinski_harabasz'=> null,
-            'inertia'          => null,
-        ]);
+        $evalMetrics = \App\Support\ClusterMetrics::load();
 
         return view('reports.cluster', compact(
             'clusterSummary', 'barangayCluster', 'domainByCluster',
@@ -157,6 +151,80 @@ class ReportController extends Controller
         return view('reports.risk', compact(
             'riskDist', 'atRiskSeniors', 'barangayRisk',
             'domainAvgs', 'recsByCategory', 'barangays'
+        ));
+    }
+
+    /**
+     * Redirect /reports/barangay to the first barangay in the list.
+     */
+    public function barangayIndex()
+    {
+        $first = SeniorCitizen::barangayList()[0];
+        return redirect()->route('reports.barangay', $first);
+    }
+
+    /**
+     * Barangay drill-down report page.
+     */
+    public function barangay(string $brgy)
+    {
+        $barangays = SeniorCitizen::barangayList();
+
+        if (!in_array($brgy, $barangays, true)) {
+            abort(404, 'Barangay not found.');
+        }
+
+        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
+        // All active seniors in this barangay
+        $seniors = SeniorCitizen::active()
+            ->where('barangay', $brgy)
+            ->with('latestMlResult')
+            ->orderBy('last_name')
+            ->get();
+
+        // Risk distribution for this barangay
+        $riskDist = MlResult::whereIn('id', $latestIds)
+            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
+            ->groupBy('overall_risk_level')
+            ->pluck('count', 'overall_risk_level');
+
+        // Cluster distribution for this barangay
+        $clusterDist = MlResult::whereIn('id', $latestIds)
+            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereNotNull('cluster_named_id')
+            ->select('cluster_named_id', 'cluster_name', DB::raw('COUNT(*) as count'))
+            ->groupBy('cluster_named_id', 'cluster_name')
+            ->orderBy('cluster_named_id')
+            ->get();
+
+        // Domain risk averages for this barangay
+        $domainAvgs = MlResult::whereIn('id', $latestIds)
+            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->selectRaw('AVG(ic_risk) as ic, AVG(env_risk) as env, AVG(func_risk) as func, AVG(composite_risk) as composite')
+            ->first();
+
+        // Urgency breakdown
+        $urgentCount = MlResult::whereIn('id', $latestIds)
+            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->where('priority_flag', 'urgent')
+            ->count();
+
+        // Pending recommendations for seniors in this barangay
+        $pendingRecs = Recommendation::where('status', 'pending')
+            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->select('category', DB::raw('COUNT(*) as count'))
+            ->groupBy('category')
+            ->orderByDesc('count')
+            ->get();
+
+        return view('reports.barangay', compact(
+            'brgy', 'barangays', 'seniors',
+            'riskDist', 'clusterDist', 'domainAvgs',
+            'urgentCount', 'pendingRecs'
         ));
     }
 
