@@ -11,6 +11,16 @@ use Illuminate\Support\Facades\DB;
 
 class OscaCsvSeeder extends Seeder
 {
+    // Maps old CSV strings → canonical form used by the form/system
+    private const PROBLEMS_NEEDS_MAP = [
+        'Lack of source of income/resources' => 'Lack of income/resources',
+        'Lack of source of income'           => 'Lack of income/resources',
+        'Lack of income'                     => 'Lack of income/resources',
+        'Loss of source of income/resources' => 'Loss of income/resources',
+        'Loss of source of income'           => 'Loss of income/resources',
+        'Loss of income'                     => 'Loss of income/resources',
+    ];
+
     public function run(): void
     {
         $csvPath = base_path('../osca.csv');
@@ -72,7 +82,7 @@ class OscaCsvSeeder extends Seeder
                 'real_assets'             => $this->toList($row['real_assets'] ?? null),
                 'movable_assets'          => $this->toList($row['movable_assets'] ?? null),
                 'monthly_income_range'    => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
-                'problems_needs'          => $this->toList($row['problems_needs'] ?? null),
+                'problems_needs'          => $this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP),
                 'medical_concern'         => $this->toList($row['medical_concern'] ?? null),
                 'dental_concern'          => $this->toList($row['dental_concern'] ?? null),
                 'optical_concern'         => $this->toList($row['optical_concern'] ?? null),
@@ -250,6 +260,11 @@ class OscaCsvSeeder extends Seeder
         }
         $n = (int) round((float) $value);
         return max(1, min(5, $n));
+    }
+
+    private function normalizeList(array $items, array $map): array
+    {
+        return array_values(array_map(fn($item) => $map[$item] ?? $item, $items));
     }
 
     private function normalizeIncomeRange($value): ?string
