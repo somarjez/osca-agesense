@@ -88,9 +88,16 @@ class ReportController extends Controller
 
         $evalMetrics = \App\Support\ClusterMetrics::load();
 
+        // Snapshot history — last 30 snapshots grouped by date, ordered newest first
+        $snapshots = ClusterSnapshot::orderByDesc('snapshot_date')
+            ->orderBy('cluster_id')
+            ->get()
+            ->groupBy(fn($s) => $s->snapshot_date->format('Y-m-d'))
+            ->take(30);
+
         return view('reports.cluster', compact(
             'clusterSummary', 'barangayCluster', 'domainByCluster',
-            'qolByCluster', 'evalMetrics'
+            'qolByCluster', 'evalMetrics', 'snapshots'
         ));
     }
 

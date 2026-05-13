@@ -175,6 +175,68 @@
         <livewire:reports.cluster-analysis />
     </div>
 
+    {{-- ── Snapshot History ── --}}
+    <div class="mt-6">
+        <div class="bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-paper-rule dark:border-[#2b3530]">
+                <div>
+                    <h3 class="font-semibold text-sm text-ink-900 dark:text-[#e4e1d8]">Snapshot History</h3>
+                    <p class="text-xs text-ink-500 dark:text-[#4a5550] mt-0.5">Daily cluster composition records — last 30 snapshots</p>
+                </div>
+                <span class="text-xs text-ink-400 dark:text-[#4a5550]">{{ $snapshots->count() }} snapshot(s)</span>
+            </div>
+
+            @if ($snapshots->isEmpty())
+            <div class="px-5 py-8 text-center text-sm text-ink-400 dark:text-[#4a5550]">
+                No snapshots yet. Click <strong>Take Snapshot</strong> above to record today's cluster composition.
+                <br>Snapshots are also taken automatically at 23:55 daily (requires Laravel scheduler running).
+            </div>
+            @else
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="border-b border-paper-rule dark:border-[#2b3530] bg-paper dark:bg-[#131917]">
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Date</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 1 — High Functioning</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 2 — Mixed Needs</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 3 — Multi-domain Risk</th>
+                            <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-paper-rule dark:divide-[#2b3530]">
+                        @foreach ($snapshots as $date => $clusters)
+                        @php
+                            $byId  = $clusters->keyBy('cluster_id');
+                            $total = $clusters->sum('member_count');
+                        @endphp
+                        <tr class="hover:bg-paper dark:hover:bg-[#131917] transition-colors">
+                            <td class="px-4 py-2.5 font-medium text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">
+                                {{ \Carbon\Carbon::parse($date)->format('M d, Y') }}
+                            </td>
+                            @foreach ([1,2,3] as $cid)
+                            @php
+                                $c      = $byId[$cid] ?? null;
+                                $colors = [1=>'text-emerald-600',2=>'text-amber-600',3=>'text-rose-600'];
+                            @endphp
+                            <td class="px-4 py-2.5">
+                                @if ($c)
+                                <span class="{{ $colors[$cid] }} font-semibold">{{ $c->member_count }}</span>
+                                <span class="text-ink-400 dark:text-[#4a5550] ml-1">avg risk {{ number_format($c->avg_composite_risk, 3) }}</span>
+                                @else
+                                <span class="text-ink-300 dark:text-[#3a4540]">—</span>
+                                @endif
+                            </td>
+                            @endforeach
+                            <td class="px-4 py-2.5 text-right font-medium text-ink-700 dark:text-[#b0b5b2]">{{ $total }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
+        </div>
+    </div>
+
 </div>
 @endsection
 
@@ -262,3 +324,4 @@
 })();
 </script>
 @endpush
+
