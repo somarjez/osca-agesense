@@ -22,6 +22,21 @@ if not exist "%PROJECT%\.env" (
     exit /b 1
 )
 
+:: ── Sync any new keys from .env.example into .env (safe — never overwrites) ────
+powershell -NoProfile -Command ^
+    "$example = Get-Content '%PROJECT%\.env.example' | Where-Object { $_ -match '^[A-Z_]+=' }; " ^
+    "$current  = Get-Content '%PROJECT%\.env'; " ^
+    "$added = 0; " ^
+    "foreach ($line in $example) { " ^
+    "    $key = $line -replace '=.*',''; " ^
+    "    if (-not ($current -match ('^' + [regex]::Escape($key) + '='))) { " ^
+    "        Add-Content '%PROJECT%\.env' $line; " ^
+    "        Write-Host ('  [.env] Added missing key: ' + $key); " ^
+    "        $added++; " ^
+    "    } " ^
+    "} " ^
+    "if ($added -gt 0) { Write-Host ('  [.env] ' + $added + ' new key(s) added from .env.example. Review .env if needed.') }"
+
 :: ── Check for vendor/ ──────────────────────────────────────────────────────────
 if not exist "%PROJECT%\vendor\autoload.php" (
     echo  [!] PHP dependencies not installed.

@@ -152,7 +152,23 @@ if not exist "%PROJECT%\.env" (
     copy "%PROJECT%\.env.example" "%PROJECT%\.env" >nul
     echo  [ OK ] .env created from .env.example.
 ) else (
-    echo  [ OK ] .env already exists — skipping copy.
+    echo  [ OK ] .env already exists — checking for new keys from .env.example...
+    :: Add any keys present in .env.example but missing from .env
+    :: (never overwrites keys the user has already set)
+    powershell -NoProfile -Command ^
+        "$example = Get-Content '%PROJECT%\.env.example' | Where-Object { $_ -match '^[A-Z_]+='}; " ^
+        "$current  = Get-Content '%PROJECT%\.env'; " ^
+        "$added = 0; " ^
+        "foreach ($line in $example) { " ^
+        "    $key = $line -replace '=.*',''; " ^
+        "    if (-not ($current -match ('^' + [regex]::Escape($key) + '='))) { " ^
+        "        Add-Content '%PROJECT%\.env' $line; " ^
+        "        Write-Host ('  [ADDED] ' + $key); " ^
+        "        $added++; " ^
+        "    } " ^
+        "} " ^
+        "if ($added -eq 0) { Write-Host '  [ OK ] .env is up to date — no new keys needed.' } " ^
+        "else { Write-Host ('  [ OK ] Added ' + $added + ' new key(s) from .env.example.') }"
 )
 
 :: Generate app key if APP_KEY is blank
