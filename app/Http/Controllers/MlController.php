@@ -118,7 +118,8 @@ class MlController extends Controller
 
     /**
      * Spawn a detached background PHP process to run ML for this senior, then return immediately.
-     * Uses cmd /c start /b so popen returns instantly without waiting for the ML job to finish.
+     * Writes a .bat launcher: start /b detaches the PHP child so cmd exits immediately,
+     * unblocking popen without waiting for the ML job to finish.
      */
     public function runSingle(SeniorCitizen $senior)
     {
@@ -130,16 +131,18 @@ class MlController extends Controller
 
         $php     = PHP_BINARY;
         $artisan = base_path('artisan');
-        $outLog  = storage_path('logs/ml_single_' . $senior->id . '.log');
-        $errLog  = storage_path('logs/ml_single_' . $senior->id . '.err.log');
+        $bat     = storage_path('logs/ml_launch_' . $senior->id . '.bat');
 
-        // Use cmd /c start /b to fire-and-forget the PHP process.
-        // This avoids PowerShell argument parsing issues with spaces in paths.
-        // start /b runs the command in the background without opening a new window.
-        $cmd = "cmd /c start /b \"\" \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id}"
-            . " > \"$outLog\" 2> \"$errLog\"";
+        // start /b detaches the PHP process — cmd.exe exits immediately so popen unblocks.
+        // No output redirection: start /b redirection captures nothing from the detached child.
+        // Success is determined by the poll checking processed_at in the DB, not log files.
+        file_put_contents($bat, implode("\r\n", [
+            '@echo off',
+            "start /b \"\" \"$php\" \"$artisan\" ml:run-single {$senior->id} {$survey->id}",
+            "del /f /q \"%~f0\"",
+        ]));
 
-        pclose(popen($cmd, 'r'));
+        pclose(popen("cmd /c \"$bat\"", 'r'));
 
         return response()->json(['queued' => true]);
     }
