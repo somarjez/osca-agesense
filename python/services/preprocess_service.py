@@ -893,20 +893,16 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             "func_independence", "func_autonomy", "func_control",
         ]),
         "env_score": _domain_avg(enc, [
+            # Only QoL items on the same 1-5 scale
             "env_income_limit_r", "env_fin_household", "env_fin_medical", "env_fin_personal",
             "env_safe_home", "env_safe_neighborhood", "env_home_comfort", "env_service_access",
-            "income_enc",
             "soc_social_support", "soc_close_friend", "soc_participation", "soc_opportunity", "soc_respect",
-            "living_with_count", "community_service_count",
-            "sec5_real_asset_score", "sec5_movable_asset_score", "sec5_income_source_score",
-            "sec5_eco_stability", "sec4_household_risk", "sec3_community_score",
         ]),
         "func_score": _domain_avg(enc, [
+            # Only QoL items on the same 1-5 scale
             "func_independence", "func_autonomy", "func_control",
             "phy_mobility_outside", "phy_mobility_indoor",
             "soc_participation", "soc_opportunity",
-            "education_enc", "checkup_enc",
-            "sec3_education_norm", "sec3_skill_score", "sec2_family_support",
         ]),
         "qol_score": _domain_avg(enc, [
             "qol_enjoy_life", "qol_life_satisfaction",
