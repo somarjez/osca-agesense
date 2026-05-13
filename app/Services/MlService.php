@@ -170,8 +170,15 @@ class MlService
             return true;
         }
 
-        // Pass ML_MODELS_PATH explicitly so the subprocess doesn't fall back to a hardcoded path.
-        $env = ['ML_MODELS_PATH' => env('ML_MODELS_PATH', base_path('python/models'))];
+        // Inherit the full parent environment so PATH, TEMP, SYSTEMROOT etc. are
+        // available inside the PS1 subprocess — a sparse array would strip them on
+        // Windows and prevent python/netstat/powershell from being found.
+        $env = getenv() ?: [];
+        $env['ML_MODELS_PATH'] = env('ML_MODELS_PATH', base_path('python/models'));
+        $notebookOverrides = env('ENABLE_NOTEBOOK_OVERRIDES');
+        if ($notebookOverrides !== null) {
+            $env['ENABLE_NOTEBOOK_OVERRIDES'] = (string) $notebookOverrides;
+        }
 
         try {
             $process = new Process(['powershell.exe', '-NoProfile', '-File', $startScript], base_path(), $env);
