@@ -64,18 +64,55 @@ if not exist "%PROJECT%\python\venv\Scripts\python.exe" (
     exit /b 1
 )
 
-:: ── Check PHP on PATH ──────────────────────────────────────────────────────────
+:: ── Resolve PHP executable (PATH → Laragon → XAMPP → give up) ─────────────────
+set "PHP="
 where php >nul 2>&1
-if errorlevel 1 (
-    echo  [!] php.exe not found on PATH.
-    echo      Install PHP 8.2+ and add it to your PATH, then re-run.
+if not errorlevel 1 (
+    for /f "delims=" %%i in ('where php') do (
+        if not defined PHP set "PHP=%%i"
+    )
+)
+
+:: Laragon — check current and common version subfolders
+if not defined PHP (
+    for %%d in (
+        "%USERPROFILE%\laragon\bin\php"
+        "C:\laragon\bin\php"
+    ) do (
+        if not defined PHP (
+            for /d %%v in ("%%~d\php*") do (
+                if not defined PHP (
+                    if exist "%%~v\php.exe" set "PHP=%%~v\php.exe"
+                )
+            )
+            if exist "%%~d\php.exe" (
+                if not defined PHP set "PHP=%%~d\php.exe"
+            )
+        )
+    )
+)
+
+:: XAMPP
+if not defined PHP (
+    for %%d in ("C:\xampp\php\php.exe" "D:\xampp\php\php.exe") do (
+        if not defined PHP (
+            if exist "%%~d" set "PHP=%%~d"
+        )
+    )
+)
+
+if not defined PHP (
+    echo  [!] php.exe not found on PATH or in Laragon/XAMPP default locations.
+    echo      Add PHP 8.2+ to your PATH and re-run, or install Laragon.
     echo.
     pause
     exit /b 1
 )
 
+echo  Using PHP: %PHP%
+
 echo  Clearing compiled view cache...
-php artisan view:clear >nul 2>&1
+"%PHP%" artisan view:clear >nul 2>&1
 
 echo  [1/3] Starting Python ML services in background...
 echo        (Models load in ~30 seconds on first run)
@@ -85,7 +122,7 @@ start "" /B powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden ^
 
 echo  [2/3] Starting Laravel queue worker in background...
 powershell -NoProfile -WindowStyle Hidden -Command ^
-    "Start-Process 'php' '-d max_execution_time=0 artisan queue:work --queue=default --tries=1 --sleep=3' -WorkingDirectory '%PROJECT%' -WindowStyle Hidden -RedirectStandardOutput '%PROJECT%\storage\logs\queue.log' -RedirectStandardError '%PROJECT%\storage\logs\queue.err.log'"
+    "Start-Process '%PHP%' '-d max_execution_time=0 artisan queue:work --queue=default --tries=1 --sleep=3' -WorkingDirectory '%PROJECT%' -WindowStyle Hidden -RedirectStandardOutput '%PROJECT%\storage\logs\queue.log' -RedirectStandardError '%PROJECT%\storage\logs\queue.err.log'"
 
 echo  [3/3] Starting Laravel development server...
 echo        (Browser opening in 5 seconds)
@@ -107,6 +144,6 @@ echo  -----------------------------------------------
 echo.
 
 cd /d "%PROJECT%"
-php artisan serve
+"%PHP%" artisan serve
 
 endlocal

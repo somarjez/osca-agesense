@@ -36,16 +36,43 @@ echo.
 echo  ── Checking prerequisites ──────────────────────────────────────
 echo.
 
-:: PHP
+:: PHP — check PATH first, then Laragon, then XAMPP
+set "PHP="
 where php >nul 2>&1
-if errorlevel 1 (
-    echo  [FAIL] php not found on PATH.
+if not errorlevel 1 (
+    for /f "delims=" %%i in ('where php') do (
+        if not defined PHP set "PHP=%%i"
+    )
+)
+if not defined PHP (
+    for %%d in ("%USERPROFILE%\laragon\bin\php" "C:\laragon\bin\php") do (
+        if not defined PHP (
+            for /d %%v in ("%%~d\php*") do (
+                if not defined PHP (
+                    if exist "%%~v\php.exe" set "PHP=%%~v\php.exe"
+                )
+            )
+            if exist "%%~d\php.exe" (
+                if not defined PHP set "PHP=%%~d\php.exe"
+            )
+        )
+    )
+)
+if not defined PHP (
+    for %%d in ("C:\xampp\php\php.exe" "D:\xampp\php\php.exe") do (
+        if not defined PHP (
+            if exist "%%~d" set "PHP=%%~d"
+        )
+    )
+)
+if not defined PHP (
+    echo  [FAIL] php not found on PATH or in Laragon/XAMPP default locations.
     echo         Install PHP 8.2+ from https://windows.php.net/download/
-    echo         and add it to your PATH, then re-run setup.bat.
+    echo         or install Laragon from https://laragon.org/
     set ERRORS=1
 ) else (
-    for /f "tokens=2 delims= " %%v in ('php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;"') do set PHP_VER=%%v
-    echo  [ OK ] PHP found
+    for /f "delims=" %%v in ('"%PHP%" -r "echo PHP_MAJOR_VERSION . chr(46) . PHP_MINOR_VERSION;"') do set PHP_VER=%%v
+    echo  [ OK ] PHP found: %PHP%
 )
 
 :: Composer
@@ -172,7 +199,7 @@ if not exist "%PROJECT%\.env" (
 )
 
 :: Generate app key if APP_KEY is blank
-php artisan key:generate --ansi
+"%PHP%" artisan key:generate --ansi
 echo.
 
 :: ═══════════════════════════════════════════════════════════════════
@@ -191,7 +218,7 @@ echo  then re-run setup.bat.
 echo.
 pause
 
-php artisan migrate --force
+"%PHP%" artisan migrate --force
 if errorlevel 1 (
     echo.
     echo  [FAIL] Migrations failed.
@@ -218,7 +245,7 @@ if exist "%PROJECT%\osca.csv" (
     echo  Found osca.csv in project root — importing senior citizen data...
     echo  This may take several minutes (ML pipeline runs for each senior).
     echo.
-    php artisan db:seed --no-interaction
+    "%PHP%" artisan db:seed --no-interaction
     if errorlevel 1 (
         echo  [WARN] Seeding encountered errors. Check output above.
         echo         The system is still usable — you can add seniors manually.
@@ -229,7 +256,7 @@ if exist "%PROJECT%\osca.csv" (
     echo  Found osca.csv one level up — importing senior citizen data...
     echo  This may take several minutes (ML pipeline runs for each senior).
     echo.
-    php artisan db:seed --no-interaction
+    "%PHP%" artisan db:seed --no-interaction
     if errorlevel 1 (
         echo  [WARN] Seeding encountered errors. Check output above.
         echo         The system is still usable — you can add seniors manually.
@@ -330,8 +357,6 @@ echo   Setup complete!
 echo.
 echo   To start the system:
 echo     Double-click  start.bat
-echo   or run:
-echo     php artisan serve
 echo.
 echo   Login credentials:
 echo     URL      : http://127.0.0.1:8000
