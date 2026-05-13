@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Split-Path -Parent $scriptDir
@@ -9,7 +9,7 @@ $modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path 
 $enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
 
 if (-not (Test-Path $venvPython)) {
-    Write-Output "[ML] Venv not found — creating it now (first run takes a few minutes)..."
+    Write-Output "[ML] Venv not found - creating it now (first run takes a few minutes)..."
 
     # Find any system Python to bootstrap the venv
     $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
