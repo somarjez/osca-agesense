@@ -18,10 +18,10 @@
 
             <div x-data="{
                     loading: false, done: false, err: '',
-                    pollTimer: null,
+                    pollTimer: null, pollCount: 0, pollMax: 60,
                     baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
                     run() {
-                        this.loading = true; this.err = '';
+                        this.loading = true; this.err = ''; this.pollCount = 0;
                         fetch('{{ route('ml.run.single', $senior) }}', {
                             method: 'POST',
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
@@ -35,6 +35,13 @@
                     },
                     poll() {
                         this.pollTimer = setInterval(() => {
+                            this.pollCount++;
+                            if (this.pollCount >= this.pollMax) {
+                                clearInterval(this.pollTimer);
+                                this.loading = false;
+                                this.err = 'Analysis timed out. Check that Python services are running, then try again.';
+                                return;
+                            }
                             fetch('{{ route('ml.result.senior', $senior) }}', {
                                 headers: { 'Accept': 'application/json' }
                             })
@@ -84,10 +91,16 @@
     @if ($pendingAnalysis)
     {{-- Analysis dispatched — poll until the job writes a fresher result --}}
     <div x-data="{
-            pollTimer: null,
+            pollTimer: null, pollCount: 0, pollMax: 60, timedOut: false,
             baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
             init() {
                 this.pollTimer = setInterval(() => {
+                    this.pollCount++;
+                    if (this.pollCount >= this.pollMax) {
+                        clearInterval(this.pollTimer);
+                        this.timedOut = true;
+                        return;
+                    }
                     fetch('{{ route('ml.result.senior', $senior) }}', { headers: { 'Accept': 'application/json' } })
                     .then(r => r.json())
                     .then(d => {
@@ -102,11 +115,14 @@
         }"
         class="card border-l-[3px] border-l-primary-500">
         <div class="card-body flex items-center gap-3 text-sm text-ink-700">
-            <svg class="w-4 h-4 animate-spin text-primary-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-            </svg>
-            ML analysis is running in the background. This page will update automatically when complete.
+            <template x-if="!timedOut">
+                <svg class="w-4 h-4 animate-spin text-primary-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+            </template>
+            <span x-show="!timedOut">ML analysis is running in the background. This page will update automatically when complete.</span>
+            <span x-show="timedOut" class="text-red-600">Analysis timed out. Check that Python services are running, then re-run the assessment.</span>
         </div>
     </div>
     @endif
