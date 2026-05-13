@@ -7,6 +7,7 @@ use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
+use App\Support\DbHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -247,7 +248,7 @@ class ReportController extends Controller
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name, ' ', senior_citizens.last_name) as name"),
                 'senior_citizens.barangay',
-                DB::raw('TIMESTAMPDIFF(YEAR, senior_citizens.date_of_birth, CURDATE()) as age'),
+                DB::raw(DbHelper::ageExpr('senior_citizens.date_of_birth')),
                 'senior_citizens.gender',
                 'ml_results.cluster_named_id as cluster',
                 'ml_results.cluster_name',
@@ -304,7 +305,7 @@ class ReportController extends Controller
                 'senior_citizens.first_name',
                 'senior_citizens.middle_name',
                 'senior_citizens.date_of_birth',
-                DB::raw('TIMESTAMPDIFF(YEAR, senior_citizens.date_of_birth, CURDATE()) as age'),
+                DB::raw(DbHelper::ageExpr('senior_citizens.date_of_birth')),
                 'senior_citizens.gender',
                 'senior_citizens.marital_status',
                 'senior_citizens.barangay',
@@ -393,7 +394,7 @@ class ReportController extends Controller
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name) as name"),
                 'senior_citizens.barangay',
-                DB::raw('TIMESTAMPDIFF(YEAR, senior_citizens.date_of_birth, CURDATE()) as age'),
+                DB::raw(DbHelper::ageExpr('senior_citizens.date_of_birth')),
                 'ml_results.overall_risk_level',
                 'ml_results.composite_risk',
                 'ml_results.ic_risk_level',
