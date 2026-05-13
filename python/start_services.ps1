@@ -5,7 +5,7 @@ $projectDir = Split-Path -Parent $scriptDir
 $servicesDir = Join-Path $scriptDir 'services'
 $venvPython = Join-Path $scriptDir 'venv\Scripts\python.exe'
 $logsDir = Join-Path $projectDir 'storage\logs'
-$modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { 'C:\Users\jramo\AppData\Local\OSCA-System\ml_models' }
+$modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path $scriptDir 'models' }
 $enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
 
 if (-not (Test-Path $venvPython)) {
