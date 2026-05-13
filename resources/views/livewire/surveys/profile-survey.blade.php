@@ -15,7 +15,7 @@
         @endphp
         <div class="flex gap-1 mb-2">
             @foreach ($stepLabels as $s => $lbl)
-            <button wire:click="goToStep({{ $s }})"
+            <button type="button" wire:click="goToStep({{ $s }})"
                     class="flex-1 py-2 text-xs font-medium rounded-lg transition-all
                            {{ $step === $s
                               ? 'bg-teal-600 text-white shadow-sm'
@@ -46,7 +46,7 @@
     @endif
 
     {{-- ── Form Card ── --}}
-    <form wire:submit.prevent="{{ $step < $totalSteps ? 'nextStep' : 'save' }}">
+    <form wire:submit.prevent="save">
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
 
         {{-- Validation errors --}}
@@ -464,7 +464,7 @@
         {{-- ── Footer Navigation ── --}}
         <div class="border-t border-slate-100 px-5 py-4 flex items-center gap-3">
             @if ($step > 1)
-            <button wire:click="prevStep"
+            <button type="button" wire:click="prevStep"
                     class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                 ← Back
             </button>
@@ -472,7 +472,7 @@
 
             <div class="ml-auto flex gap-3">
                 @if ($step < $totalSteps)
-                <button wire:click="nextStep"
+                <button type="button" wire:click="nextStep"
                         class="px-5 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm">
                     Next →
                 </button>

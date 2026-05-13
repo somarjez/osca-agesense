@@ -18,6 +18,8 @@
 
             <div x-data="{
                     loading: false, done: false, err: '',
+                    pollTimer: null,
+                    baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
                     run() {
                         this.loading = true; this.err = '';
                         fetch('{{ route('ml.run.single', $senior) }}', {
@@ -26,15 +28,38 @@
                         })
                         .then(r => r.json())
                         .then(d => {
-                            if (d.success) { this.done = true; setTimeout(() => location.reload(), 1200); }
-                            else { this.err = d.error || 'Analysis failed.'; this.loading = false; }
+                            if (d.error) { this.err = d.error; this.loading = false; return; }
+                            this.poll();
                         })
-                        .catch(() => { this.err = 'Request failed. Is the analysis service running?'; this.loading = false; });
+                        .catch(() => { this.err = 'Request failed.'; this.loading = false; });
+                    },
+                    poll() {
+                        this.pollTimer = setInterval(() => {
+                            fetch('{{ route('ml.result.senior', $senior) }}', {
+                                headers: { 'Accept': 'application/json' }
+                            })
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.ready && d.processed_at && d.processed_at > this.baseTs) {
+                                    clearInterval(this.pollTimer);
+                                    this.done = true;
+                                    setTimeout(() => location.reload(), 800);
+                                }
+                            })
+                            .catch(() => {});
+                        }, 3000);
                     }
                 }">
                 <button @click="run()" :disabled="loading || done" class="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
-                    <template x-if="loading"><span>Running…</span></template>
-                    <template x-if="done"><span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Refreshing…</span></template>
+                    <template x-if="loading && !done">
+                        <span class="inline-flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            Analyzing…
+                        </span>
+                    </template>
+                    <template x-if="done">
+                        <span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Done — reloading…</span>
+                    </template>
                     <template x-if="!loading && !done">
                         <span class="inline-flex items-center gap-1.5">
                             <x-heroicon-o-arrow-path class="w-3.5 h-3.5" /> Re-run Assessment
@@ -54,7 +79,39 @@
     </div>
 
     {{-- ── ML Result Banner ── --}}
-    @if ($ml)
+    @php $pendingAnalysis = session()->has('success') && $senior->latestQolSurvey; @endphp
+
+    @if ($pendingAnalysis)
+    {{-- Analysis dispatched — poll until the job writes a fresher result --}}
+    <div x-data="{
+            pollTimer: null,
+            baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
+            init() {
+                this.pollTimer = setInterval(() => {
+                    fetch('{{ route('ml.result.senior', $senior) }}', { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.ready && d.processed_at && d.processed_at > this.baseTs) {
+                            clearInterval(this.pollTimer);
+                            location.reload();
+                        }
+                    })
+                    .catch(() => {});
+                }, 3000);
+            }
+        }"
+        class="card border-l-[3px] border-l-primary-500">
+        <div class="card-body flex items-center gap-3 text-sm text-ink-700">
+            <svg class="w-4 h-4 animate-spin text-primary-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            ML analysis is running in the background. This page will update automatically when complete.
+        </div>
+    </div>
+    @endif
+
+    @if ($ml && !$pendingAnalysis)
     <div class="card">
         <div class="card-body">
             <div class="flex flex-wrap gap-x-8 gap-y-4 items-start">
@@ -97,7 +154,7 @@
             </div>
         </div>
     </div>
-    @else
+    @elseif (!$ml && !$pendingAnalysis)
     <div class="card border-l-[3px] border-l-moderate-500">
         <div class="card-body text-sm text-ink-700">
             No assessment yet. Complete a QoL survey and run the assessment to see risk scores and recommendations.
