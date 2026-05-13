@@ -214,8 +214,19 @@ echo.
 :: ═══════════════════════════════════════════════════════════════════
 echo  ── [5/8] Seeding database ────────────────────────────────────────
 echo.
-if exist "%PROJECT%\..\osca.csv" (
-    echo  Found osca.csv — importing senior citizen data...
+if exist "%PROJECT%\osca.csv" (
+    echo  Found osca.csv in project root — importing senior citizen data...
+    echo  This may take several minutes (ML pipeline runs for each senior).
+    echo.
+    php artisan db:seed --no-interaction
+    if errorlevel 1 (
+        echo  [WARN] Seeding encountered errors. Check output above.
+        echo         The system is still usable — you can add seniors manually.
+    ) else (
+        echo  [ OK ] Data imported successfully.
+    )
+) else if exist "%PROJECT%\..\osca.csv" (
+    echo  Found osca.csv one level up — importing senior citizen data...
     echo  This may take several minutes (ML pipeline runs for each senior).
     echo.
     php artisan db:seed --no-interaction
@@ -226,10 +237,10 @@ if exist "%PROJECT%\..\osca.csv" (
         echo  [ OK ] Data imported successfully.
     )
 ) else (
-    echo  osca.csv not found at ..\osca.csv — skipping data import.
+    echo  osca.csv not found — skipping data import.
     echo  The system will start with no senior records.
-    echo  You can import data later via: php artisan db:seed
-    echo  (place osca.csv one folder above the project root first)
+    echo  You can import data later by placing osca.csv in the project root
+    echo  and running:  php artisan db:seed
 )
 echo.
 

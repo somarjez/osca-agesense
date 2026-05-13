@@ -76,7 +76,61 @@ Install all of the following before running setup:
 
 ## Quick Start (Recommended)
 
-After cloning the repository, use the two batch files included in the project root.
+This is the recommended path for **any machine cloning the project for the first time** — including collaborators and other developer machines. No notebook, no `osca_output/`, and no manual file placement is required beyond what is described here.
+
+### Before you begin — what you need
+
+| Item | Required? | Notes |
+|---|---|---|
+| Git | Yes | To clone the repository |
+| PHP 8.2+ | Yes | See Prerequisites |
+| Composer | Yes | See Prerequisites |
+| Node.js 18+ | Yes | See Prerequisites |
+| Python 3.10+ | Yes | See Prerequisites |
+| MySQL 8.0+ | Yes | Create the database before running setup |
+| `osca.csv` | Only for seeding | Place in the project root before running setup |
+| Jupyter notebook / `osca_output/` | **No** | Only needed on the machine that trains the model |
+
+> The trained ML model files and validated prediction CSVs are already committed to the repository under `python/models/`. Every machine that clones the repo gets the correct model and results automatically.
+
+---
+
+### Step 0 — Clone the repository
+
+```bash
+git clone https://github.com/somarjez/osca-agesense.git
+cd osca-agesense
+```
+
+> If you already have a local clone, pull the latest changes first:
+> ```bash
+> git pull
+> ```
+
+### Step 0.5 — Create the MySQL database
+
+Before running setup, create the database:
+
+```sql
+-- Run this once in MySQL (via MySQL Workbench, phpMyAdmin, or terminal):
+CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+If using SQLite (simpler, no MySQL needed), skip this — see [Environment Configuration](#environment-configuration).
+
+### Step 0.6 — Place `osca.csv` (if seeding with real data)
+
+If you have the senior citizen data file, place it in the **project root** (same folder as `setup.bat`):
+
+```
+osca-agesense/
+├── osca.csv          ← place it here
+├── setup.bat
+├── start.bat
+├── ...
+```
+
+If `osca.csv` is absent, setup completes without data and you can add seniors manually through the system.
 
 ### Step 1 — First-time setup (run once)
 
@@ -84,19 +138,24 @@ After cloning the repository, use the two batch files included in the project ro
 Double-click  setup.bat
 ```
 
-This single script handles everything:
-- Installs PHP, Node.js, and Python dependencies
-- Creates `.env` from `.env.example`
-- Generates the application key
-- Runs all database migrations
-- Seeds data from `osca.csv` if the file is present
-- Builds frontend assets
-- Creates the Python virtual environment
-- Installs all Python ML packages
+This single script handles everything automatically:
 
-**Total time: 5–15 minutes** on first run (most time is spent on Python package installation and the ML pipeline during seeding).
+| Step | What it does |
+|---|---|
+| 1 | Installs PHP dependencies (`composer install`) |
+| 2 | Installs Node.js dependencies (`npm install`) |
+| 3 | Creates `.env` from `.env.example`; syncs any new keys if `.env` already exists |
+| 4 | Generates the Laravel application key |
+| 5 | Runs database migrations |
+| 6 | Seeds data from `osca.csv` if present (runs the full ML pipeline — takes several minutes) |
+| 7 | Builds frontend assets (`npm run build`) |
+| 8 | Creates Python virtual environment (`python/venv`) |
+| 9 | Installs Python ML dependencies |
+| 10 | Syncs ML model files from `osca_output/` into `python/models/` if that folder is present |
 
-> **For seeding with real data:** Place `osca.csv` one folder above the project root (i.e., at `..\osca.csv`) before running `setup.bat`. If the file is absent, setup completes without data and you can add seniors manually.
+**Total time: 5–15 minutes** on first run (most time is pip + ML pipeline during seeding).
+
+> **Important — DB credentials:** During Step 4 (database), the script pauses and shows your current `.env` DB settings. If they are wrong, close the window, edit `.env` (in the project root), then re-run `setup.bat`.
 
 ### Step 2 — Run every time
 
@@ -104,19 +163,26 @@ This single script handles everything:
 Double-click  start.bat
 ```
 
-This starts the Laravel development server and the Python ML services in the background, then opens the browser automatically.
+This:
+1. Checks all required files are present
+2. Syncs any new `.env` keys added since your last run (safe — never overwrites values you set)
+3. Starts the Python ML services in the background
+4. Opens the browser at `http://127.0.0.1:8000`
+5. Starts the Laravel development server
+
+> If this is your first run after a `git pull`, always run `start.bat` **before** re-seeding so the `.env` sync runs first.
 
 ---
 
 ## Manual Setup
 
-If you prefer to run each step yourself:
+If you prefer to run each step yourself instead of using `setup.bat`:
 
 ### 1. Clone
 
 ```bash
-git clone <repository-url>
-cd osca-system
+git clone https://github.com/somarjez/osca-agesense.git
+cd osca-agesense
 ```
 
 ### 2. PHP dependencies
@@ -134,15 +200,18 @@ npm install
 ### 4. Environment file
 
 ```bash
+# Windows (Command Prompt / PowerShell)
 copy .env.example .env
+
+# Then generate the app key:
 php artisan key:generate
 ```
 
 ### 5. Configure `.env`
 
-Edit `.env` with your database credentials. See [Environment Configuration](#environment-configuration).
+Open `.env` and fill in your database credentials. See [Environment Configuration](#environment-configuration).
 
-### 6. Create MySQL database
+### 6. Create the MySQL database (if using MySQL)
 
 ```sql
 CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -154,13 +223,15 @@ CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 php artisan migrate
 ```
 
-### 8. Seed data (optional)
+### 8. (Optional) Seed data
 
-Place `osca.csv` at `..\osca.csv` (one level above project root), then:
+Place `osca.csv` in the **project root** (same folder as `composer.json`), then:
 
 ```bash
 php artisan db:seed
 ```
+
+The seeder also accepts the file one folder above the project root — but the project root is the recommended location.
 
 ### 9. Build frontend assets
 
@@ -171,17 +242,11 @@ npm run build
 ### 10. Python virtual environment
 
 ```bash
-cd python
-python -m venv venv
+# Create the venv (run once):
+python -m venv python\venv
 
-# Windows:
-venv\Scripts\activate
-
-# macOS/Linux:
-source venv/bin/activate
-
-pip install -r requirements.txt
-cd ..
+# Install ML dependencies:
+python\venv\Scripts\pip install -r python\requirements.txt
 ```
 
 ### 11. Start the system
@@ -424,7 +489,8 @@ xcopy /Y osca_output\predictions\senior_recommendations_flat.csv python\models\p
 **Step 2 — Validate:**
 
 ```bat
-python\venv\Scripts\python python\services\_validate.py
+python\venv\Scripts\python python\tests\test_inference_paths.py
+python\venv\Scripts\python python\tests\test_inference_e2e.py
 ```
 
 All checks must pass before committing.
@@ -538,7 +604,7 @@ php artisan migrate:fresh --seed
 # Run migrations only
 php artisan migrate
 
-# Seed from osca.csv (file must be at ../osca.csv)
+# Seed from osca.csv (file must be in project root, or one level above)
 php artisan db:seed
 
 # Clear all caches
@@ -641,7 +707,16 @@ The most common cause is a missing or stale `python/models/predictions/senior_pr
 
 ### `osca.csv not found` during seeding
 
-Place the file at `..\osca.csv` — one folder above the project root. The seeder uses `base_path('../osca.csv')`.
+Place the file in the **project root** (same folder as `setup.bat` and `composer.json`):
+
+```
+osca-agesense/
+├── osca.csv     ← here
+├── setup.bat
+├── composer.json
+```
+
+The seeder also accepts the file one level above the project root as a fallback, but the project root is preferred.
 
 ---
 

@@ -23,9 +23,13 @@ class OscaCsvSeeder extends Seeder
 
     public function run(): void
     {
-        $csvPath = base_path('../osca.csv');
+        // Check project root first, then one level up (legacy placement)
+        $csvPath = file_exists(base_path('osca.csv'))
+            ? base_path('osca.csv')
+            : base_path('../osca.csv');
+
         if (!file_exists($csvPath)) {
-            $this->command->error("CSV file not found: {$csvPath}");
+            $this->command->error('osca.csv not found. Place it in the project root or one folder above, then re-run.');
             return;
         }
 
