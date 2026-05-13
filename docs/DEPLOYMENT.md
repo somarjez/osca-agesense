@@ -54,26 +54,33 @@ Verify with: `php -m | findstr -i "pdo mysql mbstring"`
 
 ```
 osca-system/
-├── app/                    Laravel application layer
-│   ├── Http/Controllers/   Route controllers
+├── app/
+│   ├── Console/Commands/   Artisan commands (osca:purge-expired)
+│   ├── Http/Controllers/   Route controllers (including ActivityLogController)
+│   ├── Jobs/               ProcessMlBatch queued job
 │   ├── Livewire/           Livewire components (dashboard, reports, forms)
-│   ├── Models/             Eloquent models
-│   └── Services/           MlService, ClusterAnalyticsService
+│   ├── Models/             Eloquent models (including ActivityLog)
+│   ├── Observers/          ActivityLogObserver
+│   ├── Services/           MlService, ClusterAnalyticsService
+│   └── Support/            ClusterMetrics helper
 ├── database/
 │   ├── migrations/         Database schema definitions
 │   └── seeders/            OscaCsvSeeder (bulk import)
 ├── docs/                   This documentation
 ├── python/
+│   ├── models/             Trained artefacts (.pkl, .json) + cluster_eval_metrics.json
+│   │   └── predictions/    senior_predictions.csv, senior_recommendations_flat.csv
 │   ├── services/           preprocess_service.py, inference_service.py, local_ml_runner.py
-│   ├── tests/              test_ml_pipeline.py
+│   ├── tests/              test_ml_pipeline.py, test_inference_paths.py, test_inference_e2e.py
 │   ├── venv/               Python virtual environment (not committed)
-│   └── start_services.ps1  Windows startup script
+│   ├── start_services.ps1  Windows startup script
+│   └── start_services.sh   Linux/macOS startup script
 ├── resources/
 │   ├── js/                 Alpine.js + Chart.js frontend
 │   └── views/              Blade templates
 ├── routes/                 web.php, seniors.php, surveys.php, ml.php, reports.php, recommendations.php
 ├── storage/
-│   └── app/ml_models/      Trained model artefacts (.pkl, .json)
+│   └── logs/               queue.log, queue.err.log, ml_startup.log
 └── .env                    Environment configuration (not committed)
 ```
 
@@ -301,15 +308,32 @@ Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `g
 
 ## 7. Running the Application
 
-### Development
+### Development (Windows — recommended)
+
+Double-click `start.bat`. It does everything automatically:
+
+1. Detects PHP (PATH → Laragon → XAMPP)
+2. Starts Python ML services in the background (`start_services.ps1`)
+3. Starts the Laravel queue worker as a hidden background process (logs to `storage/logs/queue.log`)
+4. Opens `http://127.0.0.1:8000` in your browser
+5. Starts the Laravel development server in the foreground
+
+Press `Ctrl+C` to stop the server. The ML services and queue worker continue in the background until you close all terminals or restart.
+
+### Development (manual — single terminal)
 
 ```powershell
-# Terminal 1 — Laravel + auto-starts Python services
-php artisan serve
+# Start Python ML services
+powershell -File python\start_services.ps1
 
-# Terminal 2 — Vite hot reload (optional, for frontend development)
-npm run dev
+# Start queue worker (keep running for batch ML inference)
+php artisan queue:work --queue=default
+
+# Start Laravel in a separate terminal
+php artisan serve
 ```
+
+**Note:** PHP must be on your PATH when running manually. On Laragon, add `C:\laragon\bin\php\phpX.X\` to your system PATH, or use `start.bat` which handles detection automatically.
 
 ### Production (Ubuntu/nginx)
 
@@ -411,15 +435,19 @@ Before going live with real data:
 - [ ] Set `APP_DEBUG=false` in `.env`
 - [ ] Set `APP_ENV=production` in `.env`
 - [ ] Confirm `SESSION_DRIVER=database` and sessions table exists
+- [ ] Confirm `QUEUE_CONNECTION=database` and `jobs` / `job_batches` tables exist
+- [ ] Confirm queue worker starts on boot (systemd on Linux, Task Scheduler on Windows)
 - [ ] Confirm ML model artefacts are present in `python/models/` (auto-present after `git clone`)
 - [ ] Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` (default) so results match validated notebook output
 - [ ] Verify Python services start on boot (systemd or equivalent — see `start_services.sh`)
 - [ ] Set up automated database backups (daily minimum)
 - [ ] Review and configure `MAIL_MAILER` for notifications
 - [ ] Implement role-based access control before multi-staff deployment (see SYSTEM_FUNCTIONALITY.md §17)
-- [ ] Review Philippine Data Privacy Act compliance (see SYSTEM_FUNCTIONALITY.md §16)
+- [ ] Review Philippine Data Privacy Act compliance (see SYSTEM_FUNCTIONALITY.md §16): consent field recorded, encryption active, data retention policy understood
+- [ ] Run `php artisan osca:purge-expired --years=5` in dry-run mode to confirm retention policy
 - [ ] Configure HTTPS (TLS certificate — Let's Encrypt recommended for production)
 - [ ] Test all three ML fallback tiers on the target server
+- [ ] Verify Activity Log is recording entries at `/activity-log`
 
 ---
 
@@ -429,12 +457,15 @@ Before going live with real data:
 |---|---|---|
 | `php artisan migrate` fails with "Access denied" | Wrong DB credentials | Check `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST` in `.env` |
 | `composer install` fails with PHP version error | PHP < 8.2 installed | Install PHP 8.2+ and confirm `php --version` |
-| Python services show "Offline" in the dashboard | Services not started | Run `.\python\start_services.ps1` in a separate terminal |
+| `php` not found — `start.bat` shows `[!] php.exe not found` | PHP not on PATH and not in default Laragon/XAMPP locations | Add your PHP folder to the system PATH, or install [Laragon](https://laragon.org/) which is auto-detected |
+| Python services show "Offline" in the dashboard | Services not started | Run `.\python\start_services.ps1` in a separate terminal, or just use `start.bat` |
+| Batch ML inference gets stuck at 0% | Queue worker not running | Confirm `storage/logs/queue.log` shows a worker started; if not, run `php artisan queue:work` manually |
 | Wrong risk distribution after seeding (e.g. HIGH≠53) | `ENABLE_NOTEBOOK_OVERRIDES` is `false` or missing | Set `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env` (or run `start.bat` to sync from `.env.example`), then re-seed |
-| `WinError 10106` in Python service logs | Numba socket conflict on Windows | The `ServeCommand` sets `NUMBA_DISABLE_JIT=0` and threading overrides automatically; restart the service |
+| `WinError 10106` in Python service logs | Numba socket conflict on Windows | Restart the ML services from `/ml/status` |
 | `UMAP` import error on Python startup | Missing packages | Re-run `pip install -r python/requirements.txt` with venv activated |
 | Git `index.lock` error during branch switch | Another git process is running | Delete `.git/index.lock` manually: `Remove-Item .git\index.lock -Force` |
 | Storage directory deletion fails during `git switch` | Windows file lock (IDE or PHP server has cache directory open) | Close IDE file watchers or stop `php artisan serve`, then switch branches |
 | `Class 'App\Http\Controllers\HelpController' not found` | Composer autoload cache stale | Run `composer dump-autoload` |
 | Assets not loading (404 on `/build/`) | Vite build not run | Run `npm run build` |
 | `npm run build` fails | Node modules not installed | Run `npm install` first |
+| Encrypted field shows gibberish in database | `APP_KEY` changed after data was encrypted | Restore the original `APP_KEY` from a backup `.env`; changing the key makes all encrypted fields unreadable |

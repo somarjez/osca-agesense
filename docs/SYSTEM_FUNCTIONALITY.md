@@ -395,11 +395,11 @@ All dashboard data is computed in `MainDashboard.php` and filtered in real time 
 - Per-cluster summary: member count, average IC/ENV/FUNC risks, average composite risk, average wellbeing
 - WHO domain risk comparison across clusters (grouped bar chart)
 - QoL domain scores comparison across clusters (radar chart)
-- **Cluster evaluation metrics** (hardcoded from training notebook):
-  - Silhouette Score: **0.412**
-  - Davies-Bouldin Index: **1.198**
-  - Calinski-Harabász Index: **84.3**
-  - K chosen: **3**
+- **Cluster evaluation metrics** (read from `python/models/cluster_eval_metrics.json` — updates automatically when model is retrained):
+  - Silhouette Score
+  - Davies-Bouldin Index
+  - Calinski-Harabász Index
+  - K chosen
 - Barangay × Cluster distribution
 
 ### Risk Analysis
@@ -481,7 +481,7 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 | 1 (raw) | 2 | Moderate / Mixed Needs — moderate risk across one or more domains |
 | 2 (raw) | 3 | Low Functioning / Multi-domain Risk — high risk across multiple domains |
 
-- **Evaluation metrics** (from training notebook, hardcoded in ClusterAnalysis Livewire component):
+- **Evaluation metrics** (loaded from `python/models/cluster_eval_metrics.json` — update automatically when the model is retrained and the file is regenerated):
   - Silhouette Score: 0.412 (moderate — acceptable for population health data)
   - Davies-Bouldin Index: 1.198
   - Calinski-Harabász Index: 84.3
@@ -685,23 +685,17 @@ The following table defines terms as they are used throughout the codebase, data
 
 1. **No role-based access control:** All authenticated users share identical permissions. OSCA staff cannot be restricted from performing administrative operations (force delete, batch inference, service management).
 
-2. **Cluster evaluation metrics are hardcoded:** The Silhouette (0.412), Davies-Bouldin (1.198), and Calinski-Harabász (84.3) scores are literal constants in `ClusterAnalysis.php`. They do not update when the model is retrained.
+2. **No longitudinal tracking:** The `cluster_snapshots` table exists but is never populated. There is no mechanism to track how a senior's cluster assignment or risk scores change over time.
 
-3. **No longitudinal tracking:** The `cluster_snapshots` table exists but is never populated. There is no mechanism to track how a senior's cluster assignment or risk scores change over time.
+3. **`SeniorCitizenController::store()` and `update()` are stubs:** Profile creation and editing are handled by the `ProfileSurvey` Livewire component. The corresponding controller methods simply redirect without any validation or persistence logic, which could cause confusion during maintenance.
 
-4. **Activity logging not implemented:** The `activity_logs` table schema is defined but no create/update/delete events are recorded anywhere in the application code.
+4. **Auto-start platform limitation:** `php artisan serve` auto-starts ML services via `python/start_services.ps1` (PowerShell). A shell equivalent `python/start_services.sh` is committed for Linux/macOS, but the `ServeCommand` auto-launcher only calls the PS1 script. Linux/macOS users start services manually via `start_services.sh`.
 
-5. **`SeniorCitizenController::store()` and `update()` are stubs:** Profile creation and editing are handled by the `ProfileSurvey` Livewire component. The corresponding controller methods simply redirect without any validation or persistence logic, which could cause confusion during maintenance.
+5. **Single-user system:** There is only one user table and no multi-tenancy. The system is designed for a single OSCA office.
 
-6. **Auto-start platform limitation:** `php artisan serve` auto-starts ML services via `python/start_services.ps1` (PowerShell). A shell equivalent `python/start_services.sh` is committed for Linux/macOS, but the `ServeCommand` auto-launcher only calls the PS1 script. Linux/macOS users start services manually via `start_services.sh`.
+6. **No email or notification system:** Recommendations, critical risk flags, and system events do not trigger any notifications. Mail is configured to log only (`MAIL_MAILER=log`).
 
-7. **No batch queue for ML inference:** Batch processing runs synchronously within a single HTTP request with `set_time_limit(0)`. For very large datasets, this blocks the web process and is unsuitable for a production multi-user environment.
-
-8. **Single-user system:** There is only one user table and no multi-tenancy. The system is designed for a single OSCA office.
-
-9. **No email or notification system:** Recommendations, critical risk flags, and system events do not trigger any notifications. Mail is configured to log only (`MAIL_MAILER=log`).
-
-10. **No automated ML model retraining:** The system consumes pre-trained models but provides no mechanism to retrain or update models from new data collected in the application.
+7. **No automated ML model retraining:** The system consumes pre-trained models but provides no mechanism to retrain or update models from new data collected in the application.
 
 ---
 
@@ -717,7 +711,7 @@ The following table defines terms as they are used throughout the codebase, data
 
 - **Soft deletes:** Senior citizen records are soft-deleted by default, preventing accidental permanent data loss.
 
-- **Sensitive personal data:** The `senior_citizens` table stores personally identifiable information (PII) including name, date of birth, contact number, PhilSys ID, blood type, and religion. This data should be considered sensitive under the Philippine Data Privacy Act of 2012 (RA 10173). Access controls, audit logging, and data retention policies should be implemented before production deployment.
+- **Sensitive personal data:** The `senior_citizens` table stores personally identifiable information (PII) including name, date of birth, contact number, PhilSys ID, blood type, and religion. This data is considered sensitive under the Philippine Data Privacy Act of 2012 (RA 10173). The following controls are implemented: (1) field-level encryption for `contact_number`, `place_of_birth`, and `philsys_id` (AES-256-CBC via Laravel `encrypted` cast); (2) `consent_given_at` and `consent_method` fields to record collection consent per senior; (3) `osca:purge-expired` Artisan command for data retention enforcement.
 
 - **No role-based access control:** Currently, all authenticated users have full access to all data and operations including permanent deletion. This is a significant security gap for a multi-staff environment.
 
@@ -736,24 +730,29 @@ The following features are either partially implemented or explicitly absent fro
 | Feature | Status | Location / Notes |
 |---|---|---|
 | Role-based access control | Not implemented | `spatie/laravel-permission` installed; no roles/policies defined |
-| Activity logging | Not implemented | `activity_logs` table defined in migration; no observers or logging calls |
 | Cluster snapshot generation | Not implemented | `cluster_snapshots` table defined; no seeder/command to populate |
 | `SeniorCitizenController::store()` | Stub | Redirects without saving; profile creation uses Livewire `ProfileSurvey` |
 | `SeniorCitizenController::update()` | Stub | Redirects without saving; editing uses Livewire `ProfileSurvey` |
-| Queued ML batch inference | Not implemented | Currently synchronous; `jobs` table exists and queue is configured |
 | Email/notification system | Not implemented | `MAIL_MAILER=log`; no Notification classes or mail templates |
 | User management interface | Not implemented | No routes for creating/editing users in the application UI |
 | Linux/macOS ML service startup | Implemented | `start_services.sh` committed alongside `start_services.ps1`; `ServeCommand` auto-launcher still calls PS1 only |
 | Automated ML model retraining | Not implemented | Models are static artefacts; no retraining pipeline in the web app |
-| Dynamic cluster evaluation metrics | Not implemented | Metrics are hardcoded constants in `ClusterAnalysis.php` |
-| Data retention and archival policy | Not implemented | No automated archival schedules or deletion policies |
 | Survey instrument versioning UI | Partially implemented | `survey_version` field exists; no UI to manage multiple versions |
 | Senior citizen photo upload | Not implemented | No photo field or upload feature in the profile form |
 | Export full database to Excel | Not implemented | `maatwebsite/excel` is installed but no Excel export is implemented |
-| Barangay-specific report page | Partially implemented | Route `reports.barangay` is defined; no view or controller logic implemented |
 | GIS / interactive senior location map | Planned | See Section 18 for full specification |
 | Points of Interest proximity scoring | Planned | Requires `points_of_interest` table and GIS fields on `senior_citizens` |
 | Leaflet.js map view (`/gis/map`) | Planned | Depends on coordinate data collection |
+
+**Implemented in Phase 2 (May 2026):**
+
+| Feature | Notes |
+|---|---|
+| Activity audit logging | `ActivityLogObserver` wired to Senior, Survey, Recommendation; viewable at `/activity-log` |
+| Queued batch ML inference | `ProcessMlBatch` dispatched via `Bus::batch()`; queue worker starts automatically with `start.bat` |
+| Dynamic cluster evaluation metrics | Read from `python/models/cluster_eval_metrics.json` — updates when model is retrained |
+| Data Privacy Act compliance | Field encryption (contact_number, place_of_birth, philsys_id), consent fields, `osca:purge-expired` command |
+| Barangay-specific report page | Full drill-down at `/reports/barangay/{brgy}` with KPIs, domain bars, cluster distribution, senior roster |
 
 ---
 
@@ -919,17 +918,16 @@ AgeSense is a **functionally complete core system** suitable for supervised pilo
 
 The dataset comprises **275 senior citizens** (seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=53, MODERATE=186, LOW=36, Urgent=1 (Norlito M. Basa), Pending recommendations ≈ 2,114.
 
-The system is currently in a **pre-production state** (Phase 2 in progress) with the following gaps that should be addressed before full operational deployment:
+The system is currently in a **pre-production state** (Phase 2 in progress) with the following remaining gaps:
 
 | Priority | Gap |
 |---|---|
 | **High** | No role-based access control — all users have admin-level permissions |
-| **High** | No activity audit logging — sensitive operations leave no traceable record |
-| **Medium** | Batch ML inference is synchronous — unsuitable for large datasets in production |
-| **Medium** | Cluster evaluation metrics are hardcoded — do not reflect model updates |
 | **Medium** | Default credentials are auto-created — must be changed before go-live |
 | **Low** | Cluster snapshots are not generated — longitudinal tracking is not yet possible |
 | **Low** | No notification system — critical risk events are not automatically communicated |
+
+**Phase 2 gaps resolved (May 2026):** Activity audit logging ✅, queued batch ML inference ✅, dynamic cluster metrics ✅, Data Privacy Act compliance (encryption + consent + retention) ✅, barangay report page ✅.
 
 **Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested across all modes (HTTP, subprocess, PHP heuristic). The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines. The codebase follows Laravel conventions throughout and is well-organized for continued development.
 

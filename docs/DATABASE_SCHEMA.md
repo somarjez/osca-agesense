@@ -1,7 +1,7 @@
 # Database Schema — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-05-14
+> **Last Updated:** 2026-05-14 — Added consent columns, corrected activity_logs schema, updated jobs/job_batches notes.
 > **Database:** MySQL 8.0+ / MariaDB 10.6+, charset `utf8mb4_unicode_ci`
 
 ---
@@ -124,11 +124,15 @@ Primary subject of all system operations. One record per registered senior citiz
 |---|---|---|---|
 | `status` | `varchar(20)` | YES | Default: `active` |
 | `encoded_by` | `bigint unsigned` | YES | FK → `users.id` (nullable) |
+| `consent_given_at` | `timestamp` | YES | Date/time the senior gave data-collection consent |
+| `consent_method` | `varchar(30)` | YES | `verbal` / `written` / `digital` |
 | `deleted_at` | `timestamp` | YES | Soft delete timestamp |
 | `created_at` | `timestamp` | NO | |
 | `updated_at` | `timestamp` | NO | |
 
 **Unique constraint:** `osca_id`
+
+**Encrypted fields:** `contact_number`, `place_of_birth`, and `philsys_id` are stored using Laravel's `encrypted` cast (AES-256-CBC via `APP_KEY`). These fields cannot be used in `LIKE` / `WHERE` database queries — filter by name or barangay instead.
 
 ---
 
@@ -273,20 +277,21 @@ Authentication table. Managed by Laravel Breeze / Fortify.
 
 ## 7. Table: `activity_logs`
 
-Schema defined; logging logic **not yet implemented**. Intended for audit trail of all create/update/delete operations.
+Audit trail of all create/update/delete/restore operations on senior, survey, and recommendation records. Populated automatically by `ActivityLogObserver` (wired in `AppServiceProvider`). Viewable at `/activity-log`.
 
 | Column | Type | Description |
 |---|---|---|
 | `id` | `bigint unsigned` | PK |
-| `user_id` | `bigint unsigned` | FK → `users.id` (nullable) |
-| `action` | `varchar(50)` | e.g. `created`, `updated`, `deleted`, `restored` |
-| `model_type` | `varchar(100)` | e.g. `App\Models\SeniorCitizen` |
-| `model_id` | `bigint unsigned` | ID of the affected record |
-| `old_values` | `json` | Attribute values before change |
-| `new_values` | `json` | Attribute values after change |
-| `ip_address` | `varchar(45)` | Client IP |
-| `user_agent` | `varchar(255)` | Browser/client string |
-| `created_at` | `timestamp` | |
+| `user_id` | `bigint unsigned` | FK → `users.id` (nullable — null for system/seeder actions) |
+| `action` | `varchar(32)` | `created` / `updated` / `archived` / `force_deleted` / `restored` |
+| `subject_type` | `varchar(128)` | Fully-qualified model class, e.g. `App\Models\SeniorCitizen` |
+| `subject_id` | `bigint unsigned` | PK of the affected record |
+| `description` | `text` | Human-readable summary (e.g. "Senior Juan Dela Cruz was created") |
+| `metadata` | `json` | Optional extra context (nullable) |
+| `ip_address` | `varchar(45)` | Client IP at time of action |
+| `created_at` | `timestamp` | When the action occurred |
+
+**Indexes:** `(subject_type, subject_id)`, `action`, `created_at`.
 
 ---
 
@@ -326,17 +331,34 @@ Stores user session data. Used when `SESSION_DRIVER=database`.
 
 ## 10. Table: `jobs`
 
-Laravel queue jobs table. Used for async processing when the queue driver is enabled. Default `QUEUE_CONNECTION=database` (set in `.env.example`). Batch ML inference currently runs synchronously — this table is reserved for future queued batch processing.
+Laravel queue jobs table. `QUEUE_CONNECTION=database` is the default (set in `.env.example`). The queue worker starts automatically in the background when `start.bat` is run. Batch ML inference dispatches `ProcessMlBatch` jobs here — each job processes 100 seniors.
 
 | Column | Type | Description |
 |---|---|---|
 | `id` | `bigint unsigned` | PK |
-| `queue` | `varchar(255)` | Queue name |
+| `queue` | `varchar(255)` | Queue name (default: `default`) |
 | `payload` | `longtext` | Serialized job |
 | `attempts` | `tinyint` | Number of times attempted |
-| `reserved_at` | `int` | Unix timestamp when picked up |
-| `available_at` | `int` | Unix timestamp when available |
+| `reserved_at` | `int` | Unix timestamp when picked up by a worker |
+| `available_at` | `int` | Unix timestamp when available to be processed |
+| `created_at` | `int` | Unix timestamp |
+
+### Table: `job_batches`
+
+Tracks the overall progress of a `Bus::batch()` dispatch. Created when batch ML inference is triggered from `/ml/batch`. Used by the `/ml/batch/status` polling endpoint to report progress.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `varchar(255)` | Batch UUID (PK) |
+| `name` | `varchar(255)` | Batch label |
+| `total_jobs` | `int` | Total jobs in batch |
+| `pending_jobs` | `int` | Jobs not yet finished |
+| `failed_jobs` | `int` | Jobs that threw an exception |
+| `failed_job_ids` | `longtext` | JSON array of failed job IDs |
+| `options` | `mediumtext` | Serialized batch options |
+| `cancelled_at` | `int` | Unix timestamp if cancelled (nullable) |
 | `created_at` | `int` | |
+| `finished_at` | `int` | Unix timestamp when all jobs completed (nullable) |
 
 ---
 
