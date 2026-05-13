@@ -1141,19 +1141,27 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
         warn.append("batch KMeans path: scaler unavailable; heuristic fallback will be used.")
         return warn
 
-    feature_names = _load_json("feature_list.json")
-    vif_features  = _load_json("vif_retained_features.json")
+    feature_names = _load_json("feature_list.json")  # 30 final clustering columns
 
-    expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
-    cluster_input_names: Optional[List[str]] = None
-    for candidate in (feature_names, vif_features):
-        if isinstance(candidate, list) and (not expected or len(candidate) == expected):
-            cluster_input_names = candidate
-            break
+    # Mirror the notebook flow used in infer() single-senior path:
+    #   1. Build scaler input from scaler.feature_names_in_ (full VIF superset)
+    #   2. Scale the full vector
+    #   3. Select the 30 final clustering columns (feature_list.json) from the scaled output
+    #   4. UMAP-reduce the 30-column slice → KMeans
+    # Using feature_list.json directly as the scaler input was wrong when the scaler
+    # was trained on more features — it would produce a different scaled space than the
+    # single-senior path, causing inconsistent cluster assignments across batch vs. single.
+    use_notebook_flow = (
+        hasattr(scaler, "feature_names_in_")
+        and isinstance(feature_names, list)
+        and len(feature_names) > 0
+    )
 
-    if cluster_input_names is None:
-        warn.append("batch KMeans path: no feature list matches scaler; heuristic fallback will be used.")
-        return warn
+    if use_notebook_flow:
+        scaler_input_names = list(scaler.feature_names_in_)
+    else:
+        vif_features = _load_json("vif_retained_features.json")
+        scaler_input_names = feature_names or vif_features or []
 
     valid_indices: List[int] = []
     cluster_rows:  List[List[float]] = []
@@ -1163,7 +1171,7 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
         feature_map = p.get("feature_map") or {}
         if not feature_map:
             continue
-        cluster_rows.append([float(feature_map.get(k, 0.0)) for k in cluster_input_names])
+        cluster_rows.append([float(feature_map.get(k, 0.0)) for k in scaler_input_names])
         valid_indices.append(idx)
 
     if not cluster_rows:
@@ -1171,9 +1179,18 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
         return warn
 
     try:
-        X          = np.asarray(cluster_rows, dtype=np.float64)
-        X_scaled   = scaler.transform(X)
-        X_reduced  = reducer.transform(X_scaled)
+        X        = np.asarray(cluster_rows, dtype=np.float64)
+        X_scaled = scaler.transform(X)
+
+        if use_notebook_flow:
+            # Select only the 30 final clustering columns from the scaled output
+            scaler_feat_idx = {f: i for i, f in enumerate(scaler.feature_names_in_)}
+            col_indices = [scaler_feat_idx[f] for f in feature_names if f in scaler_feat_idx]
+            X_cluster = X_scaled[:, col_indices] if col_indices else X_scaled
+        else:
+            X_cluster = X_scaled
+
+        X_reduced  = reducer.transform(X_cluster)
         raw_ids    = kmeans.predict(X_reduced).tolist()
 
         for i, idx in enumerate(valid_indices):
