@@ -608,7 +608,7 @@ def _predict_model(model: Any, features: List[float]) -> Optional[float]:
     try:
         required = getattr(model, "n_features_in_", len(features))
         arr = np.asarray([features[:required]], dtype=np.float64)
-        return float(model.predict(arr)[0])
+        return float(np.clip(model.predict(arr)[0], 0.0, 1.0))
     except Exception:
         return None
 
