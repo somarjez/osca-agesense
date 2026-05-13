@@ -74,6 +74,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo  Clearing compiled view cache...
+php artisan view:clear >nul 2>&1
+
 echo  [1/3] Starting Python ML services in background...
 echo        (Models load in ~30 seconds on first run)
 start "" /B powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden ^
