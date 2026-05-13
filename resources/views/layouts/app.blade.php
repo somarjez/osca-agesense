@@ -64,6 +64,7 @@
                 ['route'=>'seniors.create',       'label'=>'New Profile',       'icon'=>'user-plus'],
                 ['route'=>'surveys.qol.index',    'label'=>'QoL Surveys',       'icon'=>'clipboard-document-list'],
                 ['route'=>'reports.cluster',      'label'=>'Health Groups',     'icon'=>'squares-2x2'],
+                ['route'=>'reports.gis',          'label'=>'GIS Analytics',     'icon'=>'map'],
                 ['route'=>'reports.risk',         'label'=>'Risk Reports',      'icon'=>'shield-check'],
                 ['route'=>'reports.barangay.index','label'=>'Barangay Report',   'icon'=>'map-pin','active'=>'reports.barangay*'],
                 ['route'=>'recommendations.index','label'=>'Recommendations',   'icon'=>'light-bulb'],

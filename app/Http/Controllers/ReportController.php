@@ -15,6 +15,21 @@ use Illuminate\Support\Facades\DB;
 class ReportController extends Controller
 {
     /**
+     * GIS Analytics landing page.
+     */
+    public function gis()
+    {
+        $stats = [
+            'mapped_seniors' => 6,
+            'high_risk_mapped' => 2,
+            'barangays_covered' => 6,
+            'facilities_recorded' => 3,
+        ];
+
+        return view('reports.gis', compact('stats'));
+    }
+
+    /**
      * Cluster Analysis report page.
      */
     public function cluster(Request $request)
