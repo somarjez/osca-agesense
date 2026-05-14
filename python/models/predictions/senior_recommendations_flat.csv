@@ -243,16 +243,16 @@ senior_id,name,barangay,cluster_id,cluster_name,risk_level,composite_risk,predic
 26,Roberto Bombay,San Isidro,2,Moderate / Mixed Needs,MODERATE,0.403,0.403,0.5784,social,Planned,Assign barangay health worker (BHW) for regular welfare check-ins.,"lives_alone=1, soc_support=3.0"
 26,Roberto Bombay,San Isidro,2,Moderate / Mixed Needs,MODERATE,0.403,0.403,0.5784,social,Planned,Conduct family assessment for support capacity and caregiver stress.,"lives_alone=1, soc_support=3.0"
 26,Roberto Bombay,San Isidro,2,Moderate / Mixed Needs,MODERATE,0.403,0.403,0.5784,functional,Planned,Schedule immediate health screening at barangay health center (BHC).,"mobility_outside=4.0, age=66"
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,Coordinate with neurologist for stroke follow-up care.,Reported condition: stroke
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,Enroll in physical/speech therapy rehabilitation program.,Reported condition: stroke
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,Conduct falls-risk assessment and home hazard evaluation.,Reported condition: stroke
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,Monitor blood pressure at least twice weekly.,Reported condition: hypertension
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,"Advise DASH diet (low sodium, high potassium).",Reported condition: hypertension
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,health,Immediate,Verify anti-hypertensive medication adherence.,Reported condition: hypertension
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,sensory,Immediate,Schedule comprehensive health assessment at barangay health center.,Unspecified concern reported under optical concern
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,sensory,Immediate,Ensure medication list is reviewed by physician.,Unspecified concern reported under optical concern
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,financial,Immediate,Inquire about SSS/GSIS pension eligibility and application process.,"income_enc=3, eco_stability=0.48"
-27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,HIGH,0.7443,0.7443,0.3851,functional,Immediate,Request occupational therapy home visit for mobility assessment.,"mobility_outside=1.0, age=62"
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,Coordinate with neurologist for stroke follow-up care.,Reported condition: stroke
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,Enroll in physical/speech therapy rehabilitation program.,Reported condition: stroke
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,Conduct falls-risk assessment and home hazard evaluation.,Reported condition: stroke
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,Monitor blood pressure at least twice weekly.,Reported condition: hypertension
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,"Advise DASH diet (low sodium, high potassium).",Reported condition: hypertension
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,health,Immediate,Verify anti-hypertensive medication adherence.,Reported condition: hypertension
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,sensory,Immediate,Schedule comprehensive health assessment at barangay health center.,Unspecified concern reported under optical concern
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,sensory,Immediate,Ensure medication list is reviewed by physician.,Unspecified concern reported under optical concern
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,financial,Immediate,Inquire about SSS/GSIS pension eligibility and application process.,"income_enc=3, eco_stability=0.48"
+27,Norlito Basa,San Isidro,3,Low Functioning / Multi-domain Risk,CRITICAL,0.7443,0.7443,0.3851,functional,Immediate,Request occupational therapy home visit for mobility assessment.,"mobility_outside=1.0, age=62"
 28,Vergie Tanghian,San Isidro,3,Low Functioning / Multi-domain Risk,MODERATE,0.4352,0.4352,0.7309,health,Planned,Refer to rheumatologist for arthritis management.,Reported condition: arthritis
 28,Vergie Tanghian,San Isidro,3,Low Functioning / Multi-domain Risk,MODERATE,0.4352,0.4352,0.7309,health,Planned,"Recommend low-impact exercises (swimming, walking).",Reported condition: arthritis
 28,Vergie Tanghian,San Isidro,3,Low Functioning / Multi-domain Risk,MODERATE,0.4352,0.4352,0.7309,health,Planned,Schedule comprehensive health assessment at barangay health center.,Unspecified concern reported under dental concern
@@ -2103,19 +2103,13 @@ senior_id,name,barangay,cluster_id,cluster_name,risk_level,composite_risk,predic
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,financial,Planned,Assess eligibility for OSCA monthly stipend and PhilHealth senior benefits.,"income_enc=2, eco_stability=0.67"
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,social,Planned,Conduct family assessment for support capacity and caregiver stress.,"lives_alone=0, soc_support=4.0"
 273,Teresita Quesmundo,Pinagsanjan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3857,0.3857,0.6199,functional,Planned,Schedule immediate health screening at barangay health center (BHC).,"mobility_outside=4.0, age=77"
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Monitor blood pressure at least twice weekly.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,"Advise DASH diet (low sodium, high potassium).",
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Verify anti-hypertensive medication adherence.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Alert for signs of hypertensive crisis (BP >180/120).,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Schedule comprehensive health assessment at barangay health center.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Ensure annual physical examination and laboratory workup.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,health,planned,Review current medications for interactions or adverse effects.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Apply for DSWD Sustainable Livelihood Program (SLP) and Pantawid Pamilyang Pilipino Program (4Ps).,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Request OSCA indigent assessment for free medicine allocation.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Apply for PCSO Individual Medical Assistance Program (IMAP).,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Verify Malasakit Center enrollment for hospital bill reduction.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Refer to Botika ng Barangay for subsidized medicine access.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,financial,planned,Link to local OSCA emergency financial assistance for utility bills.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,functional,planned,Schedule immediate health screening at barangay health center (BHC).,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,hc_access,planned,Apply for Malasakit Center for reduced hospital costs.,
-,CELIA NILO,Cabanbanan,3,Low Functioning / Multi-domain Risk,MODERATE,0.3474,0.3474,0.7125,hc_access,planned,Verify PhilHealth active status for outpatient/inpatient coverage.,
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,health,Planned,Monitor blood pressure at least twice weekly.,Reported condition: hypertension
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,health,Planned,"Advise DASH diet (low sodium, high potassium).",Reported condition: hypertension
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,health,Planned,Verify anti-hypertensive medication adherence.,Reported condition: hypertension
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,sensory,Planned,Schedule comprehensive health assessment at barangay health center.,Unspecified concern reported under hearing concern
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,sensory,Planned,Ensure medication list is reviewed by physician.,Unspecified concern reported under hearing concern
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,financial,Planned,Assess eligibility for OSCA monthly stipend and PhilHealth senior benefits.,"income_enc=2, eco_stability=0.74"
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,functional,Planned,Schedule immediate health screening at barangay health center (BHC).,"mobility_outside=4.0, age=76"
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,financial,Planned,Apply for Malasakit Center for reduced hospital costs.,"healthcare_difficulty: High cost of medicine, Lack of medicines, Lack of medical attention"
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,financial,Planned,Verify PhilHealth active status for outpatient/inpatient coverage.,"healthcare_difficulty: High cost of medicine, Lack of medicines, Lack of medical attention"
+274,CELIA NILO,Cabanbanan,2,Moderate / Mixed Needs,MODERATE,0.3791,0.3791,0.7125,financial,Planned,Request PhilHealth outpatient benefit to reduce medicine costs.,"healthcare_difficulty: High cost of medicine, Lack of medicines, Lack of medical attention"
