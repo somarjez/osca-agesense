@@ -1,3 +1,7 @@
+# Sensitive data — never commit
+*.sql
+osca.csv
+
 # Laravel / PHP
 /.phpunit.cache
 /.phpunit.result.cache
