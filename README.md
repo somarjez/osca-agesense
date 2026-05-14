@@ -32,6 +32,7 @@ AgeSense profiles senior citizens using demographic, socioeconomic, and health s
 - **Classify** overall risk as HIGH / MODERATE / LOW with urgency flagging (≥ 0.70 composite = urgent)
 - **Generate** prescriptive, prioritised recommendations per senior driven by model output and profile data
 - **Report** cluster analytics, risk breakdowns by barangay, and exportable CSV/PDF outputs
+- **Map** senior distribution and facility accessibility context via an interactive Leaflet GIS view at `/reports/gis`
 
 A three-tier fallback (Flask HTTP → local Python subprocess → PHP heuristic) keeps the system operational even when Python services are unavailable.
 
@@ -560,13 +561,14 @@ osca-system/
 │   ├── ml/                          # batch.blade.php, status.blade.php
 │   ├── seniors/                     # CRUD views and PDF template
 │   ├── surveys/                     # QoL survey views
-│   ├── reports/                     # Cluster and risk report views
+│   ├── reports/                     # Cluster, risk, and GIS report views (gis.blade.php)
 │   └── recommendations/
 │
 ├── routes/
 │   ├── web.php, auth.php, seniors.php, surveys.php
 │   ├── ml.php                       # /ml/status, /ml/batch, /ml/run/{senior}, /ml/result/{senior}
 │   ├── reports.php, recommendations.php
+│   ├── api.php                      # GIS API: /api/gis/seniors, /api/gis/facilities, /api/gis/boundary/*
 │
 ├── setup.bat                        # First-time setup (run once after cloning)
 ├── start.bat                        # Daily launcher (run every session)
@@ -649,6 +651,13 @@ Batch analysis should take under 60 seconds when the Flask services are running 
 1. Go to `/ml/status` and confirm both services show `ok`
 2. If they show `unreachable`, click **Start ML Services** and wait for them to come online
 3. Re-run batch analysis
+
+### GIS map is blank or not rendering
+
+1. Ensure frontend assets are built: `npm run build`
+2. The map requires Leaflet — if you cloned the repo and haven't run `npm install` yet, do so first
+3. Check the browser console for errors — the most common cause is `window.L is not defined`, which means the Vite bundle wasn't rebuilt after installing packages
+4. If the page throws `Table 'osca_db.facilities' doesn't exist`, run `php artisan migrate` to apply pending GIS migrations
 
 ### No request logs in the terminal after `php artisan serve`
 

@@ -405,43 +405,71 @@ Tracks the overall progress of a `Bus::batch()` dispatch. Created when batch ML 
 
 ## 13. GIS Foundation
 
-The following tables will be added when the GIS module is implemented (see SYSTEM_FUNCTIONALITY.md §18):
+The GIS module is implemented and live. It provides a Leaflet-based interactive map at `/reports/gis` showing senior distribution, facility overlays, and risk zone visualizations across Pagsanjan.
 
-### New columns on `senior_citizens`
+### GIS columns on `senior_citizens`
 
-```sql
-latitude              DECIMAL(10,7)   NULL
-longitude             DECIMAL(10,7)   NULL
-address_line          VARCHAR(255)    NULL
-location_source       ENUM('manual','geocoded','gps') DEFAULT 'geocoded'
-location_verified_at  TIMESTAMP       NULL
-```
+| Column | Type | Description |
+|---|---|---|
+| `latitude` | `decimal(10,7)` NULL | Generalized or barangay-centroid coordinate |
+| `longitude` | `decimal(10,7)` NULL | Generalized or barangay-centroid coordinate |
+| `address_line` | `varchar(255)` NULL | Optional address text |
+| `location_source` | `varchar(50)` NULL | `manual` / `geocoded` / `barangay_centroid` |
+| `location_accuracy` | `varchar(50)` NULL | `exact` / `generalized` / `barangay` |
+| `location_verified_at` | `timestamp` NULL | When coordinates were last verified |
 
-### New table: `points_of_interest`
+> For privacy, coordinates are generalized to barangay-centroid level by default and do not represent exact home addresses.
+
+### Table: `facilities`
+
+Stores public/community points of interest used as accessibility reference points.
 
 | Column | Type | Description |
 |---|---|---|
 | `id` | `bigint unsigned` | PK |
 | `name` | `varchar(255)` | Facility name |
-| `category` | `enum` | `health_centre` / `hospital` / `pharmacy` / `market` / `store` / `barangay_hall` / `church` / `senior_centre` |
-| `barangay` | `varchar(100)` | Barangay where located |
+| `type` | `varchar(255)` | e.g. `health_center`, `barangay_hall`, `market`, `church` |
+| `barangay` | `varchar(255)` NULL | Barangay where located |
+| `address` | `varchar(255)` NULL | Street address |
 | `latitude` | `decimal(10,7)` | |
 | `longitude` | `decimal(10,7)` | |
-| `address` | `varchar(255)` | |
-| `is_active` | `boolean` | Soft on/off toggle |
-| `created_at` | `timestamp` | |
-| `updated_at` | `timestamp` | |
+| `source` | `varchar(255)` NULL | Data source (e.g. `osm`, `lgu`, `manual`) |
+| `is_active` | `boolean` | Default `true` — inactive facilities excluded from map |
+| `created_at` / `updated_at` | `timestamp` | |
 
-**Proximity index:** A spatial index or application-level Haversine query will be used to find the nearest POI of each category for a given senior.
+**Indexes:** `type`, `barangay`, `is_active`, `(latitude, longitude)`
 
-### Current implementation note
+Seeded by `PagsanjanFacilitySeeder` with health centers, barangay halls, markets, and churches across all barangays.
 
-The current GIS foundation uses:
+### Table: `senior_accessibility_metrics`
 
-- nullable `latitude`, `longitude`, `location_source`, `location_accuracy`, and `location_verified_at` fields on `senior_citizens`
-- a `facilities` table for public/community points of interest
-- a `senior_accessibility_metrics` table for derived accessibility context
+Derived proximity metrics per senior to their nearest key facilities. Calculated post-seeding.
 
-Senior coordinates may be exact, generalized, or barangay-based. For privacy, generalized or barangay-level placement is preferred unless exact coordinates are officially approved for operational use.
+| Column | Type | Description |
+|---|---|---|
+| `id` | `bigint unsigned` | PK |
+| `senior_citizen_id` | `bigint unsigned` | FK → `senior_citizens.id` (cascade delete) |
+| `nearest_health_center_id` | `bigint unsigned` NULL | FK → `facilities.id` (null on delete) |
+| `distance_to_health_center_m` | `decimal(10,2)` NULL | Distance in metres |
+| `nearest_barangay_hall_id` | `bigint unsigned` NULL | FK → `facilities.id` |
+| `distance_to_barangay_hall_m` | `decimal(10,2)` NULL | Distance in metres |
+| `nearest_market_id` | `bigint unsigned` NULL | FK → `facilities.id` |
+| `distance_to_market_m` | `decimal(10,2)` NULL | Distance in metres |
+| `accessibility_score` | `decimal(6,4)` NULL | Composite 0–1 score (lower = harder to reach) |
+| `calculated_at` | `timestamp` NULL | When metrics were last computed |
+| `created_at` / `updated_at` | `timestamp` | |
 
-GIS features in this module are used only for accessibility and environmental context and are not intended to expose private residential detail.
+**Indexes:** `senior_citizen_id`, `calculated_at`
+
+### GIS API routes
+
+| Route | Description |
+|---|---|
+| `GET /api/gis/seniors` | GeoJSON FeatureCollection of all active seniors (generalized coords, risk level, cluster) |
+| `GET /api/gis/facilities` | GeoJSON FeatureCollection of all active facilities |
+| `GET /api/gis/boundary/pagsanjan` | Municipal boundary GeoJSON |
+| `GET /api/gis/boundary/barangays` | Barangay-level boundary GeoJSON |
+
+### Frontend dependencies
+
+Leaflet (`^1.9.4`) and `leaflet.markercluster` (`^1.5.3`) are bundled via Vite (`npm run build`). `window.L` is exposed globally from `resources/js/app.js`.
