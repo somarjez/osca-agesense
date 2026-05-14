@@ -20,7 +20,7 @@
 10. [Table: jobs](#10-table-jobs)
 11. [Relationships Summary](#11-relationships-summary)
 12. [Indexes and Performance Notes](#12-indexes-and-performance-notes)
-13. [Planned GIS Tables](#13-planned-gis-tables)
+13. [GIS Foundation](#13-gis-foundation)
 
 ---
 
@@ -403,7 +403,7 @@ Tracks the overall progress of a `Bus::batch()` dispatch. Created when batch ML 
 
 ---
 
-## 13. Planned GIS Tables
+## 13. GIS Foundation
 
 The following tables will be added when the GIS module is implemented (see SYSTEM_FUNCTIONALITY.md §18):
 
@@ -433,3 +433,15 @@ location_verified_at  TIMESTAMP       NULL
 | `updated_at` | `timestamp` | |
 
 **Proximity index:** A spatial index or application-level Haversine query will be used to find the nearest POI of each category for a given senior.
+
+### Current implementation note
+
+The current GIS foundation uses:
+
+- nullable `latitude`, `longitude`, `location_source`, `location_accuracy`, and `location_verified_at` fields on `senior_citizens`
+- a `facilities` table for public/community points of interest
+- a `senior_accessibility_metrics` table for derived accessibility context
+
+Senior coordinates may be exact, generalized, or barangay-based. For privacy, generalized or barangay-level placement is preferred unless exact coordinates are officially approved for operational use.
+
+GIS features in this module are used only for accessibility and environmental context and are not intended to expose private residential detail.

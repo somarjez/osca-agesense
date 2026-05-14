@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             OscaCsvSeeder::class,
+            PagsanjanFacilitySeeder::class,
         ]);
     }
 }
