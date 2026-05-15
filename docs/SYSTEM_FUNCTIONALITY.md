@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-05-15 — Reflects QoL survey soft-delete cascade, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), GIS module planning, `setup.bat`/`start.bat` launcher workflow, model files relocated to `python/models/`, `ENABLE_NOTEBOOK_OVERRIDES` flag, notebook-validated prediction CSVs, Linux/macOS ML service startup script (`start_services.sh`), and 275 seniors seeded.
+> **Last Updated:** 2026-05-15 — Reflects Phase 2 complete (RBAC, user management); GIS module in progress (data foundation + map prototype done); phase timeline revised; §18/19/20 updated to reflect actual implementation state, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), GIS module planning, `setup.bat`/`start.bat` launcher workflow, model files relocated to `python/models/`, `ENABLE_NOTEBOOK_OVERRIDES` flag, notebook-validated prediction CSVs, Linux/macOS ML service startup script (`start_services.sh`), and 275 seniors seeded.
 
 ---
 
@@ -805,58 +805,56 @@ The following features are either partially implemented or explicitly absent fro
 
 ---
 
-## 18. Planned GIS Module
+## 18. GIS Module (In Progress)
 
-The GIS (Geographic Information System) module is a planned feature that will allow OSCA staff to visualise senior citizen locations on an interactive map, understand proximity to essential services, and identify geographic clusters of high-risk seniors.
+The GIS (Geographic Information System) module provides geographic visualisation of senior citizen locations and proximity analysis to essential services within Pagsanjan, Laguna.
 
-### 18.1 Overview
+### 18.1 Implementation Status
 
-The GIS module will integrate a web-based map (Leaflet.js with OpenStreetMap tiles) into the existing AgeSense web application. Latitude and longitude coordinates will be stored against each senior citizen record and used to render pins on a map with colour-coded risk levels. No external GIS software or server is required — the map renders in the browser.
-
-### 18.2 Senior Location Data
-
-Each senior citizen record will be extended with:
-
-| New Field | Type | Description |
+| Component | Status | Notes |
 |---|---|---|
-| `latitude` | `decimal(10,7)` | GPS latitude of the senior's home |
-| `longitude` | `decimal(10,7)` | GPS longitude of the senior's home |
-| `address_line` | `string` | Street-level address (optional, for display) |
-| `location_source` | `enum` | How coordinates were obtained: `manual`, `geocoded`, `gps` |
-| `location_verified_at` | `timestamp` | When coordinates were last confirmed |
+| GIS fields on `senior_citizens` | ✅ Done | `latitude`, `longitude`, `location_source`, `location_accuracy`, `location_verified_at`; spatial index |
+| `facilities` table | ✅ Done | Stores health centres, hospitals, pharmacies, markets, barangay halls |
+| `senior_accessibility_metrics` table | ✅ Done | Links seniors to nearest facility per category; stores distances |
+| Pagsanjan facility seeder | ✅ Done | `PagsanjanFacilitySeeder` — 13 facilities across barangays |
+| GIS API — `/api/gis/seniors` | ✅ Done | Returns senior locations as GeoJSON FeatureCollection |
+| GIS API — `/api/gis/facilities` | ✅ Done | Returns active facilities as GeoJSON FeatureCollection |
+| GIS API — `/api/gis/boundary/*` | ✅ Done | Returns municipal and barangay boundary GeoJSON (from local storage files) |
+| GIS map view — `/reports/gis` | ✅ Done | Leaflet map prototype with senior pins, facility overlay, risk/barangay filters, stats panel |
+| Privacy-safe coordinate generalisation | ✅ Done | Hash-based scatter per senior around barangay anchor — no exact home addresses exposed |
+| Bulk geocode command | ⏳ Pending | `php artisan gis:geocode` — assign barangay centroids to seniors missing GPS data |
+| Map coordinate picker in profile form | ⏳ Pending | Embedded Leaflet map in senior profile edit form |
+| Proximity scoring in ML pipeline | ⏳ Pending | `gis_proximity_score` as optional preprocessing feature; requires model retrain |
+| GIS CSV export | ⏳ Pending | Download senior lat/lng + nearest facility distances |
+| Field GPS documentation | ⏳ Pending | Staff guide for capturing GPS coordinates in the field |
 
-Coordinates can be entered manually, geocoded from the barangay address via a geocoding API (e.g., Nominatim/OpenStreetMap), or captured from a GPS device in the field.
+### 18.2 Technical Stack
 
-### 18.3 Map Features
+| Component | Technology |
+|---|---|
+| Map rendering | Leaflet.js (loaded via CDN in `gis.blade.php`) |
+| Base tiles | OpenStreetMap (free, no API key required) |
+| GIS data format | GeoJSON FeatureCollection — served by `GisApiController` |
+| Senior coordinates | Stored in `senior_citizens.latitude / .longitude`; barangay centroid fallback via hash-based generalisation |
+| Facility data | `facilities` table, seeded via `PagsanjanFacilitySeeder` |
+| Proximity storage | `senior_accessibility_metrics` table (health centre, barangay hall, market distances) |
+| Boundary files | GeoJSON files at `storage/app/gis/boundaries/` (optional; graceful fallback if missing) |
 
-**Senior location map** (`/gis/map`):
+### 18.3 GIS API
 
-- Pins for each senior, coloured by risk level (red = HIGH urgent, orange = HIGH, yellow = MODERATE, green = LOW)
-- Click a pin to see a popup: senior name, OSCA ID, barangay, health group, overall risk level, link to profile
-- Filter by barangay, risk level, and health group
-- Cluster pins automatically at zoom-out (Leaflet.markercluster)
-- Heatmap overlay to show density of high-risk seniors by area
+**Controller:** `app/Http/Controllers/GisApiController.php`
+**Routes:** `routes/api.php`
 
-**Service proximity overlay**:
-
-Points of interest (POIs) will be mapped alongside seniors to show proximity to essential services:
-
-| POI Category | Icon | Data Source |
+| Endpoint | Response | Notes |
 |---|---|---|
-| Health centres / RHU | Cross icon | Manual entry or OpenStreetMap |
-| Hospitals | Hospital icon | Manual entry or OpenStreetMap |
-| Pharmacies / drugstores | Pill icon | Manual entry or OpenStreetMap |
-| Public markets | Cart icon | Manual entry |
-| Sari-sari stores / convenience | Shop icon | Manual entry |
-| Barangay halls | Flag icon | Manual entry |
-| Churches / places of worship | Star icon | Manual entry |
-| Senior citizen centres | People icon | Manual entry |
+| `GET /api/gis/seniors` | GeoJSON FeatureCollection | Returns all active seniors with risk level, cluster, composite risk; uses stored coords or barangay centroid fallback |
+| `GET /api/gis/facilities` | GeoJSON FeatureCollection | Returns all active facilities with name, type, barangay |
+| `GET /api/gis/boundary/pagsanjan` | GeoJSON | Municipal boundary from `storage/app/gis/boundaries/pagsanjan_boundary.geojson` |
+| `GET /api/gis/boundary/barangays` | GeoJSON | Barangay polygons from `storage/app/gis/boundaries/pagsanjan_barangays.geojson` |
 
-A proximity indicator will show each senior's straight-line distance to the nearest facility of each type. Seniors beyond a configurable threshold (e.g., > 500 m from a health centre) will be flagged for a `hc_access` risk adjustment.
+### 18.4 Proximity Scoring (Pending)
 
-### 18.4 Proximity-Based Risk Adjustment
-
-The GIS module will feed into the existing risk scoring pipeline by providing a `gis_proximity_score` (0–1) that reflects how well-served a senior is by nearby essential facilities. This score will be included as an optional additional feature in the preprocessing pipeline when coordinates are available:
+When implemented, the `gis_proximity_score` (0–1) will reflect how well-served a senior is by nearby essential facilities:
 
 ```
 gis_proximity_score = weighted_average(
@@ -868,116 +866,58 @@ gis_proximity_score = weighted_average(
 )
 ```
 
-Distances are normalised against a 2 km reference radius. Seniors beyond 2 km from a facility receive the maximum risk contribution for that category.
-
-### 18.5 GIS Report Page
-
-A new report page (`/reports/gis`) will include:
-
-- Barangay-level choropleth map (shading by average composite risk)
-- Table of barangays ranked by average risk, % of seniors beyond service thresholds, and count of HIGH/urgent seniors
-- Export of the GIS data as CSV (name, barangay, lat/lng, risk level, nearest health centre distance)
-
-### 18.6 Data Entry Workflow
-
-OSCA staff will be able to:
-1. Enter or edit coordinates directly on the senior profile edit form (a map picker will be provided)
-2. Auto-geocode from the senior's barangay name when no exact address is available (places the pin at the barangay centroid)
-3. Run a bulk geocode job from the admin panel to assign barangay centroids to all seniors missing coordinates
-
-### 18.7 Technical Stack
-
-| Component | Technology |
-|---|---|
-| Map rendering | Leaflet.js 1.9 |
-| Base tiles | OpenStreetMap (free, no API key required) |
-| Marker clustering | Leaflet.markercluster plugin |
-| Geocoding | Nominatim API (OpenStreetMap) — rate-limited, no key required |
-| POI data | Manual entry via seeder + admin UI; future: OpenStreetMap Overpass API |
-| Proximity calculation | PHP Haversine formula (server-side, stored in `senior_citizens` via accessor) |
-| Migration | New columns on `senior_citizens` table; new `points_of_interest` table |
-
-### 18.8 Database Changes Required
-
-**New migration — `add_gis_fields_to_senior_citizens`:**
-
-```sql
-ALTER TABLE senior_citizens
-  ADD latitude          DECIMAL(10,7) NULL,
-  ADD longitude         DECIMAL(10,7) NULL,
-  ADD address_line      VARCHAR(255)  NULL,
-  ADD location_source   ENUM('manual','geocoded','gps') DEFAULT 'geocoded',
-  ADD location_verified_at TIMESTAMP NULL;
-```
-
-**New table — `points_of_interest`:**
-
-```sql
-CREATE TABLE points_of_interest (
-  id         BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  name       VARCHAR(255) NOT NULL,
-  category   ENUM('health_centre','hospital','pharmacy','market','store','barangay_hall','church','senior_centre') NOT NULL,
-  barangay   VARCHAR(100) NULL,
-  latitude   DECIMAL(10,7) NOT NULL,
-  longitude  DECIMAL(10,7) NOT NULL,
-  address    VARCHAR(255) NULL,
-  is_active  BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-);
-```
+Distances are normalised against a 2 km reference radius. This score will be an optional input to the preprocessing pipeline — seniors without coordinates will use the existing pipeline unchanged.
 
 ---
 
 ## 19. Suggested Future Improvements
 
-1. **Implement role-based access control** using `spatie/laravel-permission`. Suggested roles: `admin` (full system access, user management, batch ML), `encoder` (profile and survey management only), `viewer` (read-only access to reports and recommendations).
+1. **Complete the GIS module.** Remaining work: bulk geocode command, coordinate picker in profile form, GIS CSV export, and wiring `gis_proximity_score` into the ML preprocessing pipeline. See Section 18 for the full specification.
 
-2. **Move batch ML inference to a queued job.** Create a `ProcessMlBatch` job dispatched via Laravel's queue system. This prevents HTTP timeouts and allows progress monitoring via a job status endpoint.
+2. **Collect and geocode senior coordinates.** Run the bulk geocode job to assign barangay centroids as initial coordinates for all existing seniors, then iteratively improve accuracy as field workers capture GPS coordinates during visits.
 
-3. **Implement activity logging.** Add Eloquent observers on `SeniorCitizen`, `QolSurvey`, and `Recommendation` models to write to `activity_logs` on every create, update, and delete operation.
+3. **Model versioning and retraining pipeline.** Add a database field or config entry for the active model version, and create a retraining workflow (even if offline) that updates the artefact files and records version history in `ml_results.model_version`.
 
-4. **Populate cluster snapshots.** Create a scheduled command (`artisan schedule:run`) that generates daily or weekly cluster snapshots, enabling longitudinal tracking of cluster composition and risk trends over time.
+4. **Notification system.** Implement Laravel Notifications for critical risk alerts (email or SMS via Twilio), recommendation assignment notifications, and weekly analytics summaries for OSCA staff.
 
-5. **Dynamic cluster evaluation metrics.** Store evaluation metrics in the database (or a JSON file) alongside the trained model artefacts, and read them dynamically rather than hardcoding them in the Livewire component.
+5. **Longitudinal risk tracking dashboard.** Build a dashboard panel showing risk score trends over time per senior and per barangay, using the `cluster_snapshots` table already being populated.
 
-6. **Full Linux/macOS auto-start.** `start_services.sh` is implemented and committed. The remaining step is to update `ServeCommand` to detect the OS and call the appropriate script automatically instead of always calling the PS1 script.
+6. **Mobile-responsive field entry.** Optimise the QoL survey form and senior profile form for tablet/phone use by field workers doing in-home visits.
 
-7. **Model versioning and retraining pipeline.** Add a database field or config entry for the active model version, and create a retraining workflow (even if offline) that updates the artefact files and records version history in `ml_results.model_version`.
+7. **Full Linux/macOS auto-start.** `start_services.sh` is implemented. The remaining step is to update `ServeCommand` to detect the OS and call the appropriate script automatically.
 
-8. **Data Privacy compliance measures.** Implement data access audit logs, add a data subject consent field to senior profiles, enforce field-level encryption for sensitive PII (PhilSys ID, contact number), and document a data retention and deletion policy.
+8. **Senior photo upload.** Add a photo field to the senior profile form, stored in `storage/app/public/seniors/`.
 
-9. **Notification system.** Implement Laravel Notifications for critical risk alerts (email or SMS via Twilio), recommendation assignment notifications, and weekly analytics summaries for OSCA staff.
+9. **Survey versioning UI.** Manage multiple QoL instrument versions; display which version was used for each survey submission.
 
-10. **Excel export.** Implement a full senior citizen registry export to Excel using the installed `maatwebsite/excel` package, with column formatting suitable for government reporting.
-
-11. **Complete the barangay report page.** The route `reports.barangay` is defined but has no controller logic or view. Implement a barangay-level drill-down page showing all seniors, their risk distribution, and cluster breakdown for that specific barangay.
-
-12. **Implement the GIS module.** Add latitude/longitude fields to `senior_citizens`, create the `points_of_interest` table, build the Leaflet.js map view at `/gis/map`, and wire the proximity scoring into the ML preprocessing pipeline. See Section 18 for full technical specification.
-
-13. **Collect and geocode senior coordinates.** Run the bulk geocode job to assign barangay centroids as initial coordinates for all existing seniors, then iteratively improve accuracy as field workers capture GPS coordinates during visits.
-
-14. **Seed the Points of Interest dataset.** Populate `points_of_interest` with health centres, hospitals, pharmacies, markets, barangay halls, and senior citizen centres for all 16 Pagsanjan barangays using OpenStreetMap data and manual OSCA records.
+10. **Multi-office support.** Extend the system to serve multiple OSCA offices (multi-tenancy) with separate data per municipality — a major architectural change.
 
 ---
 
 ## 20. Current System Status
 
-AgeSense is a **functionally complete core system** suitable for supervised pilot deployment. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, and recommendation management — are implemented and operational. The dashboard, cluster analysis, and risk reporting features provide meaningful analytics for OSCA staff.
+AgeSense is a **pilot-ready system** with Phase 1 (Core) and Phase 2 (Production Hardening) fully complete. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, recommendation management, and role-based access control — are implemented and operational.
 
 The dataset comprises **275 senior citizens** (seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=53, MODERATE=186, LOW=36, Urgent=1 (Norlito M. Basa), Pending recommendations ≈ 2,114.
 
-The system is currently in a **pre-production state** (Phase 2 in progress) with the following remaining gaps:
+### Completed phases
+
+| Phase | Status |
+|---|---|
+| Phase 1 — Core System | ✅ Complete (April 2026) |
+| Phase 2 — Production Hardening | ✅ Complete (May 2026) |
+| Phase 3 — GIS Module | 🔄 In Progress — data foundation and map prototype done; 5 items pending |
+| Phase 4 — Advanced Features | 📋 Planned (June–July 2026) |
+
+### Remaining gaps
 
 | Priority | Gap |
 |---|---|
-| **High** | No role-based access control — all users have admin-level permissions |
-| **Medium** | Default credentials are auto-created — must be changed before go-live |
-| **Low** | Cluster snapshots are not generated — longitudinal tracking is not yet possible |
-| **Low** | No notification system — critical risk events are not automatically communicated |
+| **Medium** | GIS bulk geocode command not yet built — senior pins currently use barangay centroid fallback |
+| **Medium** | Proximity scoring not yet wired into ML pipeline — requires model retrain after GIS data is collected |
+| **Low** | No notification system — critical risk events are not automatically communicated to staff |
+| **Low** | GIS CSV export and coordinate picker in profile form not yet built |
 
-**Phase 2 gaps resolved (May 2026):** Activity audit logging ✅, queued batch ML inference ✅, dynamic cluster metrics ✅, Data Privacy Act compliance (encryption + consent + retention) ✅, barangay report page ✅, Excel registry export ✅, cluster snapshot generation ✅.
+**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested. Role-based access control (`spatie/laravel-permission`) is fully implemented with `admin`, `encoder`, and `viewer` roles enforced at route and UI level. The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines.
 
-**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested across all modes (HTTP, subprocess, PHP heuristic). The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines. The codebase follows Laravel conventions throughout and is well-organized for continued development.
-
-**Academic readiness:** The system's use of WHO Healthy Ageing framework terminology, WHOQOL-BREF-derived instrument, K-Means clustering with UMAP, interpretable domain-level risk scores, and prescriptive recommendation generation makes it suitable as a thesis research system prototype. The documented cluster evaluation metrics and feature engineering pipeline provide sufficient methodological grounding for academic presentation.
+**Academic readiness:** The system's use of WHO Healthy Ageing framework terminology, WHOQOL-BREF-derived instrument, K-Means clustering with UMAP, interpretable domain-level risk scores, prescriptive recommendation generation, and role-differentiated access control makes it suitable as a thesis research system prototype. The documented cluster evaluation metrics and feature engineering pipeline provide sufficient methodological grounding for academic presentation.
