@@ -2,7 +2,7 @@
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
 > **Audience:** System administrators and developers setting up the system for the first time or deploying to a new environment.
-> **Last Updated:** 2026-05-14
+> **Last Updated:** 2026-05-15
 
 ---
 
@@ -78,7 +78,7 @@ osca-system/
 ├── resources/
 │   ├── js/                 Alpine.js + Chart.js frontend
 │   └── views/              Blade templates
-├── routes/                 web.php, seniors.php, surveys.php, ml.php, reports.php, recommendations.php
+├── routes/                 web.php, auth.php, seniors.php, surveys.php, ml.php, reports.php, recommendations.php, users.php
 ├── storage/
 │   └── logs/               queue.log, queue.err.log, ml_startup.log
 └── .env                    Environment configuration (not committed)
@@ -391,19 +391,56 @@ php artisan serve
 
 ## 8. First Login and Default Credentials
 
-A default admin account is automatically created when the `users` table is empty:
+Three accounts are created automatically by `UserSeeder`, which runs as part of `php artisan db:seed` (also called by `setup.bat`).
 
-| Field | Value |
-|---|---|
-| Email | `admin@osca.local` |
-| Password | `password` |
+| Role | Email | Initial Password |
+|---|---|---|
+| Administrator | `admin@osca.local` | `Admin@OSCA2026!` |
+| Encoder | `encoder@osca.local` | `Encoder@OSCA2026!` |
+| Viewer | `viewer@osca.local` | `Viewer@OSCA2026!` |
 
-**Change this password immediately after first login.** The system has no UI for user management — use Laravel Tinker or a direct database update:
+> **Change all passwords immediately after first login**, especially before the system is made accessible to multiple staff members.
+
+### What each role can do
+
+| Capability | admin | encoder | viewer |
+|---|---|---|---|
+| Dashboard, reports, recommendations (view) | ✅ | ✅ | ✅ |
+| Create and edit senior profiles | ✅ | ✅ | ❌ |
+| Manage QoL surveys | ✅ | ✅ | ❌ |
+| Assign / update recommendations | ✅ | ✅ | ❌ |
+| Run ML inference | ✅ | ✅ | ❌ |
+| Archive / restore / permanently delete seniors | ✅ | ❌ | ❌ |
+| Activity log, CSV exports, cluster snapshots | ✅ | ❌ | ❌ |
+| User account management | ✅ | ❌ | ❌ |
+
+### Changing a password (in-app)
+
+Administrators can change any account's password via **Administration → User Management → Edit**.
+
+### Changing a password (command line)
+
+If you are locked out of the admin account, reset the password directly:
 
 ```powershell
-php artisan tinker
->>> App\Models\User::first()->update(['password' => bcrypt('new-secure-password')]);
+php artisan db:seed --class=UserSeeder
 ```
+
+This re-runs the seeder using `updateOrCreate`, which restores the default passwords for all three seed accounts. Re-seed only in a controlled environment — it does not touch senior data.
+
+Alternatively, update a single account via MySQL:
+
+```sql
+UPDATE users
+SET password = '$2y$12$REPLACE_WITH_BCRYPT_HASH'
+WHERE email = 'admin@osca.local';
+```
+
+Generate a bcrypt hash with: `php -r "echo password_hash('your-new-password', PASSWORD_BCRYPT, ['cost'=>12]);"` then paste the output into the SQL above.
+
+### Adding more accounts
+
+Once logged in as an administrator, go to **Administration → User Management** (`/users`) and click **New Account**. Fill in name, email, role, and password. The new account is immediately active.
 
 ---
 
@@ -431,7 +468,7 @@ Register seniors one at a time via **Senior Records → New Profile** in the web
 
 Before going live with real data:
 
-- [ ] Change default admin password (`admin@osca.local` / `password`)
+- [ ] Change all default account passwords (admin, encoder, viewer) via **User Management** or re-seed
 - [ ] Set `APP_DEBUG=false` in `.env`
 - [ ] Set `APP_ENV=production` in `.env`
 - [ ] Confirm `SESSION_DRIVER=database` and sessions table exists
@@ -442,7 +479,6 @@ Before going live with real data:
 - [ ] Verify Python services start on boot (systemd or equivalent — see `start_services.sh`)
 - [ ] Set up automated database backups (daily minimum)
 - [ ] Review and configure `MAIL_MAILER` for notifications
-- [ ] Implement role-based access control before multi-staff deployment (see SYSTEM_FUNCTIONALITY.md §17)
 - [ ] Review Philippine Data Privacy Act compliance (see SYSTEM_FUNCTIONALITY.md §16): consent field recorded, encryption active, data retention policy understood
 - [ ] Run `php artisan osca:purge-expired --years=5` in dry-run mode to confirm retention policy
 - [ ] Configure HTTPS (TLS certificate — Let's Encrypt recommended for production)
