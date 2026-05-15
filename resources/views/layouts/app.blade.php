@@ -57,30 +57,77 @@
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-2 pb-2">Workspace</div>
             <div x-show="!sidebarOpen" x-cloak class="h-2"></div>
 
-            @php
-            $navItems = [
-                ['route'=>'dashboard',            'label'=>'Dashboard',         'icon'=>'home'],
-                ['route'=>'seniors.index',        'label'=>'Senior Records',    'icon'=>'users'],
-                ['route'=>'seniors.create',       'label'=>'New Profile',       'icon'=>'user-plus'],
-                ['route'=>'surveys.qol.index',    'label'=>'QoL Surveys',       'icon'=>'clipboard-document-list'],
-                ['route'=>'reports.cluster',      'label'=>'Health Groups',     'icon'=>'squares-2x2'],
-                ['route'=>'reports.gis',          'label'=>'GIS Analytics',     'icon'=>'map'],
-                ['route'=>'reports.risk',         'label'=>'Risk Reports',      'icon'=>'shield-check'],
-                ['route'=>'reports.barangay.index','label'=>'Barangay Report',   'icon'=>'map-pin','active'=>'reports.barangay*'],
-                ['route'=>'recommendations.index','label'=>'Recommendations',   'icon'=>'light-bulb'],
-            ];
-            @endphp
-
-            @foreach ($navItems as $item)
-            <a href="{{ route($item['route']) }}"
-               class="nav-link {{ request()->routeIs($item['active'] ?? $item['route'].'*') ? 'nav-link-active' : '' }}"
+            {{-- ── Workspace (all roles) ── --}}
+            <a href="{{ route('dashboard') }}"
+               class="nav-link {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
-               :title="sidebarOpen ? '' : '{{ $item['label'] }}'">
-                <x-dynamic-component :component="'heroicon-o-'.$item['icon']" class="w-4 h-4 flex-shrink-0" />
-                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">{{ $item['label'] }}</span>
+               :title="sidebarOpen ? '' : 'Dashboard'">
+                <x-heroicon-o-home class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Dashboard</span>
             </a>
-            @endforeach
+            <a href="{{ route('seniors.index') }}"
+               class="nav-link {{ request()->routeIs('seniors.index') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Senior Records'">
+                <x-heroicon-o-users class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Senior Records</span>
+            </a>
 
+            @hasanyrole('admin|encoder')
+            <a href="{{ route('seniors.create') }}"
+               class="nav-link {{ request()->routeIs('seniors.create') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'New Profile'">
+                <x-heroicon-o-user-plus class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">New Profile</span>
+            </a>
+            <a href="{{ route('surveys.qol.index') }}"
+               class="nav-link {{ request()->routeIs('surveys.qol*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'QoL Surveys'">
+                <x-heroicon-o-clipboard-document-list class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">QoL Surveys</span>
+            </a>
+            @endhasanyrole
+
+            <a href="{{ route('reports.cluster') }}"
+               class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Health Groups'">
+                <x-heroicon-o-squares-2x2 class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Health Groups</span>
+            </a>
+            <a href="{{ route('reports.gis') }}"
+               class="nav-link {{ request()->routeIs('reports.gis') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'GIS Analytics'">
+                <x-heroicon-o-map class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">GIS Analytics</span>
+            </a>
+            <a href="{{ route('reports.risk') }}"
+               class="nav-link {{ request()->routeIs('reports.risk') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Risk Reports'">
+                <x-heroicon-o-shield-check class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Risk Reports</span>
+            </a>
+            <a href="{{ route('reports.barangay.index') }}"
+               class="nav-link {{ request()->routeIs('reports.barangay*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Barangay Report'">
+                <x-heroicon-o-map-pin class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Barangay Report</span>
+            </a>
+            <a href="{{ route('recommendations.index') }}"
+               class="nav-link {{ request()->routeIs('recommendations*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Recommendations'">
+                <x-heroicon-o-light-bulb class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Recommendations</span>
+            </a>
+
+            {{-- ── Assessment Tools (admin + encoder) ── --}}
+            @hasanyrole('admin|encoder')
             <div x-show="sidebarOpen" x-cloak
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Assessment Tools</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
@@ -99,7 +146,10 @@
                 <x-heroicon-o-arrow-path class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Batch Analysis</span>
             </a>
+            @endhasanyrole
 
+            {{-- ── Administration (admin only) ── --}}
+            @role('admin')
             <div x-show="sidebarOpen" x-cloak
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Administration</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
@@ -118,7 +168,15 @@
                 <x-heroicon-o-table-cells class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Export Registry</span>
             </a>
+            <a href="{{ route('users.index') }}"
+               class="nav-link {{ request()->routeIs('users*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'User Management'">
+                <x-heroicon-o-user-group class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">User Management</span>
+            </a>
 
+            {{-- Archives (admin only) ── --}}
             <div x-show="sidebarOpen" x-cloak
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Archives</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
@@ -130,6 +188,7 @@
                 <x-heroicon-o-archive-box class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Archives</span>
             </a>
+            @endrole
 
             <div x-show="sidebarOpen" x-cloak
                  class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Help</div>
@@ -156,7 +215,13 @@
                 {{-- Name/role (expanded only) --}}
                 <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
                     <div class="text-[12px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
-                    <div class="text-[10px] text-ink-500 dark:text-[#4a5550]">OSCA Officer</div>
+                    <div class="text-[10px] text-ink-500 dark:text-[#4a5550]">
+                        @php
+                            $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
+                            $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
+                        @endphp
+                        {{ $roleLabels[$roleName] ?? 'OSCA Staff' }}
+                    </div>
                 </div>
 
                 {{-- Dark mode toggle --}}

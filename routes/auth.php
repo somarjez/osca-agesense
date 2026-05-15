@@ -1,23 +1,12 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 
 Route::middleware('guest')->group(function () {
 	Route::get('/login', function () {
-		// Bootstrap a local dev account if users table is empty.
-		if (User::count() === 0) {
-			User::create([
-				'name' => 'OSCA Admin',
-				'email' => 'admin@osca.local',
-				'password' => Hash::make('password'),
-			]);
-		}
-
 		return view('auth.login');
 	})->name('login');
 
