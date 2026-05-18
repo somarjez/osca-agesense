@@ -82,7 +82,18 @@
                         <label for="password" class="eyebrow">Password</label>
                         <span class="text-[11px] text-ink-400">Forgot?</span>
                     </div>
-                    <input id="password" name="password" type="password" required class="form-input" />
+                    <div class="relative">
+                        <input id="password" name="password" type="password" required class="form-input pr-10" />
+                        <button type="button" id="toggle-pw"
+                                onclick="(function(){ var i=document.getElementById('password'), b=document.getElementById('toggle-pw'); if(i.type==='password'){i.type='text'; b.setAttribute('aria-label','Hide password');}else{i.type='password'; b.setAttribute('aria-label','Show password');} })()"
+                                aria-label="Show password"
+                                class="absolute inset-y-0 right-0 flex items-center px-3 text-ink-400 hover:text-ink-700 focus:outline-none">
+                            <svg id="pw-eye-show" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <label class="inline-flex items-center gap-2 text-[13px] text-ink-700">
@@ -90,10 +101,17 @@
                     Keep me signed in on this device
                 </label>
 
-                <button type="submit" class="btn btn-primary w-full justify-center py-2.5 text-[14px]">
+                <button type="submit" id="login-btn" class="btn btn-primary w-full justify-center py-2.5 text-[14px]">
                     Sign in to AgeSense
                 </button>
             </form>
+            <script>
+                document.querySelector('form').addEventListener('submit', function () {
+                    var btn = document.getElementById('login-btn');
+                    btn.disabled = true;
+                    btn.textContent = 'Signing in…';
+                });
+            </script>
 
             <p class="text-[11px] text-ink-400 mt-10">
                 AgeSense · WHO Healthy Ageing framework · OSCA Pagsanjan, Laguna
