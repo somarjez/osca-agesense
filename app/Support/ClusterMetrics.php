@@ -10,8 +10,13 @@ class ClusterMetrics
      */
     public static function load(): array
     {
-        $path = env('ML_MODELS_PATH', base_path('python/models'))
-              . DIRECTORY_SEPARATOR . 'cluster_eval_metrics.json';
+        $configured = env('ML_MODELS_PATH', 'python/models');
+        // Resolve relative paths against the project root so that a plain value
+        // like "python/models" works the same as an absolute path.
+        $modelsDir = str_starts_with($configured, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\/]/', $configured)
+            ? $configured
+            : base_path($configured);
+        $path = $modelsDir . DIRECTORY_SEPARATOR . 'cluster_eval_metrics.json';
 
         $defaults = [
             'silhouette'        => null,

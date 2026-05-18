@@ -4,11 +4,12 @@
     {{-- ── Eval metrics ── --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         @php
+        $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
         $metrics = [
-            ['Health Groups',       $evalMetrics['k_chosen'],                              '3 groups identified',            true],
-            ['Group Separation',    number_format($evalMetrics['silhouette'], 3),          'Higher is better · ≥0.30',       $evalMetrics['silhouette'] > 0.3],
-            ['Group Distinctness',  number_format($evalMetrics['davies_bouldin'], 3),      'Lower is better · ≤1.50',        $evalMetrics['davies_bouldin'] < 1.5],
-            ['Group Density',       number_format($evalMetrics['calinski_harabasz'], 1),   'Higher is better',               true],
+            ['Health Groups',      $evalMetrics['k_chosen'],                                        '3 groups identified',       true],
+            ['Group Separation',   $fmt($evalMetrics['silhouette'], 3),                             'Higher is better · ≥0.30',  $evalMetrics['silhouette'] !== null && $evalMetrics['silhouette'] > 0.3],
+            ['Group Distinctness', $fmt($evalMetrics['davies_bouldin'], 3),                         'Lower is better · ≤1.50',   $evalMetrics['davies_bouldin'] !== null && $evalMetrics['davies_bouldin'] < 1.5],
+            ['Group Density',      $fmt($evalMetrics['calinski_harabasz'], 1),                      'Higher is better',          true],
         ];
         @endphp
         @foreach ($metrics as [$label, $value, $note, $good])
