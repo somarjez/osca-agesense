@@ -86,7 +86,15 @@
     </div>
 
     {{-- Analysis dispatched banner — polls until job writes a fresher result --}}
-    @php $pendingAnalysis = session()->has('success') && $senior->latestQolSurvey; @endphp
+    @php
+        $latestSurvey    = $senior->latestQolSurvey;
+        $pendingAnalysis = session()->has('success')
+            && $latestSurvey
+            && (
+                !$ml
+                || ($ml->processed_at && $latestSurvey->updated_at && $ml->processed_at->lt($latestSurvey->updated_at))
+            );
+    @endphp
 
     @if ($pendingAnalysis)
     <div x-data="{
