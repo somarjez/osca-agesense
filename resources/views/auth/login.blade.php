@@ -82,13 +82,14 @@
                         <label for="password" class="eyebrow">Password</label>
                         <span class="text-[11px] text-ink-400">Forgot?</span>
                     </div>
-                    <div class="relative">
+                    <div class="flex items-center w-full border border-paper-rule rounded-md bg-white px-3 py-2
+                                focus-within:ring-2 focus-within:ring-forest-500/20 focus-within:border-forest-500 transition-colors">
                         <input id="password" name="password" type="password" required
-                               class="form-input pr-10" />
+                               class="flex-1 min-w-0 text-[13px] text-ink-900 bg-transparent outline-none placeholder:text-ink-300" />
                         <button type="button" id="toggle-pw"
                                 onclick="togglePassword()"
                                 aria-label="Show password"
-                                class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-400 hover:text-ink-700 focus:outline-none transition-colors">
+                                class="ml-2 flex-shrink-0 text-ink-300 hover:text-ink-600 focus:outline-none transition-colors">
                             {{-- Eye open (password hidden) --}}
                             <svg id="pw-icon-show" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
