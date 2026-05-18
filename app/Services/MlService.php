@@ -525,6 +525,10 @@ class MlService
             return null;
         }
 
+        // Python cold-start can exceed PHP's default 30-second limit; disable it for
+        // the duration of this subprocess call (same pattern used in ProcessMlBatch/Single).
+        set_time_limit(0);
+
         // Use storage/app as temp dir so proc_open can write its lock/output files
         // even when called from a restricted context (e.g. detached background process).
         $tmpDir  = storage_path('app');
