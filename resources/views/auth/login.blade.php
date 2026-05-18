@@ -82,7 +82,7 @@
                         <label for="password" class="eyebrow">Password</label>
                         <span class="text-[11px] text-ink-400">Forgot?</span>
                     </div>
-                    <div class="flex items-center w-full border border-paper-rule rounded-md bg-white px-3 py-2
+                    <div class="flex items-center w-full border border-[#e8e4d6] rounded-md bg-white px-3 py-2
                                 focus-within:ring-2 focus-within:ring-forest-500/20 focus-within:border-forest-500 transition-colors">
                         <input id="password" name="password" type="password" required
                                class="flex-1 min-w-0 text-[13px] text-ink-900 bg-transparent outline-none placeholder:text-ink-300" />
