@@ -23,11 +23,11 @@ foreach ($proc in $phpProcs) {
 foreach ($port in @(5001, 5002)) {
     $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($conn) {
-        $pid = $conn.OwningProcess
-        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        $procId = $conn.OwningProcess
+        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
         if ($proc) {
-            Write-Host "  Stopping $($proc.ProcessName) on port $port (PID $pid)..."
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            Write-Host "  Stopping $($proc.ProcessName) on port $port (PID $procId)..."
+            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
             $killed++
         }
     }
