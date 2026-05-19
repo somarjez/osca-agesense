@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -22,14 +26,70 @@ class ExportTest extends TestCase
     private User $admin;
     private User $encoder;
     private User $viewer;
+    private SeniorCitizen $senior;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->admin   = User::where('email', 'admin@osca.local')->firstOrFail();
-        $this->encoder = User::where('email', 'encoder@osca.local')->firstOrFail();
-        $this->viewer  = User::where('email', 'viewer@osca.local')->firstOrFail();
+        // Ensure roles exist — idempotent whether or not UserSeeder has run.
+        foreach (['admin', 'encoder', 'viewer'] as $roleName) {
+            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+        }
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->admin = User::firstOrCreate(
+            ['email' => 'admin@osca.local'],
+            ['name' => 'OSCA Admin', 'password' => Hash::make('password')]
+        );
+        $this->admin->syncRoles(['admin']);
+
+        $this->encoder = User::firstOrCreate(
+            ['email' => 'encoder@osca.local'],
+            ['name' => 'OSCA Encoder', 'password' => Hash::make('password')]
+        );
+        $this->encoder->syncRoles(['encoder']);
+
+        $this->viewer = User::firstOrCreate(
+            ['email' => 'viewer@osca.local'],
+            ['name' => 'OSCA Viewer', 'password' => Hash::make('password')]
+        );
+        $this->viewer->syncRoles(['viewer']);
+
+        // Seed a minimal active senior + ML result so all export tests have data.
+        // DatabaseTransactions rolls everything back after each test.
+        $this->senior = SeniorCitizen::firstOrCreate(
+            ['osca_id' => 'TST-2026-0001'],
+            [
+                'first_name'    => 'Test',
+                'last_name'     => 'Senior',
+                'barangay'      => 'Barangay I',
+                'date_of_birth' => '1950-01-01',
+                'age'           => 76,
+                'gender'        => 'Male',
+                'status'        => 'active',
+            ]
+        );
+
+        // HIGH risk so the senior appears in both the cluster CSV and risk CSV exports.
+        MlResult::firstOrCreate(
+            ['senior_citizen_id' => $this->senior->id],
+            [
+                'cluster_id'        => 2,
+                'cluster_named_id'  => 3,
+                'cluster_name'      => 'Low Functioning / Multi-domain Risk',
+                'overall_risk_level'=> 'HIGH',
+                'ic_risk_level'     => 'high',
+                'env_risk_level'    => 'high',
+                'func_risk_level'   => 'high',
+                'composite_risk'    => 0.75,
+                'ic_risk'           => 0.72,
+                'env_risk'          => 0.68,
+                'func_risk'         => 0.70,
+                'wellbeing_score'   => 0.30,
+                'processed_at'      => now(),
+            ]
+        );
     }
 
     // ── Senior PDF export ─────────────────────────────────────────────────
@@ -37,11 +97,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_admin()
     {
-        $senior = SeniorCitizen::active()->first();
-        $this->assertNotNull($senior, 'No active seniors in DB — run migrate:fresh --seed first.');
-
         $response = $this->actingAs($this->admin)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -50,7 +107,7 @@ class ExportTest extends TestCase
             $response->headers->get('Content-Disposition')
         );
         $this->assertStringContainsString(
-            $senior->osca_id,
+            $this->senior->osca_id,
             $response->headers->get('Content-Disposition')
         );
         $this->assertNotEmpty($response->getContent());
@@ -59,10 +116,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_encoder()
     {
-        $senior = SeniorCitizen::active()->first();
-
         $response = $this->actingAs($this->encoder)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -71,10 +126,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_viewer()
     {
-        $senior = SeniorCitizen::active()->first();
-
         $response = $this->actingAs($this->viewer)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -83,9 +136,7 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_requires_authentication()
     {
-        $senior = SeniorCitizen::active()->first();
-
-        $this->get(route('seniors.export', $senior))
+        $this->get(route('seniors.export', $this->senior))
              ->assertRedirect(route('login'));
     }
 

@@ -905,7 +905,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                     scaler_feat_idx = {f: i for i, f in enumerate(scaler_input_names)}
                     row_scaled_30 = [float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
                                      for f in feature_names]
-                    np.random.seed(42)
+                    reducer.transform_seed = 42
                     row_reduced  = reducer.transform([row_scaled_30])
                     raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
                     reduced_features = row_reduced[0].tolist()
@@ -922,7 +922,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                     if cluster_input_names:
                         cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
                         row_scaled   = scaler.transform([cluster_row])[0].tolist()
-                        np.random.seed(42)
+                        reducer.transform_seed = 42
                         row_reduced  = reducer.transform([row_scaled])
                         raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
                         reduced_features = row_reduced[0].tolist()
@@ -1206,7 +1206,7 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
         else:
             X_cluster = X_scaled
 
-        np.random.seed(42)
+        reducer.transform_seed = 42
         X_reduced  = reducer.transform(X_cluster)
         raw_ids    = kmeans.predict(X_reduced).tolist()
 
