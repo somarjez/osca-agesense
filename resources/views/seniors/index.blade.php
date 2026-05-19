@@ -52,7 +52,7 @@
                 @endif
             </div>
             <div class="flex items-center gap-2">
-                <button @click="open = true" class="btn btn-ghost">
+                <button @click.stop="open = true" class="btn btn-ghost">
                     <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                     Bulk Upload
                 </button>
@@ -303,7 +303,7 @@
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @click.self="close()"
          @keydown.escape.window="if(open) close()">
-        <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]" @click.stop>
 
             {{-- Modal header --}}
             <div class="card-head flex-shrink-0">
