@@ -231,14 +231,24 @@
 .dark .text-slate-300                         { color: #4a5550; }
 
 /* Remap bg utilities */
-.dark .bg-white        { background-color: #1a201d; }
-.dark .bg-slate-50     { background-color: #1e2822; }
-.dark .bg-slate-100    { background-color: #252e2a; }
-.dark .bg-slate-200    { background-color: #2a3430; }
-.dark .bg-amber-50     { background-color: #2a2518; }
-.dark .bg-teal-50      { background-color: #0f2420; }
-.dark .bg-red-50       { background-color: #2a1515; }
-.dark .bg-red-100      { background-color: #321a1a; }
+.dark .bg-white          { background-color: #1a201d; }
+.dark .bg-slate-50       { background-color: #1e2822; }
+.dark .bg-slate-100      { background-color: #252e2a; }
+.dark .bg-slate-200      { background-color: #2a3430; }
+.dark .bg-amber-50       { background-color: #2a2518; }
+.dark .bg-teal-50        { background-color: #0f2420; }
+.dark .bg-red-50         { background-color: #2a1515; }
+.dark .bg-red-100        { background-color: #321a1a; }
+/* GIS stat card backgrounds */
+.dark .bg-emerald-50     { background-color: #0e2218; }
+.dark .bg-orange-50      { background-color: #2a1a0a; }
+.dark .bg-sky-50         { background-color: #0a1e2a; }
+.dark .bg-violet-50      { background-color: #1a1428; }
+/* GIS border colors */
+.dark .border-emerald-200 { border-color: #1e4a30; }
+.dark .border-orange-200  { border-color: #4a2a10; }
+.dark .border-sky-200     { border-color: #103048; }
+.dark .border-violet-200  { border-color: #2e1e50; }
 
 /* Remap border utilities */
 .dark .border-slate-200 { border-color: #2b3530; }
@@ -252,6 +262,12 @@
 .dark .kpi         { background-color: #1a201d; border-color: #2b3530; }
 .dark .kpi-label   { color: #6b7570; }
 .dark .kpi-value   { color: #e4e1d8; }
+
+/* KPI accent value colors in dark mode */
+.dark .text-high-700     { color: #e08070; }
+.dark .text-moderate-700 { color: #d4a830; }
+.dark .text-low-700      { color: #4a8a68; }
+.dark .text-info-700     { color: #5fa0c8; }
 
 .dark .th          { background-color: rgba(32, 42, 38, 0.6); color: #6b7570; border-color: #2b3530; }
 .dark .td          { color: #b0b5b2; border-color: #2b3530; }

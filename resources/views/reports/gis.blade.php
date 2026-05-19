@@ -6,58 +6,57 @@
 <div class="space-y-5">
 
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        @foreach ([
-            ['id' => 'gis-stat-total', 'label' => 'Total Mapped Seniors', 'value' => $stats['mapped_seniors'], 'tone' => 'bg-emerald-50 border-emerald-200 text-emerald-700', 'caption' => 'Current visible records'],
-            ['id' => 'gis-stat-high-risk', 'label' => 'High Risk Seniors', 'value' => $stats['high_risk_mapped'], 'tone' => 'bg-orange-50 border-orange-200 text-orange-700', 'caption' => 'Current visible records'],
-            ['id' => 'gis-stat-barangays', 'label' => 'Barangays Covered', 'value' => $stats['barangays_covered'], 'tone' => 'bg-sky-50 border-sky-200 text-sky-700', 'caption' => 'Distinct visible barangays'],
-            ['id' => 'gis-stat-source', 'label' => 'Data Source', 'value' => 'Loading', 'tone' => 'bg-violet-50 border-violet-200 text-violet-700', 'caption' => 'API-driven GIS source'],
-        ] as $card)
-        <div class="{{ $card['tone'] }} border rounded-xl p-5">
-            <p class="text-xs font-bold uppercase tracking-wider">{{ $card['label'] }}</p>
-            <p id="{{ $card['id'] }}" class="text-3xl font-bold mt-2">{{ is_numeric($card['value']) ? number_format($card['value']) : $card['value'] }}</p>
-            <p class="text-xs mt-1 opacity-75">{{ $card['caption'] }}</p>
+        @php
+        $gisCards = [
+            ['id' => 'gis-stat-total',    'label' => 'Total Mapped Seniors', 'value' => $stats['mapped_seniors'],   'rule' => 'bg-low-500',      'caption' => 'Current visible records'],
+            ['id' => 'gis-stat-high-risk','label' => 'High Risk Seniors',    'value' => $stats['high_risk_mapped'], 'rule' => 'bg-high-500',     'caption' => 'Current visible records'],
+            ['id' => 'gis-stat-barangays','label' => 'Barangays Covered',    'value' => $stats['barangays_covered'],'rule' => 'bg-info-500',     'caption' => 'Distinct visible barangays'],
+            ['id' => 'gis-stat-source',   'label' => 'Data Source',          'value' => 'Loading',                  'rule' => 'bg-forest-500',   'caption' => 'API-driven GIS source'],
+        ];
+        @endphp
+        @foreach ($gisCards as $card)
+        <div class="kpi">
+            <div class="kpi-rule {{ $card['rule'] }}"></div>
+            <div class="kpi-label">{{ $card['label'] }}</div>
+            <div id="{{ $card['id'] }}" class="kpi-value">{{ is_numeric($card['value']) ? number_format($card['value']) : $card['value'] }}</div>
+            <div class="kpi-delta">{{ $card['caption'] }}</div>
         </div>
         @endforeach
     </div>
 
-    <div class="bg-paper-2 border border-paper-rule rounded-2xl px-5 py-4 shadow-sm">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-500">Prototype Note</p>
-        <p class="text-sm text-ink-700 mt-1 leading-relaxed">Map points are generalized for privacy and do not represent exact home addresses.</p>
+    <div class="card card-body py-3">
+        <p class="eyebrow">Prototype Note</p>
+        <p class="text-sm text-ink-700 dark:text-[#b0b5b2] mt-1 leading-relaxed">Map points are generalized for privacy and do not represent exact home addresses.</p>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div class="bg-slate-50 border-b border-slate-100 px-5 py-4">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <h3 class="text-sm font-semibold text-slate-700">Senior Citizen Spatial Distribution</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Generalized senior distribution and accessibility context within Pagsanjan</p>
-                </div>
-                <span class="text-xs text-slate-500 whitespace-nowrap">Centered on Pagsanjan, Laguna</span>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Senior Citizen Spatial Distribution</div>
+                <div class="card-sub">Generalized senior distribution and accessibility context within Pagsanjan</div>
             </div>
+            <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] whitespace-nowrap">Centered on Pagsanjan, Laguna</span>
         </div>
 
-        <div class="p-5 space-y-4">
+        <div class="card-body space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <label class="block">
-                    <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Visualization</span>
-                    <select id="gis-visualization-mode"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400">
+                    <span class="eyebrow block mb-1.5">Visualization</span>
+                    <select id="gis-visualization-mode" class="form-select">
                         <option value="markers">Senior Distribution Points</option>
                         <option value="risk-zones">Risk Zone Overlay</option>
                         <option value="accessibility-zones">Accessibility Coverage View</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Barangay</span>
-                    <select id="gis-barangay-filter"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400">
+                    <span class="eyebrow block mb-1.5">Barangay</span>
+                    <select id="gis-barangay-filter" class="form-select">
                         <option value="all">All Barangays</option>
                     </select>
                 </label>
                 <label class="block">
-                    <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Risk Level</span>
-                    <select id="gis-risk-filter"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400">
+                    <span class="eyebrow block mb-1.5">Risk Level</span>
+                    <select id="gis-risk-filter" class="form-select">
                         <option value="all">All Risk Levels</option>
                         <option value="low">Low</option>
                         <option value="moderate">Moderate</option>
@@ -65,30 +64,29 @@
                     </select>
                 </label>
                 <label class="block">
-                    <span class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Cluster / Health Group</span>
-                    <select id="gis-cluster-filter"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400">
+                    <span class="eyebrow block mb-1.5">Cluster / Health Group</span>
+                    <select id="gis-cluster-filter" class="form-select">
                         <option value="all">All Groups</option>
                     </select>
                 </label>
             </div>
 
             <div id="gis-map"
-                 class="rounded-2xl border border-slate-200 bg-slate-50 min-h-[420px] md:min-h-[460px]"
+                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
                  data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
                  data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
                  data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
             </div>
             <div>
-                <p id="gis-map-status" class="text-xs text-slate-500">Loading sample generalized GIS data...</p>
+                <p id="gis-map-status" class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Loading sample generalized GIS data...</p>
             </div>
-            <div id="gis-map-legend" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
+            <div id="gis-map-legend" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11.5px] text-ink-500 dark:text-[#6b7570]">
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-low-500 inline-block"></span>Low</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-500 inline-block"></span>Moderate</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-high-500 inline-block"></span>High</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-info-500 inline-block"></span>Facilities</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-100 inline-block"></span>Outer Zone</span>
             </div>
         </div>
     </div>
@@ -206,14 +204,14 @@
         if (!statusEl) return;
 
         statusEl.textContent = message;
-        statusEl.className = 'text-xs mt-0';
+        statusEl.className = 'text-[11.5px] mt-0';
 
         if (tone === 'success') {
-            statusEl.classList.add('text-emerald-600');
+            statusEl.classList.add('text-low-700', 'dark:text-[#4a8a68]');
         } else if (tone === 'error') {
-            statusEl.classList.add('text-red-600');
+            statusEl.classList.add('text-high-700', 'dark:text-[#e08070]');
         } else {
-            statusEl.classList.add('text-slate-500');
+            statusEl.classList.add('text-ink-400', 'dark:text-[#6b7570]');
         }
     }
 

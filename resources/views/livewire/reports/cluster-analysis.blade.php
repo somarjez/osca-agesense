@@ -48,8 +48,8 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="font-serif text-2xl font-semibold tnum">{{ $summary['count'] }}</div>
-                    <div class="text-[10.5px] uppercase tracking-wider text-ink-400">members</div>
+                    <div class="font-serif text-2xl font-semibold tnum text-ink-900 dark:text-[#e4e1d8]">{{ $summary['count'] }}</div>
+                    <div class="text-[10.5px] uppercase tracking-wider text-ink-400 dark:text-[#6b7570]">members</div>
                 </div>
             </div>
             <div class="card-body space-y-3">
@@ -57,7 +57,7 @@
                 <div>
                     <div class="flex justify-between text-[11.5px] mb-1">
                         <span class="text-ink-500">{{ $label }}</span>
-                        <span class="font-mono font-semibold text-ink-900 tnum">{{ round($summary[$key] * 100) }}%</span>
+                        <span class="font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ round($summary[$key] * 100) }}%</span>
                     </div>
                     <div class="bar">
                         <div class="bar-fill bar-fill-forest" style="width: {{ round($summary[$key] * 100) }}%"></div>
@@ -72,7 +72,7 @@
                     </div>
                     <div>
                         <div class="eyebrow">Top Barangay</div>
-                        <div class="text-ink-900 font-semibold mt-0.5 truncate">{{ $summary['barangay_top'] ?? '—' }}</div>
+                        <div class="text-ink-900 dark:text-[#e4e1d8] font-semibold mt-0.5 truncate">{{ $summary['barangay_top'] ?? '—' }}</div>
                     </div>
                 </div>
             </div>
