@@ -228,11 +228,13 @@ Key `.env` variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python microservices (no port suffix) |
-| `ML_PREPROCESS_PORT` | `5001` | Preprocessor service port |
-| `ML_INFERENCE_PORT` | `5002` | Inference service port |
-| `ML_MODELS_PATH` | `python/models` | Path to `.pkl` model artefacts directory (committed to repo) |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` (placed locally via the `osca_output` workflow — not committed to the repo) instead of computing live. Ensures identical results across all machines. Keep `true` unless deliberately testing live model output. |
+| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python microservices — **no port suffix** |
+| `PYTHON_PREPROCESS_PORT` | `5001` | Preprocessor service port (override only if 5001 is taken) |
+| `PYTHON_INFERENCE_PORT` | `5002` | Inference service port (override only if 5002 is taken) |
+| `ML_MODELS_PATH` | `python/models` | Path to `.pkl` / `.json` model artefacts (committed to repo; relative to project root) |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` (placed locally — gitignored, never committed) instead of computing live. **Must be `true`** on all machines for dashboard numbers to match the notebook. Keep `true` unless deliberately testing live model output. |
+| `PYTHON_TIMEOUT` | `120` | Seconds to wait for a local Python subprocess (Tier 2 fallback). Increase if seeding times out on a slow machine. |
+| `PYTHON_EXECUTABLE` | _(auto)_ | Override the Python binary used for Tier 2 subprocess. Leave blank to auto-detect from `python/venv`. |
 
 ### Mail (notifications)
 
