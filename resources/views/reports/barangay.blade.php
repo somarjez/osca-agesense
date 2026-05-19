@@ -1,26 +1,25 @@
 {{-- resources/views/reports/barangay.blade.php --}}
 @extends('layouts.app')
 @section('page-title', $brgy)
-@section('page-subtitle', 'Barangay drill-down — senior citizen risk and cluster breakdown')
 
 @section('content')
 <div class="space-y-5">
 
     {{-- ── Barangay selector ── --}}
-    <div class="flex items-center gap-3 flex-wrap">
-        <form method="GET" class="flex gap-2 flex-wrap">
-            <select name="brgy" id="brgy-selector"
-                    class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none shadow-sm"
+    <div class="card">
+        <div class="card-body flex flex-wrap items-center gap-3 py-3">
+            <x-heroicon-o-map-pin class="w-4 h-4 text-ink-400 flex-shrink-0" />
+            <select class="form-select max-w-[220px]"
                     onchange="window.location.href='{{ url('/reports/barangay/') }}/' + this.value">
                 @foreach ($barangays as $b)
                 <option value="{{ $b }}" {{ $b === $brgy ? 'selected' : '' }}>{{ $b }}</option>
                 @endforeach
             </select>
-        </form>
-        <a href="{{ route('reports.risk') }}"
-           class="ml-auto flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors">
-            ← All Barangays
-        </a>
+            <a href="{{ route('reports.risk') }}"
+               class="btn btn-ghost text-[12.5px] gap-1.5 ml-auto">
+                <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> All Barangays
+            </a>
+        </div>
     </div>
 
     {{-- ── Summary KPI cards ── --}}
@@ -32,28 +31,33 @@
         $low      = $riskDist['LOW']      ?? 0;
     @endphp
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm col-span-1">
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Seniors</p>
-            <p class="text-3xl font-bold mt-1 text-slate-800">{{ $total }}</p>
+        <div class="kpi col-span-1">
+            <div class="kpi-rule bg-forest-500"></div>
+            <div class="kpi-label">Total Seniors</div>
+            <div class="kpi-value">{{ $total }}</div>
         </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm col-span-1">
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Analysed</p>
-            <p class="text-3xl font-bold mt-1 text-slate-800">{{ $surveyed }}</p>
+        <div class="kpi col-span-1">
+            <div class="kpi-rule bg-info-500"></div>
+            <div class="kpi-label">Analysed</div>
+            <div class="kpi-value">{{ $surveyed }}</div>
         </div>
-        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p class="text-xs font-bold uppercase tracking-wider text-orange-700">HIGH</p>
-            <p class="text-3xl font-bold mt-1 text-orange-700">{{ $high }}</p>
+        <div class="kpi">
+            <div class="kpi-rule bg-high-500"></div>
+            <div class="kpi-label">HIGH Risk</div>
+            <div class="kpi-value text-high-700">{{ $high }}</div>
             @if ($urgentCount > 0)
-            <p class="text-xs mt-0.5 text-orange-500">{{ $urgentCount }} urgent</p>
+            <div class="kpi-delta text-high-700">{{ $urgentCount }} urgent</div>
             @endif
         </div>
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p class="text-xs font-bold uppercase tracking-wider text-amber-700">MODERATE</p>
-            <p class="text-3xl font-bold mt-1 text-amber-700">{{ $moderate }}</p>
+        <div class="kpi">
+            <div class="kpi-rule bg-moderate-500"></div>
+            <div class="kpi-label">MODERATE Risk</div>
+            <div class="kpi-value text-moderate-700">{{ $moderate }}</div>
         </div>
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-            <p class="text-xs font-bold uppercase tracking-wider text-emerald-700">LOW</p>
-            <p class="text-3xl font-bold mt-1 text-emerald-700">{{ $low }}</p>
+        <div class="kpi">
+            <div class="kpi-rule bg-low-500"></div>
+            <div class="kpi-label">LOW Risk</div>
+            <div class="kpi-value text-low-700">{{ $low }}</div>
         </div>
     </div>
 
@@ -61,143 +65,144 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {{-- Domain Risk Avg Bars --}}
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <h3 class="text-sm font-semibold text-slate-700 mb-4">Average Domain Risk Scores</h3>
-            @foreach ([
-                ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0],
-                ['Environment',             $domainAvgs?->env       ?? 0],
-                ['Functional Ability',      $domainAvgs?->func      ?? 0],
-                ['Composite',               $domainAvgs?->composite ?? 0],
-            ] as [$label, $val])
-            @php $barColor = $val >= 0.50 ? 'bg-high-500' : ($val >= 0.30 ? 'bg-moderate-500' : 'bg-low-500'); @endphp
-            <div class="mb-3">
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="text-slate-600">{{ $label }}</span>
-                    <span class="font-semibold text-slate-800">{{ number_format($val * 100, 1) }}%</span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-2.5">
-                    <div class="{{ $barColor }} h-2.5 rounded-full transition-all" style="width: {{ $val * 100 }}%"></div>
-                </div>
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">Average Domain Risk Scores</div>
             </div>
-            @endforeach
-            <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-1 text-center text-xs">
-                <div class="bg-orange-50 text-orange-700 px-1 py-1 rounded">High ≥50%</div>
-                <div class="bg-amber-50 text-amber-700 px-1 py-1 rounded">Moderate 30–50%</div>
-                <div class="bg-emerald-50 text-emerald-700 px-1 py-1 rounded">Low &lt;30%</div>
+            <div class="card-body space-y-3">
+                @foreach ([
+                    ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0],
+                    ['Environment',             $domainAvgs?->env       ?? 0],
+                    ['Functional Ability',      $domainAvgs?->func      ?? 0],
+                    ['Composite',               $domainAvgs?->composite ?? 0],
+                ] as [$label, $val])
+                @php $barClass = $val >= 0.50 ? 'bar-fill-high' : ($val >= 0.30 ? 'bar-fill-moderate' : 'bar-fill-low'); @endphp
+                <div>
+                    <div class="flex justify-between text-[12.5px] mb-1">
+                        <span class="text-ink-500 dark:text-[#8a9087]">{{ $label }}</span>
+                        <span class="font-semibold font-mono tnum text-ink-900 dark:text-[#e4e1d8]">{{ number_format($val * 100, 1) }}%</span>
+                    </div>
+                    <div class="bar">
+                        <div class="bar-fill {{ $barClass }}" style="width: {{ $val * 100 }}%"></div>
+                    </div>
+                </div>
+                @endforeach
+
+                <div class="pt-3 border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-3 gap-1 text-center text-[11px]">
+                    <div class="badge badge-high py-1">High ≥50%</div>
+                    <div class="badge badge-moderate py-1">Moderate 30–50%</div>
+                    <div class="badge badge-low py-1">Low &lt;30%</div>
+                </div>
             </div>
         </div>
 
         {{-- Cluster distribution --}}
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <h3 class="text-sm font-semibold text-slate-700 mb-4">Health Group Distribution</h3>
-            @if ($clusterDist->isEmpty())
-                <p class="text-sm text-slate-400">No cluster data available for this barangay.</p>
-            @else
-            @php $clusterTotal = $clusterDist->sum('count'); @endphp
-            @foreach ($clusterDist as $c)
-            @php
-                $pct = $clusterTotal > 0 ? $c->count / $clusterTotal * 100 : 0;
-                $color = match ($c->cluster_named_id) {
-                    1 => ['bar' => 'bg-emerald-400', 'badge' => 'bg-emerald-100 text-emerald-800'],
-                    2 => ['bar' => 'bg-amber-400',   'badge' => 'bg-amber-100 text-amber-800'],
-                    3 => ['bar' => 'bg-orange-400',  'badge' => 'bg-orange-100 text-orange-800'],
-                    default => ['bar' => 'bg-slate-300', 'badge' => 'bg-slate-100 text-slate-700'],
-                };
-            @endphp
-            <div class="mb-3">
-                <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm text-slate-600">
-                        <span class="inline-block px-1.5 py-0.5 rounded text-xs font-bold {{ $color['badge'] }} mr-1">{{ $c->cluster_named_id }}</span>
-                        {{ $c->cluster_name }}
-                    </span>
-                    <span class="text-sm font-semibold text-slate-800">{{ $c->count }} <span class="text-slate-400 font-normal">({{ number_format($pct, 1) }}%)</span></span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-2.5">
-                    <div class="{{ $color['bar'] }} h-2.5 rounded-full" style="width: {{ $pct }}%"></div>
-                </div>
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">Health Group Distribution</div>
             </div>
-            @endforeach
-            @endif
-
-            {{-- Pending recs by category --}}
-            @if ($pendingRecs->isNotEmpty())
-            <div class="mt-5 pt-4 border-t border-slate-100">
-                <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Pending Recommendations</h4>
-                @foreach ($pendingRecs as $rec)
-                <div class="flex items-center justify-between text-sm mb-1.5">
-                    <span class="text-slate-600 capitalize">{{ str_replace('_', ' ', $rec->category) }}</span>
-                    <span class="font-semibold text-slate-700 tabular-nums">{{ $rec->count }}</span>
+            <div class="card-body">
+                @if ($clusterDist->isEmpty())
+                    <p class="text-[13px] text-ink-400 dark:text-[#6b7570]">No cluster data available for this barangay.</p>
+                @else
+                @php
+                    $clusterTotal = $clusterDist->sum('count');
+                    $clusterAccent = [1 => 'low', 2 => 'moderate', 3 => 'high'];
+                @endphp
+                <div class="space-y-3">
+                @foreach ($clusterDist as $c)
+                @php
+                    $pct    = $clusterTotal > 0 ? $c->count / $clusterTotal * 100 : 0;
+                    $accent = $clusterAccent[$c->cluster_named_id] ?? 'forest';
+                @endphp
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[12.5px] text-ink-700 dark:text-[#b0b5b2] flex items-center gap-2">
+                            <x-cluster-badge :id="$c->cluster_named_id" />
+                            {{ $c->cluster_name }}
+                        </span>
+                        <span class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">
+                            {{ $c->count }}
+                            <span class="text-ink-400 dark:text-[#6b7570] font-normal">({{ number_format($pct, 1) }}%)</span>
+                        </span>
+                    </div>
+                    <div class="bar">
+                        <div class="bar-fill bar-fill-{{ $accent }}" style="width: {{ $pct }}%"></div>
+                    </div>
                 </div>
                 @endforeach
+                </div>
+                @endif
+
+                {{-- Pending recs by category --}}
+                @if ($pendingRecs->isNotEmpty())
+                <div class="mt-5 pt-4 border-t border-paper-rule dark:border-[#2b3530]">
+                    <div class="eyebrow mb-3">Pending Recommendations</div>
+                    <div class="space-y-1.5">
+                    @foreach ($pendingRecs as $rec)
+                    <div class="flex items-center justify-between text-[12.5px]">
+                        <span class="text-ink-600 dark:text-[#b0b5b2] capitalize">{{ str_replace('_', ' ', $rec->category) }}</span>
+                        <span class="font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $rec->count }}</span>
+                    </div>
+                    @endforeach
+                    </div>
+                </div>
+                @endif
             </div>
-            @endif
         </div>
     </div>
 
     {{-- ── Senior roster ── --}}
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="bg-slate-50 border-b border-slate-100 px-5 py-3 flex items-center gap-2">
-            <x-heroicon-o-users class="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <h3 class="text-sm font-semibold text-slate-700">Senior Citizen Roster — {{ $brgy }}</h3>
-            <span class="ml-auto text-xs text-slate-400">{{ $total }} seniors</span>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div class="flex items-center gap-2">
+                <x-heroicon-o-users class="w-4 h-4 text-ink-400 flex-shrink-0" />
+                <div class="card-title">Senior Citizen Roster — {{ $brgy }}</div>
+            </div>
+            <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] tnum">{{ $total }} seniors</span>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-slate-50 border-b border-slate-200">
-                    <tr class="text-xs text-slate-400">
-                        <th class="px-4 py-2.5 text-left font-medium">Senior Citizen</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Age</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Gender</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Risk Level</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Composite</th>
-                        <th class="px-4 py-2.5 text-left font-medium">Health Group</th>
-                        <th class="px-4 py-2.5 text-right font-medium">Action</th>
+            <table class="w-full">
+                <thead>
+                    <tr>
+                        <th class="th">Senior Citizen</th>
+                        <th class="th text-center">Age</th>
+                        <th class="th text-center">Gender</th>
+                        <th class="th text-center">Risk Level</th>
+                        <th class="th text-center">Composite</th>
+                        <th class="th">Health Group</th>
+                        <th class="th"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody>
                     @forelse ($seniors as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
-                    <tr class="hover:bg-slate-25 transition-colors">
-                        <td class="px-4 py-2.5 font-medium text-slate-800">
-                            {{ $senior->full_name }}
-                            <div class="text-xs text-slate-400">{{ $senior->osca_id }}</div>
+                    <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                        <td class="td">
+                            <div class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</div>
+                            <div class="text-[11px] text-ink-400 dark:text-[#6b7570] font-mono">{{ $senior->osca_id }}</div>
                         </td>
-                        <td class="px-4 py-2.5 text-slate-600">{{ $senior->age }}</td>
-                        <td class="px-4 py-2.5 text-slate-600">{{ $senior->gender ?? '—' }}</td>
-                        <td class="px-4 py-2.5">
+                        <td class="td text-center font-mono tnum text-ink-700 dark:text-[#b0b5b2]">{{ $senior->age }}</td>
+                        <td class="td text-center text-ink-500 dark:text-[#8a9087]">{{ $senior->gender ?? '—' }}</td>
+                        <td class="td text-center">
                             @if ($ml)
-                            @php
-                                $riskStyle = match ($ml->overall_risk_level) {
-                                    'HIGH'     => 'bg-orange-100 text-orange-700',
-                                    'MODERATE' => 'bg-amber-100 text-amber-700',
-                                    'LOW'      => 'bg-emerald-100 text-emerald-700',
-                                    default    => 'bg-slate-100 text-slate-500',
-                                };
-                            @endphp
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $riskStyle }}">
-                                {{ $ml->overall_risk_level }}
-                                @if ($ml->priority_flag === 'urgent')
-                                    <span class="ml-0.5 text-red-600">!</span>
-                                @endif
-                            </span>
+                                <x-risk-badge :level="$ml->overall_risk_level" :priority="$ml->priority_flag" />
                             @else
-                            <span class="text-xs text-slate-300">No data</span>
+                                <span class="text-[11.5px] text-ink-300 dark:text-[#4a5550]">No data</span>
                             @endif
                         </td>
-                        <td class="px-4 py-2.5 font-semibold text-slate-700 tabular-nums">
+                        <td class="td text-center font-mono tnum font-semibold text-ink-800 dark:text-[#c8c4bc]">
                             {{ $ml ? number_format($ml->composite_risk * 100, 1) . '%' : '—' }}
                         </td>
-                        <td class="px-4 py-2.5 text-slate-600 text-xs">
-                            {{ $ml?->cluster_name ?? '—' }}
-                        </td>
-                        <td class="px-4 py-2.5 text-right">
+                        <td class="td text-[12px] text-ink-500 dark:text-[#8a9087]">{{ $ml?->cluster_name ?? '—' }}</td>
+                        <td class="td text-right">
                             <a href="{{ route('seniors.show', $senior->id) }}"
-                               class="text-xs font-medium text-teal-600 hover:text-teal-700">View →</a>
+                               class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">View →</a>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                        <td colspan="7" class="td text-center py-12 text-ink-400 dark:text-[#6b7570]">
                             No active seniors registered in {{ $brgy }}.
                         </td>
                     </tr>
