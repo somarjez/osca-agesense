@@ -42,14 +42,18 @@ from inference_service import (
 
 def read_env():
     env = {}
-    env_path = os.path.join(BASE_DIR, ".env")
-    if os.path.exists(env_path):
-        for line in open(env_path, encoding="utf-8"):
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            env[k.strip()] = v.strip().strip('"').strip("'")
+    for candidate in [
+        os.path.join(BASE_DIR, ".env"),
+        os.path.join(os.path.dirname(BASE_DIR), ".env"),
+    ]:
+        if os.path.exists(candidate):
+            for line in open(candidate, encoding="utf-8"):
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                env[k.strip()] = v.strip().strip('"').strip("'")
+            break
     return env
 
 
@@ -279,8 +283,32 @@ def update_ml_result(conn, ml_result_id, senior_id, result):
 
 def main():
     os.environ["OSCA_BATCH_MODE"] = "1"
-    os.environ["ENABLE_NOTEBOOK_OVERRIDES"] = "false"
+    # Do NOT force ENABLE_NOTEBOOK_OVERRIDES here — let it be read from .env
+    # so this script uses the same override setting as the Flask service.
     np.random.seed(42)
+
+    # Pre-flight: warn if notebook overrides are off (scores will not match notebook)
+    env = read_env()
+    overrides_on = env.get("ENABLE_NOTEBOOK_OVERRIDES", "false").lower() in {"1", "true", "yes", "on"}
+    csv_path = os.path.join(BASE_DIR, "models", "predictions", "senior_predictions.csv")
+    csv_exists = os.path.exists(csv_path)
+    if not overrides_on or not csv_exists:
+        print("\n[WARNING] -------------------------------------------------------")
+        if not overrides_on:
+            print("  ENABLE_NOTEBOOK_OVERRIDES is not set to true in .env")
+            print("  Scores will be computed by the live model (may not match notebook)")
+        if not csv_exists:
+            print(f"  senior_predictions.csv not found at:")
+            print(f"  {csv_path}")
+            print("  Copy it from osca_output/predictions/ before running this script")
+        print("  To fix: set ENABLE_NOTEBOOK_OVERRIDES=true in .env and copy the CSV")
+        print("-----------------------------------------------------------------\n")
+        confirm = input("Continue anyway? (yes/no): ").strip().lower()
+        if confirm not in {"yes", "y"}:
+            print("Aborted.")
+            sys.exit(0)
+    else:
+        print("[OK] ENABLE_NOTEBOOK_OVERRIDES=true and senior_predictions.csv found.")
 
     print("Connecting to database...")
     conn = db_connect()
