@@ -392,54 +392,97 @@ The consequence: after cloning and seeding, two devices may show the same senior
 
 `python/fix_cluster_distribution.py` resolves cross-device orientation by deriving the correct `cluster_mapping.json` from the actual population data rather than relying on a static committed mapping:
 
-1. **Batch UMAP transform** — all seniors are passed through scaler → UMAP → KMeans in a single call. This ensures every senior is assigned within the same geometric space (not 275 independent `.transform()` calls).
+1. **Batch UMAP transform** — all seniors are passed through scaler → UMAP → KMeans in a single call. This ensures every senior is assigned within the same geometric space (not N independent `.transform()` calls).
 
-2. **Mean QoL per raw cluster** — for each raw KMeans cluster (0, 1, 2), the script computes the mean QoL score across all seniors in that cluster. QoL is the most reliable semantic signal for cluster polarity because it correlates directly with wellbeing.
+2. **Size anchor** — the largest raw cluster is always C2 (Moderate / Mixed Needs). The notebook training data consistently produces one large middle cluster (~134 seniors) flanked by two smaller ones (~77-78). This is a structural property of the dataset, not a heuristic.
 
-3. **Auto-calibrated mapping** — raw clusters are ranked by mean QoL descending:
-   - Highest mean QoL → named ID 1 (High Functioning)
-   - Middle mean QoL → named ID 2 (Moderate / Mixed Needs)
-   - Lowest mean QoL → named ID 3 (Low Functioning / Multi-domain Risk)
+3. **Wellbeing tiebreak** — of the two small clusters, the one with the higher mean `overall_wellbeing` score → C1 (High Functioning); the lower → C3 (Low Functioning). `overall_wellbeing` is a composite section score (not a 1-5 survey item) with a large spread between high and low functioning seniors.
 
-   The corrected mapping is written back to `python/models/cluster_mapping.json`.
+4. **Mapping written** — the corrected raw→named mapping is written back to `python/models/cluster_mapping.json`. The `_load_cluster_mapping()` lru_cache is cleared so the running process immediately picks up the new file.
 
-4. **`_precomputed_named_id` injection** — each senior's preprocessed payload receives the corrected named ID directly. When `infer()` runs, it reads `_precomputed_named_id` and bypasses the `_load_cluster_mapping()` lru_cache entirely — avoiding cache invalidation edge cases.
-
-This approach is self-calibrating: regardless of which raw cluster ID UMAP assigns to "High Functioning" on a given machine, the script measures the actual population and corrects the mapping automatically.
+5. **`_precomputed_named_id` injection** — each payload receives the corrected named ID directly before `infer()` is called. The DB cache lookup is skipped for payloads that already carry `_precomputed_named_id`, so the pre-calibration named IDs still in `ml_results` cannot overwrite the freshly computed ones.
 
 ### When to run fix_cluster_distribution.py
 
-| Situation | Action |
+| Situation | Triggered automatically? |
 |---|---|
-| First-time setup on any device | Runs automatically at end of `setup.ps1` |
-| After `git pull` + code update | Run manually (see below) |
-| After `db:seed` on a new machine | Run manually |
-| After "Run Full Batch" in the UI | Runs automatically via `RecalculateClusters` job |
-| After bulk CSV upload | Runs automatically via `RecalculateClusters` job |
+| First-time setup on any device | Yes — `setup.ps1` runs it at the end |
+| After "Run Full Batch" in the UI | Yes — `RecalculateClusters` job |
+| After bulk CSV upload | Yes — `RecalculateClusters` job |
+| After `db:seed` on a new machine | **Manual** — run once after seeding |
+| Normal `git pull` code updates | Not needed — cluster data stays in DB |
 
-Manual run:
+Manual run (from inside `osca-system/`):
 ```powershell
-cd osca-system
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
 Expected output:
 ```
-[1/4] Loading 288 seniors from database...
-[2/4] Batch UMAP + KMeans transform...
-      batch KMeans path used successfully for 288 seniors.
-[3/4] Auto-calibrating cluster mapping from population QoL scores...
-      Raw cluster mean QoL: {0: 3.82, 1: 2.41, 2: 1.93}
-      Corrected mapping: {0: 1, 1: 2, 2: 3}
-      cluster_mapping.json updated.
-[4/4] Running inference for 288 seniors...
-      288/288 seniors processed.
+Step 1: Preprocessing all seniors...
+Successfully preprocessed: 289
 
-Cluster distribution: C1=77  C2=134  C3=77
-Risk distribution:    HIGH=56  MODERATE=193  LOW=39
+Step 2: Batch UMAP + KMeans (single transform for all seniors)...
+  [batch] batch KMeans path used successfully for 289 seniors.
+
+Step 3: Auto-calibrating cluster mapping for this device...
+  Raw cluster sizes: {2: 134, 1: 78, 0: 77}
+  Small cluster mean wellbeing: {1: 0.7592, 0: 0.5908}
+  Anchor: C2(Moderate)=raw2, C1(HighFunc)=raw1, C3(LowFunc)=raw0
+  Corrected raw->named mapping: {1: 1, 2: 2, 0: 3}
+  [ OK ] cluster_mapping.json updated.
+
+Step 4: Running inference and updating DB...
+
+==================================================
+Done. Updated: 289  Skipped: 0
+
+New cluster distribution:
+  C1: 78
+  C2: 134
+  C3: 77
+
+New risk distribution:
+  HIGH: 34
+  LOW: 83
+  MODERATE: 172
 ```
 
-The exact cluster and risk numbers will vary slightly as new seniors are added. The important signal is that C3 (Low Functioning) has the fewest seniors and HIGH risk is the smallest risk group — any result where C1 is the largest cluster and HIGH > LOW indicates the mapping is inverted and the script needs to re-run.
+The exact counts change as seniors are added. The expected pattern is always:
+- **C2 is the largest** (roughly 2× the size of C1 or C3)
+- **C1 and C3 are similar in size** (ratio < 1.15)
+- **C3 %HIGH risk is much higher than C1 %HIGH risk**
+- **C1 has 0% HIGH risk seniors**
+
+If C1 or C3 contains 134 seniors, calibration failed — re-run the script.
+
+### Validating cluster labels
+
+Run `python\validate_clusters.py` to confirm semantic correctness after calibration:
+
+```powershell
+python\venv\Scripts\python.exe python\validate_clusters.py
+```
+
+This checks seven conditions and exits with `ALL CHECKS PASSED` or lists specific failures:
+
+| Check | Expected |
+|---|---|
+| C1 wellbeing > C2 wellbeing | C1 is healthiest group |
+| C2 wellbeing > C3 wellbeing | C3 is least healthy |
+| C1 composite risk < C2 < C3 | Risk increases C1→C3 |
+| C1 %HIGH risk < C3 %HIGH risk | HIGH risk concentrated in C3 |
+| C2 is largest cluster | Structural property of the dataset |
+| C1 and C3 similar size (ratio < 1.15) | Both flanking clusters roughly equal |
+| No HIGH risk in C1, no LOW risk in C3 | Cross-tab sanity check |
+
+Validated distribution on Pagsanjan dataset (289 seniors):
+
+| Cluster | N | %HIGH | %LOW | Avg Risk | Avg Wellbeing |
+|---|---|---|---|---|---|
+| C1 High Functioning | 78 | 0.0% | 76.9% | 0.250 | 0.759 |
+| C2 Moderate / Mixed Needs | 134 | 0.7% | 17.2% | 0.355 | 0.688 |
+| C3 Low Functioning | 77 | 42.9% | 0.0% | 0.502 | 0.591 |
 
 ### DB-backed ML result cache
 

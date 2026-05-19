@@ -445,28 +445,35 @@ python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
 This script:
-1. Preprocesses all 288 seniors
+1. Preprocesses all seniors
 2. Runs one batch UMAP + KMeans transform on all seniors together
-3. Computes mean QoL score per raw cluster and **auto-calibrates `cluster_mapping.json`** to ensure C1 = High Functioning, C2 = Moderate, C3 = Low Functioning on this specific device
+3. **Auto-calibrates `cluster_mapping.json`** using cluster size + mean wellbeing to ensure C1 = High Functioning, C2 = Moderate, C3 = Low Functioning on this specific device
 4. Runs full inference for all seniors and updates every `ml_results` row
 5. Takes ~1–2 minutes
 
-**Expected output (example):**
+**Expected output (example — counts vary as seniors are added):**
 ```
+Step 2: Batch UMAP + KMeans (single transform for all seniors)...
+  [batch] batch KMeans path used successfully for 289 seniors.
+
 Step 3: Auto-calibrating cluster mapping for this device...
-  Raw cluster mean QoL scores: {2: 3.9648, 1: 4.6354, 0: 3.2365}
+  Raw cluster sizes: {2: 134, 1: 78, 0: 77}
+  Small cluster mean wellbeing: {1: 0.7592, 0: 0.5908}
+  Anchor: C2(Moderate)=raw2, C1(HighFunc)=raw1, C3(LowFunc)=raw0
   Corrected raw->named mapping: {1: 1, 2: 2, 0: 3}
   [ OK ] cluster_mapping.json updated.
-...
+
 New cluster distribution:
-  C1: 77
+  C1: 78
   C2: 134
   C3: 77
 New risk distribution:
-  HIGH: 56
-  LOW: 39
-  MODERATE: 193
+  HIGH: 34
+  LOW: 83
+  MODERATE: 172
 ```
+
+The expected pattern: **C2 is always the largest cluster** (roughly 2× C1 or C3). If C1 or C3 shows ~134 seniors, calibration failed — re-run the script.
 
 The risk distribution (HIGH/MODERATE/LOW counts) must be **identical** across all devices. The C1/C2/C3 counts may differ by ±1–2 seniors due to UMAP borderline cases — this is normal and does not affect individual senior assessments.
 
@@ -476,11 +483,19 @@ The 283 seniors in `osca.csv` are the same data the model was trained on. All 5 
 
 ### Validation
 
-After running `fix_cluster_distribution.py`, verify the results make sense:
-- HIGH risk seniors should have low QoL scores, informal settler housing, heavy disease burden
-- LOW risk seniors should have high QoL scores, owned property, pension income, good health
-- No HIGH risk seniors should appear in C1 (High Functioning)
-- No LOW risk seniors should appear in C3 (Low Functioning)
+After running `fix_cluster_distribution.py`, run the validation script to confirm semantic correctness:
+
+```powershell
+python\venv\Scripts\python.exe python\validate_clusters.py
+```
+
+Expected result: `ALL CHECKS PASSED`. The script verifies:
+- C1 wellbeing > C2 > C3 (correct ordering)
+- C1 composite risk < C2 < C3
+- C2 is the largest cluster (~2× the size of C1 or C3)
+- 0% HIGH risk seniors in C1, 0% LOW risk seniors in C3
+
+If any check fails, re-run `fix_cluster_distribution.py` and check again.
 
 ### CSV bulk import
 
@@ -621,7 +636,7 @@ Before going live with real data:
 | Batch ML inference stuck at 0% | Queue worker not running | Check `storage/logs/queue.log`; run `php artisan queue:work` manually |
 | `pop from empty list` in numba during UMAP | Stale numba JIT cache or Python version mismatch | Delete and recreate `python\venv` with Python 3.12; re-run `pip install -r python\requirements.txt` |
 | `batch KMeans path failed (pop from empty list)` | numba can't compile UMAP distance function — Python version incompatible with numba 0.65.0 | Confirm `python\venv\Scripts\python.exe --version` shows Python 3.12.x; if not, recreate venv with `py -3.12 -m venv python\venv` |
-| C1 shows ~132 seniors (cluster labels swapped) | UMAP orientation flipped on this device — `cluster_mapping.json` not yet calibrated | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` |
+| C1 or C3 shows ~134 seniors (cluster labels swapped) | UMAP orientation flipped on this device — `cluster_mapping.json` calibrated incorrectly | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` then `python\validate_clusters.py` |
 | C1/C2/C3 counts differ by ±1–2 from another device | Normal UMAP borderline variance on identical data | Expected — differences of 1–2 seniors are acceptable. Risk counts (HIGH/MODERATE/LOW) must be identical. |
 | Wrong cluster distribution after seeding | `fix_cluster_distribution.py` not run after seed | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` |
 | "Finalising health group assignments…" stuck | Queue worker not restarted after code update | Restart `start.bat`, run `php artisan queue:flush`, re-run batch from `/ml/batch` |
