@@ -506,7 +506,61 @@ After re-cloning, run `setup.bat` to recreate `.env`, install dependencies, and 
 
 ---
 
-## 10. Production Deployment Checklist
+## 10. Syncing Other Devices After a Code Update
+
+When the lead device pushes a new release (features, bug fixes, or ML pipeline changes), every other machine must pull and restart. The steps below cover all cases.
+
+### Standard update (no schema change)
+
+```powershell
+# 1. Pull latest code
+git pull
+
+# 2. Restart start.bat — this restarts the queue worker with the new code
+#    Close all existing terminals first, then double-click start.bat
+```
+
+That's all. The queue worker **must be restarted** after any PHP code change — it loads classes once at startup and will keep running the old version until restarted. If you skip this step, new jobs (like `RecalculateClusters`) will fail with "Call to undefined method" errors.
+
+### After a migration (new database columns)
+
+```powershell
+git pull
+php artisan migrate
+# Then restart start.bat as above
+```
+
+### After a fresh seed on a new machine
+
+```powershell
+# 1. Run setup.bat (first time only)
+# 2. After seeding completes, run the one-time recluster:
+python\venv\Scripts\python.exe python\fix_cluster_distribution.py
+# 3. Start normally with start.bat
+```
+
+### After a queue worker crash or "Finalising health group assignments…" stuck forever
+
+The recluster job (`RecalculateClusters`) has `tries = 1` — it does not auto-retry on failure.
+
+```powershell
+# 1. Restart start.bat (restarts queue worker with fresh code)
+# 2. Clear the failed job
+php artisan queue:flush
+# 3. Re-run batch from /ml/batch — the recluster will now complete correctly
+```
+
+### Quick checklist for each device after any push
+
+- [ ] `git pull` completed without conflicts
+- [ ] `php artisan migrate` if new migrations exist (check `database/migrations/`)
+- [ ] `start.bat` restarted (queue worker running fresh)
+- [ ] `npm run build` if frontend assets changed (check `resources/js/` or `resources/css/`)
+- [ ] Python services online (green dot in nav bar)
+
+---
+
+## 11. Production Deployment Checklist
 
 Before going live with real data:
 
@@ -551,3 +605,5 @@ Before going live with real data:
 | Assets not loading (404 on `/build/`) | Vite build not run | Run `npm run build` |
 | `npm run build` fails | Node modules not installed | Run `npm install` first |
 | Encrypted field shows gibberish in database | `APP_KEY` changed after data was encrypted | Restore the original `APP_KEY` from a backup `.env`; changing the key makes all encrypted fields unreadable |
+| "Finalising health group assignments…" stuck for more than 5 minutes | Queue worker was not restarted after a code update — `RecalculateClusters` fails with "Call to undefined method runRecluster()" | Restart `start.bat`, run `php artisan queue:flush`, then re-run the batch from `/ml/batch` |
+| `Call to undefined method App\Services\MlService::runRecluster()` in laravel.log | Queue worker loaded the old `MlService` class before `runRecluster()` was added | Restart the queue worker (`start.bat` or `php artisan queue:work`) — it reloads all classes on startup |

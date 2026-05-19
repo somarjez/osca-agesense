@@ -438,9 +438,11 @@ python tests/test_inference_e2e.py
 | 5. Modified cluster_metadata.json | Cluster names change at runtime without code changes |
 | 6. Modified asset_weights.json | Asset scores change at runtime when weights file is modified |
 
-**`test_inference_paths.py`** — Validates model files, urgency logic, and priority flag thresholds.
+**`test_inference_paths.py`** — Validates model files present, `ENABLE_NOTEBOOK_OVERRIDES` disabled, urgency logic (5 cases), `_priority_flag` thresholds (8 cases), and that all 14 required model/JSON files load correctly.
 
-**`test_inference_e2e.py`** — End-to-end inference on known seniors; checks composite risk and cluster assignment are stable across runs.
+**`test_inference_e2e.py`** — End-to-end inference on two synthetic seniors (high-risk / low-risk). Checks: status, cluster range, risk scores in [0,1], risk level accuracy, priority flag validity, urgency consistency, all XAI field presence (section scores, domain risks, WHO scores), and hc_access recommendation coverage when `healthcare_difficulty` is set.
+
+> **Note on cluster assertions in e2e tests:** UMAP `.transform()` on only 2 seniors is non-deterministic — the expected cluster is logged as informational only. The authoritative cluster test is `test_ml_pipeline.py` Test 2, which uses a real batch of 3 seniors against the trained model.
 
 All tests must pass before deploying new model artefacts. A failed test 2 ("no heuristic fallback") means a model file is missing or incompatible with the current feature list.
 
