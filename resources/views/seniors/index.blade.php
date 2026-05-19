@@ -3,7 +3,7 @@
 @section('page-subtitle', number_format($stats['total']) . ' active seniors · Pagsanjan, Laguna')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="bulkUpload()">
 
     {{-- Stats strip --}}
     <div class="grid grid-cols-2 gap-4">
@@ -51,10 +51,16 @@
                     <span class="badge badge-info">Filtered</span>
                 @endif
             </div>
-            <a href="{{ route('seniors.create') }}" class="btn btn-primary">
-                <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
-                New Senior
-            </a>
+            <div class="flex items-center gap-2">
+                <button @click="open = true" class="btn btn-ghost">
+                    <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
+                    Bulk Upload
+                </button>
+                <a href="{{ route('seniors.create') }}" class="btn btn-primary">
+                    <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
+                    New Senior
+                </a>
+            </div>
         </div>
         <div class="card-body flex flex-wrap items-end gap-3">
             <div class="flex-1 min-w-[200px]">
@@ -266,5 +272,260 @@
         </div>
         @endif
     </div>
+
+    {{-- ── Bulk Upload Success / Error Flash ─────────────────────────────── --}}
+    @if (session('bulk_success'))
+    <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 8000)"
+         class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 border-forest-500 flex items-start gap-3 px-4 py-3">
+        <x-heroicon-o-check-circle class="w-5 h-5 text-forest-600 flex-shrink-0 mt-0.5" />
+        <div class="flex-1 min-w-0">
+            <p class="text-[13px] font-semibold text-ink-900">Import complete</p>
+            <p class="text-[12px] text-ink-600 mt-0.5">{{ session('bulk_success') }}</p>
+            @if (session('bulk_errors'))
+            <details class="mt-2">
+                <summary class="text-[11.5px] text-ink-400 cursor-pointer hover:text-ink-600">Show skipped rows</summary>
+                <ul class="mt-1 space-y-0.5">
+                    @foreach (session('bulk_errors') as $err)
+                    <li class="text-[11px] text-high-700">{{ $err }}</li>
+                    @endforeach
+                </ul>
+            </details>
+            @endif
+        </div>
+        <button @click="show = false" class="text-ink-300 hover:text-ink-600 flex-shrink-0">
+            <x-heroicon-o-x-mark class="w-4 h-4" />
+        </button>
+    </div>
+    @endif
+
+    {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
+    <div x-show="open" x-cloak
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+         @keydown.escape.window="if(open) close()">
+        <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]"
+             @click.outside="close()">
+
+            {{-- Modal header --}}
+            <div class="card-head flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-forest-50 grid place-items-center flex-shrink-0">
+                        <x-heroicon-o-arrow-up-tray class="w-4 h-4 text-forest-700" />
+                    </div>
+                    <div>
+                        <div class="card-title">Bulk Upload Seniors</div>
+                        <div class="card-sub">Import multiple senior citizen records from a CSV or Excel file.</div>
+                    </div>
+                </div>
+                <button @click="close()" class="btn btn-ghost p-1.5">
+                    <x-heroicon-o-x-mark class="w-4 h-4" />
+                </button>
+            </div>
+
+            {{-- Scrollable body --}}
+            <div class="overflow-y-auto flex-1">
+                <div class="card-body space-y-5">
+
+                    {{-- Validation errors --}}
+                    @if ($errors->has('file'))
+                    <div class="flex items-start gap-3 bg-high-50 border border-high-100 rounded-xl px-4 py-3">
+                        <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-high-600 flex-shrink-0 mt-0.5" />
+                        <p class="text-[12.5px] text-high-700">{{ $errors->first('file') }}</p>
+                    </div>
+                    @endif
+
+                    {{-- Drop zone --}}
+                    <form id="bulk-upload-form"
+                          method="POST"
+                          action="{{ route('seniors.bulk-upload') }}"
+                          enctype="multipart/form-data">
+                        @csrf
+                        <div class="relative"
+                             @dragover.prevent="dragging = true"
+                             @dragleave.prevent="dragging = false"
+                             @drop.prevent="handleDrop($event)">
+                            <label for="bulk-file-input"
+                                   :class="dragging ? 'border-forest-400 bg-forest-50/60 dark:bg-forest-900/20' : 'border-paper-rule hover:border-forest-300 hover:bg-forest-50/30 dark:hover:bg-forest-900/10'"
+                                   class="flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl px-6 py-10 cursor-pointer transition-colors">
+
+                                <div :class="dragging ? 'bg-forest-100 dark:bg-forest-900/40' : 'bg-paper-2 dark:bg-[#1a201d]'"
+                                     class="w-12 h-12 rounded-xl grid place-items-center transition-colors">
+                                    <x-heroicon-o-document-arrow-up class="w-6 h-6 text-forest-600" />
+                                </div>
+
+                                <div class="text-center">
+                                    <template x-if="!fileName">
+                                        <div>
+                                            <p class="text-[13.5px] font-medium text-ink-800 dark:text-[#c8c4bc]">
+                                                Drag &amp; drop your file here, or <span class="text-forest-600 font-semibold">browse</span>
+                                            </p>
+                                            <p class="text-[12px] text-ink-400 mt-1">CSV or Excel (.xlsx, .xls) · max 5 MB</p>
+                                        </div>
+                                    </template>
+                                    <template x-if="fileName">
+                                        <div class="flex items-center gap-2">
+                                            <x-heroicon-o-document-text class="w-4 h-4 text-forest-600 flex-shrink-0" />
+                                            <span class="text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8]" x-text="fileName"></span>
+                                            <button type="button" @click.stop="clearFile()"
+                                                    class="text-ink-400 hover:text-high-700 transition-colors">
+                                                <x-heroicon-o-x-circle class="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </label>
+                            <input id="bulk-file-input" name="file" type="file"
+                                   accept=".csv,.xlsx,.xls,text/csv"
+                                   class="sr-only"
+                                   @change="handleFileInput($event)">
+                        </div>
+                    </form>
+
+                    {{-- Template download + column reference --}}
+                    <div class="rounded-xl border border-paper-rule dark:border-[#2b3530] overflow-hidden">
+                        <div class="px-4 py-3 bg-paper-2 dark:bg-[#1a201d] flex items-center justify-between gap-3 border-b border-paper-rule dark:border-[#2b3530]">
+                            <div class="flex items-center gap-2">
+                                <x-heroicon-o-table-cells class="w-4 h-4 text-ink-400" />
+                                <span class="text-[12.5px] font-semibold text-ink-700 dark:text-[#c8c4bc]">Expected Format</span>
+                            </div>
+                            <a href="{{ route('seniors.bulk-upload.sample') }}"
+                               class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5">
+                                <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" />
+                                Download Template
+                            </a>
+                        </div>
+
+                        <div class="px-4 py-3 space-y-4">
+                            <div>
+                                <p class="eyebrow mb-2">Required columns <span class="text-high-700 normal-case tracking-normal text-[11px]">(must be present)</span></p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach (['first_name','last_name','barangay','dob','gender'] as $col)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-high-50 border border-high-100 text-[11px] font-mono font-semibold text-high-700">{{ $col }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="eyebrow mb-2">QoL survey columns <span class="text-ink-400 normal-case tracking-normal text-[11px]">(optional — 1–5 scale)</span></p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ([
+                                        'qol_enjoy_life','qol_life_satisfaction','qol_future_outlook','qol_meaningfulness',
+                                        'phy_energy','phy_pain_r','phy_health_limit_r','phy_mobility_outside','phy_mobility_indoor',
+                                        'psych_happiness','psych_peace','psych_lonely_r','psych_confidence',
+                                        'func_independence','func_autonomy','func_control','env_income_limit_r',
+                                        'soc_social_support','soc_close_friend','soc_participation','soc_opportunity','soc_respect',
+                                        'env_safe_home','env_safe_neighborhood','env_service_access','env_home_comfort',
+                                        'env_fin_household','env_fin_medical','env_fin_personal',
+                                        'spi_belief_comfort','spi_belief_practice',
+                                    ] as $col)
+                                    <span class="inline-flex px-2 py-0.5 rounded-md bg-info-50 border border-info-100 text-[10.5px] font-mono text-info-700">{{ $col }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="eyebrow mb-2">Multi-value columns <span class="text-ink-400 normal-case tracking-normal text-[11px]">(comma-separated within the cell)</span></p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach (['specialization','community_service','living_with','household_condition','income_source','real_assets','movable_assets','medical_concern','dental_concern','optical_concern','hearing_concern','social_emotional_concern','healthcare_difficulty','problems_needs'] as $col)
+                                    <span class="inline-flex px-2 py-0.5 rounded-md bg-moderate-50 border border-moderate-100 text-[10.5px] font-mono text-moderate-700">{{ $col }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="text-[11.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed border-t border-paper-rule dark:border-[#2b3530] pt-3">
+                                <p><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">Date format:</span> <span class="font-mono">MM/DD/YYYY</span> or <span class="font-mono">YYYY-MM-DD</span></p>
+                                <p class="mt-1"><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">Barangay:</span> Must match one of the 16 registered barangays of Pagsanjan (e.g. <span class="font-mono">Pinagsanjan</span>, <span class="font-mono">Sabang</span>, <span class="font-mono">Barangay I (Poblacion)</span>).</p>
+                                <p class="mt-1"><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">After import:</span> ML risk assessment runs automatically on all imported seniors. Results appear in the table within a minute.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Modal footer --}}
+            <div class="px-5 py-4 border-t border-paper-rule flex items-center justify-between gap-3 flex-shrink-0">
+                <p class="text-[11.5px] text-ink-400">
+                    Rows with missing required fields are skipped. Existing records are <em>not</em> overwritten.
+                </p>
+                <div class="flex gap-2">
+                    <button type="button" @click="close()" class="btn">Cancel</button>
+                    <button type="button" @click="submit()"
+                            :disabled="!fileName || uploading"
+                            :class="(!fileName || uploading) ? 'opacity-50 cursor-not-allowed' : ''"
+                            class="btn btn-primary gap-2">
+                        <template x-if="uploading">
+                            <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                        </template>
+                        <template x-if="!uploading">
+                            <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
+                        </template>
+                        <span x-text="uploading ? 'Importing…' : 'Import'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+@push('scripts')
+<script>
+function bulkUpload() {
+    return {
+        open: {{ $errors->has('file') ? 'true' : 'false' }},
+        dragging: false,
+        fileName: null,
+        uploading: false,
+
+        close() {
+            this.open = false;
+            this.dragging = false;
+        },
+
+        handleDrop(e) {
+            this.dragging = false;
+            const file = e.dataTransfer.files[0];
+            if (file) this.setFile(file);
+        },
+
+        handleFileInput(e) {
+            const file = e.target.files[0];
+            if (file) this.setFile(file);
+        },
+
+        setFile(file) {
+            const allowed = ['text/csv', 'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['csv','xls','xlsx','txt'].includes(ext)) {
+                alert('Please upload a CSV or Excel file (.csv, .xlsx, .xls).');
+                return;
+            }
+            document.getElementById('bulk-file-input').files = this.makeFileList(file);
+            this.fileName = file.name;
+        },
+
+        makeFileList(file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            return dt.files;
+        },
+
+        clearFile() {
+            this.fileName = null;
+            const inp = document.getElementById('bulk-file-input');
+            inp.value = '';
+        },
+
+        submit() {
+            if (!this.fileName) return;
+            this.uploading = true;
+            document.getElementById('bulk-upload-form').submit();
+        },
+    };
+}
+</script>
+@endpush
 @endsection

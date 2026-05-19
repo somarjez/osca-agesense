@@ -86,6 +86,6 @@
     "sec3_skill_score",
     "sec2_family_support"
   ],
-  "decision": "31 features used for final UMAP+KMeans clustering. 5 domain-redundant features excluded: ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Silhouette baseline (36-feat): 0.3864, final (31-feat): 0.4213.",
+  "decision": "31 features used for final UMAP+KMeans clustering. 5 domain-redundant features excluded: ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Silhouette baseline (36-feat): 0.3635, final (31-feat): 0.4239.",
   "note": "The final 31-feature clustering set was selected based on feature ablation and clustering performance. Excluded features may still be used for scoring, recommendations, reports, and WHO-domain interpretation."
 }

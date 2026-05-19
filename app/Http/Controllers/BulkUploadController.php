@@ -1,0 +1,376 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\QolSurvey;
+use App\Models\SeniorCitizen;
+use App\Services\MlService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use League\Csv\Reader;
+
+class BulkUploadController extends Controller
+{
+    // ── CSV column spec (mirrors OscaCsvSeeder) ───────────────────────────
+
+    private const REQUIRED_COLUMNS = [
+        'first_name', 'last_name', 'barangay', 'dob', 'gender',
+    ];
+
+    private const SAMPLE_HEADERS = [
+        'first_name','middle_name','last_name','name_ext','barangay','dob',
+        'contact_number','place_of_birth','marital_status','gender','religion',
+        'ethnic_origin','blood_type','num_children','num_working_children',
+        'child_financial_support','spouse_working','household_size',
+        'education','specialization','community_service','living_with',
+        'household_condition','income_source','real_assets','movable_assets',
+        'monthly_income_range','problems_needs',
+        'medical_concern','dental_concern','optical_concern',
+        'hearing_concern','social_emotional_concern','healthcare_difficulty',
+        'has_medical_checkup','checkup_schedule',
+        'qol_enjoy_life','qol_life_satisfaction','qol_future_outlook','qol_meaningfulness',
+        'phy_energy','phy_pain_r','phy_health_limit_r','phy_mobility_outside','phy_mobility_indoor',
+        'psych_happiness','psych_peace','psych_lonely_r','psych_confidence',
+        'func_independence','func_autonomy','func_control','env_income_limit_r',
+        'soc_social_support','soc_close_friend','soc_participation','soc_opportunity','soc_respect',
+        'env_safe_home','env_safe_neighborhood','env_service_access','env_home_comfort',
+        'env_fin_household','env_fin_medical','env_fin_personal',
+        'spi_belief_comfort','spi_belief_practice',
+        'timestamp',
+    ];
+
+    private const PROBLEMS_NEEDS_MAP = [
+        'Lack of source of income/resources' => 'Lack of income/resources',
+        'Lack of source of income'           => 'Lack of income/resources',
+        'Lack of income'                     => 'Lack of income/resources',
+        'Loss of source of income/resources' => 'Loss of income/resources',
+        'Loss of source of income'           => 'Loss of income/resources',
+        'Loss of income'                     => 'Loss of income/resources',
+    ];
+
+    // ── Sample CSV download ───────────────────────────────────────────────
+
+    public function sample()
+    {
+        $rows = [
+            self::SAMPLE_HEADERS,
+            [
+                'Juan','D.','Santos','Jr.','Pinagsanjan','01/15/1948',
+                '09123456789','Pagsanjan, Laguna','Widowed','Male','Catholic',
+                '','A+','3','1','Yes','Deceased','4',
+                'Elementary Graduate','','Social Work','Spouse,Children',
+                'Owned House','Pension,Remittances','','',
+                'Below 5,000','Financial difficulties',
+                'Hypertension,Arthritis','','','','Anxiety','Mobility',
+                'Yes','Monthly',
+                '4','3','3','4',
+                '3','3','3','3','2',
+                '3','3','3','3',
+                '3','3','3','3',
+                '4','4','3','3','4',
+                '3','2','3','3',
+                '3','3','3',
+                '4','4',
+                '01/10/2024',
+            ],
+        ];
+
+        $handle = fopen('php://temp', 'r+');
+        foreach ($rows as $row) {
+            fputcsv($handle, $row);
+        }
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="bulk_upload_template.csv"',
+        ]);
+    }
+
+    // ── Upload + import ───────────────────────────────────────────────────
+
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ]);
+
+        $file = $request->file('file');
+        $ext  = strtolower($file->getClientOriginalExtension());
+
+        // Parse rows into a uniform array-of-arrays
+        try {
+            if (in_array($ext, ['xlsx', 'xls'])) {
+                $rows = $this->parseExcel($file->getRealPath());
+            } else {
+                $rows = $this->parseCsv($file->getRealPath());
+            }
+        } catch (\Throwable $e) {
+            return back()->withErrors(['file' => 'Could not parse file: ' . $e->getMessage()]);
+        }
+
+        if (count($rows) < 2) {
+            return back()->withErrors(['file' => 'The file has no data rows.']);
+        }
+
+        $header = array_map('trim', $rows[0]);
+        $missing = array_diff(self::REQUIRED_COLUMNS, $header);
+        if ($missing) {
+            return back()->withErrors([
+                'file' => 'Missing required columns: ' . implode(', ', $missing) . '. Download the sample template to see the expected format.',
+            ]);
+        }
+
+        $dataRows = array_slice($rows, 1);
+        $inserted = 0;
+        $skipped  = 0;
+        $errors   = [];
+
+        DB::beginTransaction();
+        try {
+            $pairs = [];
+
+            foreach ($dataRows as $lineNum => $line) {
+                $row = $this->rowToAssoc($header, $line);
+
+                // Skip blank rows
+                if (empty(array_filter(array_map('trim', $line)))) {
+                    continue;
+                }
+
+                // Required field check
+                $firstName = $this->strVal($row['first_name'] ?? null);
+                $lastName  = $this->strVal($row['last_name']  ?? null);
+                $barangay  = $this->strVal($row['barangay']   ?? null);
+                $dob       = $this->parseDate($row['dob']     ?? null);
+
+                if (!$firstName || !$lastName || !$barangay || !$dob) {
+                    $skipped++;
+                    $errors[] = "Row " . ($lineNum + 2) . ": missing required field(s) — skipped.";
+                    continue;
+                }
+
+                $senior = SeniorCitizen::create([
+                    'osca_id'                  => SeniorCitizen::generateOscaId($barangay),
+                    'first_name'               => $firstName,
+                    'middle_name'              => $this->strVal($row['middle_name'] ?? null),
+                    'last_name'                => $lastName,
+                    'name_extension'           => $this->strVal($row['name_ext'] ?? null),
+                    'barangay'                 => $barangay,
+                    'date_of_birth'            => $dob,
+                    'contact_number'           => $this->strVal($row['contact_number'] ?? null),
+                    'place_of_birth'           => $this->strVal($row['place_of_birth'] ?? null),
+                    'marital_status'           => $this->enumOrNull($row['marital_status'] ?? null, ['Single','Married','Widowed','Separated','Divorced','Annulled']),
+                    'gender'                   => $this->enumOrNull($row['gender'] ?? null, ['Male','Female','Prefer not to say']),
+                    'religion'                 => $this->strVal($row['religion'] ?? null),
+                    'ethnic_origin'            => $this->strVal($row['ethnic_origin'] ?? null),
+                    'blood_type'               => $this->strVal($row['blood_type'] ?? null),
+                    'num_children'             => $this->intVal($row['num_children'] ?? null),
+                    'num_working_children'     => $this->intVal($row['num_working_children'] ?? null),
+                    'child_financial_support'  => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes','No','Occasional','N/A']),
+                    'spouse_working'           => $this->enumOrNull($row['spouse_working'] ?? null, ['Yes','No','Deceased','N/A']),
+                    'household_size'           => max(1, $this->intVal($row['household_size'] ?? null, 1)),
+                    'educational_attainment'   => $this->strVal($row['education'] ?? null),
+                    'specialization'           => $this->toList($row['specialization'] ?? null),
+                    'community_service'        => $this->toList($row['community_service'] ?? null),
+                    'living_with'              => $this->toList($row['living_with'] ?? null),
+                    'household_condition'      => $this->toList($row['household_condition'] ?? null),
+                    'income_source'            => $this->toList($row['income_source'] ?? null),
+                    'real_assets'              => $this->toList($row['real_assets'] ?? null),
+                    'movable_assets'           => $this->toList($row['movable_assets'] ?? null),
+                    'monthly_income_range'     => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
+                    'problems_needs'           => $this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP),
+                    'medical_concern'          => $this->toList($row['medical_concern'] ?? null),
+                    'dental_concern'           => $this->toList($row['dental_concern'] ?? null),
+                    'optical_concern'          => $this->toList($row['optical_concern'] ?? null),
+                    'hearing_concern'          => $this->toList($row['hearing_concern'] ?? null),
+                    'social_emotional_concern' => $this->toList($row['social_emotional_concern'] ?? null),
+                    'healthcare_difficulty'    => $this->toList($row['healthcare_difficulty'] ?? null),
+                    'has_medical_checkup'      => $this->boolVal($row['has_medical_checkup'] ?? null),
+                    'checkup_schedule'         => $this->strVal($row['checkup_schedule'] ?? null),
+                    'status'                   => 'active',
+                    'encoded_by'               => 'Bulk Upload',
+                ]);
+
+                $surveyDate = $this->parseDate($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+                $survey = QolSurvey::create([
+                    'senior_citizen_id'          => $senior->id,
+                    'survey_version'             => 'v1',
+                    'survey_date'                => $surveyDate,
+                    'a1_enjoy_life'              => $this->scoreVal($row['qol_enjoy_life'] ?? null),
+                    'a2_life_satisfaction'       => $this->scoreVal($row['qol_life_satisfaction'] ?? null),
+                    'a3_future_outlook'          => $this->scoreVal($row['qol_future_outlook'] ?? null),
+                    'a4_meaningfulness'          => $this->scoreVal($row['qol_meaningfulness'] ?? null),
+                    'b1_physical_energy'         => $this->scoreVal($row['phy_energy'] ?? null),
+                    'b2_pain_discomfort'         => $this->scoreVal($row['phy_pain_r'] ?? null),
+                    'b3_health_self_care'        => $this->scoreVal($row['phy_health_limit_r'] ?? null),
+                    'b4_health_outside'          => $this->scoreVal($row['phy_mobility_outside'] ?? null),
+                    'b5_mobility'                => $this->scoreVal($row['phy_mobility_indoor'] ?? null),
+                    'c1_happiness'               => $this->scoreVal($row['psych_happiness'] ?? null),
+                    'c2_calm_peace'              => $this->scoreVal($row['psych_peace'] ?? null),
+                    'c3_loneliness'              => $this->scoreVal($row['psych_lonely_r'] ?? null),
+                    'c4_confidence'              => $this->scoreVal($row['psych_confidence'] ?? null),
+                    'd1_independence'            => $this->scoreVal($row['func_independence'] ?? null),
+                    'd2_time_control'            => $this->scoreVal($row['func_autonomy'] ?? null),
+                    'd3_life_control'            => $this->scoreVal($row['func_control'] ?? null),
+                    'd4_income_limits'           => $this->scoreVal($row['env_income_limit_r'] ?? null),
+                    'e1_social_support'          => $this->scoreVal($row['soc_social_support'] ?? null),
+                    'e2_close_person'            => $this->scoreVal($row['soc_close_friend'] ?? null),
+                    'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
+                    'e4_participation'           => $this->scoreVal($row['soc_opportunity'] ?? null),
+                    'e5_respect'                 => $this->scoreVal($row['soc_respect'] ?? null),
+                    'f1_home_safety'             => $this->scoreVal($row['env_safe_home'] ?? null),
+                    'f2_neighborhood_safety'     => $this->scoreVal($row['env_safe_neighborhood'] ?? null),
+                    'f3_service_access'          => $this->scoreVal($row['env_service_access'] ?? null),
+                    'f4_home_comfort'            => $this->scoreVal($row['env_home_comfort'] ?? null),
+                    'g1_household_expenses'      => $this->scoreVal($row['env_fin_household'] ?? null),
+                    'g2_medical_afford'          => $this->scoreVal($row['env_fin_medical'] ?? null),
+                    'g3_personal_wants'          => $this->scoreVal($row['env_fin_personal'] ?? null),
+                    'h1_belief_comfort'          => $this->scoreVal($row['spi_belief_comfort'] ?? null),
+                    'h2_belief_practice'         => $this->scoreVal($row['spi_belief_practice'] ?? null),
+                    'status'                     => 'submitted',
+                ]);
+
+                $survey->computeScores();
+                $pairs[] = ['senior' => $senior, 'survey' => $survey];
+                $inserted++;
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['file' => 'Import failed: ' . $e->getMessage()]);
+        }
+
+        // Trigger ML pipeline asynchronously for inserted seniors
+        if ($pairs) {
+            try {
+                app(MlService::class)->runBatchPipeline($pairs);
+            } catch (\Throwable) {
+                // ML failure does not block the import — seniors are saved
+            }
+        }
+
+        $msg = "Imported {$inserted} senior(s) successfully.";
+        if ($skipped) {
+            $msg .= " Skipped {$skipped} row(s) with missing required fields.";
+        }
+
+        return redirect()->route('seniors.index')->with('bulk_success', $msg)
+            ->with('bulk_errors', $errors);
+    }
+
+    // ── Parsers ───────────────────────────────────────────────────────────
+
+    private function parseCsv(string $path): array
+    {
+        $csv = Reader::createFromPath($path, 'r');
+        $csv->setHeaderOffset(null);
+        $rows = [];
+        foreach ($csv->getRecords() as $record) {
+            $rows[] = array_values($record);
+        }
+        return $rows;
+    }
+
+    private function parseExcel(string $path): array
+    {
+        // Use PhpSpreadsheet if available, otherwise reject
+        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+            throw new \RuntimeException('Excel support requires phpoffice/phpspreadsheet. Upload a CSV instead.');
+        }
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows  = [];
+        foreach ($sheet->toArray(null, true, true, false) as $row) {
+            $rows[] = $row;
+        }
+        return array_filter($rows, fn($r) => array_filter($r));
+    }
+
+    // ── Value helpers (mirrors OscaCsvSeeder) ────────────────────────────
+
+    private function rowToAssoc(array $header, array $line): array
+    {
+        $assoc = [];
+        foreach ($header as $idx => $key) {
+            $assoc[$key] = $line[$idx] ?? null;
+        }
+        return $assoc;
+    }
+
+    private function strVal($value): ?string
+    {
+        if ($value === null) return null;
+        $v = trim((string) $value);
+        return ($v === '' || strtolower($v) === 'nan') ? null : $v;
+    }
+
+    private function intVal($value, int $default = 0): int
+    {
+        if ($value === null || $value === '' || strtolower((string) $value) === 'nan') return $default;
+        return (int) round((float) $value);
+    }
+
+    private function boolVal($value): bool
+    {
+        $v = strtolower((string) ($this->strVal($value) ?? ''));
+        return in_array($v, ['1', 'true', 'yes', 'y'], true);
+    }
+
+    private function enumOrNull($value, array $allowed): ?string
+    {
+        $v = $this->strVal($value);
+        if ($v === null) return null;
+        foreach ($allowed as $opt) {
+            if (strcasecmp($opt, $v) === 0) return $opt;
+        }
+        return null;
+    }
+
+    private function toList($value): array
+    {
+        $v = $this->strVal($value);
+        if ($v === null) return [];
+        $parts = array_map('trim', explode(',', $v));
+        return array_values(array_filter($parts, fn($x) => $x !== ''));
+    }
+
+    private function parseDate($value): ?string
+    {
+        $v = $this->strVal($value);
+        if ($v === null) return null;
+
+        $ambiguous = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $v, $m);
+        if ($ambiguous && (int)$m[1] > 12) {
+            try { return Carbon::createFromFormat('d/m/Y', $v)->format('Y-m-d'); } catch (\Throwable) {}
+        }
+
+        foreach (['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'] as $fmt) {
+            try { return Carbon::createFromFormat($fmt, $v)->format('Y-m-d'); } catch (\Throwable) {}
+        }
+
+        try { return Carbon::parse($v)->format('Y-m-d'); } catch (\Throwable) { return null; }
+    }
+
+    private function scoreVal($value): ?int
+    {
+        if ($value === null || $value === '' || strtolower((string) $value) === 'nan') return null;
+        return max(1, min(5, (int) round((float) $value)));
+    }
+
+    private function normalizeList(array $items, array $map): array
+    {
+        return array_values(array_map(fn($item) => $map[$item] ?? $item, $items));
+    }
+
+    private function normalizeIncomeRange($value): ?string
+    {
+        $v = $this->strVal($value);
+        if ($v === null) return null;
+        return $v === '60, 000 and above' ? '60,000 and above' : $v;
+    }
+}
