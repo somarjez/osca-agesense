@@ -274,9 +274,19 @@ Step 2: batch_cluster_assign()
 Step 3: infer() for each senior
         Fast path: reads _precomputed_raw_cluster_id, skips scaler/UMAP/KMeans
         Only runs risk ensemble + recommendation generation per senior
+
+Step 4: RecalculateClusters job (automatic — dispatched via Bus::batch()->then())
+        Runs fix_cluster_distribution.py as a subprocess after all batch jobs finish
+        Re-runs all seniors through a single batch UMAP transform (~30 seconds)
+        Aligns every senior's cluster assignment to match the full-population UMAP
+        Updates ml_results and recommendations rows in the database
 ```
 
-**Performance impact:** For 275 seniors, UMAP runs once (not 275 times). This is the primary cost driver — UMAP transform with numba JIT on Windows takes ~5–10 seconds the first call and ~1–2 seconds subsequently. In HTTP mode (Flask services running), full batch analysis for 275 seniors completes in under 60 seconds.
+**Performance impact:** For 275 seniors, UMAP runs once (not 275 times). This is the primary cost driver — UMAP transform with numba JIT on Windows takes ~5–10 seconds the first call and ~1–2 seconds subsequently. In HTTP mode (Flask services running), full batch analysis for 275 seniors completes in under 60 seconds. Step 4 (recluster) adds ~30 seconds.
+
+**Why Step 4 is necessary:** Each Laravel batch job (Step 3) dispatches seniors in chunks of 100. If a senior's cluster was previously cached from a single-point UMAP transform (e.g., from `runSingle()`), it may drift from the full-population assignment. The automatic recluster corrects this, ensuring all seniors' clusters are aligned with the same UMAP embedding.
+
+**UI indication:** While Step 4 runs, the batch progress bar pulses grey and shows "Finalising health group assignments…". The page auto-reloads when recluster_done is set.
 
 **Fallback within batch:** If `batch_cluster_assign()` fails (model unavailable), each senior's `infer()` call independently falls back to the wellbeing heuristic.
 
@@ -389,14 +399,16 @@ When `inference_service.py` processes a senior:
 
 ### Re-clustering after bulk adds
 
-When many new seniors are added at once, running them individually through UMAP (single-point transforms) can produce slight drift in cluster assignments compared to a batch transform. To correct this, run:
+Running "Run Full Batch" from the ML dashboard (`/ml/batch`) **automatically re-clusters** all seniors after every batch analysis via the `RecalculateClusters` job (Step 4 above). No manual intervention is needed for normal day-to-day operation.
+
+The only case requiring a manual recluster is after a fresh database seed (`migrate:fresh` + `db:seed`) on a new machine — in that case, run:
 
 ```powershell
 cd osca-system
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
-This re-runs all seniors through a **single batch UMAP transform** (the same way the notebook does), updates every `ml_results` row in the database, and prints the final cluster and risk distribution. Run this after any bulk data import to ensure distributions match the notebook.
+This re-runs all seniors through a **single batch UMAP transform** (the same way the notebook does), updates every `ml_results` row in the database, and prints the final cluster and risk distribution.
 
 ---
 

@@ -69,7 +69,6 @@ osca-system/
 ├── docs/                   This documentation
 ├── python/
 │   ├── models/             Trained artefacts (.pkl, .json) + cluster_eval_metrics.json
-│   │   └── predictions/    senior_predictions.csv, senior_recommendations_flat.csv  ← NOT committed (gitignored, see §9)
 │   ├── services/           preprocess_service.py, inference_service.py, local_ml_runner.py
 │   ├── tests/              test_ml_pipeline.py, test_inference_paths.py, test_inference_e2e.py
 │   ├── venv/               Python virtual environment (not committed)
@@ -318,7 +317,7 @@ dir python\models\
 
 Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`, `cluster_eval_metrics.json`.
 
-> **Prediction CSVs (`predictions/senior_predictions.csv`, `predictions/senior_recommendations_flat.csv`) are gitignored** — they contain per-senior health data and are never committed. They must be placed locally from `osca_output/predictions/` before seeding (see §9 below). `setup.bat` does this automatically.
+> **Prediction CSVs are no longer required.** The system now uses a DB-backed ML result cache — cross-device consistency is guaranteed through the shared MySQL database. See [ML_PIPELINE.md — Cross-device Consistency](ML_PIPELINE.md#cross-device-consistency).
 
 ---
 
@@ -466,17 +465,17 @@ Once logged in as an administrator, go to **Administration → User Management**
 
 The prediction CSV files have been retired. The system now uses a **DB-backed ML result cache** — after the first machine processes a senior, results are stored in `ml_results` and all other devices read from there. No CSV files need to be transferred between machines.
 
-After a fresh seed on a new machine, run the batch re-clustering script once to ensure all seniors are processed consistently via batch UMAP (same as the notebook):
+After a fresh seed on a new machine, run the batch re-clustering script once to ensure all seniors are processed consistently via a full-population UMAP transform (same as the notebook):
 
 ```powershell
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
-This is only needed after `migrate:fresh` + re-seed. Normal day-to-day operation does not require it.
+This is only needed after `migrate:fresh` + re-seed. For normal operation, running "Run Full Batch" from the ML dashboard automatically re-clusters all seniors after every batch analysis — no manual script needed.
 
 ### CSV bulk import
 
-If you have an existing OSCA registry in CSV format (`osca.csv`), place it one directory above the project root (`../osca.csv`), ensure the prediction CSVs are in `python/models/predictions/`, and run:
+If you have an existing OSCA registry in CSV format (`osca.csv`), place it one directory above the project root (`../osca.csv`) and run:
 
 ```powershell
 php artisan db:seed --class=OscaCsvSeeder
@@ -503,7 +502,7 @@ cd osca-system
 # Then run setup.bat normally
 ```
 
-After re-cloning, run `setup.bat` to recreate `.env`, install dependencies, and restore the prediction CSVs from `osca_output/`.
+After re-cloning, run `setup.bat` to recreate `.env`, install dependencies, and reseed the database.
 
 ---
 
@@ -518,7 +517,7 @@ Before going live with real data:
 - [ ] Confirm `QUEUE_CONNECTION=database` and `jobs` / `job_batches` tables exist
 - [ ] Confirm queue worker starts on boot (systemd on Linux, Task Scheduler on Windows)
 - [ ] Confirm ML model artefacts are present in `python/models/` (auto-present after `git clone`)
-- [ ] Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` (default) so results match validated notebook output
+- [ ] Confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in `.env` (CSV override system is retired — DB-backed cache is the active mechanism)
 - [ ] Verify Python services start on boot (systemd or equivalent — see `start_services.sh`)
 - [ ] Set up automated database backups (daily minimum)
 - [ ] Review and configure `MAIL_MAILER` for notifications
