@@ -89,10 +89,12 @@ This is the recommended path for **any machine cloning the project for the first
 | Node.js 18+ | Yes | See Prerequisites |
 | Python 3.10+ | Yes | See Prerequisites |
 | MySQL 8.0+ | Yes | Create the database before running setup |
-| `osca.csv` | Only for seeding | Place in the project root before running setup |
+| `osca.csv` | Yes, for seeding | Gitignored — share privately (USB/drive). Place in project root before setup |
+| `senior_predictions.csv` | Yes, for correct results | Gitignored — share privately. Place in `python/models/predictions/` before seeding |
+| `senior_recommendations_flat.csv` | Yes, for correct results | Gitignored — share privately. Place in `python/models/predictions/` before seeding |
 | Jupyter notebook / `osca_output/` | **No** | Only needed on the machine that trains the model |
 
-> The trained ML model files and validated prediction CSVs are already committed to the repository under `python/models/`. Every machine that clones the repo gets the correct model and results automatically.
+> **Three files are never committed to the repository** because they contain real personal health data: `osca.csv`, `senior_predictions.csv`, and `senior_recommendations_flat.csv`. The training machine developer must share these out-of-band before other machines can seed. The trained `.pkl` model files **are** committed and download automatically on `git clone`.
 
 ---
 
@@ -119,19 +121,29 @@ CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 If using SQLite (simpler, no MySQL needed), skip this — see [Environment Configuration](#environment-configuration).
 
-### Step 0.6 — Place `osca.csv` (if seeding with real data)
+### Step 0.6 — Place required private files before setup
 
-If you have the senior citizen data file, place it in the **project root** (same folder as `setup.bat`):
+Three files are gitignored and must be shared privately by the training machine developer before you run setup. Place them as shown:
 
 ```
 osca-agesense/
-├── osca.csv          ← place it here
+├── osca.csv                                      ← raw survey data (place here)
+├── python/
+│   └── models/
+│       └── predictions/
+│           ├── senior_predictions.csv            ← notebook-validated results (place here)
+│           └── senior_recommendations_flat.csv   ← notebook-validated recommendations (place here)
 ├── setup.bat
 ├── start.bat
-├── ...
+└── ...
 ```
 
-If `osca.csv` is absent, setup completes without data and you can add seniors manually through the system.
+Create the `predictions/` directory if it does not exist:
+```powershell
+New-Item -ItemType Directory -Force python\models\predictions
+```
+
+**If you do not have these files yet:** setup still completes, but the database will be empty (no seniors) and ML results may differ from the notebook-validated values. You can seed and run analysis later once you receive the files.
 
 ### Step 1 — First-time setup (run once)
 
@@ -151,8 +163,9 @@ This single script handles everything automatically:
 | 6 | Seeds data from `osca.csv` if present (runs the full ML pipeline — takes several minutes) |
 | 7 | Builds frontend assets (`npm run build`) |
 | 8 | Creates Python virtual environment (`python/venv`) |
-| 9 | Installs Python ML dependencies |
-| 10 | Syncs ML model files from `osca_output/` into `python/models/` if that folder is present |
+| 9 | Installs Python ML dependencies (`pip install -r requirements.txt`) |
+
+> **Step 9 note — ML model sync:** If `osca_output/` exists one level above the project root, `setup.bat` automatically copies model files and prediction CSVs into `python/models/`. If you placed the prediction CSVs manually in Step 0.6, they will not be overwritten.
 
 **Total time: 5–15 minutes** on first run (most time is pip + ML pipeline during seeding).
 
@@ -303,7 +316,7 @@ ENABLE_NOTEBOOK_OVERRIDES=true
 ```env
 SESSION_DRIVER=database
 CACHE_STORE=database
-QUEUE_CONNECTION=sync
+QUEUE_CONNECTION=database
 ```
 
 ### Municipality (used in OSCA ID generation and PDF headers)
@@ -450,10 +463,10 @@ All trained model files are committed to the repository under `python/models/`. 
 | `cluster_metadata.json` | Cluster names and descriptions |
 | `asset_weights.json` | Scoring weights for assets, income, skills, diseases |
 | `vif_retained_features.json` | VIF-filtered feature subset |
-| `predictions/senior_predictions.csv` | Notebook-validated composite scores, clusters, and risk levels per senior |
-| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat CSV, one row per action) |
+| `predictions/senior_predictions.csv` | Notebook-validated composite scores, clusters, and risk levels per senior — **gitignored, not committed** |
+| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat CSV, one row per action) — **gitignored, not committed** |
 
-> The `predictions/` files are the source of truth for risk results. When `ENABLE_NOTEBOOK_OVERRIDES=true` (the default), the inference service reads these files directly so every device produces identical output regardless of platform, Python version, or library minor-version differences. The notebook (`osca5.ipynb`) and its output folder (`osca_output/`) are **not required** on other machines.
+> The `predictions/` CSVs are the source of truth for risk results but are **never committed** (they contain real personal health data). They must be placed in `python/models/predictions/` manually before seeding — see Step 0.6 above. When `ENABLE_NOTEBOOK_OVERRIDES=true` (the default), the inference service reads these files directly so every device produces identical output regardless of platform or Python version. The notebook (`osca5.ipynb`) and its output folder (`osca_output/`) are **not required** on other machines.
 
 ---
 
@@ -493,10 +506,20 @@ git push
 
 ### Other machines — condensed workflow
 
-```bash
+```powershell
+# 1. Receive updated files from training machine developer (out-of-band):
+#    - osca.csv                              → place in project root
+#    - senior_predictions.csv               → place in python\models\predictions\
+#    - senior_recommendations_flat.csv      → place in python\models\predictions\
+
+# 2. Pull latest model .pkl/.json files from the repo:
 git pull
-start.bat                          # syncs .env keys — do this before reseeding
-php artisan migrate:fresh --seed   # re-imports data with the new model
+
+# 3. Sync .env keys (always before reseeding):
+start.bat    # can close immediately after it launches
+
+# 4. Re-import data with the updated model:
+php artisan migrate:fresh --seed
 ```
 
 Expected result: `ML success: 275, fallback: 0, errors: 0` and dashboard shows HIGH=53, MODERATE=186, LOW=36, Urgent=1.
@@ -693,12 +716,12 @@ Already handled. The services set `NUMBA_THREADING_LAYER=workqueue` and `NUMBA_N
 
 ### Different ML results on different machines (cluster mismatch)
 
-The most common cause is a missing or stale `python/models/predictions/senior_predictions.csv`. Check:
+The most common cause is a missing `python/models/predictions/senior_predictions.csv`. Check:
 
-1. Run `git pull` — the prediction CSVs are version-controlled and must match the current branch.
-2. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env` (the `.env.example` default).
+1. Confirm `python/models/predictions/senior_predictions.csv` exists. This file is **gitignored** — it must be placed manually (see Step 0.6). `git pull` will not restore it.
+2. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env` (the `.env.example` default). Run `start.bat` once to sync this key if it is missing.
 3. Confirm `PYTHON_SERVICE_URL=http://127.0.0.1` with **no port suffix**.
-4. If you recently reseeded, make sure you seeded after pulling — old ML results in the database pre-date the new model files.
+4. Re-seed after placing the CSV: `php artisan migrate:fresh --seed`.
 
 ### `osca.csv not found` during seeding
 
@@ -717,21 +740,21 @@ The seeder also accepts the file one level above the project root as a fallback,
 
 ## Notes for Future Developers
 
-**Changing the ML models:** Replace files in `python/models/` and restart the Flask services (they cache models at startup with `lru_cache`). Run `python/tests/test_ml_pipeline.py` after replacing any model files to verify the pipeline end-to-end before sharing with the team.
+**Changing the ML models:** Replace files in `python/models/` and restart the Flask services (they cache models at startup with `lru_cache`). Run `python/tests/test_ml_pipeline.py` after replacing any model files to verify the pipeline end-to-end before sharing with the team. See [docs/UPDATING_THE_MODEL.md](docs/UPDATING_THE_MODEL.md) for the full workflow.
 
 **Adding new risk domains:** The scoring pipeline spans `preprocess_service.py` (section scores), `inference_service.py` (domain risk functions), `MlService.php` (`persistResults()`), and the `ml_results` migration. All four must be updated together.
 
 **QoL survey scoring:** Scoring logic exists in two places: `app/Models/QolSurvey.php` (`computeScores()`) and `python/services/preprocess_service.py`. Any changes to the survey instrument must be coordinated across both to keep the ML feature vector consistent.
 
-**Role-based access control:** `spatie/laravel-permission` is installed but no roles are defined. All authenticated users have full access. Next step: define `osca_staff` and `admin` roles and restrict batch ML operations, force-delete, and user management to admins.
+**Archived seniors:** ML result counts (HIGH/MODERATE/LOW/urgent, cluster distributions) are scoped to `active()` seniors only. Archived seniors' results are excluded from all dashboard KPIs, risk distributions, and cluster analytics. They remain in the database and are restored when the senior is unarchived.
 
-**Batch as a queued job:** `MlController::batchRun()` is synchronous. For very large datasets, move it to a Laravel queued job — the `jobs` table already exists.
+**Batch ML inference:** Batch analysis uses Laravel's `Bus::batch()` with `QUEUE_CONNECTION=database`. A queue worker must be running (`php artisan queue:work`) for batch jobs to process — `start.bat` starts one automatically. Do not change `QUEUE_CONNECTION` back to `sync`; doing so causes the HTTP request to block for minutes.
 
-**Activity logging:** The `activity_logs` table exists but no logging code runs. Add Eloquent observers on `SeniorCitizen`, `QolSurvey`, and `Recommendation` to record create/update/delete events.
+**Windows-only launcher:** `start_services.ps1` is PowerShell-only. For Linux/macOS, use the included `python/start_services.sh` or start services manually.
 
-**Windows-only deployment:** `start_services.ps1` is PowerShell-only. For Linux/macOS, use the included `python/start_services.sh` equivalent or start services manually.
+**Private data files:** `osca.csv`, `senior_predictions.csv`, and `senior_recommendations_flat.csv` are gitignored and must never be committed. They contain real personal health data subject to the Philippine Data Privacy Act (RA 10173). Share them only via private, secure channels.
 
-**ENABLE_NOTEBOOK_OVERRIDES:** When `true` (the default), the inference service reads composite risk, cluster, and risk level from `python/models/predictions/senior_predictions.csv` instead of computing them live. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences. Set to `false` only when you want to test raw live model output against the notebook values.
+**ENABLE_NOTEBOOK_OVERRIDES:** When `true` (the default), the inference service reads composite risk, cluster, and risk level from `python/models/predictions/senior_predictions.csv` instead of computing live. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences. Set to `false` only when deliberately testing raw live model output.
 
 ---
 

@@ -114,7 +114,7 @@ Do not proceed until the notebook runs without errors.
 
 **Option A — Use `setup.bat` (recommended):**
 
-Run `setup.bat`. Step 11 does the sync automatically:
+Run `setup.bat`. Step 9 does the sync automatically:
 
 ```
 Double-click setup.bat
@@ -218,20 +218,27 @@ After you push, any other machine (collaborator, second laptop, presentation mac
 
 ---
 
-### Step 0 — Obtain prediction CSVs from the training machine
+### Step 0 — Obtain private files from the training machine
 
-The prediction CSVs (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are **not in the repository**. The training machine developer must share them via USB, shared drive, or other out-of-band means. Place both files in `python/models/predictions/` before seeding:
+Three files are gitignored and must be shared by the training machine developer out-of-band (USB, shared drive, etc.). None of these appear in `git pull`.
+
+| File | Where to place it |
+|---|---|
+| `osca.csv` | Project root — same folder as `setup.bat` |
+| `senior_predictions.csv` | `python\models\predictions\` |
+| `senior_recommendations_flat.csv` | `python\models\predictions\` |
 
 ```powershell
-# Create the directory if it doesn't exist
+# Create the predictions directory if it doesn't exist
 New-Item -ItemType Directory -Force python\models\predictions
 
-# Copy the files you received into it
+# Copy the files you received
+Copy-Item "path\to\shared\osca.csv"                        .
 Copy-Item "path\to\shared\senior_predictions.csv"          python\models\predictions\
 Copy-Item "path\to\shared\senior_recommendations_flat.csv" python\models\predictions\
 ```
 
-If you cannot obtain the CSVs, the system will still seed using live ML inference — results may differ slightly from the notebook-validated values.
+**If you cannot obtain these files:** setup still completes, but the database will be empty and risk/cluster numbers will differ from the notebook-validated values. Request the files from the training machine developer before re-seeding.
 
 ---
 
@@ -310,12 +317,13 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 
 ### Other machines (after training machine pushes)
 
-- [ ] Received updated prediction CSVs from training machine developer (out-of-band)
-- [ ] Both CSVs placed in `python/models/predictions/` before seeding
+- [ ] Received all three private files from training machine developer (out-of-band): `osca.csv`, `senior_predictions.csv`, `senior_recommendations_flat.csv`
+- [ ] `osca.csv` placed in project root
+- [ ] Both prediction CSVs placed in `python/models/predictions/`
 - [ ] `git pull`
 - [ ] `start.bat` ran at least once (to sync `.env` keys)
 - [ ] `php artisan migrate:fresh --seed` completed with `ML success: 275`
-- [ ] Dashboard shows correct distribution
+- [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36, Urgent=1)
 
 ---
 
