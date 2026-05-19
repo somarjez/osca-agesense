@@ -124,7 +124,7 @@
                     @php $byRisk = $rows->keyBy('overall_risk_level'); @endphp
                     <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <td class="td font-medium text-ink-800 dark:text-[#c8c4bc]">
-                            <a href="{{ route('reports.barangay.show', $brgy) }}"
+                            <a href="{{ route('reports.barangay', $brgy) }}"
                                class="hover:text-forest-700 dark:hover:text-forest-400 transition-colors">
                                 {{ $brgy }}
                             </a>
