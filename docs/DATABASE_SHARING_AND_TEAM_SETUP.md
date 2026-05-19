@@ -157,16 +157,22 @@ Check your actual database name in `.env`:
 DB_DATABASE=osca_db
 ```
 
-### Option 1 — If `mysqldump` is available in PATH
+### Option 1 — Laragon (this project uses Laragon)
 ```powershell
-mysqldump -u root -p --databases osca_db --routines --triggers --events > database\backups\agesense_main_validated_dump.sql
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root --databases osca_db --routines --triggers --events "--result-file=database\backups\agesense_main_validated_dump.sql"
+```
+If your root account has a password, add `-p` before `--databases` and enter it when prompted.
+
+### Option 2 — If `mysqldump` is available in PATH
+```powershell
+mysqldump -u root --databases osca_db --routines --triggers --events "--result-file=database\backups\agesense_main_validated_dump.sql"
 ```
 
-### Option 2 — If `mysqldump` is not recognized
+### Option 3 — Standard MySQL install (non-Laragon)
 ```powershell
 & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe" `
-    -u root -p --databases osca_db --routines --triggers --events `
-    > database\backups\agesense_main_validated_dump.sql
+    -u root --databases osca_db --routines --triggers --events `
+    "--result-file=database\backups\agesense_main_validated_dump.sql"
 ```
 
 Replace `osca_db` with your actual `DB_DATABASE` value if different.
@@ -239,13 +245,20 @@ If `mysql` is not on PATH:
 ### Step 6 — Import the dump
 
 If the dump was exported with `--databases` (it was, per the export command above):
+
+**Laragon (this project uses Laragon):**
 ```powershell
-mysql -u root -p < database\backups\agesense_main_validated_dump.sql
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
 ```
 
-If `mysql` is not on PATH:
+**If `mysql` is in PATH:**
 ```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p `
+mysql -u root < database\backups\agesense_main_validated_dump.sql
+```
+
+**Standard MySQL install:**
+```powershell
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root `
     < database\backups\agesense_main_validated_dump.sql
 ```
 
@@ -506,19 +519,22 @@ python\venv\Scripts\pip.exe install pymysql
 python\venv\Scripts\python.exe python/check_prediction_sources.py
 ```
 
-### Main device — export dump
+### Main device — export dump (Laragon)
 ```powershell
-mysqldump -u root -p --databases osca_db --routines --triggers --events > database\backups\agesense_main_validated_dump.sql
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root --databases osca_db --routines --triggers --events "--result-file=database\backups\agesense_main_validated_dump.sql"
 ```
 
-### Other device — clean import
+### Other device — clean import (Laragon)
 ```powershell
-mysql -u root -p
+# Open MySQL
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 # DROP DATABASE IF EXISTS osca_db;
 # CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 # EXIT;
-mysql -u root -p < database\backups\agesense_main_validated_dump.sql
-php artisan config:clear && php artisan cache:clear && php artisan migrate --force
+
+# Import
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
+php artisan config:clear; php artisan cache:clear; php artisan migrate --force
 ```
 
 ### Shared MySQL — client device `.env`
