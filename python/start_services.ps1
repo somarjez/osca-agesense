@@ -5,8 +5,28 @@ $projectDir = Split-Path -Parent $scriptDir
 $servicesDir = Join-Path $scriptDir 'services'
 $venvPython = Join-Path $scriptDir 'venv\Scripts\python.exe'
 $logsDir = Join-Path $projectDir 'storage\logs'
-$modelsPath = if ($env:ML_MODELS_PATH) { $env:ML_MODELS_PATH } else { Join-Path $scriptDir 'models' }
-$enableNotebookOverrides = if ($env:ENABLE_NOTEBOOK_OVERRIDES) { $env:ENABLE_NOTEBOOK_OVERRIDES } else { 'true' }
+
+# Read .env so values are consistent regardless of system environment variables
+$dotenv = @{}
+$envFile = Join-Path $projectDir '.env'
+if (Test-Path $envFile) {
+    Get-Content $envFile | Where-Object { $_ -match '^[A-Z_]+=.+' -and $_ -notmatch '^#' } | ForEach-Object {
+        $k, $v = $_ -split '=', 2
+        $dotenv[$k.Trim()] = $v.Trim().Trim('"').Trim("'")
+    }
+}
+
+$modelsPath = if ($dotenv['ML_MODELS_PATH']) { $dotenv['ML_MODELS_PATH'] } `
+              elseif ($env:ML_MODELS_PATH)    { $env:ML_MODELS_PATH } `
+              else                            { Join-Path $scriptDir 'models' }
+$enableNotebookOverrides = if ($dotenv.ContainsKey('ENABLE_NOTEBOOK_OVERRIDES')) { $dotenv['ENABLE_NOTEBOOK_OVERRIDES'] } `
+                           elseif ($env:ENABLE_NOTEBOOK_OVERRIDES)               { $env:ENABLE_NOTEBOOK_OVERRIDES } `
+                           else                                                  { 'false' }
+
+# Resolve relative ML_MODELS_PATH relative to project root
+if ($modelsPath -and -not [System.IO.Path]::IsPathRooted($modelsPath)) {
+    $modelsPath = Join-Path $projectDir $modelsPath
+}
 
 if (-not (Test-Path $venvPython)) {
     Write-Output "[ML] Venv not found - creating it now (first run takes a few minutes)..."

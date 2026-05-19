@@ -303,8 +303,8 @@
                         } catch (\Throwable) {
                             $navHealth = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
                         }
-                        // Cache online status for 30s; offline status for 5min to avoid blocking every page load
-                        $navCacheTtl = ($navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok') ? 30 : 300;
+                        // Cache online status for 30s; offline status for 15s so nav recovers quickly after start
+                        $navCacheTtl = ($navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok') ? 30 : 15;
                         \Illuminate\Support\Facades\Cache::put('ml_nav_health', $navHealth, $navCacheTtl);
                     }
                     $navDotClass = match(true) {

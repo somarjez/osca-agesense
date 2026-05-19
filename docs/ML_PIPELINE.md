@@ -67,8 +67,7 @@ All artefacts live in `python/models/` (overridable via `ML_MODELS_PATH` in `.en
 | `cluster_mapping.json` | Maps raw KMeans IDs `{0,1,2}` → named IDs `{1,2,3}` |
 | `asset_weights.json` | Runtime-overridable scoring weights (see [Runtime Configuration](#runtime-configuration)) |
 | `cluster_metadata.json` | Optional — overrides cluster names/descriptions without code changes |
-| `predictions/senior_predictions.csv` | Notebook-validated composite scores, cluster IDs, and risk levels per senior — **gitignored, not committed**; obtained from `osca_output/predictions/` |
-| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat, one row per action) — **gitignored, not committed**; obtained from `osca_output/predictions/` |
+| ~~`predictions/senior_predictions.csv`~~ | Removed — superseded by DB-backed ML result cache (see [Cross-device Consistency](#cross-device-consistency)) |
 
 ---
 
@@ -362,11 +361,42 @@ All three cluster IDs must be present or the file is ignored and hardcoded defau
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
-**Default: `true`** (set in `.env.example`).
+**Default: `false`** (CSV-based override system has been retired).
 
-When `true`, the inference service matches each senior against `python/models/predictions/senior_predictions.csv` (placed locally from `osca_output/predictions/` — **not committed** to the repository because it contains personal health data). If a match is found, the notebook's cluster ID, composite risk, and risk level are used instead of live model output. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences.
+Previously, this flag made the inference service match seniors against `senior_predictions.csv`. That file has been removed — the DB-backed ML result cache (described below) now provides cross-device consistency without requiring any per-machine CSV files.
 
-Set to `false` only when deliberately testing raw live model output against the notebook values. The `ENABLE_NOTEBOOK_OVERRIDES=false` path is used during active model development/validation only.
+Leave this set to `false`. Setting it to `true` has no effect unless the CSV files are manually restored.
+
+---
+
+## Cross-device Consistency
+
+### The problem
+
+UMAP's `.transform()` on a single data point is non-deterministic across different CPU families (Intel vs AMD) and different library patch versions. Running the same senior on two machines can produce different cluster assignments.
+
+### The solution — DB-backed ML result cache
+
+When `inference_service.py` processes a senior:
+
+1. **DB cache lookup first** — queries `ml_results` for the latest row for that `senior_id`.  
+   - **Hit:** stored `cluster_named_id`, `composite_risk`, `risk_level`, and risk scores are returned directly. UMAP is not run. All devices get identical results.  
+   - **Miss (new senior):** UMAP runs once on this machine, result is stored in `ml_results`, and immediately written back to the DB cache. Every subsequent request (on any device) hits the cache.
+
+2. The `senior_id` is passed from Laravel through the preprocessor and into the inference service via the `buildRawPayload()` call in `MlService.php`.
+
+3. `preprocess_service.py` forwards `senior_id` in its output so it reaches `inference_service.py`.
+
+### Re-clustering after bulk adds
+
+When many new seniors are added at once, running them individually through UMAP (single-point transforms) can produce slight drift in cluster assignments compared to a batch transform. To correct this, run:
+
+```powershell
+cd osca-system
+python\venv\Scripts\python.exe python\fix_cluster_distribution.py
+```
+
+This re-runs all seniors through a **single batch UMAP transform** (the same way the notebook does), updates every `ml_results` row in the database, and prints the final cluster and risk distribution. Run this after any bulk data import to ensure distributions match the notebook.
 
 ---
 
@@ -396,9 +426,9 @@ python tests/test_inference_e2e.py
 | 5. Modified cluster_metadata.json | Cluster names change at runtime without code changes |
 | 6. Modified asset_weights.json | Asset scores change at runtime when weights file is modified |
 
-**`test_inference_paths.py`** — Validates model files, prediction CSVs, urgency logic, and priority flag thresholds.
+**`test_inference_paths.py`** — Validates model files, urgency logic, and priority flag thresholds.
 
-**`test_inference_e2e.py`** — End-to-end inference on known seniors (Norlito Basa urgent, Rosa Amante moderate); checks composite risk within 0.001 of CSV value, `notebook_override_applied=True`.
+**`test_inference_e2e.py`** — End-to-end inference on known seniors; checks composite risk and cluster assignment are stable across runs.
 
 All tests must pass before deploying new model artefacts. A failed test 2 ("no heuristic fallback") means a model file is missing or incompatible with the current feature list.
 

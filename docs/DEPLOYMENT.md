@@ -94,18 +94,13 @@ For any machine cloning the project for the first time (including collaborators)
 
 #### Before running setup — collect these private files
 
-Three files are gitignored and must be obtained from the training machine developer before setup. They contain real personal health data and are never committed to the repository.
+One file is gitignored and must be obtained from the project lead before setup. It contains real personal data and is never committed to the repository.
 
 | File | Where to place it |
 |---|---|
 | `osca.csv` | Project root — same folder as `setup.bat` |
-| `senior_predictions.csv` | `python\models\predictions\` |
-| `senior_recommendations_flat.csv` | `python\models\predictions\` |
 
-Create the predictions folder first if it does not exist:
-```powershell
-New-Item -ItemType Directory -Force python\models\predictions
-```
+> **Note:** The prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are no longer required. The system now uses a DB-backed ML result cache — consistent results across all devices are guaranteed through the shared MySQL database. See [ML_PIPELINE.md — Cross-device Consistency](ML_PIPELINE.md#cross-device-consistency).
 
 #### Setup steps
 
@@ -113,7 +108,7 @@ New-Item -ItemType Directory -Force python\models\predictions
 1. git clone https://github.com/somarjez/osca-agesense.git
 2. cd osca-agesense
 3. Create the MySQL database: CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-4. Place osca.csv, senior_predictions.csv, and senior_recommendations_flat.csv (see table above)
+4. Place osca.csv in the project root
 5. Double-click setup.bat
 ```
 
@@ -232,7 +227,7 @@ Key `.env` variables:
 | `PYTHON_PREPROCESS_PORT` | `5001` | Preprocessor service port (override only if 5001 is taken) |
 | `PYTHON_INFERENCE_PORT` | `5002` | Inference service port (override only if 5002 is taken) |
 | `ML_MODELS_PATH` | `python/models` | Path to `.pkl` / `.json` model artefacts (committed to repo; relative to project root) |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` (placed locally — gitignored, never committed) instead of computing live. **Must be `true`** on all machines for dashboard numbers to match the notebook. Keep `true` unless deliberately testing live model output. |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | Retired — CSV override system replaced by DB-backed ML result cache. Leave `false`. |
 | `PYTHON_TIMEOUT` | `120` | Seconds to wait for a local Python subprocess (Tier 2 fallback). Increase if seeding times out on a slow machine. |
 | `PYTHON_EXECUTABLE` | _(auto)_ | Override the Python binary used for Tier 2 subprocess. Leave blank to auto-detect from `python/venv`. |
 
@@ -467,21 +462,17 @@ Once logged in as an administrator, go to **Administration → User Management**
 
 ## 9. Loading Existing Data
 
-### Prediction CSVs — required before seeding
+### Prediction CSVs — no longer required
 
-The two prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are **gitignored** and are never committed to the repository because they contain real personal health data. They must be placed locally before seeding.
+The prediction CSV files have been retired. The system now uses a **DB-backed ML result cache** — after the first machine processes a senior, results are stored in `ml_results` and all other devices read from there. No CSV files need to be transferred between machines.
 
-**If you have `osca_output/` from the notebook training machine:**
+After a fresh seed on a new machine, run the batch re-clustering script once to ensure all seniors are processed consistently via batch UMAP (same as the notebook):
 
 ```powershell
-# Copy from notebook output into the repo (setup.bat does this automatically)
-xcopy /Y ..\osca_output\predictions\senior_predictions.csv          python\models\predictions\
-xcopy /Y ..\osca_output\predictions\senior_recommendations_flat.csv python\models\predictions\
+python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
-> If you use `setup.bat`, it handles this copy in Step 9 — no manual action needed.
-
-**If you do not have `osca_output/`** (e.g., a collaborator machine without the training data): the system will still seed and run live ML inference for each senior. Dashboard numbers may differ slightly from the notebook-validated values. Request the prediction CSVs from the training machine developer and place them in `python/models/predictions/` before re-seeding.
+This is only needed after `migrate:fresh` + re-seed. Normal day-to-day operation does not require it.
 
 ### CSV bulk import
 
@@ -547,12 +538,12 @@ Before going live with real data:
 | `composer install` fails with PHP version error | PHP < 8.2 installed | Install PHP 8.2+ and confirm `php --version` |
 | `php` not found — `start.bat` shows `[!] php.exe not found` | PHP not on PATH and not in default Laragon/XAMPP locations | Add your PHP folder to the system PATH, or install [Laragon](https://laragon.org/) which is auto-detected |
 | Python services show "Offline" in the dashboard | Services not started | Run `.\python\start_services.ps1` in a separate terminal, or just use `start.bat` |
-| Navbar service dot stays green when services are down | Cache is stale (30-second TTL) | Wait 30 seconds for the cache to expire, or navigate away and back |
+| Navbar service dot stays red after services start | Cache was stale (now 15-second TTL for offline status) | Wait 15 seconds and reload — the dot updates automatically |
 | Batch ML inference gets stuck at 0% | Queue worker not running | Confirm `storage/logs/queue.log` shows a worker started; if not, run `php artisan queue:work` manually. Confirm `QUEUE_CONNECTION=database` in `.env` — `sync` blocks the HTTP request |
-| Wrong risk distribution after seeding (e.g. HIGH≠53) | `ENABLE_NOTEBOOK_OVERRIDES` is `false` or missing, or prediction CSVs are absent | 1. Confirm `python/models/predictions/senior_predictions.csv` exists — place it from your private copy if missing. 2. Set `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`. 3. Re-run `php artisan migrate:fresh --seed` |
+| Wrong cluster distribution after seeding | Seniors processed individually via single-point UMAP on first seed | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` once after seeding to re-cluster all seniors in one batch transform |
 | Dashboard counts include archived seniors | Stale code (pre-2026-05-19) | Pull latest code — `latestMlIds()` now filters to `active()` seniors only |
 | `osca.csv not found` during seeding | File not placed before running setup | Place `osca.csv` in the project root (same folder as `setup.bat`) |
-| `senior_predictions.csv not found` (override not applied) | Prediction CSVs not placed before seeding | Place both CSVs in `python/models/predictions/` — see §9 |
+| ML services show "Offline" after `start.bat` but should be running | `start_services.ps1` failed silently | Check `storage\logs\ml_startup.err.log` for the error message |
 | `WinError 10106` in Python service logs | Numba socket conflict on Windows | Restart the ML services from `/ml/status` |
 | `UMAP` import error on Python startup | Missing packages | Re-run `pip install -r python/requirements.txt` with venv activated |
 | Git `index.lock` error during branch switch | Another git process is running | Delete `.git/index.lock` manually: `Remove-Item .git\index.lock -Force` |

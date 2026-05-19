@@ -216,6 +216,7 @@ class MlService
     private function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
     {
         return [
+            'senior_id'               => $senior->id,
             'first_name'              => $senior->first_name,
             'last_name'               => $senior->last_name,
             'barangay'                => $senior->barangay,

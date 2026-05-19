@@ -19,6 +19,12 @@ import unicodedata
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    import pymysql
+    _PYMYSQL_AVAILABLE = True
+except ImportError:
+    _PYMYSQL_AVAILABLE = False
+
 import numpy as np
 from flask import Flask, request, jsonify
 
@@ -56,6 +62,172 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
+
+
+# ── DB-backed ML result cache ─────────────────────────────────────────────────
+# Reads Laravel .env so the same DB credentials are used without duplication.
+def _read_laravel_env() -> Dict[str, str]:
+    env: Dict[str, str] = {}
+    candidates = [
+        os.path.join(BASE_DIR, ".env"),
+        os.path.join(BASE_DIR, "..", ".env"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, _, v = line.partition("=")
+                        env[k.strip()] = v.strip().strip('"').strip("'")
+                return env
+            except Exception:
+                pass
+    return env
+
+
+def _db_connect() -> Optional[Any]:
+    if not _PYMYSQL_AVAILABLE:
+        return None
+    try:
+        env = _read_laravel_env()
+        conn = pymysql.connect(
+            host=env.get("DB_HOST", "127.0.0.1"),
+            port=int(env.get("DB_PORT", 3306)),
+            user=env.get("DB_USERNAME", "root"),
+            password=env.get("DB_PASSWORD", ""),
+            database=env.get("DB_DATABASE", "osca_db"),
+            connect_timeout=3,
+            read_timeout=5,
+            write_timeout=5,
+            autocommit=True,
+        )
+        return conn
+    except Exception as exc:
+        logger.debug("DB cache connect failed (non-fatal): %s", exc)
+        return None
+
+
+def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Query the latest ml_results row for this senior. Returns a dict shaped like
+    a notebook_override payload so the same injection path is reused.
+    Returns None if not found or DB is unreachable.
+    """
+    if not senior_id:
+        return None
+    conn = _db_connect()
+    if conn is None:
+        return None
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                """
+                SELECT cluster_id, cluster_named_id, cluster_name,
+                       composite_risk, ic_risk, env_risk, func_risk,
+                       overall_risk_level, wellbeing_score,
+                       ic_score, env_score, func_score, qol_score
+                FROM ml_results
+                WHERE senior_citizen_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (senior_id,),
+            )
+            row = cur.fetchone()
+        if not row:
+            return None
+        # Map to the same shape as notebook_override payloads
+        return {
+            "cluster_id":       int(row["cluster_named_id"] or 1),
+            "cluster_name":     row.get("cluster_name"),
+            "risk_level":       (row.get("overall_risk_level") or "").upper(),
+            "composite_risk":   float(row["composite_risk"] or 0.0),
+            "ml_ic_risk":       float(row["ic_risk"] or 0.0),
+            "ml_env_risk":      float(row["env_risk"] or 0.0),
+            "ml_func_risk":     float(row["func_risk"] or 0.0),
+            "ic_score":         float(row["ic_score"] or 3.0),
+            "env_score":        float(row["env_score"] or 3.0),
+            "func_score":       float(row["func_score"] or 3.0),
+            "qol_score":        float(row["qol_score"] or 3.0),
+            # raw_cluster_id is cluster_named_id - 1 (KMeans 0-indexed)
+            "_raw_cluster_id":  max(0, int(row["cluster_named_id"] or 1) - 1),
+        }
+    except Exception as exc:
+        logger.debug("DB cache lookup failed (non-fatal): %s", exc)
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def _db_cache_write(senior_id: int, result: Dict[str, Any]) -> None:
+    """
+    After a fresh UMAP run, persist the key ML outputs back to ml_results so
+    any other device can read them on the next request for this senior.
+    This is a best-effort write — failures are logged but never raise.
+    """
+    if not senior_id or not _PYMYSQL_AVAILABLE:
+        return
+    conn = _db_connect()
+    if conn is None:
+        return
+    try:
+        cluster  = result.get("cluster", {})
+        scores   = result.get("risk_scores", {})
+        levels   = result.get("risk_levels", {})
+        who      = result.get("who_scores", {})
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ml_results
+                SET cluster_id       = %s,
+                    cluster_named_id = %s,
+                    cluster_name     = %s,
+                    composite_risk   = %s,
+                    ic_risk          = %s,
+                    env_risk         = %s,
+                    func_risk        = %s,
+                    overall_risk_level = %s,
+                    wellbeing_score  = %s,
+                    ic_score         = %s,
+                    env_score        = %s,
+                    func_score       = %s,
+                    qol_score        = %s,
+                    processed_at     = NOW()
+                WHERE senior_citizen_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (
+                    cluster.get("raw_id"),
+                    cluster.get("named_id"),
+                    cluster.get("name"),
+                    scores.get("composite_risk"),
+                    scores.get("ic_risk"),
+                    scores.get("env_risk"),
+                    scores.get("func_risk"),
+                    levels.get("overall"),
+                    scores.get("wellbeing_score"),
+                    who.get("ic_score"),
+                    who.get("env_score"),
+                    who.get("func_score"),
+                    who.get("qol_score"),
+                    senior_id,
+                ),
+            )
+    except Exception as exc:
+        logger.debug("DB cache write failed (non-fatal): %s", exc)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
 
 RISK_THRESHOLDS = {
     "high": 0.50,
@@ -863,6 +1035,22 @@ def _build_recommendations(
 def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     warnings_list: List[str] = []
 
+    senior_id: Optional[int] = None
+    _raw_senior_id = preprocessed.get("senior_id") or preprocessed.get("identity", {}).get("senior_id")
+    if _raw_senior_id is not None:
+        try:
+            senior_id = int(_raw_senior_id)
+        except (TypeError, ValueError):
+            pass
+
+    # DB cache hit: reuse stored ML result for this senior, skipping UMAP entirely.
+    # This ensures identical results across all devices for seniors already processed.
+    _db_cached = _db_cache_lookup(senior_id) if senior_id else None
+    if _db_cached:
+        preprocessed = dict(preprocessed)
+        preprocessed["_precomputed_raw_cluster_id"] = _db_cached["_raw_cluster_id"]
+        warnings_list.append("Cluster and risk scores loaded from shared DB cache (UMAP skipped).")
+
     scaled_features = preprocessed.get("scaled_features", []) or []
     reduced_features = preprocessed.get("reduced_features", []) or []
     section_scores = preprocessed.get("section_scores", {}) or {}
@@ -1069,6 +1257,28 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         ic_level = _get_risk_level(ic_risk_raw)
         env_level = _get_risk_level(env_risk_raw)
         func_level = _get_risk_level(func_risk_raw)
+    elif _db_cached:
+        # DB cache: apply stored risk scores so all devices agree on this senior's values.
+        # Same "only override if > 0" guard as notebook_override above.
+        _ov_ic   = _safe_float(_db_cached.get("ml_ic_risk"),   0.0)
+        _ov_env  = _safe_float(_db_cached.get("ml_env_risk"),  0.0)
+        _ov_func = _safe_float(_db_cached.get("ml_func_risk"), 0.0)
+        _ov_comp = _safe_float(_db_cached.get("composite_risk"), 0.0)
+        if _ov_ic > 0:
+            ic_risk_raw = _clip01(_ov_ic)
+        if _ov_env > 0:
+            env_risk_raw = _clip01(_ov_env)
+        if _ov_func > 0:
+            func_risk_raw = _clip01(_ov_func)
+        if _ov_comp > 0:
+            composite_risk = _clip01(_ov_comp)
+        _db_level = (_db_cached.get("risk_level") or overall_level or "").upper()
+        if _db_level == "CRITICAL":
+            _db_level = "HIGH"
+        overall_level = _db_level or overall_level
+        ic_level   = _get_risk_level(ic_risk_raw)
+        env_level  = _get_risk_level(env_risk_raw)
+        func_level = _get_risk_level(func_risk_raw)
 
     # 4. Recommendations — compute priority_flag first so urgency assignment is correct
     computed_priority_flag = _priority_flag(composite_risk)
@@ -1084,7 +1294,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         recs = notebook_recommendations
         warnings_list.append("Recommendations matched to notebook export for known senior record.")
 
-    return {
+    result = {
         "status": "success",
         "cluster": {
             "raw_id": raw_cluster_id,
@@ -1131,9 +1341,17 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "model_dir": MODEL_DIR,
             "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
             "notebook_override_applied": bool(notebook_override),
+            "db_cache_hit": bool(_db_cached),
         },
         "warnings": warnings_list,
     }
+
+    # Write-back: if this was a fresh UMAP run (no DB cache hit, no notebook override),
+    # persist the result so every other device gets a consistent answer next time.
+    if senior_id and not _db_cached and not notebook_override:
+        _db_cache_write(senior_id, result)
+
+    return result
 
 
 # ── Batch cluster assignment (used by local_ml_runner) ───────────────────────

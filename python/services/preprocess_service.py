@@ -996,8 +996,10 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
     else:
         reduced = scaled[:10]
 
+    _senior_id = raw.get("senior_id")
     return {
         "status": "success",
+        "senior_id": int(_senior_id) if _senior_id is not None else None,
         "identity": {
             "first_name": _as_text(raw.get("first_name")),
             "last_name": _as_text(raw.get("last_name")),

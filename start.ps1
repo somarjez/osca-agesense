@@ -141,7 +141,9 @@ Write-Host " Clearing compiled view cache..."
 # ── [1/3] Python ML services ────────────────────────────────────────────────────
 Write-Host " [1/3] Starting Python ML services in background..."
 Write-Host "       (Models load ~30 seconds on first run)"
-Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","$PROJECT\python\start_services.ps1" -WindowStyle Hidden
+$mlStartLog    = "$PROJECT\storage\logs\ml_startup.log"
+$mlStartErrLog = "$PROJECT\storage\logs\ml_startup.err.log"
+Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","$PROJECT\python\start_services.ps1" -WindowStyle Hidden -RedirectStandardOutput $mlStartLog -RedirectStandardError $mlStartErrLog
 
 # ── [2/3] Queue worker ──────────────────────────────────────────────────────────
 Write-Host " [2/3] Starting Laravel queue worker in background..."
