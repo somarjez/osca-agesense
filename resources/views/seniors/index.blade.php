@@ -301,9 +301,9 @@
     {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
     <div x-show="open" x-cloak
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+         @click.self="close()"
          @keydown.escape.window="if(open) close()">
-        <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]"
-             @click.outside="close()">
+        <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
 
             {{-- Modal header --}}
             <div class="card-head flex-shrink-0">
