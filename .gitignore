@@ -4,6 +4,12 @@ osca.csv
 python/models/predictions/senior_predictions.csv
 python/models/predictions/senior_recommendations_flat.csv
 
+# Database dumps — contain personal senior citizen data, never commit
+database/backups/*.sql
+database/backups/*.dump
+database/backups/*.gz
+database/backups/*.zip
+
 # Laravel / PHP
 /.phpunit.cache
 /.phpunit.result.cache

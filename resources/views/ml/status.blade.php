@@ -144,6 +144,58 @@
         </div>
     </div>
 
+    {{-- DB + System Status Panel --}}
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Database &amp; System Status</div>
+                <div class="card-sub">Current runtime configuration — do not share DB password publicly</div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-[12.5px]">
+                <div>
+                    <div class="eyebrow mb-1">DB Host</div>
+                    <div class="font-mono font-semibold text-ink-800">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.port', 3306) }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">DB Database</div>
+                    <div class="font-mono font-semibold text-ink-800">{{ config('database.connections.mysql.database') }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">Model Version</div>
+                    <div class="font-mono font-semibold text-ink-800">{{ $stats['model_version'] }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">UMAP Mode</div>
+                    <div class="font-semibold text-forest-700">{{ $stats['umap_mode'] }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">Notebook Overrides</div>
+                    <div class="font-semibold {{ str_contains($stats['active_ml_mode'], 'Notebook') ? 'text-forest-700' : 'text-moderate-700' }}">
+                        {{ $stats['active_ml_mode'] }}
+                    </div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">Notebook Cache</div>
+                    <div class="font-mono font-semibold text-forest-700">{{ number_format($stats['notebook_cache']) }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">Live ML Model</div>
+                    <div class="font-mono font-semibold text-info-700">{{ number_format($stats['live_model']) }}</div>
+                </div>
+                <div>
+                    <div class="eyebrow mb-1">Fallback Results</div>
+                    <div class="font-mono font-semibold {{ $stats['fallback'] > 0 ? 'text-high-700' : 'text-ink-400' }}">{{ number_format($stats['fallback']) }}</div>
+                </div>
+            </div>
+            <p class="text-[11px] text-ink-400 mt-4 border-t border-paper-rule pt-3">
+                For final defense, all devices should point to the same DB host. See
+                <span class="font-mono">docs/DATABASE_SHARING.md</span> for export/import and shared MySQL setup steps.
+            </p>
+        </div>
+    </div>
+
     {{-- Instructions --}}
     <div class="card">
         <div class="card-head">
