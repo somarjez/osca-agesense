@@ -52,7 +52,7 @@
                 @endif
             </div>
             <div class="flex items-center gap-2">
-                <button @click.stop="open = true" class="btn btn-ghost">
+                <button type="button" @click.stop="open = true" class="btn btn-ghost">
                     <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                     Bulk Upload
                 </button>
