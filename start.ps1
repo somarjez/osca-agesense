@@ -145,10 +145,26 @@ Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-Wind
 
 # ── [2/3] Queue worker ──────────────────────────────────────────────────────────
 Write-Host " [2/3] Starting Laravel queue worker in background..."
-Start-Process $PHP -ArgumentList "-d","max_execution_time=0","$PROJECT\artisan","queue:work","--queue=default","--tries=1","--sleep=3" `
-    -WorkingDirectory $PROJECT -WindowStyle Hidden `
-    -RedirectStandardOutput "$PROJECT\storage\logs\queue.log" `
-    -RedirectStandardError  "$PROJECT\storage\logs\queue.err.log"
+
+# Kill any stale queue workers from a previous session so they pick up the
+# current .env (e.g. QUEUE_CONNECTION change). Use WMI to match by command line
+# so we only kill *this project's* worker, not an unrelated php process.
+Get-WmiObject Win32_Process -Filter "Name='php.exe'" |
+    Where-Object { $_.CommandLine -like "*$PROJECT*queue:work*" } |
+    ForEach-Object { $_.Terminate() | Out-Null }
+
+# Use ProcessStartInfo so that paths containing spaces are passed as a single
+# argument, not split on whitespace (Start-Process -ArgumentList array breaks
+# on paths like "02. AgeSense\...").
+$queuePsi = New-Object System.Diagnostics.ProcessStartInfo
+$queuePsi.FileName        = $PHP
+$queuePsi.Arguments       = "-d max_execution_time=0 `"$PROJECT\artisan`" queue:work --queue=default --tries=1 --sleep=3"
+$queuePsi.WorkingDirectory = $PROJECT
+$queuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
+$queuePsi.UseShellExecute = $false
+$queuePsi.RedirectStandardOutput = $true
+$queuePsi.RedirectStandardError  = $true
+[System.Diagnostics.Process]::Start($queuePsi) | Out-Null
 
 # ── [2b] Task scheduler ─────────────────────────────────────────────────────────
 Write-Host " [2b]  Starting Laravel task scheduler in background..."
