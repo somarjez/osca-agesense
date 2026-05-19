@@ -1,0 +1,6 @@
+{
+  "venvPath": "python",
+  "venv": "venv",
+  "pythonVersion": "3.12",
+  "extraPaths": ["python/services"]
+}

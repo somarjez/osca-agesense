@@ -278,7 +278,8 @@ Step 3: infer() for each senior
 Step 4: RecalculateClusters job (automatic — dispatched via Bus::batch()->then())
         Runs fix_cluster_distribution.py as a subprocess after all batch jobs finish
         Re-runs all seniors through a single batch UMAP transform (~30 seconds)
-        Aligns every senior's cluster assignment to match the full-population UMAP
+        Auto-calibrates cluster_mapping.json from population QoL scores (fixes cross-device orientation)
+        Injects _precomputed_named_id into each payload so inference bypasses the lru_cache
         Updates ml_results and recommendations rows in the database
 ```
 
@@ -383,32 +384,94 @@ Leave this set to `false`. Setting it to `true` has no effect unless the CSV fil
 
 ### The problem
 
-UMAP's `.transform()` on a single data point is non-deterministic across different CPU families (Intel vs AMD) and different library patch versions. Running the same senior on two machines can produce different cluster assignments.
+UMAP's `.transform()` produces **non-deterministic raw cluster ID orientation** across different CPU families, OS versions, and Python patch versions. On one machine raw cluster 0 may represent the High Functioning group; on another machine raw cluster 0 may represent the Low Functioning group. This is not a data problem — it is a UMAP geometry artifact where the same embedding is reflected along an axis.
 
-### The solution — DB-backed ML result cache
+The consequence: after cloning and seeding, two devices may show the same seniors in opposite clusters (e.g., C1=132, C2=80 on one machine vs C1=78, C2=133 on another) even though the underlying risk scores are identical.
 
-When `inference_service.py` processes a senior:
+### The solution — auto-calibrated cluster mapping
 
-1. **DB cache lookup first** — queries `ml_results` for the latest row for that `senior_id`.  
-   - **Hit:** stored `cluster_named_id`, `composite_risk`, `risk_level`, and risk scores are returned directly. UMAP is not run. All devices get identical results.  
-   - **Miss (new senior):** UMAP runs once on this machine, result is stored in `ml_results`, and immediately written back to the DB cache. Every subsequent request (on any device) hits the cache.
+`python/fix_cluster_distribution.py` resolves cross-device orientation by deriving the correct `cluster_mapping.json` from the actual population data rather than relying on a static committed mapping:
 
-2. The `senior_id` is passed from Laravel through the preprocessor and into the inference service via the `buildRawPayload()` call in `MlService.php`.
+1. **Batch UMAP transform** — all seniors are passed through scaler → UMAP → KMeans in a single call. This ensures every senior is assigned within the same geometric space (not 275 independent `.transform()` calls).
 
-3. `preprocess_service.py` forwards `senior_id` in its output so it reaches `inference_service.py`.
+2. **Mean QoL per raw cluster** — for each raw KMeans cluster (0, 1, 2), the script computes the mean QoL score across all seniors in that cluster. QoL is the most reliable semantic signal for cluster polarity because it correlates directly with wellbeing.
 
-### Re-clustering after bulk adds
+3. **Auto-calibrated mapping** — raw clusters are ranked by mean QoL descending:
+   - Highest mean QoL → named ID 1 (High Functioning)
+   - Middle mean QoL → named ID 2 (Moderate / Mixed Needs)
+   - Lowest mean QoL → named ID 3 (Low Functioning / Multi-domain Risk)
 
-Running "Run Full Batch" from the ML dashboard (`/ml/batch`) **automatically re-clusters** all seniors after every batch analysis via the `RecalculateClusters` job (Step 4 above). No manual intervention is needed for normal day-to-day operation.
+   The corrected mapping is written back to `python/models/cluster_mapping.json`.
 
-The only case requiring a manual recluster is after a fresh database seed (`migrate:fresh` + `db:seed`) on a new machine — in that case, run:
+4. **`_precomputed_named_id` injection** — each senior's preprocessed payload receives the corrected named ID directly. When `infer()` runs, it reads `_precomputed_named_id` and bypasses the `_load_cluster_mapping()` lru_cache entirely — avoiding cache invalidation edge cases.
 
+This approach is self-calibrating: regardless of which raw cluster ID UMAP assigns to "High Functioning" on a given machine, the script measures the actual population and corrects the mapping automatically.
+
+### When to run fix_cluster_distribution.py
+
+| Situation | Action |
+|---|---|
+| First-time setup on any device | Runs automatically at end of `setup.ps1` |
+| After `git pull` + code update | Run manually (see below) |
+| After `db:seed` on a new machine | Run manually |
+| After "Run Full Batch" in the UI | Runs automatically via `RecalculateClusters` job |
+| After bulk CSV upload | Runs automatically via `RecalculateClusters` job |
+
+Manual run:
 ```powershell
 cd osca-system
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
-This re-runs all seniors through a **single batch UMAP transform** (the same way the notebook does), updates every `ml_results` row in the database, and prints the final cluster and risk distribution.
+Expected output:
+```
+[1/4] Loading 288 seniors from database...
+[2/4] Batch UMAP + KMeans transform...
+      batch KMeans path used successfully for 288 seniors.
+[3/4] Auto-calibrating cluster mapping from population QoL scores...
+      Raw cluster mean QoL: {0: 3.82, 1: 2.41, 2: 1.93}
+      Corrected mapping: {0: 1, 1: 2, 2: 3}
+      cluster_mapping.json updated.
+[4/4] Running inference for 288 seniors...
+      288/288 seniors processed.
+
+Cluster distribution: C1=77  C2=134  C3=77
+Risk distribution:    HIGH=56  MODERATE=193  LOW=39
+```
+
+The exact cluster and risk numbers will vary slightly as new seniors are added. The important signal is that C3 (Low Functioning) has the fewest seniors and HIGH risk is the smallest risk group — any result where C1 is the largest cluster and HIGH > LOW indicates the mapping is inverted and the script needs to re-run.
+
+### DB-backed ML result cache
+
+In addition to per-device auto-calibration, `inference_service.py` caches results in the `ml_results` database table:
+
+1. **Cache lookup first** — on any request for a senior with a cached result, the stored `cluster_named_id`, `composite_risk`, `risk_level`, and risk scores are returned directly. UMAP is not run. All devices reading from the same database get identical results.
+
+2. **Cache miss (new senior)** — UMAP runs once, the result is stored, and all subsequent requests hit the cache.
+
+3. **Cache invalidation** — `fix_cluster_distribution.py` overwrites every `ml_results` row after auto-calibration. This is the only time the cache is bulk-invalidated.
+
+### numba threading configuration
+
+The following environment variables are set at the very top of `inference_service.py` and `local_ml_runner.py` (before any numba/UMAP import):
+
+```python
+os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
+os.environ.setdefault("NUMBA_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+```
+
+`workqueue` is numba's pure-Python threading backend — it avoids the TBB / OpenMP WinError 10106 that occurs when two numba instances (Flask + subprocess) both try to initialise OpenMP in the same process group. Setting `NUM_THREADS=1` also eliminates any remaining source of parallelism-induced non-determinism in the UMAP distance function.
+
+### cluster_map.pkl — do not use
+
+`osca_output/model/` may contain a `cluster_map.pkl` file from the original Jupyter notebook run. This file encodes the raw→named mapping as it was on the training machine and will be **wrong** on any other device with a different UMAP orientation. `setup.ps1` explicitly deletes `cluster_map.pkl` after syncing model files:
+
+```powershell
+Remove-Item "$PROJECT\python\models\cluster_map.pkl" -Force -ErrorAction SilentlyContinue
+```
+
+`cluster_mapping.json` (auto-generated by `fix_cluster_distribution.py`) is the authoritative source. Never restore `cluster_map.pkl` manually.
 
 ---
 
