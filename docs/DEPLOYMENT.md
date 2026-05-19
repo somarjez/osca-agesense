@@ -2,7 +2,7 @@
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
 > **Audience:** System administrators and developers setting up the system for the first time or deploying to a new environment.
-> **Last Updated:** 2026-05-15
+> **Last Updated:** 2026-05-19
 
 ---
 
@@ -69,7 +69,7 @@ osca-system/
 ├── docs/                   This documentation
 ├── python/
 │   ├── models/             Trained artefacts (.pkl, .json) + cluster_eval_metrics.json
-│   │   └── predictions/    senior_predictions.csv, senior_recommendations_flat.csv
+│   │   └── predictions/    senior_predictions.csv, senior_recommendations_flat.csv  ← NOT committed (gitignored, see §9)
 │   ├── services/           preprocess_service.py, inference_service.py, local_ml_runner.py
 │   ├── tests/              test_ml_pipeline.py, test_inference_paths.py, test_inference_e2e.py
 │   ├── venv/               Python virtual environment (not committed)
@@ -215,7 +215,7 @@ Key `.env` variables:
 | `ML_PREPROCESS_PORT` | `5001` | Preprocessor service port |
 | `ML_INFERENCE_PORT` | `5002` | Inference service port |
 | `ML_MODELS_PATH` | `python/models` | Path to `.pkl` model artefacts directory (committed to repo) |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` instead of computing live — ensures identical results across all machines. Keep `true` unless deliberately testing live model output. |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | When `true`, inference reads validated results from `python/models/predictions/senior_predictions.csv` (placed locally via the `osca_output` workflow — not committed to the repo) instead of computing live. Ensures identical results across all machines. Keep `true` unless deliberately testing live model output. |
 
 ### Mail (notifications)
 
@@ -302,7 +302,9 @@ The trained `.pkl` files are committed to `python/models/` and are downloaded au
 dir python\models\
 ```
 
-Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`, `predictions/senior_predictions.csv`, `predictions/senior_recommendations_flat.csv`.
+Expected files: `scaler.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`, `cluster_eval_metrics.json`.
+
+> **Prediction CSVs (`predictions/senior_predictions.csv`, `predictions/senior_recommendations_flat.csv`) are gitignored** — they contain per-senior health data and are never committed. They must be placed locally from `osca_output/predictions/` before seeding (see §9 below). `setup.bat` does this automatically.
 
 ---
 
@@ -446,9 +448,25 @@ Once logged in as an administrator, go to **Administration → User Management**
 
 ## 9. Loading Existing Data
 
+### Prediction CSVs — required before seeding
+
+The two prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are **gitignored** and are never committed to the repository because they contain real personal health data. They must be placed locally before seeding.
+
+**If you have `osca_output/` from the notebook training machine:**
+
+```powershell
+# Copy from notebook output into the repo (setup.bat does this automatically)
+xcopy /Y ..\osca_output\predictions\senior_predictions.csv          python\models\predictions\
+xcopy /Y ..\osca_output\predictions\senior_recommendations_flat.csv python\models\predictions\
+```
+
+> If you use `setup.bat`, it handles this copy in Step 11 — no manual action needed.
+
+**If you do not have `osca_output/`** (e.g., a collaborator machine without the training data): the system will still seed and run live ML inference for each senior. Dashboard numbers may differ slightly from the notebook-validated values. Request the prediction CSVs from the training machine developer and place them in `python/models/predictions/` before re-seeding.
+
 ### CSV bulk import
 
-If you have an existing OSCA registry in CSV format (`osca.csv`), place it one directory above the project root (`../osca.csv`) and run:
+If you have an existing OSCA registry in CSV format (`osca.csv`), place it one directory above the project root (`../osca.csv`), ensure the prediction CSVs are in `python/models/predictions/`, and run:
 
 ```powershell
 php artisan db:seed --class=OscaCsvSeeder
@@ -461,6 +479,21 @@ Refer to the seeder source (`database/seeders/OscaCsvSeeder.php`) for the expect
 ### Manual entry
 
 Register seniors one at a time via **Senior Records → New Profile** in the web interface.
+
+### Re-cloning after a history rewrite
+
+If the repository history was rewritten (e.g., to remove accidentally committed sensitive files using `git filter-repo`), **all existing clones are out of sync** and must be re-cloned from scratch. Old clones cannot be fixed with `git pull` alone — the local history diverges from the new remote history.
+
+```powershell
+# On every machine that has an existing clone:
+cd ..
+Remove-Item -Recurse -Force osca-system   # or rename to osca-system-old as a backup
+git clone https://github.com/somarjez/osca-agesense.git osca-system
+cd osca-system
+# Then run setup.bat normally
+```
+
+After re-cloning, run `setup.bat` to recreate `.env`, install dependencies, and restore the prediction CSVs from `osca_output/`.
 
 ---
 

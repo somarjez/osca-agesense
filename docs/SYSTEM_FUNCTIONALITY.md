@@ -385,7 +385,7 @@ Core identifying and socioeconomic fields:
 
 **Location:** `database/seeders/OscaCsvSeeder.php`
 
-Reads a CSV file (`../osca.csv`) with standardized column headers mapping to all senior profile and QoL survey fields. For each row:
+Reads a CSV file (`osca.csv`, located one level above the project root at `../osca.csv`) with standardized column headers mapping to all senior profile and QoL survey fields. This file is gitignored and never committed — it is placed locally only on the machine that performs seeding. For each row:
 1. Creates a `SeniorCitizen` record
 2. Creates a `QolSurvey` record with all responses
 3. Calls `QolSurvey::computeScores()` to calculate domain scores
@@ -393,7 +393,7 @@ Reads a CSV file (`../osca.csv`) with standardized column headers mapping to all
 
 The seeder gracefully handles null/NaN values and normalizes data types (dates, booleans, integer scores, multi-select arrays).
 
-**Run with:** `php artisan db:seed` (requires `osca.csv` at `../osca.csv`)
+**Run with:** `php artisan db:seed` (requires `osca.csv` at `../osca.csv` and prediction CSVs in `python/models/predictions/` — both gitignored, never committed)
 
 ### CSV Export — Cluster Report
 

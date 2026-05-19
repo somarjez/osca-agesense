@@ -23,8 +23,8 @@ The system uses a design called **notebook overrides** to guarantee that every m
 
 1. You train the model in `osca5.ipynb` and export the results to `osca_output/`
 2. You copy those files into `python/models/` inside the repository
-3. You push to GitHub
-4. Every other machine pulls and reseeds — they read the validated CSV files instead of running live ML inference
+3. You push to GitHub — **only `.pkl` and `.json` model files are committed; the prediction CSVs are gitignored**
+4. Every other machine re-clones (or pulls) and copies the prediction CSVs from your shared `osca_output/` folder, then reseeds
 
 This means the model does **not** run differently on different machines. Every device uses your exact notebook output.
 
@@ -34,7 +34,7 @@ The key setting that enables this is:
 ENABLE_NOTEBOOK_OVERRIDES=true
 ```
 
-When this is `true` (the default), the inference service reads `composite_risk`, `cluster_id`, and `risk_level` from `python/models/predictions/senior_predictions.csv` — the file you committed — instead of computing them live.
+When this is `true` (the default), the inference service reads `composite_risk`, `cluster_id`, and `risk_level` from `python/models/predictions/senior_predictions.csv` — the file you place locally from `osca_output/` — instead of computing them live. This file is **gitignored and never committed** because it contains real personal health data.
 
 ---
 
@@ -75,14 +75,14 @@ These are the trained `.pkl` and `.json` artefacts the system loads at startup:
 
 ### Prediction files (`python/models/predictions/`)
 
-These are the per-senior validated results from the notebook — the source of truth for the dashboard:
+These are the per-senior validated results from the notebook — the source of truth for the dashboard. **They are gitignored and never committed to the repository** because they contain real personal health data (Philippine Data Privacy Act compliance).
 
 | File | Changes when... |
 |---|---|
 | `senior_predictions.csv` | Any retrain — contains composite_risk, cluster_id, risk_level per senior |
 | `senior_recommendations_flat.csv` | Any retrain — contains recommended actions per senior |
 
-> **These two CSV files are the most important.** Even if you only rerun the notebook on the same data (without changing the model architecture), these files may have updated values and must be pushed.
+> **These two CSV files are the most important for dashboard correctness.** After each retrain, copy them from `osca_output/predictions/` into `python/models/predictions/` and distribute them to collaborators out-of-band (e.g., shared drive, USB). Do not commit them to git.
 
 ---
 
@@ -134,6 +134,8 @@ xcopy /Y ..\osca_output\predictions\senior_recommendations_flat.csv python\model
 ```
 
 > `osca_output/` is located one level above the project root (at `../osca_output/` relative to the project).
+
+> **Important:** The prediction CSVs (`python/models/predictions/*.csv`) are gitignored. They are copied to your local working directory here but will **not** be staged or committed. You will distribute them to collaborators separately (see §5).
 
 ---
 
@@ -204,9 +206,9 @@ git commit -m "model: update trained files from notebook rerun YYYY-MM-DD"
 git push
 ```
 
-Replace `YYYY-MM-DD` with today's date (e.g., `model: update trained files from notebook rerun 2026-05-13`).
+Replace `YYYY-MM-DD` with today's date (e.g., `model: update trained files from notebook rerun 2026-05-18`).
 
-> Only add `python/models/` — do not accidentally commit `osca.csv`, `.env`, `osca_output/`, or `python/venv/`. The `cluster_eval_metrics.json` file is inside `python/models/` and will be included automatically.
+> Only add `python/models/` — this commits the `.pkl` and `.json` artefacts only. The prediction CSVs are gitignored and will not be staged even if you run `git add python/models/`. Do **not** force-add or commit `osca.csv`, `.env`, `osca_output/`, `python/venv/`, or `python/models/predictions/`. After pushing, share the updated prediction CSVs with collaborators out-of-band so they can place them locally before re-seeding.
 
 ---
 
@@ -216,13 +218,30 @@ After you push, any other machine (collaborator, second laptop, presentation mac
 
 ---
 
+### Step 0 — Obtain prediction CSVs from the training machine
+
+The prediction CSVs (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are **not in the repository**. The training machine developer must share them via USB, shared drive, or other out-of-band means. Place both files in `python/models/predictions/` before seeding:
+
+```powershell
+# Create the directory if it doesn't exist
+New-Item -ItemType Directory -Force python\models\predictions
+
+# Copy the files you received into it
+Copy-Item "path\to\shared\senior_predictions.csv"          python\models\predictions\
+Copy-Item "path\to\shared\senior_recommendations_flat.csv" python\models\predictions\
+```
+
+If you cannot obtain the CSVs, the system will still seed using live ML inference — results may differ slightly from the notebook-validated values.
+
+---
+
 ### Step 1 — Pull the latest changes
 
 ```bash
 git pull
 ```
 
-This downloads the new model files and prediction CSVs that were just committed.
+This downloads the updated `.pkl` and `.json` model files. The prediction CSVs are gitignored and will not be affected by `git pull` — that is why Step 0 is required separately.
 
 ---
 
@@ -250,7 +269,7 @@ This:
 1. Drops all tables
 2. Re-runs all migrations
 3. Re-imports senior data from `osca.csv`
-4. Runs the full ML pipeline for each senior using the new model files
+4. Runs the full ML pipeline for each senior — if `python/models/predictions/senior_predictions.csv` is present and `ENABLE_NOTEBOOK_OVERRIDES=true`, results are read from the CSV (fast, deterministic); otherwise live ML inference runs (takes 10–20 minutes for 275 seniors)
 5. Saves results (cluster, risk level, composite score, recommendations) to the database
 
 Expected output at the end: `ML success: 275, fallback: 0, errors: 0`
@@ -291,6 +310,8 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 
 ### Other machines (after training machine pushes)
 
+- [ ] Received updated prediction CSVs from training machine developer (out-of-band)
+- [ ] Both CSVs placed in `python/models/predictions/` before seeding
 - [ ] `git pull`
 - [ ] `start.bat` ran at least once (to sync `.env` keys)
 - [ ] `php artisan migrate:fresh --seed` completed with `ML success: 275`

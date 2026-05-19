@@ -67,8 +67,8 @@ All artefacts live in `python/models/` (overridable via `ML_MODELS_PATH` in `.en
 | `cluster_mapping.json` | Maps raw KMeans IDs `{0,1,2}` → named IDs `{1,2,3}` |
 | `asset_weights.json` | Runtime-overridable scoring weights (see [Runtime Configuration](#runtime-configuration)) |
 | `cluster_metadata.json` | Optional — overrides cluster names/descriptions without code changes |
-| `predictions/senior_predictions.csv` | Notebook-validated composite scores, cluster IDs, and risk levels per senior |
-| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat, one row per action) |
+| `predictions/senior_predictions.csv` | Notebook-validated composite scores, cluster IDs, and risk levels per senior — **gitignored, not committed**; obtained from `osca_output/predictions/` |
+| `predictions/senior_recommendations_flat.csv` | Notebook-validated recommendations per senior (flat, one row per action) — **gitignored, not committed**; obtained from `osca_output/predictions/` |
 
 ---
 
@@ -364,7 +364,7 @@ All three cluster IDs must be present or the file is ignored and hardcoded defau
 
 **Default: `true`** (set in `.env.example`).
 
-When `true`, the inference service matches each senior against `python/models/predictions/senior_predictions.csv` (committed to the repository). If a match is found, the notebook's cluster ID, composite risk, and risk level are used instead of live model output. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences.
+When `true`, the inference service matches each senior against `python/models/predictions/senior_predictions.csv` (placed locally from `osca_output/predictions/` — **not committed** to the repository because it contains personal health data). If a match is found, the notebook's cluster ID, composite risk, and risk level are used instead of live model output. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences.
 
 Set to `false` only when deliberately testing raw live model output against the notebook values. The `ENABLE_NOTEBOOK_OVERRIDES=false` path is used during active model development/validation only.
 
