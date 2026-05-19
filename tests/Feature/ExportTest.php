@@ -25,6 +25,7 @@ class ExportTest extends TestCase
     private User $admin;
     private User $encoder;
     private User $viewer;
+    private SeniorCitizen $senior;
 
     protected function setUp(): void
     {
@@ -53,6 +54,21 @@ class ExportTest extends TestCase
             ['name' => 'OSCA Viewer', 'password' => Hash::make('password')]
         );
         $this->viewer->syncRoles(['viewer']);
+
+        // Seed a minimal active senior so PDF/CSV/Excel export tests always have data.
+        // DatabaseTransactions rolls this back after each test.
+        $this->senior = SeniorCitizen::firstOrCreate(
+            ['osca_id' => 'TST-2026-0001'],
+            [
+                'first_name'    => 'Test',
+                'last_name'     => 'Senior',
+                'barangay'      => 'Barangay I',
+                'date_of_birth' => '1950-01-01',
+                'age'           => 76,
+                'gender'        => 'Male',
+                'status'        => 'active',
+            ]
+        );
     }
 
     // ── Senior PDF export ─────────────────────────────────────────────────
@@ -60,11 +76,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_admin()
     {
-        $senior = SeniorCitizen::active()->first();
-        $this->assertNotNull($senior, 'No active seniors in DB — run migrate:fresh --seed first.');
-
         $response = $this->actingAs($this->admin)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -73,7 +86,7 @@ class ExportTest extends TestCase
             $response->headers->get('Content-Disposition')
         );
         $this->assertStringContainsString(
-            $senior->osca_id,
+            $this->senior->osca_id,
             $response->headers->get('Content-Disposition')
         );
         $this->assertNotEmpty($response->getContent());
@@ -82,10 +95,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_encoder()
     {
-        $senior = SeniorCitizen::active()->first();
-
         $response = $this->actingAs($this->encoder)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -94,10 +105,8 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_returns_pdf_for_viewer()
     {
-        $senior = SeniorCitizen::active()->first();
-
         $response = $this->actingAs($this->viewer)
-            ->get(route('seniors.export', $senior));
+            ->get(route('seniors.export', $this->senior));
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
@@ -106,9 +115,7 @@ class ExportTest extends TestCase
     #[Test]
     public function senior_pdf_export_requires_authentication()
     {
-        $senior = SeniorCitizen::active()->first();
-
-        $this->get(route('seniors.export', $senior))
+        $this->get(route('seniors.export', $this->senior))
              ->assertRedirect(route('login'));
     }
 
