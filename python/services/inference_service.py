@@ -1107,7 +1107,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                                      for f in feature_names]
                     reducer.transform_seed = 42
                     if getattr(reducer, "_rp_forest", None) is None:
-                        reducer._rp_forest = []
+                        reducer.transform_queue_size = 0.0
                     row_reduced  = reducer.transform([row_scaled_30])
                     raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
                     reduced_features = row_reduced[0].tolist()
@@ -1126,7 +1126,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                         row_scaled   = scaler.transform([cluster_row])[0].tolist()
                         reducer.transform_seed = 42
                         if getattr(reducer, "_rp_forest", None) is None:
-                            reducer._rp_forest = []
+                            reducer.transform_queue_size = 0.0
                         row_reduced  = reducer.transform([row_scaled])
                         raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
                         reduced_features = row_reduced[0].tolist()
@@ -1441,10 +1441,8 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
             X_cluster = X_scaled
 
         reducer.transform_seed = 42
-        # Ensure _rp_forest is a list (not None) — some umap-learn patch versions
-        # raise "pop from empty list" inside transform() when it is None.
         if getattr(reducer, "_rp_forest", None) is None:
-            reducer._rp_forest = []
+            reducer.transform_queue_size = 0.0
         np.random.seed(42)
         X_reduced  = reducer.transform(X_cluster)
         raw_ids    = kmeans.predict(X_reduced).tolist()
