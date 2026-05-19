@@ -177,12 +177,21 @@ mysqldump -u root --databases osca_db --routines --triggers --events "--result-f
 
 Replace `osca_db` with your actual `DB_DATABASE` value if different.
 
-Enter the MySQL root password when prompted.
+> **Important — use `--result-file`, not `>`**
+> In PowerShell, using `> file.sql` (redirect operator) produces a 0-byte file because
+> PowerShell intercepts the output before mysqldump can write it.
+> Always use `"--result-file=database\backups\filename.sql"` as shown above.
 
 > **The dump file will be at:** `database/backups/agesense_main_validated_dump.sql`
 >
 > This file contains personal senior citizen data.
 > Transfer it only via USB or a private secure channel — **never via GitHub or public group chats.**
+
+### Step — Verify the dump is not empty
+```powershell
+Get-Item "database\backups\agesense_main_validated_dump.sql" | Select-Object Name, @{N='Size(MB)';E={[math]::Round($_.Length/1MB,2)}}
+```
+Expected: **Size(MB) = 2 or more**. A 0-byte file means the export failed — re-run using `--result-file` as shown above.
 
 ---
 
@@ -225,21 +234,23 @@ database\backups\agesense_main_validated_dump.sql
 
 ### Step 5 — Drop and recreate the local database (clean slate)
 
-Open MySQL:
+Open MySQL — use the path that matches your setup:
+
+**Laragon (this project):**
 ```powershell
-mysql -u root -p
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 ```
 
-Inside MySQL:
+**If `mysql` is in PATH:**
+```powershell
+mysql -u root
+```
+
+Inside MySQL, run:
 ```sql
 DROP DATABASE IF EXISTS osca_db;
 CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 EXIT;
-```
-
-If `mysql` is not on PATH:
-```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p
 ```
 
 ### Step 6 — Import the dump
