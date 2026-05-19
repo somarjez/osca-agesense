@@ -1,6 +1,8 @@
 # Sensitive data — never commit
 *.sql
 osca.csv
+python/models/predictions/senior_predictions.csv
+python/models/predictions/senior_recommendations_flat.csv
 
 # Laravel / PHP
 /.phpunit.cache
