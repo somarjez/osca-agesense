@@ -1057,7 +1057,12 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
     # DB cache hit: reuse stored ML result for this senior, skipping UMAP entirely.
     # This ensures identical results across all devices for seniors already processed.
-    _db_cached = _db_cache_lookup(senior_id) if senior_id else None
+    # Exception: if the caller already injected _precomputed_named_id (e.g. fix_cluster_distribution.py
+    # after auto-calibration), trust that value — the DB still holds the pre-calibration named_id
+    # and would overwrite the corrected one if we let it through.
+    _db_cached = None
+    if senior_id and "_precomputed_named_id" not in preprocessed:
+        _db_cached = _db_cache_lookup(senior_id)
     if _db_cached:
         preprocessed = dict(preprocessed)
         preprocessed["_precomputed_raw_cluster_id"] = _db_cached["_raw_cluster_id"]
