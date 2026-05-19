@@ -296,13 +296,17 @@
 
                 {{-- ML Services status --}}
                 @php
-                    $navHealth = \Illuminate\Support\Facades\Cache::remember('ml_nav_health', 30, function () {
+                    $navHealth = \Illuminate\Support\Facades\Cache::get('ml_nav_health');
+                    if ($navHealth === null) {
                         try {
-                            return app(\App\Services\MlService::class)->healthCheck();
+                            $navHealth = app(\App\Services\MlService::class)->healthCheck();
                         } catch (\Throwable) {
-                            return ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
+                            $navHealth = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
                         }
-                    });
+                        // Cache online status for 30s; offline status for 5min to avoid blocking every page load
+                        $navCacheTtl = ($navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok') ? 30 : 300;
+                        \Illuminate\Support\Facades\Cache::put('ml_nav_health', $navHealth, $navCacheTtl);
+                    }
                     $navDotClass = match(true) {
                         $navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok' => 'status-dot-ok',
                         $navHealth['local_runner'] === 'available'                              => 'status-dot-warn',

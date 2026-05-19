@@ -127,7 +127,7 @@ class MlService
             'inference'    => $this->inferenceUrl  . '/health',
         ] as $name => $url) {
             try {
-                $resp = Http::timeout(3)->connectTimeout(2)->get($url);
+                $resp = Http::timeout(2)->connectTimeout(1)->get($url);
                 $results[$name] = $resp->successful() ? 'ok' : 'error';
             } catch (\Exception) {
                 $results[$name] = 'unreachable';
