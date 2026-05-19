@@ -314,52 +314,66 @@ def main():
         print(f"  [batch] {w}")
 
     # Step 3: Auto-correct the raw->named cluster mapping for this device.
-    # UMAP.transform() can flip the orientation of raw cluster IDs across devices
-    # (e.g. raw 0 = High Functioning on one device, raw 1 = High Functioning on another).
-    # We detect this by checking each raw cluster's mean QoL score from the preprocessed
-    # feature maps — highest mean QoL = named C1 (High Functioning), lowest = named C3.
+    # UMAP.transform() can flip raw cluster ID orientation between devices.
+    #
+    # Calibration uses two signals in order:
+    #   1. Cluster SIZE — the notebook always produces one large middle cluster (~134)
+    #      flanked by two smaller clusters (~77-78).  The largest raw cluster = C2 (Moderate).
+    #   2. Mean overall_wellbeing among the two small clusters — the higher-wellbeing
+    #      small cluster = C1 (High Functioning), the lower = C3 (Low Functioning).
+    #
+    # This is more reliable than QoL survey means, which have a narrow spread between clusters.
     print("\nStep 3: Auto-calibrating cluster mapping for this device...")
-    raw_qol_totals = {}
-    qol_keys = [
-        "qol_enjoy_life", "qol_life_satisfaction", "qol_future_outlook", "qol_meaningfulness",
-        "phy_energy", "psych_happiness", "psych_peace", "psych_confidence",
-        "func_independence", "func_autonomy", "func_control",
-        "soc_social_support", "soc_close_friend", "soc_participation",
-    ]
+
+    raw_sizes = {}
+    raw_wellbeing_totals = {}
     for preprocessed in payloads:
         raw_id = preprocessed.get("_precomputed_raw_cluster_id")
         if raw_id is None:
             continue
-        fm = preprocessed.get("feature_map") or preprocessed.get("raw_context") or {}
-        scores = [float(fm[k]) for k in qol_keys if k in fm and fm[k] is not None]
-        if scores:
-            raw_qol_totals.setdefault(raw_id, []).append(sum(scores) / len(scores))
+        raw_sizes[raw_id] = raw_sizes.get(raw_id, 0) + 1
+        ss = preprocessed.get("section_scores") or {}
+        wb = ss.get("overall_wellbeing")
+        if wb is not None:
+            raw_wellbeing_totals.setdefault(raw_id, []).append(float(wb))
 
     model_dir = os.path.join(BASE_DIR, "models")
     mapping_path = os.path.join(model_dir, "cluster_mapping.json")
 
-    if raw_qol_totals and len(raw_qol_totals) == 3:
-        mean_qols = {raw_id: sum(v) / len(v) for raw_id, v in raw_qol_totals.items()}
-        # highest QoL = C1 High Functioning (named 1), lowest = C3 Low Functioning (named 3)
-        sorted_raw = sorted(mean_qols, key=lambda k: mean_qols[k], reverse=True)
-        corrected_map = {sorted_raw[0]: 1, sorted_raw[1]: 2, sorted_raw[2]: 3}
-        print(f"  Raw cluster mean QoL scores: { {k: round(v, 4) for k, v in mean_qols.items()} }")
+    print(f"  Raw cluster sizes: {raw_sizes}")
+
+    if len(raw_sizes) == 3:
+        # Largest cluster → named C2 (Moderate / Mixed Needs)
+        c2_raw = max(raw_sizes, key=lambda k: raw_sizes[k])
+        small_raws = [k for k in raw_sizes if k != c2_raw]
+
+        # Among the two small clusters, higher mean wellbeing → C1, lower → C3
+        mean_wb = {
+            raw_id: (sum(raw_wellbeing_totals[raw_id]) / len(raw_wellbeing_totals[raw_id]))
+            if raw_id in raw_wellbeing_totals else 0.0
+            for raw_id in small_raws
+        }
+        print(f"  Small cluster mean wellbeing: { {k: round(v, 4) for k, v in mean_wb.items()} }")
+        c1_raw = max(small_raws, key=lambda k: mean_wb[k])
+        c3_raw = min(small_raws, key=lambda k: mean_wb[k])
+
+        corrected_map = {c1_raw: 1, c2_raw: 2, c3_raw: 3}
+        print(f"  Anchor: C2(Moderate)=raw{c2_raw}, C1(HighFunc)=raw{c1_raw}, C3(LowFunc)=raw{c3_raw}")
         print(f"  Corrected raw->named mapping: {corrected_map}")
-        # Write corrected mapping back to cluster_mapping.json so inference_service uses it
+
         with open(mapping_path, "w") as f:
             json.dump({str(k): v for k, v in corrected_map.items()}, f, indent=2)
         print(f"  [ OK ] cluster_mapping.json updated.")
-        # Clear the lru_cache so any subsequent infer() call that doesn't receive
-        # _precomputed_named_id will read the corrected file instead of the stale one.
+        # Clear lru_cache so subsequent infer() calls without _precomputed_named_id
+        # read the corrected file instead of the stale startup-time cache.
         _load_cluster_mapping.cache_clear()
-        # Inject named_id directly into each payload so infer() uses it without
-        # going through the mapping lookup at all (belt-and-suspenders).
+        # Inject named_id directly into each payload (bypasses mapping lookup entirely).
         for preprocessed in payloads:
             raw_id = preprocessed.get("_precomputed_raw_cluster_id")
             if raw_id is not None and raw_id in corrected_map:
                 preprocessed["_precomputed_named_id"] = corrected_map[raw_id]
     else:
-        print(f"  [WARN] Could not auto-calibrate (raw clusters: {list(raw_qol_totals.keys())}). Using existing mapping.")
+        print(f"  [WARN] Could not auto-calibrate (raw clusters found: {list(raw_sizes.keys())}). Using existing mapping.")
 
     print("\nStep 4: Running inference and updating DB...")
     cluster_counts = {1: 0, 2: 0, 3: 0}
