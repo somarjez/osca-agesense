@@ -1455,6 +1455,8 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
             f"batch KMeans path used successfully for {len(valid_indices)} seniors."
         )
     except Exception as exc:
+        import traceback as _tb
+        logger.warning("batch_cluster_assign failed:\n%s", _tb.format_exc())
         warn.append(
             f"batch KMeans path failed ({exc}); heuristic fallback will be used."
         )

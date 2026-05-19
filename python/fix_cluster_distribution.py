@@ -15,6 +15,7 @@ the saved UMAP+KMeans models on the full senior population in a single transform
 import os
 import sys
 import json
+import traceback
 import pymysql
 
 # Set before any numba/umap import
@@ -302,7 +303,12 @@ def main():
     print(f"Successfully preprocessed: {len(payloads)}")
 
     print("\nStep 2: Batch UMAP + KMeans (single transform for all seniors)...")
-    warnings = batch_cluster_assign(payloads)
+    try:
+        warnings = batch_cluster_assign(payloads)
+    except Exception as e:
+        print(f"  [batch FATAL] {e}")
+        traceback.print_exc()
+        warnings = [f"batch KMeans path failed ({e}); heuristic fallback will be used."]
     for w in warnings:
         print(f"  [batch] {w}")
 
