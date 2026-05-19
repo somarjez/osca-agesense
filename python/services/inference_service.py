@@ -273,17 +273,17 @@ DISEASE_ACTIONS = {
 }
 
 NOTEBOOK_PREDICTIONS_CANDIDATES = [
-    # Primary: inside the repo under python/models/predictions/ (version-controlled)
+    # Primary: inside the repo under python/models/predictions/ (gitignored, placed by setup.bat)
     os.path.join(MODEL_DIR, "predictions", "senior_predictions.csv"),
-    # Legacy fallbacks: outside the repo in osca_output/ (kept for local notebook runs)
+    # Fallback: osca_output/ is one level above the project root (BASE_DIR/../)
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "predictions", "senior_predictions.csv")),
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_predictions.csv")),
 ]
 
 NOTEBOOK_RECOMMENDATIONS_CANDIDATES = [
-    # Primary: inside the repo under python/models/predictions/ (version-controlled)
+    # Primary: inside the repo under python/models/predictions/ (gitignored, placed by setup.bat)
     os.path.join(MODEL_DIR, "predictions", "senior_recommendations_flat.csv"),
-    # Legacy fallbacks: outside the repo in osca_output/ (kept for local notebook runs)
+    # Fallback: osca_output/ is one level above the project root (BASE_DIR/../)
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "predictions", "senior_recommendations_flat.csv")),
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_recommendations_flat.csv")),
 ]
