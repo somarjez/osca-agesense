@@ -1061,6 +1061,10 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     if _db_cached:
         preprocessed = dict(preprocessed)
         preprocessed["_precomputed_raw_cluster_id"] = _db_cached["_raw_cluster_id"]
+        # Inject named_id directly from DB so we bypass _load_cluster_mapping() lru_cache.
+        # The lru_cache may hold a stale mapping from before fix_cluster_distribution.py ran,
+        # which would silently flip the cluster label for any senior viewed after the fix.
+        preprocessed["_precomputed_named_id"] = _db_cached["cluster_id"]
         warnings_list.append("Cluster and risk scores loaded from shared DB cache (UMAP skipped).")
 
     scaled_features = preprocessed.get("scaled_features", []) or []
