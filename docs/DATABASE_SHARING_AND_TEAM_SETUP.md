@@ -365,7 +365,11 @@ Replace `strong_password_here` with a real password. Write it down — all membe
 
 ### Step 5 — Allow MySQL to accept remote connections
 
-**Edit `my.ini`** — Laragon stores it at `C:\laragon\bin\mysql\mysql-8.4.3-winx64\my.ini`:
+**Edit `my.ini`** — Laragon stores it at `C:\laragon\bin\mysql\mysql-8.4.3-winx64\my.ini`.
+Open it in Notepad (run PowerShell as Administrator):
+```powershell
+notepad "C:\laragon\bin\mysql\mysql-8.4.3-winx64\my.ini"
+```
 
 Find the line:
 ```ini
@@ -376,11 +380,7 @@ Change it to:
 bind-address = 0.0.0.0
 ```
 
-Then restart MySQL — open Laragon and click **Stop** then **Start**, or run (PowerShell as Administrator):
-```powershell
-Restart-Service -Name "mysql*" -ErrorAction SilentlyContinue
-# If the above finds nothing, restart via the Laragon tray icon instead.
-```
+Then restart MySQL — right-click the **Laragon tray icon** → MySQL → Stop, then Start.
 
 **Open port 3306 in Windows Firewall** (PowerShell as Administrator on host):
 ```powershell
