@@ -43,6 +43,8 @@ class MlService
      */
     public function runPipeline(SeniorCitizen $senior, QolSurvey $survey): MlResult
     {
+        set_time_limit(0);
+
         $raw = $this->buildRawPayload($senior, $survey);
 
         if ($this->isPreprocessAvailable()) {
@@ -67,6 +69,8 @@ class MlService
      */
     public function runBatchPipeline(array $items): array
     {
+        set_time_limit(0);
+
         if (empty($items)) {
             return [];
         }
