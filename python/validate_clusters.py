@@ -52,6 +52,8 @@ with conn.cursor() as cur:
             SELECT senior_citizen_id, MAX(id) AS max_id
             FROM ml_results GROUP BY senior_citizen_id
         ) latest ON r.id = latest.max_id
+        JOIN senior_citizens sc ON sc.id = r.senior_citizen_id
+            AND sc.deleted_at IS NULL
         GROUP BY r.cluster_named_id, r.cluster_name
         ORDER BY r.cluster_named_id
     """)
@@ -120,6 +122,8 @@ with conn.cursor() as cur:
             SELECT senior_citizen_id, MAX(id) AS max_id
             FROM ml_results GROUP BY senior_citizen_id
         ) latest ON r.id = latest.max_id
+        JOIN senior_citizens sc ON sc.id = r.senior_citizen_id
+            AND sc.deleted_at IS NULL
         GROUP BY r.cluster_named_id, r.overall_risk_level
         ORDER BY r.cluster_named_id, r.overall_risk_level
     """)
@@ -150,6 +154,7 @@ with conn.cursor() as cur:
                r.cluster_name
         FROM ml_results r
         JOIN senior_citizens sc ON sc.id = r.senior_citizen_id
+            AND sc.deleted_at IS NULL
         INNER JOIN (
             SELECT senior_citizen_id, MAX(id) AS max_id
             FROM ml_results GROUP BY senior_citizen_id
@@ -176,6 +181,7 @@ with conn.cursor() as cur:
                ROUND(r.wellbeing_score, 3) AS wb
         FROM ml_results r
         JOIN senior_citizens sc ON sc.id = r.senior_citizen_id
+            AND sc.deleted_at IS NULL
         INNER JOIN (
             SELECT senior_citizen_id, MAX(id) AS max_id
             FROM ml_results GROUP BY senior_citizen_id

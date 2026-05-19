@@ -99,7 +99,8 @@ def fetch_all_seniors(conn):
                 SELECT senior_citizen_id, MAX(id) as id FROM ml_results GROUP BY senior_citizen_id
             ) latest_mr ON latest_mr.senior_citizen_id = sc.id
             LEFT JOIN ml_results mr ON mr.id = latest_mr.id
-            WHERE sc.status = 'active' OR sc.status IS NULL
+            WHERE (sc.status = 'active' OR sc.status IS NULL)
+              AND sc.deleted_at IS NULL
             ORDER BY sc.id
         """)
         return cur.fetchall()
