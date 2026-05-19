@@ -345,6 +345,25 @@ This starts:
 
 The Python services load their models in the background (first request may take 30–60 seconds). Subsequent requests are fast.
 
+### Stop (end of session)
+
+```
+Double-click  stop.bat
+```
+
+or in PowerShell:
+
+```powershell
+.\stop.ps1
+```
+
+> **Important:** Pressing `Ctrl+C` in the `php artisan serve` window stops the Laravel server, but the Python ML services (ports 5001 and 5002) continue running in the background. Always use `stop.bat` or `stop.ps1` to fully shut down all AgeSense processes before closing the window.
+
+`stop.bat` / `stop.ps1` will:
+- Terminate all `php.exe` processes tied to this project (serve, queue:work, scheduler)
+- Kill Python processes listening on ports 5001 (preprocessor) and 5002 (inference)
+- Stop any PowerShell scheduler loops started by `start.bat`
+
 ### Frontend hot-reload (optional, during active UI development)
 
 Run this alongside `php artisan serve` in a second terminal:
@@ -356,6 +375,8 @@ npm run dev
 ### Check ML service status
 
 Navigate to `/ml/status` in the browser. Both services should show `ok`. If they show `unreachable`, click **Start ML Services** on that page.
+
+> **ML health check caching:** The nav bar checks ML service status on each page load. When both services are online the result is cached for 30 seconds. When either service is unreachable the result is cached for 5 minutes — this prevents the health check from blocking every page load while Python is warming up or offline. If you just started the system and the nav shows the ML status as offline, it will update automatically within 5 minutes once the services come online.
 
 ---
 
@@ -595,6 +616,8 @@ osca-system/
 │
 ├── setup.bat                        # First-time setup (run once after cloning)
 ├── start.bat                        # Daily launcher (run every session)
+├── stop.bat                         # Shutdown script — kills all AgeSense processes
+├── stop.ps1                         # PowerShell core of stop.bat (terminates PHP, Python, and PS scheduler)
 ├── .env.example                     # Environment template
 ├── composer.json
 └── package.json
@@ -644,11 +667,64 @@ python\venv\Scripts\pip install -r python\requirements.txt
 
 # Run ML pipeline integration tests
 python\venv\Scripts\python python\tests\test_ml_pipeline.py
+
+# ── Shutdown ──────────────────────────────────────────────────────────
+# Stop all AgeSense processes (PHP, Python, PowerShell scheduler)
+.\stop.ps1
+# or double-click stop.bat
 ```
 
 ---
 
 ## Troubleshooting
+
+### Stuck on loading screen / pages take a long time to load
+
+The most common cause is the ML health check timing out while the Python services are starting up (cold-start model loading takes 30–60 seconds).
+
+**What is happening:** The nav bar calls `MlService::healthCheck()` on every page load to show the ML status indicator. If the Flask services have not finished loading their models yet, each check blocks for up to 2 seconds (1s connect timeout × 2 services). On the very first page load after `php artisan serve`, this can make every navigation feel frozen.
+
+**How it is resolved automatically:** Once the health check runs — whether it succeeds or fails — the result is cached:
+- **Online** (both services `ok`): cached for 30 seconds
+- **Offline** (either service unreachable): cached for **5 minutes**
+
+After the first check, subsequent page loads return instantly from cache. You will not be blocked again until the cache expires.
+
+**If you are stuck right now:**
+
+1. Wait 60–90 seconds after running `php artisan serve` for Python models to finish loading
+2. Refresh the page — the cached result will serve immediately
+3. Go to `/ml/status` to see the real-time status of both services
+4. If services still show `unreachable` after 2 minutes, click **Start ML Services** on that page
+
+### Python processes keep running after closing the terminal
+
+Pressing `Ctrl+C` in the `php artisan serve` window (or closing it) stops the Laravel server but does **not** stop the Python ML services. They continue running in the background, holding ports 5001 and 5002.
+
+**To properly shut down all AgeSense processes:**
+
+```
+Double-click  stop.bat
+```
+
+or in PowerShell:
+
+```powershell
+.\stop.ps1
+```
+
+This script finds and terminates:
+- All `php.exe` processes linked to this project path
+- Python processes on ports 5001 and 5002
+- Any PowerShell scheduler loops started by `start.bat`
+
+**To check if orphaned Python processes are running:**
+
+```powershell
+Get-NetTCPConnection -LocalPort 5001, 5002 -State Listen -ErrorAction SilentlyContinue
+```
+
+If this returns results, Python is still running. Run `stop.ps1` to clean up, or restart your device.
 
 ### "Services did not respond in time" or analysis not working
 
