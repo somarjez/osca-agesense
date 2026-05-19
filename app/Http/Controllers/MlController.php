@@ -40,6 +40,7 @@ class MlController extends Controller
     public function startServices()
     {
         $success = $this->ml->startServices();
+        Cache::forget('ml_nav_health');
         return back()->with(
             $success ? 'success' : 'error',
             $success

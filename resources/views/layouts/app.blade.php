@@ -262,8 +262,27 @@
                 @endforeach
                 <span class="text-[11px] text-ink-400 dark:text-[#4a5550] tnum whitespace-nowrap">{{ now()->format('D, M j') }}</span>
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
-                <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570] hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors" title="Analysis service status">
-                    <span class="status-dot status-dot-ok"></span>
+                @php
+                    $navHealth = \Illuminate\Support\Facades\Cache::remember('ml_nav_health', 30, function () {
+                        try {
+                            return app(\App\Services\MlService::class)->healthCheck();
+                        } catch (\Throwable) {
+                            return ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
+                        }
+                    });
+                    $navDotClass = match(true) {
+                        $navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok' => 'status-dot-ok',
+                        $navHealth['local_runner'] === 'available'                              => 'status-dot-warn',
+                        default                                                                 => 'status-dot-err',
+                    };
+                    $navTitle = match($navDotClass) {
+                        'status-dot-ok'   => 'HTTP services online',
+                        'status-dot-warn' => 'HTTP services offline — using local fallback',
+                        default           => 'All analysis services unavailable',
+                    };
+                @endphp
+                <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570] hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors" title="{{ $navTitle }}">
+                    <span class="status-dot {{ $navDotClass }}"></span>
                     <span class="font-medium">Services</span>
                 </a>
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
