@@ -20,12 +20,15 @@ class MlController extends Controller
     {
         $health = $this->ml->healthCheck();
 
+        $activeLatestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereHas('seniorCitizen', fn($q) => $q->active())
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
         $stats = [
-            'total_processed' => MlResult::count(),
-            'last_run'        => MlResult::latest()->value('processed_at'),
-            'urgent_count'    => MlResult::whereIn('id',
-                MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id')
-            )->where('priority_flag', 'urgent')->count(),
+            'total_processed' => MlResult::whereIn('id', $activeLatestIds)->count(),
+            'last_run'        => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
+            'urgent_count'    => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
             'unprocessed'     => SeniorCitizen::active()
                 ->whereDoesntHave('mlResults')
                 ->count(),

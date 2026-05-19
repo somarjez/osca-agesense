@@ -13,6 +13,7 @@ class ClusterAnalyticsService
     public function latestResultIds(): Collection
     {
         return MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereHas('seniorCitizen', fn($q) => $q->active())
             ->groupBy('senior_citizen_id')
             ->pluck('id');
     }
@@ -22,10 +23,10 @@ class ClusterAnalyticsService
         return MlResult::with(['seniorCitizen'])
             ->whereIn('id', $this->latestResultIds())
             ->whereNotNull('cluster_named_id')
-            ->whereHas('seniorCitizen')
+            ->whereHas('seniorCitizen', fn($q) => $q->active())
             ->when($barangay, fn ($query) => $query->whereHas(
                 'seniorCitizen',
-                fn ($seniorQuery) => $seniorQuery->where('barangay', $barangay)
+                fn ($seniorQuery) => $seniorQuery->active()->where('barangay', $barangay)
             ));
     }
 

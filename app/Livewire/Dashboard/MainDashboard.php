@@ -43,7 +43,10 @@ class MainDashboard extends Component
 
     private function latestMlIds(): \Illuminate\Support\Collection
     {
-        return $this->_latestIds ??= MlResult::select(DB::raw('MAX(id) as id'))->groupBy('senior_citizen_id')->pluck('id');
+        return $this->_latestIds ??= MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereHas('seniorCitizen', fn($q) => $q->active())
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
     }
 
     private function getStats(): array
