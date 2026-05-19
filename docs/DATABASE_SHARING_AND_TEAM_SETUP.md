@@ -324,6 +324,9 @@ Expected: `OVERALL VALIDATION: PASS`
 
 This is the preferred setup for the final defense. All three devices use one shared database — no syncing needed.
 
+> **Laragon note:** `mysql` and `mysqldump` are NOT in PATH on Laragon installs.
+> Always use the full binary path: `C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe`
+
 ### Step 1 — Choose the host device
 
 Pick one laptop that will stay on during the defense. This laptop's MySQL becomes the shared server.
@@ -347,7 +350,7 @@ All devices must be on the **same WiFi network**.
 
 Open MySQL on the host laptop:
 ```powershell
-mysql -u root -p
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 ```
 
 Run:
@@ -362,7 +365,7 @@ Replace `strong_password_here` with a real password. Write it down — all membe
 
 ### Step 5 — Allow MySQL to accept remote connections
 
-**Edit `my.ini`** (usually at `C:\ProgramData\MySQL\MySQL Server 8.0\my.ini`):
+**Edit `my.ini`** — Laragon stores it at `C:\laragon\bin\mysql\mysql-8.4.3-winx64\my.ini`:
 
 Find the line:
 ```ini
@@ -373,9 +376,10 @@ Change it to:
 bind-address = 0.0.0.0
 ```
 
-Then restart MySQL (PowerShell as Administrator):
+Then restart MySQL — open Laragon and click **Stop** then **Start**, or run (PowerShell as Administrator):
 ```powershell
-Restart-Service -Name "MySQL*"
+Restart-Service -Name "mysql*" -ErrorAction SilentlyContinue
+# If the above finds nothing, restart via the Laragon tray icon instead.
 ```
 
 **Open port 3306 in Windows Firewall** (PowerShell as Administrator on host):
@@ -442,12 +446,12 @@ Yes — but only for development and testing. Local database results are not off
 
 **Fix:**
 ```powershell
-# Drop and reimport cleanly
-mysql -u root -p
+# Drop and reimport cleanly (Laragon)
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 # DROP DATABASE IF EXISTS osca_db;
 # CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 # EXIT;
-mysql -u root -p < database\backups\agesense_main_validated_dump.sql
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
 
 php artisan config:clear
 php artisan cache:clear
@@ -468,7 +472,7 @@ php artisan migrate --force
 
 Test the connection directly from the client device:
 ```powershell
-mysql -h 192.168.1.100 -u agesense_user -p
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -h 192.168.1.100 -u agesense_user -p
 ```
 If this fails, the problem is network/firewall — not the app.
 
