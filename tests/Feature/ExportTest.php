@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -27,9 +30,29 @@ class ExportTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin   = User::where('email', 'admin@osca.local')->firstOrFail();
-        $this->encoder = User::where('email', 'encoder@osca.local')->firstOrFail();
-        $this->viewer  = User::where('email', 'viewer@osca.local')->firstOrFail();
+        // Ensure roles exist — idempotent whether or not UserSeeder has run.
+        foreach (['admin', 'encoder', 'viewer'] as $roleName) {
+            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+        }
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->admin = User::firstOrCreate(
+            ['email' => 'admin@osca.local'],
+            ['name' => 'OSCA Admin', 'password' => Hash::make('password')]
+        );
+        $this->admin->syncRoles(['admin']);
+
+        $this->encoder = User::firstOrCreate(
+            ['email' => 'encoder@osca.local'],
+            ['name' => 'OSCA Encoder', 'password' => Hash::make('password')]
+        );
+        $this->encoder->syncRoles(['encoder']);
+
+        $this->viewer = User::firstOrCreate(
+            ['email' => 'viewer@osca.local'],
+            ['name' => 'OSCA Viewer', 'password' => Hash::make('password')]
+        );
+        $this->viewer->syncRoles(['viewer']);
     }
 
     // ── Senior PDF export ─────────────────────────────────────────────────
