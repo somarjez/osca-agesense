@@ -26,13 +26,24 @@ class MlController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
+        $sourceCounts = MlResult::whereIn('id', $activeLatestIds)
+            ->select('prediction_source', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('prediction_source')
+            ->pluck('cnt', 'prediction_source')
+            ->toArray();
+
         $stats = [
-            'total_processed' => MlResult::whereIn('id', $activeLatestIds)->count(),
-            'last_run'        => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
-            'urgent_count'    => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
-            'unprocessed'     => SeniorCitizen::active()
-                ->whereDoesntHave('mlResults')
-                ->count(),
+            'total_processed'    => MlResult::whereIn('id', $activeLatestIds)->count(),
+            'last_run'           => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
+            'urgent_count'       => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
+            'critical_count'     => MlResult::whereIn('id', $activeLatestIds)->where('critical_flag', true)->count(),
+            'unprocessed'        => SeniorCitizen::active()->whereDoesntHave('mlResults')->count(),
+            'notebook_cache'     => $sourceCounts['notebook_cache'] ?? 0,
+            'live_model'         => $sourceCounts['live_model']     ?? 0,
+            'fallback'           => $sourceCounts['fallback']        ?? 0,
+            'model_version'      => MlResult::whereIn('id', $activeLatestIds)->value('model_version') ?? '—',
+            'umap_mode'          => 'Frozen Transform Only',
+            'active_ml_mode'     => env('ENABLE_NOTEBOOK_OVERRIDES', false) ? 'Notebook Overrides Enabled' : 'Live Model Only',
         ];
 
         return view('ml.status', compact('health', 'stats'));

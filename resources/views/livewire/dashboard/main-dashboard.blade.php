@@ -30,14 +30,25 @@
     </div>
 
     {{-- ── Model info strip ── --}}
-    <div class="flex items-center gap-2 text-[11px] text-ink-400 -mt-4">
-        <span class="font-semibold text-ink-500">Prediction Source:</span>
-        <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded
-            {{ $stats['predictionSource'] === 'Notebook Export' ? 'text-forest-700 bg-forest-50' : 'text-moderate-700 bg-moderate-50' }}">
-            {{ $stats['predictionSource'] }}
-        </span>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-400 -mt-4">
+        <span class="font-semibold text-ink-500">Predictions:</span>
+        @if ($stats['notebookCacheCount'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-forest-700 bg-forest-50 border border-forest-200">
+                Notebook-Validated Cache: {{ $stats['notebookCacheCount'] }}
+            </span>
+        @endif
+        @if ($stats['liveModelCount'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-info-700 bg-info-50 border border-info-200">
+                Live ML Model: {{ $stats['liveModelCount'] }}
+            </span>
+        @endif
+        @if ($stats['fallbackCount'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-ink-600 bg-paper-2 border border-paper-rule">
+                Fallback: {{ $stats['fallbackCount'] }}
+            </span>
+        @endif
         <span class="text-ink-300">&middot;</span>
-        <span>Model Version: <span class="font-mono font-semibold text-ink-600">{{ $stats['modelVersion'] }}</span></span>
+        <span>Model: <span class="font-mono font-semibold text-ink-600">{{ $stats['modelVersion'] }}</span></span>
         <span class="text-ink-300">&middot;</span>
         <span>DB: <span class="font-mono font-semibold text-ink-600">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.database') }}</span></span>
     </div>

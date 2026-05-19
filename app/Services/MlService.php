@@ -721,45 +721,62 @@ class MlService
         $levels       = $inferResult['risk_levels']  ?? [];
         $domainRisks  = $inferResult['domain_risks'] ?? [];
         $whoScores    = $inferResult['who_scores']   ?? [];
+        $meta         = $inferResult['model_metadata'] ?? [];
 
         // section_scores come from preprocessed in HTTP mode, or forwarded in inferResult in combined/batch mode
         $sectionScores = $preprocessed['section_scores'] ?? $inferResult['section_scores'] ?? null;
+
+        // Derive prediction_source from model_metadata (set by inference_service.py)
+        // fallback is detected by status field; PHP fallbackInfer() always sets status=success_fallback
+        $isFallback        = ($inferResult['status'] ?? '') === 'success_fallback';
+        $predictionSource  = $isFallback
+            ? 'fallback'
+            : ($meta['prediction_source'] ?? (($meta['notebook_override_applied'] ?? false) ? 'notebook_cache' : 'live_model'));
+        $isCached          = $predictionSource === 'notebook_cache';
+
+        $compositeRisk     = (float) ($scores['composite_risk'] ?? 0);
+        $overallLevel      = $levels['overall'] ?? null;
+        $criticalFlag      = $compositeRisk >= self::URGENT_THRESHOLD && $overallLevel === 'HIGH';
 
         /** @var MlResult $mlResult */
         $mlResult = MlResult::updateOrCreate(
             ['senior_citizen_id' => $senior->id, 'qol_survey_id' => $survey->id],
             [
-                'model_version'      => self::MODEL_VERSION,
-                'cluster_id'         => $cluster['raw_id']   ?? null,
-                'cluster_named_id'   => $cluster['named_id'] ?? null,
-                'cluster_name'       => $cluster['name']     ?? null,
-                'ic_risk'            => $scores['ic_risk']         ?? null,
-                'env_risk'           => $scores['env_risk']        ?? null,
-                'func_risk'          => $scores['func_risk']       ?? null,
-                'composite_risk'     => $scores['composite_risk']  ?? null,
-                'wellbeing_score'    => $scores['wellbeing_score'] ?? null,
-                'ic_risk_level'      => $levels['ic']      ?? null,
-                'env_risk_level'     => $levels['env']     ?? null,
-                'func_risk_level'    => $levels['func']    ?? null,
-                'overall_risk_level' => $levels['overall'] ?? null,
-                'priority_flag'      => $inferResult['priority_flag'] ?? $this->computePriorityFlag((float)($scores['composite_risk'] ?? 0)),
+                'model_version'       => self::MODEL_VERSION,
+                'prediction_source'   => $predictionSource,
+                'is_cached_prediction' => $isCached,
+                'critical_flag'       => $criticalFlag,
+                'scored_at'           => now(),
+                'cluster_id'          => $cluster['raw_id']   ?? null,
+                'cluster_named_id'    => $cluster['named_id'] ?? null,
+                'cluster_name'        => $cluster['name']     ?? null,
+                'ic_risk'             => $scores['ic_risk']         ?? null,
+                'env_risk'            => $scores['env_risk']        ?? null,
+                'func_risk'           => $scores['func_risk']       ?? null,
+                'composite_risk'      => $compositeRisk ?: null,
+                'wellbeing_score'     => $scores['wellbeing_score'] ?? null,
+                'ic_risk_level'       => $levels['ic']      ?? null,
+                'env_risk_level'      => $levels['env']     ?? null,
+                'func_risk_level'     => $levels['func']    ?? null,
+                'overall_risk_level'  => $overallLevel,
+                'priority_flag'       => $inferResult['priority_flag'] ?? $this->computePriorityFlag($compositeRisk),
                 // Rule-based domain risks
-                'risk_medical'       => $domainRisks['risk_medical']    ?? null,
-                'risk_financial'     => $domainRisks['risk_financial']  ?? null,
-                'risk_social'        => $domainRisks['risk_social']     ?? null,
-                'risk_functional'    => $domainRisks['risk_functional'] ?? null,
-                'risk_housing'       => $domainRisks['risk_housing']    ?? null,
-                'risk_hc_access'     => $domainRisks['risk_hc_access']  ?? null,
-                'risk_sensory'       => $domainRisks['risk_sensory']    ?? null,
-                'rule_composite'     => $domainRisks['rule_composite']  ?? null,
+                'risk_medical'        => $domainRisks['risk_medical']    ?? null,
+                'risk_financial'      => $domainRisks['risk_financial']  ?? null,
+                'risk_social'         => $domainRisks['risk_social']     ?? null,
+                'risk_functional'     => $domainRisks['risk_functional'] ?? null,
+                'risk_housing'        => $domainRisks['risk_housing']    ?? null,
+                'risk_hc_access'      => $domainRisks['risk_hc_access']  ?? null,
+                'risk_sensory'        => $domainRisks['risk_sensory']    ?? null,
+                'rule_composite'      => $domainRisks['rule_composite']  ?? null,
                 // WHO domain scores
-                'ic_score'           => $whoScores['ic_score']   ?? null,
-                'env_score'          => $whoScores['env_score']  ?? null,
-                'func_score'         => $whoScores['func_score'] ?? null,
-                'qol_score'          => $whoScores['qol_score']  ?? null,
-                'section_scores'     => $sectionScores,
-                'raw_output'         => $inferResult,
-                'processed_at'       => now(),
+                'ic_score'            => $whoScores['ic_score']   ?? null,
+                'env_score'           => $whoScores['env_score']  ?? null,
+                'func_score'          => $whoScores['func_score'] ?? null,
+                'qol_score'           => $whoScores['qol_score']  ?? null,
+                'section_scores'      => $sectionScores,
+                'raw_output'          => $inferResult,
+                'processed_at'        => now(),
             ]
         );
 
@@ -848,6 +865,13 @@ class MlService
 
         return [
             'status'  => 'success_fallback',
+            'model_metadata' => [
+                'model_version'             => self::MODEL_VERSION,
+                'prediction_source'         => 'fallback',
+                'notebook_override_applied' => false,
+                'db_cache_hit'              => false,
+                'is_cached_prediction'      => false,
+            ],
             'cluster' => [
                 'raw_id'  => $clusterId - 1,
                 'named_id' => $clusterId,

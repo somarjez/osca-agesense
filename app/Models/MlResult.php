@@ -10,6 +10,7 @@ class MlResult extends Model
 {
     protected $fillable = [
         'senior_citizen_id', 'qol_survey_id', 'model_version',
+        'prediction_source', 'is_cached_prediction', 'critical_flag',
         'cluster_id', 'cluster_named_id', 'cluster_name',
         'ic_risk', 'env_risk', 'func_risk', 'composite_risk', 'wellbeing_score',
         'ic_risk_level', 'env_risk_level', 'func_risk_level', 'overall_risk_level',
@@ -19,13 +20,16 @@ class MlResult extends Model
         'risk_housing', 'risk_hc_access', 'risk_sensory', 'rule_composite',
         // WHO domain scores
         'ic_score', 'env_score', 'func_score', 'qol_score',
-        'section_scores', 'raw_output', 'processed_at',
+        'section_scores', 'raw_output', 'processed_at', 'scored_at',
     ];
 
     protected $casts = [
-        'section_scores' => 'array',
-        'raw_output'     => 'array',
-        'processed_at'   => 'datetime',
+        'section_scores'      => 'array',
+        'raw_output'          => 'array',
+        'processed_at'        => 'datetime',
+        'scored_at'           => 'datetime',
+        'is_cached_prediction' => 'boolean',
+        'critical_flag'        => 'boolean',
         'ic_risk'          => 'float',
         'env_risk'         => 'float',
         'func_risk'        => 'float',
@@ -93,6 +97,32 @@ class MlResult extends Model
             2 => 'amber',
             3 => 'rose',
             default => 'gray',
+        };
+    }
+
+    /**
+     * Human-readable label for the prediction source — used in UI badges.
+     */
+    public function getPredictionSourceLabelAttribute(): string
+    {
+        return match ($this->prediction_source) {
+            'notebook_cache' => 'Notebook-Validated Cache',
+            'live_model'     => 'Live ML Model',
+            'fallback'       => 'Heuristic Fallback',
+            default          => 'Unknown',
+        };
+    }
+
+    /**
+     * Tailwind color classes for the prediction source badge.
+     */
+    public function getPredictionSourceColorAttribute(): string
+    {
+        return match ($this->prediction_source) {
+            'notebook_cache' => 'text-forest-700 bg-forest-50 border border-forest-200',
+            'live_model'     => 'text-info-700 bg-info-50 border border-info-200',
+            'fallback'       => 'text-ink-600 bg-paper-2 border border-paper-rule',
+            default          => 'text-ink-500 bg-paper-2',
         };
     }
 }

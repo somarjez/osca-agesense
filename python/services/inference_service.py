@@ -1401,6 +1401,12 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
             "notebook_override_applied": bool(notebook_override),
             "db_cache_hit": bool(_db_cached),
+            # prediction_source is the canonical label persisted to ml_results.prediction_source
+            "prediction_source": (
+                "notebook_cache" if notebook_override
+                else ("live_model" if not _db_cached else "live_model")
+            ),
+            "is_cached_prediction": bool(notebook_override),
         },
         "warnings": warnings_list,
     }

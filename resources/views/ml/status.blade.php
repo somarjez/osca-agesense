@@ -92,6 +92,58 @@
         <x-kpi label="Last Run"        :value="$stats['last_run'] ? \Carbon\Carbon::parse($stats['last_run'])->diffForHumans() : 'Never'" accent="forest" />
     </div>
 
+    {{-- Prediction Source Summary --}}
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">ML Prediction Source Summary</div>
+                <div class="card-sub">Breakdown of how current risk indicators were computed</div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                <div class="rounded-xl border border-forest-200 bg-forest-50 px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-forest-600 mb-1">Notebook-Validated Cache</div>
+                    <div class="text-2xl font-bold font-mono text-forest-800">{{ number_format($stats['notebook_cache']) }}</div>
+                    <div class="text-[11px] text-forest-600 mt-0.5">Original 283 seed seniors</div>
+                </div>
+                <div class="rounded-xl border border-info-200 bg-info-50 px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-info-600 mb-1">Live ML Model</div>
+                    <div class="text-2xl font-bold font-mono text-info-800">{{ number_format($stats['live_model']) }}</div>
+                    <div class="text-[11px] text-info-600 mt-0.5">New seniors · GBR/RFR pipeline</div>
+                </div>
+                <div class="rounded-xl border border-paper-rule bg-paper-2 px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-ink-500 mb-1">Heuristic Fallback</div>
+                    <div class="text-2xl font-bold font-mono text-ink-700">{{ number_format($stats['fallback']) }}</div>
+                    <div class="text-[11px] text-ink-400 mt-0.5">Python unavailable at run time</div>
+                </div>
+                <div class="rounded-xl border border-high-200 bg-high-50 px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-high-600 mb-1">Critical Flag</div>
+                    <div class="text-2xl font-bold font-mono text-high-800">{{ number_format($stats['critical_count']) }}</div>
+                    <div class="text-[11px] text-high-600 mt-0.5">HIGH + composite ≥ 0.70</div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-ink-500 border-t border-paper-rule pt-4">
+                <div>
+                    <span class="font-semibold text-ink-700">Model Version:</span>
+                    <span class="font-mono ml-1">{{ $stats['model_version'] }}</span>
+                </div>
+                <div>
+                    <span class="font-semibold text-ink-700">Active ML Mode:</span>
+                    <span class="ml-1 font-semibold
+                        {{ str_contains($stats['active_ml_mode'], 'Notebook') ? 'text-forest-700' : 'text-info-700' }}">
+                        {{ $stats['active_ml_mode'] }}
+                    </span>
+                </div>
+                <div>
+                    <span class="font-semibold text-ink-700">UMAP Mode:</span>
+                    <span class="ml-1 text-forest-700 font-semibold">{{ $stats['umap_mode'] }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Instructions --}}
     <div class="card">
         <div class="card-head">
