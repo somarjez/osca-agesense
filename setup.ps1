@@ -238,6 +238,9 @@ if (Test-Path "$oscaOutput\model") {
     Write-Host " Found osca_output\model - copying model files to python\models ..."
     Copy-Item "$oscaOutput\model\*.pkl"  "$PROJECT\python\models\" -Force -ErrorAction SilentlyContinue
     Copy-Item "$oscaOutput\model\*.json" "$PROJECT\python\models\" -Force -ErrorAction SilentlyContinue
+    # cluster_map.pkl from osca_output may have a different raw→named mapping than what
+    # cluster_mapping.json (committed to git) defines. Remove it so the JSON takes precedence.
+    Remove-Item "$PROJECT\python\models\cluster_map.pkl" -Force -ErrorAction SilentlyContinue
     Write-Host " [ OK ] Model files synced."
 } else {
     Write-Host " osca_output\model not found - keeping existing python\models files."

@@ -9,6 +9,13 @@ Usage:
 """
 
 import os
+import sys
+
+# Force single-threaded numba/UMAP so transform() is deterministic across devices
+os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
+os.environ.setdefault("NUMBA_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 import json
 import pickle
 import warnings
@@ -1430,6 +1437,7 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
             X_cluster = X_scaled
 
         reducer.transform_seed = 42
+        np.random.seed(42)
         X_reduced  = reducer.transform(X_cluster)
         raw_ids    = kmeans.predict(X_reduced).tolist()
 

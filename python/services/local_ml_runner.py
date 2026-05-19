@@ -11,6 +11,7 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 import json
 import sys
 import traceback
+import numpy as np
 
 from inference_service import batch_cluster_assign, infer
 from preprocess_service import preprocess
@@ -39,6 +40,7 @@ def run_batch(payloads: list) -> list:
     wellbeing-heuristic path transparently.
     """
     os.environ["OSCA_BATCH_MODE"] = "1"
+    np.random.seed(42)
 
     # Step 1 — preprocess all seniors (UMAP skipped inside preprocess in batch mode)
     preprocessed_list: list = []

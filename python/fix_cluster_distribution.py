@@ -16,12 +16,13 @@ import os
 import sys
 import json
 import pymysql
-import numpy as np
 
 # Set before any numba/umap import
 os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
 os.environ.setdefault("NUMBA_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
+
+import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVICES_DIR = os.path.join(BASE_DIR, "services")
@@ -276,6 +277,7 @@ def update_ml_result(conn, ml_result_id, senior_id, result):
 def main():
     os.environ["OSCA_BATCH_MODE"] = "1"
     os.environ["ENABLE_NOTEBOOK_OVERRIDES"] = "false"
+    np.random.seed(42)
 
     print("Connecting to database...")
     conn = db_connect()

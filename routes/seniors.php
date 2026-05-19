@@ -9,8 +9,11 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
     Route::middleware('role:admin,encoder')->group(function () {
         Route::get('/create',           [SeniorCitizenController::class, 'create'])->name('create');
         Route::post('/',                [SeniorCitizenController::class, 'store'])->name('store');
-        Route::post('/bulk-upload',     [BulkUploadController::class, 'upload'])->name('bulk-upload');
         Route::get('/bulk-upload/sample', [BulkUploadController::class, 'sample'])->name('bulk-upload.sample');
+    });
+
+    Route::middleware(['role:admin,encoder', 'no.time.limit'])->group(function () {
+        Route::post('/bulk-upload',     [BulkUploadController::class, 'upload'])->name('bulk-upload');
     });
 
     Route::middleware('role:admin')->group(function () {
