@@ -610,6 +610,40 @@ class MlService
         return null;
     }
 
+    /**
+     * Re-run batch UMAP+KMeans for all seniors in one transform and update ml_results.
+     * Called automatically after every batch analysis to keep cluster assignments stable.
+     */
+    public function runRecluster(): bool
+    {
+        $script = base_path('python/fix_cluster_distribution.py');
+        if (!is_file($script) || !$this->canUseLocalPython()) {
+            Log::warning('runRecluster: script or Python executable not found — skipping.');
+            return false;
+        }
+
+        try {
+            $process = new Process(
+                [$this->localPythonExecutable, $script],
+                base_path(),
+                $this->pythonEnvironment()
+            );
+            $process->setTimeout(600);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                Log::error('runRecluster failed', ['stderr' => trim($process->getErrorOutput())]);
+                return false;
+            }
+
+            Log::info('runRecluster completed', ['output' => trim($process->getOutput())]);
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('runRecluster exception', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     private function canUseLocalPython(): bool
     {
         return $this->localPythonExecutable !== null && is_file($this->localPythonRunner);

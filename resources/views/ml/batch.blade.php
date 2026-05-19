@@ -8,6 +8,7 @@
     {{-- Run panel --}}
     <div x-data="{
             running: false,
+            reclustering: false,
             done: false,
             showConfirm: false,
             errMsg: '',
@@ -26,7 +27,8 @@
             batchId: '',
             start() {
                 this.showConfirm = false;
-                this.running = true; this.done = false; this.errMsg = ''; this.resultMsg = '';
+                this.running = true; this.reclustering = false; this.done = false;
+                this.errMsg = ''; this.resultMsg = '';
                 this.processed = 0; this.failed = 0; this.progress = 0;
                 this.elapsed = 0;
                 this.timer = setInterval(() => this.elapsed++, 1000);
@@ -60,16 +62,25 @@
                     })
                     .then(r => r.json())
                     .then(d => {
-                        this.processed = d.processed;
-                        this.failed    = d.failed;
-                        this.progress  = d.progress;
-                        if (d.finished || d.cancelled) {
+                        this.processed    = d.processed;
+                        this.failed       = d.failed;
+                        this.progress     = d.progress;
+                        this.reclustering = d.reclustering ?? false;
+
+                        if (d.recluster_done) {
                             clearInterval(this.pollTimer);
                             clearInterval(this.timer);
-                            this.running = false;
+                            this.running = false; this.reclustering = false;
                             this.done    = true;
                             this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`;
                             if (d.failed > 0) this.errMsg = `${d.failed} senior(s) failed. Check the queue failed_jobs table.`;
+                            setTimeout(() => location.reload(), 2000);
+                        } else if (d.cancelled) {
+                            clearInterval(this.pollTimer);
+                            clearInterval(this.timer);
+                            this.running = false; this.reclustering = false;
+                            this.done    = true;
+                            this.resultMsg = 'Batch was cancelled.';
                             setTimeout(() => location.reload(), 2000);
                         }
                     })
@@ -112,15 +123,17 @@
                 {{-- Progress bar while running --}}
                 <div x-show="running" class="space-y-1.5" x-cloak>
                     <div class="flex items-center justify-between text-sm text-forest-700 font-medium">
-                        <span x-text="`Processing ${total} seniors… ${processed} done`"></span>
+                        <span x-show="!reclustering" x-text="`Processing ${total} seniors… ${processed} done`"></span>
+                        <span x-show="reclustering" x-cloak class="text-ink-600">Finalising health group assignments…</span>
                         <span x-text="fmt(elapsed)" class="text-ink-400 font-normal text-xs"></span>
                     </div>
                     <div class="bar">
-                        <div class="bar-fill bg-forest-600 transition-all duration-500"
-                             :style="`width:${progress > 0 ? progress : 100}%`"
-                             :class="progress === 0 ? 'animate-pulse' : ''"></div>
+                        <div class="bar-fill transition-all duration-500"
+                             :class="reclustering ? 'bg-ink-400 animate-pulse' : 'bg-forest-600'"
+                             :style="`width:${reclustering ? 100 : (progress > 0 ? progress : 100)}%`"></div>
                     </div>
-                    <p class="text-xs text-ink-400">Queued — worker is processing in the background. You can safely close this tab.</p>
+                    <p x-show="!reclustering" class="text-xs text-ink-400">Queued — worker is processing in the background. You can safely close this tab.</p>
+                    <p x-show="reclustering" x-cloak class="text-xs text-ink-400">Aligning cluster assignments across all seniors — this takes about 30 seconds.</p>
                 </div>
             </div>
 

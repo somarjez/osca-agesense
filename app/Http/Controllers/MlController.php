@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessMlBatch;
 use App\Jobs\ProcessMlSingle;
+use App\Jobs\RecalculateClusters;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
@@ -86,12 +87,15 @@ class MlController extends Controller
         $batch = Bus::batch($jobs)
             ->name('ML Batch — ' . now()->format('Y-m-d H:i'))
             ->allowFailures()
+            ->then(fn() => RecalculateClusters::dispatch($cacheKey))
             ->dispatch();
 
-        Cache::put("{$cacheKey}:batch_id",  $batch->id,     now()->addHours(2));
-        Cache::put("{$cacheKey}:total",      count($seniorIds), now()->addHours(2));
-        Cache::put("{$cacheKey}:processed",  0,              now()->addHours(2));
-        Cache::put("{$cacheKey}:failed",     0,              now()->addHours(2));
+        Cache::put("{$cacheKey}:batch_id",      $batch->id,        now()->addHours(2));
+        Cache::put("{$cacheKey}:total",          count($seniorIds), now()->addHours(2));
+        Cache::put("{$cacheKey}:processed",      0,                 now()->addHours(2));
+        Cache::put("{$cacheKey}:failed",         0,                 now()->addHours(2));
+        Cache::put("{$cacheKey}:reclustering",   false,             now()->addHours(2));
+        Cache::put("{$cacheKey}:recluster_done", false,             now()->addHours(2));
 
         return response()->json([
             'queued'    => true,
@@ -131,14 +135,19 @@ class MlController extends Controller
             $processed = max($processed, $total - $failed);
         }
 
+        $reclustering   = (bool) Cache::get("{$cacheKey}:reclustering",   false);
+        $reclusterDone  = (bool) Cache::get("{$cacheKey}:recluster_done", false);
+
         return response()->json([
-            'finished'       => $batch->finished(),
-            'cancelled'      => $batch->cancelled(),
-            'total'          => $total,
-            'processed'      => $processed,
-            'failed'         => $failed,
-            'pending_jobs'   => $batch->pendingJobs,
-            'progress'       => $total > 0 ? round($processed / $total * 100) : 0,
+            'finished'        => $batch->finished(),
+            'cancelled'       => $batch->cancelled(),
+            'total'           => $total,
+            'processed'       => $processed,
+            'failed'          => $failed,
+            'pending_jobs'    => $batch->pendingJobs,
+            'progress'        => $total > 0 ? round($processed / $total * 100) : 0,
+            'reclustering'    => $reclustering,
+            'recluster_done'  => $reclusterDone,
         ]);
     }
 
