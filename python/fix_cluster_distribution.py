@@ -34,6 +34,7 @@ from inference_service import (
     batch_cluster_assign, infer,
     _db_connect, _load_model, _load_first_model, _load_json,
     _safe_float, _clip01, _get_risk_level, _priority_flag,
+    _load_cluster_mapping,
 )
 
 
@@ -312,7 +313,48 @@ def main():
     for w in warnings:
         print(f"  [batch] {w}")
 
-    print("\nStep 3: Running inference and updating DB...")
+    # Step 3: Auto-correct the raw->named cluster mapping for this device.
+    # UMAP.transform() can flip the orientation of raw cluster IDs across devices
+    # (e.g. raw 0 = High Functioning on one device, raw 1 = High Functioning on another).
+    # We detect this by checking each raw cluster's mean QoL score from the preprocessed
+    # feature maps — highest mean QoL = named C1 (High Functioning), lowest = named C3.
+    print("\nStep 3: Auto-calibrating cluster mapping for this device...")
+    raw_qol_totals = {}
+    qol_keys = [
+        "qol_enjoy_life", "qol_life_satisfaction", "qol_future_outlook", "qol_meaningfulness",
+        "phy_energy", "psych_happiness", "psych_peace", "psych_confidence",
+        "func_independence", "func_autonomy", "func_control",
+        "soc_social_support", "soc_close_friend", "soc_participation",
+    ]
+    for preprocessed in payloads:
+        raw_id = preprocessed.get("_precomputed_raw_cluster_id")
+        if raw_id is None:
+            continue
+        fm = preprocessed.get("feature_map") or preprocessed.get("raw_context") or {}
+        scores = [float(fm[k]) for k in qol_keys if k in fm and fm[k] is not None]
+        if scores:
+            raw_qol_totals.setdefault(raw_id, []).append(sum(scores) / len(scores))
+
+    model_dir = os.path.join(BASE_DIR, "models")
+    mapping_path = os.path.join(model_dir, "cluster_mapping.json")
+
+    if raw_qol_totals and len(raw_qol_totals) == 3:
+        mean_qols = {raw_id: sum(v) / len(v) for raw_id, v in raw_qol_totals.items()}
+        # highest QoL = C1 High Functioning (named 1), lowest = C3 Low Functioning (named 3)
+        sorted_raw = sorted(mean_qols, key=lambda k: mean_qols[k], reverse=True)
+        corrected_map = {sorted_raw[0]: 1, sorted_raw[1]: 2, sorted_raw[2]: 3}
+        print(f"  Raw cluster mean QoL scores: { {k: round(v, 4) for k, v in mean_qols.items()} }")
+        print(f"  Corrected raw->named mapping: {corrected_map}")
+        # Write corrected mapping back to cluster_mapping.json so inference_service uses it
+        with open(mapping_path, "w") as f:
+            json.dump({str(k): v for k, v in corrected_map.items()}, f, indent=2)
+        print(f"  [ OK ] cluster_mapping.json updated.")
+        # Clear the lru_cache so infer() picks up the new mapping in this process
+        _load_cluster_mapping.cache_clear()
+    else:
+        print(f"  [WARN] Could not auto-calibrate (raw clusters: {list(raw_qol_totals.keys())}). Using existing mapping.")
+
+    print("\nStep 4: Running inference and updating DB...")
     cluster_counts = {1: 0, 2: 0, 3: 0}
     risk_counts = {"LOW": 0, "MODERATE": 0, "HIGH": 0}
     updated = 0
