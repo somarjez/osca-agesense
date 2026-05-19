@@ -115,9 +115,17 @@ class MlController extends Controller
             return response()->json(['error' => 'Batch not found.'], 404);
         }
 
+        $total     = (int) Cache::get("{$cacheKey}:total",     $batch->totalJobs * 100);
         $processed = (int) Cache::get("{$cacheKey}:processed", 0);
         $failed    = (int) Cache::get("{$cacheKey}:failed",    0);
-        $total     = (int) Cache::get("{$cacheKey}:total",     $batch->totalJobs * 100);
+
+        // When the batch is finished the cache counters may lag the last job's
+        // increment (file cache is not atomic). Use the batch's own counters as
+        // the authoritative final values so the completion message is accurate.
+        if ($batch->finished()) {
+            $failed    = $batch->failedJobs;
+            $processed = max($processed, $total - $failed);
+        }
 
         return response()->json([
             'finished'       => $batch->finished(),
