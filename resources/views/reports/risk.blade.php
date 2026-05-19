@@ -76,7 +76,7 @@
                     <div class="badge badge-moderate py-1">Moderate 30–50%</div>
                     <div class="badge badge-low py-1">Low &lt;30%</div>
                 </div>
-                <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570]">Scores ≥ 70% are High-risk with urgent-priority flag.</p>
+                <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570]">Scores ≥ 70% are High-risk with <strong>⚠ Urgent</strong> priority flag.</p>
             </div>
         </div>
 

@@ -60,8 +60,27 @@ def _resolve_model_dir() -> str:
     return candidates[0]
 
 
+def _read_dotenv_value(name: str) -> Optional[str]:
+    """Read a single key from the Laravel .env file (fallback for values not in os.environ)."""
+    for candidate in [
+        os.path.join(BASE_DIR, ".env"),
+        os.path.join(os.path.dirname(BASE_DIR), ".env"),
+    ]:
+        if os.path.exists(candidate):
+            try:
+                for line in open(candidate, encoding="utf-8"):
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        if k.strip() == name:
+                            return v.strip().strip('"').strip("'")
+            except Exception:
+                pass
+    return None
+
+
 def _env_flag(name: str, default: bool = False) -> bool:
-    raw = os.environ.get(name)
+    raw = os.environ.get(name) or _read_dotenv_value(name)
     if raw is None:
         return default
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
@@ -69,6 +88,11 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
+
+# Semantic version written to every ml_results row so reports can filter by
+# model generation. Bump the patch digit when thresholds change; bump minor
+# when model .pkl files are retrained; bump major for schema-breaking changes.
+MODEL_VERSION = "1.1.0"  # 1.1.0 — notebook overrides enabled, thresholds restored to notebook values (2026-05-20)
 
 
 # ── DB-backed ML result cache ─────────────────────────────────────────────────
@@ -1372,6 +1396,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         "recommendations": recs,
         "section_scores": section_scores,
         "model_metadata": {
+            "model_version": MODEL_VERSION,
             "model_dir": MODEL_DIR,
             "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
             "notebook_override_applied": bool(notebook_override),

@@ -127,12 +127,11 @@ with conn.cursor() as cur:
 
 print(f"\n=== Threshold sensitivity (active {dist['total']} seniors) ===")
 print(f"  HIGH if >= 0.40: {dist['high_40']}  (very conservative)")
-print(f"  HIGH if >= 0.45: {dist['high_45']}  (notebook 'standard' threshold)")
-print(f"  HIGH if >= 0.50: {dist['high_50']}  (current system / notebook 'moderate')")
+print(f"  HIGH if >= 0.45: {dist['high_45']}  (current system threshold — matches notebook)")
+print(f"  HIGH if >= 0.50: {dist['high_50']}  (stricter threshold)")
 print(f"  LOW  if <  0.25: {dist['low_25']}  (conservative)")
 print(f"  LOW  if <  0.30: {dist['low_30']}  (current system)")
-print(f"\n  Notebook reported: HIGH=54, MODERATE=191, LOW=38 (on 283 seniors, 4-level with CRITICAL=1)")
-print(f"  Notebook HIGH+CRITICAL = 55 seniors at >= 0.50 threshold")
-print(f"  System current: HIGH={dist['high_50']} at >= 0.50 (on {dist['total']} active seniors)")
+print(f"\n  Notebook reference: HIGH=54, MODERATE=191, LOW=38 (in-sample, threshold >= 0.45)")
+print(f"  System current:    HIGH={dist['high_45']} at >= 0.45 (on {dist['total']} active seniors)")
 
 conn.close()

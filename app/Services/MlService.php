@@ -14,6 +14,15 @@ use Symfony\Component\Process\Process;
 
 class MlService
 {
+    // Bump patch when thresholds change, minor when .pkl files retrained,
+    // major for schema-breaking changes. Must match inference_service.py MODEL_VERSION.
+    public const MODEL_VERSION = '1.1.0';
+
+    // Risk thresholds — must stay in sync with inference_service.py RISK_THRESHOLDS.
+    private const HIGH_THRESHOLD     = 0.50;
+    private const MODERATE_THRESHOLD = 0.30;
+    private const URGENT_THRESHOLD   = 0.70;
+
     protected string $preprocessUrl;
     protected string $inferenceUrl;
     protected int $timeout;
@@ -720,7 +729,7 @@ class MlService
         $mlResult = MlResult::updateOrCreate(
             ['senior_citizen_id' => $senior->id, 'qol_survey_id' => $survey->id],
             [
-                'model_version'      => 'v1',
+                'model_version'      => self::MODEL_VERSION,
                 'cluster_id'         => $cluster['raw_id']   ?? null,
                 'cluster_named_id'   => $cluster['named_id'] ?? null,
                 'cluster_name'       => $cluster['name']     ?? null,
@@ -813,10 +822,10 @@ class MlService
         $wellbeing = (float) ($ss['overall_wellbeing'] ?? 0.5);
         $composite = round(1 - $wellbeing, 4);
 
-        // 3-level classification: HIGH>=0.50, MODERATE>=0.30, LOW<0.30
+        // 3-level classification: HIGH>=0.45, MODERATE>=0.30, LOW<0.30
         // Scores >= 0.70 remain HIGH; urgency surfaced via priority_flag.
-        $level     = $composite >= 0.50 ? 'HIGH' : ($composite >= 0.30 ? 'MODERATE' : 'LOW');
-        $clusterId = $composite >= 0.50 ? 3 : ($composite >= 0.30 ? 2 : 1);
+        $level     = $composite >= self::HIGH_THRESHOLD ? 'HIGH' : ($composite >= self::MODERATE_THRESHOLD ? 'MODERATE' : 'LOW');
+        $clusterId = $composite >= self::HIGH_THRESHOLD ? 3 : ($composite >= self::MODERATE_THRESHOLD ? 2 : 1);
 
         // Derive domain risks from available section scores (same logic as _compute_rule_based_risk)
         $ageRisk      = (float) ($ss['sec1_age_risk']        ?? 0.5);
@@ -879,9 +888,9 @@ class MlService
 
     private function computePriorityFlag(float $composite): string
     {
-        if ($composite >= 0.70) return 'urgent';
-        if ($composite >= 0.50) return 'priority_action';
-        if ($composite >= 0.30) return 'planned_monitoring';
+        if ($composite >= self::URGENT_THRESHOLD)   return 'urgent';
+        if ($composite >= self::HIGH_THRESHOLD)     return 'priority_action';
+        if ($composite >= self::MODERATE_THRESHOLD) return 'planned_monitoring';
         return 'maintenance';
     }
 }
