@@ -191,7 +191,7 @@ Before committing, do a quick sanity check:
 1. Start the system: `start.bat`
 2. Go to `/ml/status` — confirm both services show `ok`
 3. Go to the dashboard — confirm the risk distribution matches your notebook output:
-   - HIGH: 53, MODERATE: 186, LOW: 36, Urgent: 1
+   - HIGH: 56, MODERATE: 193, LOW: 39, Urgent: 2
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
 If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
@@ -279,7 +279,7 @@ This:
 4. Runs the full ML pipeline for each senior — if `python/models/predictions/senior_predictions.csv` is present and `ENABLE_NOTEBOOK_OVERRIDES=true`, results are read from the CSV (fast, deterministic); otherwise live ML inference runs (takes 10–20 minutes for 275 seniors)
 5. Saves results (cluster, risk level, composite score, recommendations) to the database
 
-Expected output at the end: `ML success: 275, fallback: 0, errors: 0`
+Expected output at the end: `ML success: 283, fallback: 0, errors: 0`
 
 Expected time: 10–20 minutes (the ML pipeline runs for all 275 seniors).
 
@@ -291,12 +291,12 @@ Start the system with `start.bat` and open the browser. The dashboard should sho
 
 | Metric | Expected value |
 |---|---|
-| Total seniors | 275 |
-| HIGH risk | 53 |
-| MODERATE risk | 186 |
-| LOW risk | 36 |
-| Urgent | 1 (Norlito M. Basa) |
-| Pending recommendations | ~2,114 |
+| Total seniors | 283 |
+| HIGH risk | 56 |
+| MODERATE risk | 193 |
+| LOW risk | 39 |
+| Urgent | 2 |
+| Pending recommendations | ~2,273 |
 
 If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-numbers) below.
 
@@ -310,7 +310,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
-- [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36, Urgent=1)
+- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=193, LOW=39, Urgent=2)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
@@ -322,8 +322,8 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Both prediction CSVs placed in `python/models/predictions/`
 - [ ] `git pull`
 - [ ] `start.bat` ran at least once (to sync `.env` keys)
-- [ ] `php artisan migrate:fresh --seed` completed with `ML success: 275`
-- [ ] Dashboard shows correct distribution (HIGH=53, MODERATE=186, LOW=36, Urgent=1)
+- [ ] `php artisan migrate:fresh --seed` completed with `ML success: 283`
+- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=193, LOW=39, Urgent=2)
 
 ---
 

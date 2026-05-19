@@ -543,7 +543,7 @@ start.bat    # can close immediately after it launches
 php artisan migrate:fresh --seed
 ```
 
-Expected result: `ML success: 275, fallback: 0, errors: 0` and dashboard shows HIGH=53, MODERATE=186, LOW=36, Urgent=1.
+Expected result: `ML success: 283, fallback: 0, errors: 0` and dashboard shows HIGH=56, MODERATE=193, LOW=39, Urgent=2.
 
 > See [docs/UPDATING_THE_MODEL.md](docs/UPDATING_THE_MODEL.md) for detailed explanations, troubleshooting, and a printable checklist.
 
