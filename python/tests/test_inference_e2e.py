@@ -1,137 +1,197 @@
-"""End-to-end infer() test on two real seniors from the DB.
-Checks: notebook override applied, urgency correct, composite matches CSV.
 """
-import os, sys, sqlite3, json
+End-to-end inference test — runs preprocess + infer on a synthetic senior payload.
+Validates: cluster assignment is in range, risk scores in [0,1], priority flag correct,
+urgency consistent with priority flag, recommendations non-empty, and XAI fields present.
+"""
+import os
+import sys
 
-os.environ["ML_MODELS_PATH"] = r"C:\Users\jramo\OneDrive\Desktop\02. AgeSense\osca-system\osca-system\python\models"
-os.environ["ENABLE_NOTEBOOK_OVERRIDES"] = "true"
+os.environ["ML_MODELS_PATH"] = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "models")
+)
+os.environ["ENABLE_NOTEBOOK_OVERRIDES"] = "false"
 os.environ["OSCA_BATCH_MODE"] = "1"
 os.environ["NUMBA_THREADING_LAYER"] = "workqueue"
 os.environ["NUMBA_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
-
-DB_PATH = r"C:\Users\jramo\AppData\Local\OSCA-System\database.sqlite"
-
-conn = sqlite3.connect(DB_PATH)
-conn.row_factory = sqlite3.Row
-cur = conn.cursor()
-
-# Load known composites from CSV for comparison
-import csv
-csv_composites = {}
-csv_path = r"C:\Users\jramo\OneDrive\Desktop\02. AgeSense\osca-system\osca-system\python\models\predictions\senior_predictions.csv"
-with open(csv_path, encoding="utf-8-sig") as f:
-    for row in csv.DictReader(f):
-        key = (row["first_name"].strip(), row["last_name"].strip())
-        csv_composites[key] = {
-            "composite_risk": float(row["composite_risk"]),
-            "risk_level": row["risk_level"].strip().upper(),
-            "cluster_id": int(float(row["cluster_id"])),
-        }
-
-# Test seniors: Norlito Basa (urgent) + one MODERATE
-test_seniors = [
-    ("Norlito", "Basa"),    # urgent, composite ~0.744
-    ("Rosa", "Amante"),     # MODERATE, first in CSV
-]
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
 
 from preprocess_service import preprocess
-from inference_service import infer
+from inference_service import infer, batch_cluster_assign
 
-all_ok = True
-for first, last in test_seniors:
-    cur.execute("""
-        SELECT sc.*, qs.id as qol_id
-        FROM senior_citizens sc
-        JOIN qol_surveys qs ON qs.senior_citizen_id = sc.id
-        WHERE sc.first_name=? AND sc.last_name=? AND qs.status='processed'
-        ORDER BY qs.id DESC LIMIT 1
-    """, (first, last))
-    row = cur.fetchone()
-    if not row:
-        print(f"[SKIP] {first} {last} not found in DB")
-        continue
+SENIORS = [
+    # Likely HIGH / urgent — old age, no assets, heavy disease burden, poor QoL
+    {
+        "label": "High-risk (urgent candidate)",
+        "raw": {
+            "age": 84, "gender": "Female", "marital_status": "Widowed",
+            "educational_attainment": "Elementary Level",
+            "monthly_income_range": "Below 1,000",
+            "income_source": ["dependent on children"],
+            "real_assets": ["no known assets"],
+            "movable_assets": ["no known assets"],
+            "living_with": [],
+            "household_condition": ["informal settler"],
+            "community_service": [],
+            "specialization": [],
+            "num_children": 3, "num_working_children": 1,
+            "household_size": 1, "child_financial_support": False,
+            "spouse_working": False,
+            "medical_concern": "hypertension, diabetes, chronic kidney disease",
+            "dental_concern": "tooth loss",
+            "optical_concern": "cataract",
+            "hearing_concern": "hearing impairment",
+            "social_emotional_concern": "depression, loneliness",
+            "healthcare_difficulty": ["cost", "distance"],
+            "has_medical_checkup": False,
+            "qol_responses": {k: 1 for k in [
+                "qol_enjoy_life","qol_life_satisfaction","qol_future_outlook","qol_meaningfulness",
+                "phy_energy","phy_pain_r","phy_health_limit_r","phy_mobility_outside","phy_mobility_indoor",
+                "psych_happiness","psych_peace","psych_lonely_r","psych_confidence",
+                "func_independence","func_autonomy","func_control","env_income_limit_r",
+                "soc_social_support","soc_close_friend","soc_participation","soc_opportunity","soc_respect",
+                "env_safe_home","env_safe_neighborhood","env_service_access","env_home_comfort",
+                "env_fin_medical","env_fin_household","env_fin_personal",
+                "spi_belief_comfort","spi_belief_practice",
+            ]},
+        },
+        "expect_level": "HIGH",
+        "expect_cluster": 3,
+    },
+    # Likely LOW — healthy, assets, pension, social engagement, good QoL
+    {
+        "label": "Low-risk (healthy candidate)",
+        "raw": {
+            "age": 68, "gender": "Male", "marital_status": "Married",
+            "educational_attainment": "College Graduate",
+            "monthly_income_range": "20,000 - 30,000",
+            "income_source": ["own pension", "own earnings"],
+            "real_assets": ["house & lot"],
+            "movable_assets": ["automobile", "mobile phone"],
+            "living_with": ["spouse", "children"],
+            "household_condition": [],
+            "community_service": ["senior citizen association member", "community leader"],
+            "specialization": ["teaching", "medical"],
+            "num_children": 4, "num_working_children": 3,
+            "household_size": 5, "child_financial_support": True,
+            "spouse_working": True,
+            "medical_concern": "None",
+            "dental_concern": "None",
+            "optical_concern": "None",
+            "hearing_concern": "None",
+            "social_emotional_concern": "None",
+            "healthcare_difficulty": [],
+            "has_medical_checkup": True,
+            "qol_responses": {k: 5 for k in [
+                "qol_enjoy_life","qol_life_satisfaction","qol_future_outlook","qol_meaningfulness",
+                "phy_energy","phy_pain_r","phy_health_limit_r","phy_mobility_outside","phy_mobility_indoor",
+                "psych_happiness","psych_peace","psych_lonely_r","psych_confidence",
+                "func_independence","func_autonomy","func_control","env_income_limit_r",
+                "soc_social_support","soc_close_friend","soc_participation","soc_opportunity","soc_respect",
+                "env_safe_home","env_safe_neighborhood","env_service_access","env_home_comfort",
+                "env_fin_medical","env_fin_household","env_fin_personal",
+                "spi_belief_comfort","spi_belief_practice",
+            ]},
+        },
+        "expect_level": "LOW",
+        "expect_cluster": 1,
+    },
+]
 
-    # Build a minimal raw payload (fields the preprocess service needs)
-    cur.execute("SELECT * FROM qol_surveys WHERE id=?", (row["qol_id"],))
-    qol = cur.fetchone()
 
-    raw = {
-        "first_name": row["first_name"],
-        "last_name": row["last_name"],
-        "barangay": row["barangay"],
-        "age": row["age"],
-        "gender": row["gender"],
-        "marital_status": row["marital_status"],
-        "educational_attainment": row["educational_attainment"],
-        "monthly_income_range": row["monthly_income_range"],
-        "num_children": row["num_children"] or 0,
-        "num_working_children": row["num_working_children"] or 0,
-        "household_size": row["household_size"] or 1,
-        "child_financial_support": row["child_financial_support"],
-        "spouse_working": row["spouse_working"],
-        "income_source": json.loads(row["income_source"] or "[]"),
-        "real_assets": json.loads(row["real_assets"] or "[]"),
-        "movable_assets": json.loads(row["movable_assets"] or "[]"),
-        "living_with": json.loads(row["living_with"] or "[]"),
-        "household_condition": json.loads(row["household_condition"] or "[]"),
-        "community_service": json.loads(row["community_service"] or "[]"),
-        "specialization": json.loads(row["specialization"] or "[]"),
-        "medical_concern": json.loads(row["medical_concern"] or "[]"),
-        "dental_concern": json.loads(row["dental_concern"] or "[]"),
-        "optical_concern": json.loads(row["optical_concern"] or "[]"),
-        "hearing_concern": json.loads(row["hearing_concern"] or "[]"),
-        "social_emotional_concern": json.loads(row["social_emotional_concern"] or "[]"),
-        "healthcare_difficulty": json.loads(row["healthcare_difficulty"] or "[]"),
-        "has_medical_checkup": bool(row["has_medical_checkup"]),
-        "qol_responses": {},  # preprocess will handle missing gracefully
-    }
+def run_tests():
+    # Preprocess all seniors first
+    preprocessed_list = []
+    for s in SENIORS:
+        try:
+            preprocessed_list.append(preprocess(s["raw"]))
+        except Exception as e:
+            print(f"[FAIL] preprocess error for {s['label']}: {e}")
+            preprocessed_list.append(None)
 
-    try:
-        preprocessed = preprocess(raw)
-        result = infer(preprocessed)
-    except Exception as e:
-        print(f"[FAIL] {first} {last}: exception: {e}")
-        all_ok = False
-        continue
+    # Batch cluster assign
+    valid = [p for p in preprocessed_list if p is not None]
+    if valid:
+        warnings = batch_cluster_assign(valid)
+        for w in warnings:
+            print(f"  [batch] {w}")
 
-    csv_ref = csv_composites.get((first, last), {})
-    got_composite = result["risk_scores"]["composite_risk"]
-    got_level = result["risk_levels"]["overall"]
-    got_pflag = result["priority_flag"]
-    got_urgency = set(r["urgency"] for r in result["recommendations"])
-    override_applied = result["model_metadata"]["notebook_override_applied"]
-
-    exp_composite = csv_ref.get("composite_risk", None)
-    exp_level = csv_ref.get("risk_level", "").replace("CRITICAL", "HIGH")
-
-    checks = [
-        ("override_applied", override_applied, True),
-        ("risk_level", got_level, exp_level),
-        ("composite_close", abs(got_composite - exp_composite) < 0.001 if exp_composite else True, True),
-    ]
-    # Urgency: urgent senior should have urgent/immediate recs; others should NOT have urgent
-    if got_pflag == "urgent":
-        checks.append(("recs_are_urgent", bool(got_urgency & {"urgent", "immediate"}), True))
-        checks.append(("no_planned_on_urgent", "planned" not in got_urgency, True))
-    else:
-        checks.append(("recs_not_urgent", "urgent" not in got_urgency, True))
-        checks.append(("recs_not_immediate", "immediate" not in got_urgency, True))
-
-    senior_ok = True
-    for name, actual, expected in checks:
-        ok = actual == expected
-        if not ok:
-            senior_ok = False
+    all_ok = True
+    for i, s in enumerate(SENIORS):
+        preprocessed = preprocessed_list[i]
+        if preprocessed is None:
             all_ok = False
-        print(f"  [{'OK' if ok else 'FAIL'}] {name}: {actual!r} (expected {expected!r})")
+            continue
 
-    print(f"\n{'OK' if senior_ok else 'FAIL'} {first} {last}: composite={got_composite:.4f}, level={got_level}, pflag={got_pflag}, urgency_set={got_urgency}")
-    print()
+        try:
+            result = infer(preprocessed)
+        except Exception as e:
+            print(f"[FAIL] infer error for {s['label']}: {e}")
+            all_ok = False
+            continue
 
-conn.close()
-print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
-sys.exit(0 if all_ok else 1)
+        scores = result.get("risk_scores", {})
+        levels = result.get("risk_levels", {})
+        cluster = result.get("cluster", {})
+        recs = result.get("recommendations", [])
+        pflag = result.get("priority_flag", "")
+        section_scores = result.get("section_scores", {})
+        domain_risks = result.get("domain_risks", {})
+        who_scores = result.get("who_scores", {})
+
+        checks = [
+            ("status=success",          result.get("status") == "success",                     True),
+            ("cluster in [1,2,3]",      cluster.get("named_id") in {1, 2, 3},                 True),
+            ("composite in [0,1]",      0.0 <= scores.get("composite_risk", -1) <= 1.0,        True),
+            ("ic_risk in [0,1]",        0.0 <= scores.get("ic_risk", -1) <= 1.0,               True),
+            ("env_risk in [0,1]",       0.0 <= scores.get("env_risk", -1) <= 1.0,              True),
+            ("func_risk in [0,1]",      0.0 <= scores.get("func_risk", -1) <= 1.0,             True),
+            ("risk_level valid",        levels.get("overall") in {"HIGH","MODERATE","LOW"},    True),
+            ("priority_flag valid",     pflag in {"urgent","priority_action","planned_monitoring","maintenance"}, True),
+            ("recs non-empty",          len(recs) > 0,                                          True),
+            ("section_scores present",  len(section_scores) > 0,                               True),
+            ("domain_risks present",    "risk_medical" in domain_risks,                        True),
+            ("who_scores present",      "ic_score" in who_scores,                              True),
+            # Urgency consistency: urgent pflag → urgent recs; non-urgent → no urgent recs
+            ("urgency consistent",
+                (pflag == "urgent" and any(r.get("urgency") == "urgent" for r in recs))
+                or (pflag != "urgent" and not any(r.get("urgency") == "urgent" for r in recs)),
+                True),
+            # hc_access recommendations: if cost/distance difficulty → hc_access recs exist
+            ("hc_recs when difficulty",
+                not any(d in " ".join(s["raw"].get("healthcare_difficulty") or []).lower()
+                        for d in ["cost", "distance"])
+                or any(r.get("domain") == "hc_access" for r in recs),
+                True),
+            # Soft checks on expected level / cluster (heuristic path may differ)
+            ("expected_level",          levels.get("overall") == s["expect_level"],            True),
+            ("expected_cluster",        cluster.get("named_id") == s["expect_cluster"],        True),
+        ]
+
+        failed_checks = []
+        print(f"\n{'='*60}")
+        print(f"Senior: {s['label']}")
+        print(f"  composite={scores.get('composite_risk'):.4f}  level={levels.get('overall')}  pflag={pflag}  cluster={cluster.get('named_id')} ({cluster.get('name')})")
+        for name, actual, expected in checks:
+            ok = actual == expected
+            if not ok:
+                failed_checks.append(name)
+                all_ok = False
+            print(f"  [{'OK' if ok else 'FAIL'}] {name}: {actual!r}")
+
+        print(f"  Result: {'PASS' if not failed_checks else 'FAIL — ' + ', '.join(failed_checks)}")
+        print(f"\n  WHO scores: IC={who_scores.get('ic_score'):.2f}  ENV={who_scores.get('env_score'):.2f}  FUNC={who_scores.get('func_score'):.2f}  QoL={who_scores.get('qol_score'):.2f}")
+        print(f"  Domain risks: medical={domain_risks.get('risk_medical'):.3f}  financial={domain_risks.get('risk_financial'):.3f}  social={domain_risks.get('risk_social'):.3f}")
+        print(f"  Recommendations: {len(recs)} items across domains: {sorted(set(r.get('domain','?') for r in recs))}")
+        print(f"  Warnings: {result.get('warnings', [])}")
+
+    print(f"\n{'='*60}")
+    print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
+    return all_ok
+
+
+if __name__ == "__main__":
+    import sys
+    ok = run_tests()
+    sys.exit(0 if ok else 1)

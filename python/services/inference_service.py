@@ -938,7 +938,12 @@ def functional_actions(row: Dict[str, Any]) -> List[str]:
 
 def hc_access_actions(row: Dict[str, Any]) -> List[str]:
     actions: List[str] = []
-    hc_diff = str(row.get("healthcare_difficulty", "")).lower()
+    # healthcare_difficulty arrives as a list from DB (JSON field); join for substring matching
+    _hc_raw = row.get("healthcare_difficulty", "")
+    if isinstance(_hc_raw, (list, tuple)):
+        hc_diff = " ".join(str(v) for v in _hc_raw).lower()
+    else:
+        hc_diff = str(_hc_raw or "").lower()
     service_acc = _safe_float(row.get("env_service_access"), 3.0)
     movable_s = _safe_float(row.get("sec5_movable_asset_score"), 0.3)
     if "cost" in hc_diff or "expensive" in hc_diff:
