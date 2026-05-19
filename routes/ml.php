@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\MlController;
 
-Route::prefix('ml')->name('ml.')->group(function () {
+Route::prefix('ml')->name('ml.')->middleware('no.time.limit')->group(function () {
 
     // All roles can view service status
     Route::middleware('role:admin,encoder,viewer')->group(function () {
