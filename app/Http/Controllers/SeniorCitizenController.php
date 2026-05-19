@@ -30,13 +30,20 @@ class SeniorCitizenController extends Controller
 
         $seniors    = $query->paginate(20)->withQueryString();
         $barangays  = SeniorCitizen::barangayList();
+
+        // Restrict stats to active (non-archived) seniors only
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
+        $latestActiveMlIds = MlResult::select(DB::raw('MAX(id)'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
+            ->groupBy('senior_citizen_id');
+
         $stats = [
-            'total'  => SeniorCitizen::active()->count(),
+            'total'  => $activeSeniorIds->count(),
             'urgent' => MlResult::where('priority_flag', 'urgent')
-                ->whereIn('id', $latestMlIds)
+                ->whereIn('id', $latestActiveMlIds)
                 ->count(),
             'high'   => MlResult::where('overall_risk_level', 'HIGH')
-                ->whereIn('id', $latestMlIds)
+                ->whereIn('id', $latestActiveMlIds)
                 ->count(),
         ];
 

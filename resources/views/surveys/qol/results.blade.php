@@ -34,96 +34,102 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {{-- Overall Score --}}
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
-            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Overall QoL Score</p>
-            <div class="relative w-28 h-28 mx-auto mb-3">
-                <svg class="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
-                    @php $pct = round(($survey->overall_score ?? 0) * 100); @endphp
-                    <circle cx="18" cy="18" r="15.9" fill="none"
-                            stroke="{{ $pct >= 70 ? '#10b981' : ($pct >= 50 ? '#f59e0b' : '#ef4444') }}"
-                            stroke-width="3"
-                            stroke-dasharray="{{ $pct }}, 100"
-                            stroke-linecap="round"/>
-                </svg>
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <span class="text-2xl font-bold text-slate-800">{{ $pct }}%</span>
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="eyebrow mb-3">Overall QoL Score</p>
+                <div class="relative w-28 h-28 mx-auto mb-3">
+                    <svg class="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor"
+                                class="text-paper-rule dark:text-[#2b3530]" stroke-width="3"/>
+                        @php $pct = round(($survey->overall_score ?? 0) * 100); @endphp
+                        <circle cx="18" cy="18" r="15.9" fill="none"
+                                stroke="{{ $pct >= 70 ? '#4a8a68' : ($pct >= 50 ? '#c19a3b' : '#b94a3a') }}"
+                                stroke-width="3"
+                                stroke-dasharray="{{ $pct }}, 100"
+                                stroke-linecap="round"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-2xl font-bold font-serif text-ink-900 dark:text-[#e4e1d8]">{{ $pct }}%</span>
+                    </div>
                 </div>
+                <p class="text-[13px] font-semibold
+                    {{ $pct >= 70 ? 'text-low-700' : ($pct >= 50 ? 'text-moderate-700' : 'text-critical-700') }}">
+                    {{ $pct >= 70 ? 'Good' : ($pct >= 50 ? 'Fair' : 'Poor') }} Quality of Life
+                </p>
             </div>
-            <p class="text-sm font-semibold {{ $pct >= 70 ? 'text-emerald-600' : ($pct >= 50 ? 'text-amber-600' : 'text-red-600') }}">
-                {{ $pct >= 70 ? 'Good' : ($pct >= 50 ? 'Fair' : 'Poor') }} Quality of Life
-            </p>
         </div>
 
         {{-- ML Risk --}}
         @if ($ml)
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Risk Assessment</p>
-            <div class="space-y-3">
-                @foreach ([
-                    ['Physical Capacity', $ml->ic_risk,        $ml->ic_risk_level],
-                    ['Environment',       $ml->env_risk,       $ml->env_risk_level],
-                    ['Daily Functioning', $ml->func_risk,      $ml->func_risk_level],
-                    ['Overall Risk',      $ml->composite_risk, $ml->overall_risk_level],
-                ] as [$label, $score, $level])
-                <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-500 w-20 flex-shrink-0">{{ $label }}</span>
-                    <div class="flex-1 bg-slate-200 rounded-full h-1.5">
-                        <div class="h-1.5 rounded-full {{ $score >= 0.50 ? 'bg-high-500' : ($score >= 0.30 ? 'bg-moderate-500' : 'bg-low-500') }}"
-                             style="width: {{ round($score * 100) }}%"></div>
+        <div class="card">
+            <div class="card-body">
+                <p class="eyebrow mb-3">Risk Assessment</p>
+                <div class="space-y-3">
+                    @foreach ([
+                        ['Physical Capacity', $ml->ic_risk,        $ml->ic_risk_level],
+                        ['Environment',       $ml->env_risk,       $ml->env_risk_level],
+                        ['Daily Functioning', $ml->func_risk,      $ml->func_risk_level],
+                        ['Overall Risk',      $ml->composite_risk, $ml->overall_risk_level],
+                    ] as [$label, $score, $level])
+                    <div class="flex items-center gap-3">
+                        <span class="text-[11.5px] text-ink-500 dark:text-[#6b7570] w-[90px] flex-shrink-0">{{ $label }}</span>
+                        <div class="flex-1 bar">
+                            <div class="bar-fill {{ $score >= 0.50 ? 'bar-fill-high' : ($score >= 0.30 ? 'bar-fill-moderate' : 'bar-fill-low') }}"
+                                 style="width: {{ round($score * 100) }}%"></div>
+                        </div>
+                        <span class="text-[11.5px] font-mono font-semibold w-10 text-right text-ink-700 dark:text-[#b0b5b2] tnum">{{ round($score * 100, 1) }}%</span>
+                        <x-risk-badge :level="$level" />
                     </div>
-                    <span class="text-xs font-semibold w-12 text-right text-slate-700">{{ round($score * 100, 1) }}%</span>
-                    <span class="text-xs px-1.5 py-0.5 rounded font-bold
-                        {{ match(strtoupper($level)) {
-                            'HIGH'     => 'bg-orange-100 text-orange-700',
-                            'MODERATE' => 'bg-amber-100 text-amber-700',
-                            default    => 'bg-emerald-100 text-emerald-700',
-                        } }}">
-                        {{ strtoupper($level) }}
-                    </span>
+                    @endforeach
                 </div>
-                @endforeach
-            </div>
-            <div class="mt-3 pt-3 border-t border-slate-100 text-center">
-                <span class="text-xs text-slate-500">Health Group</span>
-                <p class="font-semibold text-slate-800">
-                    Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
-                </p>
+                <div class="mt-3 pt-3 border-t border-paper-rule dark:border-[#2b3530] text-center">
+                    <span class="eyebrow">Health Group</span>
+                    <p class="font-semibold text-[13px] text-ink-900 dark:text-[#e4e1d8] mt-1">
+                        Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
+                    </p>
+                </div>
             </div>
         </div>
         @else
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 flex items-center justify-center">
-            <p class="text-sm text-slate-400">Assessment not yet run.</p>
+        <div class="card">
+            <div class="card-body flex items-center justify-center h-full min-h-[120px]">
+                <p class="text-[13px] text-ink-400 dark:text-[#6b7570]">Assessment not yet run.</p>
+            </div>
         </div>
         @endif
 
         {{-- Domain radar chart --}}
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <p class="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Domain Scores</p>
-            <canvas id="domainRadar" class="max-h-48"></canvas>
+        <div class="card">
+            <div class="card-body">
+                <p class="eyebrow mb-3">Domain Scores</p>
+                <div class="relative h-48">
+                    <canvas id="domainRadar"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
     {{-- Domain breakdown table --}}
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100">
-            <h3 class="text-sm font-semibold text-slate-700">QoL Domain Breakdown</h3>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div class="card-title">QoL Domain Breakdown</div>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-0 divide-x divide-y divide-slate-100">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-0 divide-x divide-y divide-paper-rule dark:divide-[#2b3530]">
             @foreach ($domainLabels as $col => $label)
             @php $score = $survey->$col; $pctD = $score !== null ? round($score * 100) : null; @endphp
             <div class="p-4 text-center">
-                <p class="text-xs text-slate-500 mb-2">{{ $label }}</p>
+                <p class="eyebrow mb-2">{{ $label }}</p>
                 @if ($pctD !== null)
-                <p class="text-2xl font-bold {{ $pctD >= 70 ? 'text-emerald-600' : ($pctD >= 50 ? 'text-amber-500' : 'text-red-500') }}">
+                <p class="text-2xl font-bold font-serif tnum
+                    {{ $pctD >= 70 ? 'text-low-700' : ($pctD >= 50 ? 'text-moderate-700' : 'text-critical-700') }}">
                     {{ $pctD }}%
                 </p>
-                <div class="w-full bg-slate-200 rounded-full h-1 mt-2">
-                    <div class="h-1 rounded-full {{ $pctD >= 70 ? 'bg-emerald-500' : ($pctD >= 50 ? 'bg-amber-400' : 'bg-red-400') }}"
+                <div class="bar mt-2 mx-auto max-w-[80px]">
+                    <div class="bar-fill {{ $pctD >= 70 ? 'bar-fill-low' : ($pctD >= 50 ? 'bar-fill-moderate' : 'bar-fill-critical') }}"
                          style="width: {{ $pctD }}%"></div>
                 </div>
                 @else
-                <p class="text-slate-300 text-lg">—</p>
+                <p class="text-ink-300 dark:text-[#4a5550] text-lg">—</p>
                 @endif
             </div>
             @endforeach
@@ -132,30 +138,33 @@
 
     {{-- Recommendations --}}
     @if ($ml && $ml->recommendations->count())
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-slate-700">Generated Recommendations ({{ $ml->recommendations->count() }})</h3>
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div class="card-title">Generated Recommendations ({{ $ml->recommendations->count() }})</div>
             @if ($senior && !$senior->trashed())
-            <a href="{{ route('recommendations.show', $senior) }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium">Manage →</a>
+            <a href="{{ route('recommendations.show', $senior) }}" class="text-xs text-forest-700 dark:text-forest-400 hover:text-forest-900 font-medium">Manage →</a>
             @endif
         </div>
-        <div class="divide-y divide-slate-50">
+        <div class="divide-y divide-paper-rule dark:divide-[#2b3530]">
             @foreach ($ml->recommendations->sortBy('priority') as $rec)
-            <div class="px-5 py-3 flex items-start gap-3">
-                <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                    {{ $rec->urgency === 'immediate' ? 'bg-red-500 text-white' : ($rec->urgency === 'urgent' ? 'bg-orange-400 text-white' : 'bg-slate-200 text-slate-600') }}">
+            <div class="px-5 py-3 flex items-start gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold
+                    {{ $rec->urgency === 'immediate' ? 'bg-critical-500 text-white' : ($rec->urgency === 'urgent' ? 'bg-high-500 text-white' : 'bg-paper-2 dark:bg-[#202a26] text-ink-600 dark:text-[#8a9087]') }}">
                     {{ $rec->priority }}
                 </span>
                 <div class="flex-1">
-                    <p class="text-sm text-slate-700">{{ $rec->action }}</p>
-                    <p class="text-xs text-slate-400 mt-0.5">
+                    <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">{{ $rec->action }}</p>
+                    <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570] mt-0.5">
                         {{ ucfirst($rec->category) }} · {{ ucfirst($rec->urgency) }}
                         @if ($rec->domain) · {{ strtoupper($rec->domain) }} @endif
                     </p>
                 </div>
-                <span class="{{ $rec->urgency_badge }} text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-                    {{ ucfirst($rec->urgency) }}
-                </span>
+                <span class="badge {{ match($rec->urgency) {
+                    'immediate' => 'badge-critical',
+                    'urgent'    => 'badge-high',
+                    'planned'   => 'badge-info',
+                    default     => 'badge-neutral',
+                } }} flex-shrink-0">{{ ucfirst($rec->urgency) }}</span>
             </div>
             @endforeach
         </div>
@@ -171,39 +180,62 @@
     const labels = @json(array_values($domainLabels));
     const data   = @json(collect($domainLabels)->keys()->map(fn($k) => round(($survey->{$k} ?? 0) * 100, 1))->values());
 
+    function isDark() {
+        return document.documentElement.classList.contains('dark');
+    }
+
     function initDomainRadar() {
         const canvas = document.getElementById('domainRadar');
         if (!canvas) return;
         const existing = Object.values(Chart.instances).find(c => c.canvas === canvas);
         if (existing) existing.destroy();
+
+        const dark = isDark();
+        const gridColor   = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+        const tickColor   = dark ? '#6b7570' : '#8a8f86';
+        const labelColor  = dark ? '#8a9087' : '#6b7269';
+
         new Chart(canvas, {
             type: 'radar',
             data: {
                 labels,
                 datasets: [{
                     data,
-                    backgroundColor: 'rgba(20,184,166,0.15)',
-                    borderColor: 'rgb(20,184,166)',
-                    pointBackgroundColor: 'rgb(20,184,166)',
+                    backgroundColor: 'rgba(47, 101, 82, 0.15)',
+                    borderColor: '#3f8068',
+                    pointBackgroundColor: '#3f8068',
                     pointRadius: 3,
                     borderWidth: 2,
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     r: {
                         min: 0, max: 100,
-                        ticks: { stepSize: 25, font: { size: 8 } },
-                        pointLabels: { font: { size: 8 } },
+                        ticks: {
+                            stepSize: 25,
+                            font: { size: 9 },
+                            color: tickColor,
+                            backdropColor: 'transparent',
+                        },
+                        grid: { color: gridColor },
+                        angleLines: { color: gridColor },
+                        pointLabels: { font: { size: 9 }, color: labelColor },
                     }
                 }
             }
         });
     }
 
+    // Observe dark mode class changes and re-render chart
+    new MutationObserver(() => setTimeout(initDomainRadar, 50))
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     document.addEventListener('livewire:navigated', () => setTimeout(initDomainRadar, 0));
+    initDomainRadar();
 })();
 </script>
 @endpush

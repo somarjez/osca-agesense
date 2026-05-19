@@ -182,7 +182,7 @@
             <tbody>
                 @forelse ($pending as $senior)
                 @php $ml = $senior->latestMlResult; $survey = $senior->latestQolSurvey; @endphp
-                <tr class="hover:bg-paper-2 transition-colors group">
+                <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors group">
                     <td class="td font-medium text-ink-900">{{ $senior->full_name }}</td>
                     <td class="td text-ink-500">{{ $senior->barangay }}</td>
                     <td class="td text-center text-ink-400">

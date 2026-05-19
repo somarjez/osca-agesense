@@ -1,5 +1,5 @@
 {{-- resources/views/livewire/surveys/qol-survey-form.blade.php --}}
-<div class="max-w-3xl mx-auto" x-data="{ scale: [
+<div class="max-w-3xl mx-auto space-y-5" x-data="{ scale: [
     { value: 1, label: 'Strongly Disagree' },
     { value: 2, label: 'Disagree' },
     { value: 3, label: 'Neither' },
@@ -7,25 +7,35 @@
     { value: 5, label: 'Strongly Agree' }
 ]}">
 
+    {{-- ── Back button ── --}}
+    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to {{ $senior->full_name }}
+    </a>
+
     {{-- ── Senior Banner ── --}}
-    <div class="bg-white border border-slate-200 rounded-xl px-5 py-4 mb-5 shadow-sm flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-            <span class="font-bold text-teal-700">{{ substr($senior->first_name, 0, 1) }}</span>
-        </div>
-        <div>
-            <p class="font-semibold text-slate-800">{{ $senior->full_name }}</p>
-            <p class="text-sm text-slate-500">{{ $senior->barangay }} · Age {{ $senior->age }} · OSCA ID: {{ $senior->osca_id }}</p>
-        </div>
-        <div class="ml-auto">
-            <label class="text-xs text-slate-500">Survey Date</label>
-            <input type="date" wire:model="surveyDate"
-                   class="block text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+    <div class="card">
+        <div class="card-body flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-forest-100 dark:bg-forest-900/40 flex items-center justify-center flex-shrink-0">
+                <span class="font-bold text-forest-700 dark:text-forest-300 text-[15px]">{{ strtoupper(substr($senior->first_name, 0, 1)) }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</p>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#6b7570]">{{ $senior->barangay }} · Age {{ $senior->age }} · OSCA ID: {{ $senior->osca_id }}</p>
+            </div>
+            <div class="flex-shrink-0">
+                <label class="eyebrow block mb-1">Survey Date</label>
+                <input type="date" wire:model="surveyDate"
+                       class="form-input py-1.5 text-[13px] w-auto">
+            </div>
         </div>
     </div>
 
     {{-- ── Step Progress ── --}}
-    <div class="mb-5">
-        <div class="flex items-center justify-between mb-2">
+    <div class="card">
+        <div class="card-body py-4">
             @php
             $sections = [
                 1 => 'A. Overall QoL',
@@ -39,38 +49,43 @@
             ];
             $progress = $this->getSectionProgress();
             @endphp
-            @foreach ($sections as $s => $label)
-            <button wire:click="goToStep({{ $s }})"
-                    class="flex flex-col items-center gap-1 cursor-pointer group">
-                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all
-                    {{ $step === $s ? 'bg-teal-600 text-white shadow-md' :
-                       (count($progress[$s]) > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500 group-hover:bg-slate-300') }}">
-                    @if (count($progress[$s]) > 0 && $step !== $s)
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    @else
-                        {{ $s }}
-                    @endif
-                </div>
-            </button>
-            @endforeach
+            <div class="flex items-center justify-between mb-3">
+                @foreach ($sections as $s => $label)
+                <button wire:click="goToStep({{ $s }})"
+                        class="flex flex-col items-center gap-1 cursor-pointer group">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all
+                        {{ $step === $s
+                            ? 'bg-forest-700 text-paper shadow-md'
+                            : (count($progress[$s]) > 0
+                                ? 'bg-low-500 text-white'
+                                : 'bg-paper-2 dark:bg-[#202a26] text-ink-500 dark:text-[#6b7570] group-hover:bg-paper-rule dark:group-hover:bg-[#2b3530]') }}">
+                        @if (count($progress[$s]) > 0 && $step !== $s)
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        @else
+                            {{ $s }}
+                        @endif
+                    </div>
+                </button>
+                @endforeach
+            </div>
+            <div class="bar">
+                <div class="bar-fill bar-fill-forest transition-all duration-500"
+                     style="width: {{ (($step - 1) / ($totalSteps - 1)) * 100 }}%"></div>
+            </div>
+            <p class="text-[11.5px] text-ink-500 dark:text-[#6b7570] mt-2 text-center">
+                Section {{ $step }} of {{ $totalSteps }}: {{ $sections[$step] }}
+            </p>
         </div>
-        <div class="w-full bg-slate-200 rounded-full h-1.5">
-            <div class="bg-teal-500 h-1.5 rounded-full transition-all duration-500"
-                 style="width: {{ (($step - 1) / ($totalSteps - 1)) * 100 }}%"></div>
-        </div>
-        <p class="text-xs text-slate-500 mt-1 text-center">
-            Section {{ $step }} of {{ $totalSteps }}: {{ $sections[$step] }}
-        </p>
     </div>
 
     {{-- ── Question Card ── --}}
     <form wire:submit.prevent="{{ $step < $totalSteps ? 'nextStep' : 'confirmSubmit' }}">
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <div class="card overflow-hidden">
 
         {{-- Instructions header (step 1 only) --}}
         @if ($step === 1)
-        <div class="bg-teal-50 border-b border-teal-100 px-5 py-3">
-            <p class="text-sm text-teal-800">
+        <div class="bg-forest-50 dark:bg-forest-900/20 border-b border-forest-100 dark:border-forest-800/30 px-5 py-3">
+            <p class="text-[13px] text-forest-800 dark:text-forest-300">
                 <strong>Instructions:</strong> In the past four weeks, how true is each statement for you?
                 Rate each item from <strong>1 (Strongly Disagree)</strong> to <strong>5 (Strongly Agree)</strong>.
             </p>
@@ -79,23 +94,23 @@
 
         {{-- Validation errors --}}
         @if ($errors->any())
-        <div class="px-5 py-3 bg-amber-50 border-b border-amber-200">
-            <p class="text-sm font-medium text-amber-800">Please answer all questions in this section before continuing.</p>
+        <div class="px-5 py-3 bg-moderate-50 dark:bg-moderate-500/10 border-b border-moderate-100 dark:border-moderate-500/20">
+            <p class="text-[13px] font-medium text-moderate-700 dark:text-moderate-500">Please answer all questions in this section before continuing.</p>
         </div>
         @endif
 
         <div class="p-5">
 
             {{-- Section title --}}
-            <h3 class="font-display text-xl text-slate-800 mb-5">
+            <h3 class="font-serif text-xl text-ink-900 dark:text-[#e4e1d8] mb-5">
                 {{ $sections[$step] }}
             </h3>
 
             {{-- Scale legend --}}
             <div class="grid grid-cols-5 gap-1 mb-6 text-center">
                 @foreach ([1 => 'Strongly Disagree', 2 => 'Disagree', 3 => 'Neither', 4 => 'Agree', 5 => 'Strongly Agree'] as $v => $lbl)
-                <div class="text-xs text-slate-500">
-                    <div class="font-bold text-slate-700 text-sm">{{ $v }}</div>
+                <div class="text-[11px] text-ink-500 dark:text-[#6b7570]">
+                    <div class="font-bold text-ink-700 dark:text-[#c8c4bc] text-[13px]">{{ $v }}</div>
                     {{ $lbl }}
                 </div>
                 @endforeach
@@ -158,16 +173,18 @@
             <div class="space-y-5">
                 @foreach ($questions as $prop => $q)
                 <div class="border rounded-xl p-4 transition-colors
-                     {{ $errors->has($prop) ? 'border-amber-300 bg-amber-50' : 'border-slate-100 hover:border-teal-200' }}"
+                     {{ $errors->has($prop)
+                         ? 'border-moderate-300 bg-moderate-50 dark:border-moderate-500/30 dark:bg-moderate-500/10'
+                         : 'border-paper-rule dark:border-[#2b3530] hover:border-forest-200 dark:hover:border-forest-700/50' }}"
                      x-data="{}">
                     <div class="flex items-start gap-3 mb-3">
-                        <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                        <span class="flex-shrink-0 w-8 h-8 rounded-full bg-paper-2 dark:bg-[#202a26] flex items-center justify-center text-xs font-bold text-ink-600 dark:text-[#8a9087]">
                             {{ $q['item'] }}
                         </span>
-                        <p class="text-sm text-slate-800 leading-relaxed">
+                        <p class="text-[13.5px] text-ink-800 dark:text-[#c8c4bc] leading-relaxed">
                             {{ $q['text'] }}
                             @if ($q['reverse'])
-                            <span class="ml-1 text-xs text-amber-600 font-medium">(↺ reverse)</span>
+                            <span class="ml-1 text-[11px] text-moderate-600 dark:text-moderate-500 font-medium">(↺ reverse)</span>
                             @endif
                         </p>
                     </div>
@@ -181,10 +198,10 @@
                                    value="{{ $val }}"
                                    tabindex="-1"
                                    class="sr-only peer">
-                            <div class="text-center py-2 rounded-lg border-2 text-sm font-semibold transition-all
-                                border-slate-200 text-slate-500
-                                peer-checked:border-teal-500 peer-checked:bg-teal-500 peer-checked:text-white
-                                hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700">
+                            <div class="text-center py-2 rounded-xl border-2 text-[13px] font-semibold transition-all
+                                border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570]
+                                peer-checked:border-forest-600 peer-checked:bg-forest-700 peer-checked:text-paper
+                                hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400">
                                 {{ $val }}
                             </div>
                         </label>
@@ -195,36 +212,32 @@
             </div>
 
             @if ($step === 8)
-            <div class="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500 text-center">
+            <div class="mt-4 p-3 bg-paper-2 dark:bg-[#202a26] rounded-xl border border-paper-rule dark:border-[#2b3530] text-[11.5px] text-ink-500 dark:text-[#6b7570] text-center">
                 Section H is optional. You may skip if the senior prefers not to answer.
             </div>
             @endif
         </div>
 
         {{-- ── Navigation Footer ── --}}
-        <div class="border-t border-slate-100 px-5 py-4 flex items-center gap-3">
+        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex items-center gap-3">
             @if ($step > 1)
-            <button wire:click="prevStep"
-                    class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            <button type="button" wire:click="prevStep" class="btn">
                 ← Previous
             </button>
             @endif
 
-            <button wire:click="saveDraft"
-                    class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+            <button type="button" wire:click="saveDraft" class="btn btn-ghost text-[13px]">
                 Save Draft
             </button>
 
             <div class="ml-auto flex gap-3">
                 @if ($step < $totalSteps)
-                <button wire:click="nextStep"
-                        class="px-5 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors shadow-sm">
+                <button type="button" wire:click="nextStep" class="btn btn-primary">
                     Next Section →
                 </button>
                 @else
-                <button wire:click="confirmSubmit"
-                        class="px-5 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
-                    Submit & Run Assessment
+                <button type="button" wire:click="confirmSubmit" class="btn btn-primary">
+                    Submit &amp; Run Assessment
                 </button>
                 @endif
             </div>
@@ -234,26 +247,26 @@
 
     {{-- ── Confirm Modal ── --}}
     @if ($showConfirm)
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 class="font-display text-xl text-slate-800 mb-2">Submit QoL Survey?</h3>
-            <p class="text-sm text-slate-600 mb-4">
-                This will submit the Quality of Life survey for <strong>{{ $senior->full_name }}</strong>
-                and automatically run the health assessment (data preparation → health grouping → risk scoring → recommendations).
-            </p>
-            <div class="flex gap-3 justify-end">
-                <button wire:click="$set('showConfirm', false)"
-                        class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-                    Cancel
-                </button>
-                <button wire:click="submitSurvey"
-                        class="px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700">
-                    <span wire:loading.remove wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        Confirm & Submit
-                    </span>
-                    <span wire:loading wire:target="submitSurvey">Processing…</span>
-                </button>
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="card max-w-md w-full shadow-2xl">
+            <div class="card-head">
+                <div class="card-title">Submit QoL Survey?</div>
+            </div>
+            <div class="card-body space-y-4">
+                <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
+                    This will submit the Quality of Life survey for <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong>
+                    and automatically run the health assessment.
+                </p>
+                <div class="flex gap-3 justify-end">
+                    <button wire:click="$set('showConfirm', false)" class="btn">Cancel</button>
+                    <button wire:click="submitSurvey" class="btn btn-primary">
+                        <span wire:loading.remove wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            Confirm &amp; Submit
+                        </span>
+                        <span wire:loading wire:target="submitSurvey">Processing…</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -261,10 +274,10 @@
 
     {{-- Loading overlay --}}
     @if ($isProcessing)
-    <div class="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
-        <div class="animate-spin w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full mb-3"></div>
-        <p class="text-sm font-medium text-slate-600">Running Health Assessment…</p>
-        <p class="text-xs text-slate-400 mt-1">Preparing data → Assigning health group → Scoring risk → Generating recommendations</p>
+    <div class="fixed inset-0 bg-white/80 dark:bg-[#131917]/85 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+        <div class="animate-spin w-10 h-10 border-4 border-forest-500 border-t-transparent rounded-full mb-3"></div>
+        <p class="text-[13px] font-medium text-ink-700 dark:text-[#c8c4bc]">Running Health Assessment…</p>
+        <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570] mt-1">Preparing data → Assigning health group → Scoring risk → Generating recommendations</p>
     </div>
     @endif
 

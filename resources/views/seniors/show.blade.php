@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('page-title', $senior->full_name)
-@section('page-subtitle', 'OSCA ID: ' . $senior->osca_id . ' · ' . $senior->barangay)
+@section('page-title', 'Senior Profile')
+@section('page-subtitle', 'Individual record · Pagsanjan, Laguna')
 
 @section('content')
 @php $ml = $senior->latestMlResult; @endphp
@@ -82,6 +82,25 @@
             <a href="{{ route('seniors.edit', $senior) }}" class="btn">
                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
             </a>
+        </div>
+    </div>
+
+    {{-- Identity header --}}
+    <div class="card">
+        <div class="card-body flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-forest-100 grid place-items-center flex-shrink-0">
+                <span class="text-lg font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name,0,1).substr($senior->last_name,0,1)) }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-serif text-[20px] font-semibold text-ink-900 leading-tight">{{ $senior->full_name }}</div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[12.5px] text-ink-500">
+                    <span class="font-mono tnum">{{ $senior->osca_id }}</span>
+                    <span class="text-ink-300">·</span>
+                    <span>{{ $senior->barangay }}</span>
+                    <span class="text-ink-300">·</span>
+                    <span>{{ $senior->age }} yrs · {{ $senior->gender }}</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -387,7 +406,7 @@
                     </thead>
                     <tbody>
                         @foreach ($senior->qolSurveys as $survey)
-                        <tr class="group hover:bg-paper-2">
+                        <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors duration-100">
                             <td class="td text-ink-700">{{ $survey->survey_date?->format('M j, Y') }}</td>
                             <td class="td font-semibold tnum">{{ $survey->overall_score ? number_format($survey->overall_score * 100, 0) . '%' : '—' }}</td>
                             <td class="td tnum">{{ $survey->score_physical ? number_format($survey->score_physical * 100, 0) . '%' : '—' }}</td>
@@ -490,7 +509,7 @@
                      class="border-b border-paper-rule last:border-b-0">
                     {{-- Collapsible category header --}}
                     <button @click="open = !open"
-                            class="w-full flex items-center justify-between px-5 py-2.5 text-left hover:bg-paper-2 transition-colors bg-paper-2">
+                            class="w-full flex items-center justify-between px-5 py-2.5 text-left bg-paper-2 dark:bg-[#1a201d] hover:bg-forest-50/60 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="flex items-center gap-2">
                             <span class="text-base leading-none">{{ $catInfo['icon'] }}</span>
                             <span class="eyebrow">{{ $catInfo['label'] }}</span>

@@ -54,7 +54,7 @@
             </thead>
             <tbody>
                 @forelse ($seniors as $senior)
-                <tr class="group hover:bg-paper-2 transition-colors">
+                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                     <td class="td">
                         <span class="font-mono text-[11.5px] text-ink-500 tnum">{{ $senior->osca_id }}</span>
                     </td>
@@ -172,7 +172,7 @@
             </thead>
             <tbody>
                 @forelse ($archivedSurveys as $survey)
-                <tr class="group hover:bg-paper-2 transition-colors">
+                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                     <td class="td font-medium text-ink-600">{{ $survey->seniorCitizen?->full_name ?? '—' }}</td>
                     <td class="td text-ink-400">{{ $survey->seniorCitizen?->barangay ?? '—' }}</td>
                     <td class="td text-center text-ink-500">{{ $survey->survey_date?->format('M j, Y') }}</td>

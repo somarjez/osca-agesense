@@ -7,40 +7,56 @@
 
     {{-- Stats strip --}}
     <div class="grid grid-cols-2 gap-4">
-        <x-kpi label="Total Active" :value="number_format($stats['total'])" accent="forest" sub="Active records · Pagsanjan, Laguna" />
+        {{-- Total Active KPI --}}
+        <div class="kpi relative overflow-hidden">
+            <div class="kpi-rule bg-forest-500"></div>
+            <div class="kpi-label">Total Active Seniors</div>
+            <div class="kpi-value">{{ number_format($stats['total']) }}</div>
+            <div class="kpi-delta">
+                <x-heroicon-o-map-pin class="w-3 h-3" />
+                Active records · Pagsanjan, Laguna
+            </div>
+        </div>
 
-        {{-- High Risk merged with Urgent Priority --}}
-        <div class="kpi kpi-high relative overflow-hidden">
+        {{-- High Risk + Urgent --}}
+        <div class="kpi relative overflow-hidden">
             <div class="kpi-rule bg-high-500"></div>
             <div class="kpi-label">High Risk</div>
-            <div class="flex items-baseline gap-2">
+            <div class="flex items-baseline gap-3 mt-1">
                 <div class="kpi-value text-high-700">{{ number_format($stats['high']) }}</div>
                 @if (($stats['urgent'] ?? 0) > 0)
-                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-200 px-1.5 py-0.5 rounded">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-100 px-2 py-0.5 rounded-full">
                     <span class="w-1.5 h-1.5 rounded-full bg-high-500 animate-pulse flex-shrink-0"></span>
                     {{ $stats['urgent'] }} urgent
                 </span>
                 @endif
             </div>
-            <div class="kpi-delta text-high-600">
+            <div class="kpi-delta">
+                <x-heroicon-o-exclamation-triangle class="w-3 h-3 text-high-500" />
                 Need priority action
                 @if (($stats['urgent'] ?? 0) > 0)
-                · <span class="font-semibold">{{ $stats['urgent'] }}</span> score ≥ 0.70
+                · <span class="font-semibold text-high-700">{{ $stats['urgent'] }}</span> score ≥ 0.70
                 @endif
             </div>
         </div>
     </div>
 
     {{-- Filter + Search --}}
-    <form method="GET" class="card">
+    <form method="GET" id="seniors-filter-form" class="card">
         <div class="card-head">
-            <div class="card-title">Filter Records</div>
+            <div class="flex items-center gap-2.5">
+                <x-heroicon-o-funnel class="w-4 h-4 text-ink-400" />
+                <div class="card-title">Filter Records</div>
+                @if (request()->hasAny(['search','barangay','risk','cluster']))
+                    <span class="badge badge-info">Filtered</span>
+                @endif
+            </div>
             <a href="{{ route('seniors.create') }}" class="btn btn-primary">
                 <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
                 New Senior
             </a>
         </div>
-        <div class="card-body flex flex-wrap items-end gap-4">
+        <div class="card-body flex flex-wrap items-end gap-3">
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1.5">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
@@ -49,8 +65,8 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
-                <select name="barangay" class="form-select">
-                    <option value="">All</option>
+                <select name="barangay" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                    <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
                         <option value="{{ $brgy }}" {{ request('barangay')==$brgy?'selected':'' }}>{{ $brgy }}</option>
                     @endforeach
@@ -58,8 +74,8 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Risk Level</label>
-                <select name="risk" class="form-select">
-                    <option value="">All</option>
+                <select name="risk" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                    <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
                         <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ ucfirst(strtolower($r)) }}</option>
                     @endforeach
@@ -67,7 +83,7 @@
             </div>
             <div class="min-w-[180px]">
                 <label class="eyebrow block mb-1.5">Health Group</label>
-                <select name="cluster" class="form-select">
+                <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
                     <option value="">All Groups</option>
                     <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
                     <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Moderate</option>
@@ -80,14 +96,17 @@
                     Search
                 </button>
                 @if (request()->hasAny(['search','barangay','risk','cluster']))
-                    <a href="{{ route('seniors.index') }}" class="btn">Clear filters</a>
+                    <a href="{{ route('seniors.index') }}" class="btn">
+                        <x-heroicon-o-x-mark class="w-3.5 h-3.5" />
+                        Clear
+                    </a>
                 @endif
             </div>
         </div>
     </form>
 
-    {{-- Table --}}
-    <div class="card overflow-hidden">
+    {{-- Table — overflow-visible so tooltip popups aren't clipped by the card --}}
+    <div class="card overflow-visible">
         <table class="w-full">
             <thead>
                 <tr>
@@ -104,7 +123,7 @@
             <tbody>
                 @forelse ($seniors as $senior)
                 @php $ml = $senior->latestMlResult; @endphp
-                <tr class="group hover:bg-paper-2 transition-colors">
+                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors duration-100">
                     <td class="td">
                         <span class="font-mono text-[11.5px] text-ink-500 tnum">{{ $senior->osca_id }}</span>
                     </td>
@@ -196,7 +215,8 @@
                             </form>
                             <div x-show="archiveOpen" x-cloak
                                  class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                                 @keydown.escape.window="archiveOpen = false">
+                                 @keydown.escape.window="archiveOpen = false"
+                                 @keydown.enter.window="if(archiveOpen) $refs.archiveForm.submit()">
                                 <div class="card max-w-sm w-full shadow-2xl"
                                      @click.outside="archiveOpen = false">
                                     <div class="card-head">
@@ -208,14 +228,15 @@
                                         </div>
                                     </div>
                                     <div class="card-body">
-                                        <p class="text-sm text-ink-700">
+                                        <p class="text-[13px] text-ink-700">
                                             <span class="font-semibold text-ink-900">{{ $senior->full_name }}</span>
                                             will be moved to Archives. Their data is preserved and can be restored at any time.
                                         </p>
-                                        <div class="flex gap-2.5 justify-end mt-5">
+                                        <div class="flex gap-2 justify-end mt-5">
                                             <button @click="archiveOpen = false" class="btn">Cancel</button>
                                             <button @click="$refs.archiveForm.submit()"
-                                                    class="btn bg-high-600 border-high-600 text-white hover:bg-high-700 hover:border-high-700 hover:text-white">
+                                                    class="btn btn-danger">
+                                                <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
                                                 Archive
                                             </button>
                                         </div>

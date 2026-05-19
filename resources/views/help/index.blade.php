@@ -18,7 +18,7 @@
             ['#faq',             'heroicon-o-question-mark-circle', 'FAQs'],
         ] as [$href, $icon, $label])
         <a href="{{ $href }}"
-           class="flex items-center gap-2.5 px-4 py-3 bg-white border border-paper-rule rounded-xl text-sm font-medium text-ink-700 hover:bg-paper-2 hover:border-forest-300 transition-colors">
+           class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl text-sm font-medium text-ink-700 dark:text-[#c8c4bc] hover:bg-forest-50/40 dark:hover:bg-forest-900/10 hover:border-forest-300 dark:hover:border-forest-800/40 transition-colors">
             <x-dynamic-component :component="$icon" class="w-4 h-4 text-forest-600 flex-shrink-0" />
             {{ $label }}
         </a>

@@ -65,7 +65,7 @@
                 </div>
                 @endforeach
 
-                <div class="pt-3 mt-2 border-t border-paper-rule grid grid-cols-2 gap-3 text-xs">
+                <div class="pt-3 mt-2 border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-2 gap-3 text-xs">
                     <div>
                         <div class="eyebrow">High Risk</div>
                         <div class="font-mono font-semibold text-high-700 tnum text-base mt-0.5">{{ $summary['high_count'] }}</div>
@@ -96,10 +96,10 @@
                 <div>
                     <div class="flex items-center gap-2 mb-1.5">
                         <span class="cluster-swatch cluster-swatch-{{ $clusterId }}"></span>
-                        <span class="text-[12.5px] font-semibold text-ink-900">Cluster {{ $clusterId }}</span>
-                        <span class="text-[11px] text-ink-500 ml-auto tnum">{{ $total }} members</span>
+                        <span class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8]">Cluster {{ $clusterId }}</span>
+                        <span class="text-[11px] text-ink-500 dark:text-[#6b7570] ml-auto tnum">{{ $total }} members</span>
                     </div>
-                    <div class="flex h-5 rounded overflow-hidden gap-px bg-paper-2">
+                    <div class="flex h-5 rounded overflow-hidden gap-px bg-paper-2 dark:bg-[#1a201d]">
                         @foreach ($dist as $level => $count)
                             @if ($count > 0)
                             <div class="{{ $colors[$level] }} grid place-items-center text-white text-[10px] font-bold tnum"
@@ -112,7 +112,7 @@
                     </div>
                     <div class="flex flex-wrap gap-3 mt-1.5">
                         @foreach ($dist as $level => $count)
-                            <span class="text-[11px] text-ink-500">{{ $level }}: <strong class="text-ink-900 tnum">{{ $count }}</strong></span>
+                            <span class="text-[11px] text-ink-500 dark:text-[#6b7570]">{{ $level }}: <strong class="text-ink-900 dark:text-[#e4e1d8] tnum">{{ $count }}</strong></span>
                         @endforeach
                     </div>
                 </div>
@@ -143,14 +143,14 @@
             <tbody>
                 @forelse ($records as $result)
                 @php $senior = $result->seniorCitizen; @endphp
-                <tr class="hover:bg-paper-2 transition-colors">
-                    <td class="td font-semibold text-ink-900">{{ $senior?->full_name ?? '—' }}</td>
-                    <td class="td text-ink-500">{{ $senior?->barangay }}</td>
+                <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                    <td class="td font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior?->full_name ?? '—' }}</td>
+                    <td class="td text-ink-500 dark:text-[#8a9087]">{{ $senior?->barangay }}</td>
                     <td class="td text-center"><x-cluster-badge :id="$result->cluster_named_id" /></td>
                     <td class="td"><x-risk-bar :value="$result->composite_risk" /></td>
-                    <td class="td text-center font-mono text-[11.5px] text-ink-700 tnum">{{ number_format($result->ic_risk, 3) }}</td>
-                    <td class="td text-center font-mono text-[11.5px] text-ink-700 tnum">{{ number_format($result->env_risk, 3) }}</td>
-                    <td class="td text-center font-mono text-[11.5px] text-ink-700 tnum">{{ number_format($result->func_risk, 3) }}</td>
+                    <td class="td text-center font-mono text-[11.5px] text-ink-700 dark:text-[#b0b5b2] tnum">{{ number_format($result->ic_risk, 3) }}</td>
+                    <td class="td text-center font-mono text-[11.5px] text-ink-700 dark:text-[#b0b5b2] tnum">{{ number_format($result->env_risk, 3) }}</td>
+                    <td class="td text-center font-mono text-[11.5px] text-ink-700 dark:text-[#b0b5b2] tnum">{{ number_format($result->func_risk, 3) }}</td>
                     <td class="td text-center"><x-risk-badge :level="$result->overall_risk_level" /></td>
                     <td class="td text-right">
                         <a href="{{ route('seniors.show', $result->senior_citizen_id) }}" class="text-xs text-forest-700 hover:text-forest-900 font-semibold">View →</a>
@@ -166,7 +166,7 @@
             </tbody>
         </table>
         @if ($records->hasPages())
-        <div class="border-t border-paper-rule px-5 py-3">
+        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-3">
             {{ $records->links() }}
         </div>
         @endif
@@ -181,6 +181,17 @@
 @push('scripts')
 <script>
 (function () {
+    function isDark() { return document.documentElement.classList.contains('dark'); }
+
+    function chartColors() {
+        const dark = isDark();
+        return {
+            grid:     dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+            tick:     dark ? '#6b7570' : '#8a8f86',
+            legend:   dark ? '#8a9087' : '#6b7269',
+        };
+    }
+
     function upsertCluster(id, config) {
         const canvas = document.getElementById(id);
         if (!canvas) return;
@@ -201,6 +212,7 @@
             borderSkipped: false,
             barPercentage: 0.7,
         }));
+        const c = chartColors();
 
         upsertCluster('domainClusterChart', {
             type: 'bar',
@@ -208,17 +220,34 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, boxWidth: 10, boxHeight: 10 } } },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 11 }, padding: 12, boxWidth: 10, boxHeight: 10, color: c.legend }
+                    }
+                },
                 scales: {
-                    x: { grid: { display: false }, ticks: { font: { size: 11, weight: 500 } } },
-                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#e8e4d6' } }
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11, weight: 500 }, color: c.tick }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: v => v + '%', color: c.tick },
+                        grid: { color: c.grid }
+                    }
                 }
             }
         });
     }
 
+    new MutationObserver(() => setTimeout(renderClusterDomainChart, 50))
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     document.addEventListener('livewire:navigated', () => setTimeout(renderClusterDomainChart, 0));
     document.addEventListener('livewire:updated', renderClusterDomainChart);
+    renderClusterDomainChart();
 })();
 </script>
 @endpush

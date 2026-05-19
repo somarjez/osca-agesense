@@ -23,41 +23,43 @@
 <div class="flex h-screen overflow-hidden">
 
     {{-- ── Sidebar ── --}}
-    <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
-           class="flex-shrink-0 flex flex-col bg-paper-2 dark:bg-[#1a201d] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
+    <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
+           class="flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden shadow-sm">
 
-        {{-- Hamburger toggle (always at top) --}}
-        <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] flex items-center"
-             :class="sidebarOpen ? 'px-3 py-2.5 gap-3' : 'py-2.5 justify-center'">
-            <button @click="toggleSidebar()"
-                    class="btn btn-ghost p-1.5 flex-shrink-0"
-                    :title="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'">
-                <x-heroicon-o-bars-3 class="w-5 h-5" />
-            </button>
-            <div x-show="sidebarOpen" x-cloak class="flex items-center gap-2.5 min-w-0 overflow-hidden">
-                <div class="w-7 h-7 rounded-md bg-forest-800 text-forest-100 grid place-items-center font-serif font-semibold text-[15px] flex-shrink-0">A</div>
-                <div class="min-w-0">
-                    <div class="font-serif text-[17px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
-                    <div class="text-[10px] tracking-[0.08em] uppercase text-ink-500 dark:text-[#4a5550] font-medium whitespace-nowrap">Healthy Ageing Analytics</div>
+        {{-- Brand block --}}
+        <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
+            {{-- Expanded --}}
+            <div x-show="sidebarOpen" x-cloak class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <div class="min-w-0 flex-1">
+                    <div class="font-serif text-[15.5px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
+                    <div class="text-[10px] tracking-[0.09em] text-ink-400 dark:text-[#4a5550] font-medium whitespace-nowrap mt-0.5">OSCA · Pagsanjan, Laguna</div>
                 </div>
+                <button @click="toggleSidebar()"
+                        class="btn btn-ghost p-1 flex-shrink-0"
+                        title="Collapse sidebar">
+                    <x-heroicon-o-chevron-left class="w-4 h-4" />
+                </button>
             </div>
-        </div>
-
-        {{-- Deployment (expanded only) --}}
-        <div x-show="sidebarOpen" x-cloak
-             class="px-4 py-2.5 border-b border-paper-rule dark:border-[#2b3530] flex-shrink-0">
-            <div class="text-[10px] tracking-[0.1em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold">Deployment</div>
-            <div class="font-serif text-[13px] font-medium mt-0.5 text-ink-900 dark:text-[#b0b5b2]">OSCA · Pagsanjan, Laguna</div>
+            {{-- Collapsed --}}
+            <div x-show="!sidebarOpen" class="flex flex-col items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <button @click="toggleSidebar()"
+                        class="btn btn-ghost p-1"
+                        title="Expand sidebar">
+                    <x-heroicon-o-bars-3 class="w-4 h-4" />
+                </button>
+            </div>
         </div>
 
         {{-- Nav --}}
         <nav class="flex-1 py-3 overflow-y-auto scrollbar-thin" :class="sidebarOpen ? 'px-3' : 'px-2'">
 
+            {{-- ── Workspace ── --}}
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-2 pb-2">Workspace</div>
-            <div x-show="!sidebarOpen" x-cloak class="h-2"></div>
+                 class="eyebrow px-3 pt-1 pb-2">Workspace</div>
+            <div x-show="!sidebarOpen" x-cloak class="h-1"></div>
 
-            {{-- ── Workspace (all roles) ── --}}
             <a href="{{ route('dashboard') }}"
                class="nav-link {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
@@ -89,6 +91,11 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">QoL Surveys</span>
             </a>
             @endhasanyrole
+
+            {{-- ── Analytics ── --}}
+            <div x-show="sidebarOpen" x-cloak
+                 class="eyebrow px-3 pt-5 pb-2">Analytics</div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.cluster') }}"
                class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
@@ -129,7 +136,7 @@
             {{-- ── Assessment Tools (admin + encoder) ── --}}
             @hasanyrole('admin|encoder')
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Assessment Tools</div>
+                 class="eyebrow px-3 pt-5 pb-2">Assessment</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
@@ -151,7 +158,7 @@
             {{-- ── Administration (admin only) ── --}}
             @role('admin')
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Administration</div>
+                 class="eyebrow px-3 pt-5 pb-2">Administration</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('activity-log.index') }}"
@@ -176,9 +183,9 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">User Management</span>
             </a>
 
-            {{-- Archives (admin only) ── --}}
+            {{-- Archives ── --}}
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Archives</div>
+                 class="eyebrow px-3 pt-5 pb-2">Archives</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('seniors.archives') }}"
@@ -190,8 +197,9 @@
             </a>
             @endrole
 
+            {{-- Help --}}
             <div x-show="sidebarOpen" x-cloak
-                 class="text-[10.5px] tracking-[0.12em] uppercase text-ink-400 dark:text-[#4a5550] font-semibold px-3 pt-5 pb-2">Help</div>
+                 class="eyebrow px-3 pt-5 pb-2">Help</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('help') }}"
@@ -203,19 +211,19 @@
             </a>
         </nav>
 
-        {{-- Footer --}}
-        <div class="border-t border-paper-rule dark:border-[#2b3530] flex-shrink-0 px-3 py-2">
-            <div class="flex items-center gap-2" :class="sidebarOpen ? '' : 'flex-col'">
+        {{-- Sidebar Footer — user profile --}}
+        <div class="border-t border-paper-rule dark:border-[#2b3530] flex-shrink-0 px-3 py-3">
+            <div class="flex items-center gap-2.5" :class="sidebarOpen ? '' : 'flex-col gap-1.5 items-center'">
 
                 {{-- Avatar --}}
-                <div class="w-7 h-7 rounded-full bg-forest-200 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-xs flex-shrink-0">
+                <div class="w-8 h-8 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[12px] flex-shrink-0 border border-forest-200 dark:border-forest-800/40">
                     {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
                 </div>
 
                 {{-- Name/role (expanded only) --}}
                 <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
-                    <div class="text-[12px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
-                    <div class="text-[10px] text-ink-500 dark:text-[#4a5550]">
+                    <div class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate leading-tight">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                    <div class="text-[10.5px] text-ink-400 dark:text-[#4a5550] leading-tight">
                         @php
                             $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
                             $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
@@ -247,21 +255,46 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-paper dark:bg-[#131917] border-b border-paper-rule dark:border-[#2b3530] px-9 py-4 flex items-center justify-between flex-shrink-0 gap-6">
-            <div class="flex items-baseline gap-3 min-w-0">
-                <h1 class="font-serif text-[22px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-tight whitespace-nowrap">@yield('page-title', 'Dashboard')</h1>
-                @hasSection('page-subtitle')
-                    <p class="text-[12.5px] text-ink-400 dark:text-[#6b7570] truncate">@yield('page-subtitle')</p>
-                @endif
+        <header class="bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-[52px]">
+
+            {{-- Left: Page title (fixed width so search stays centered) --}}
+            <div class="flex items-center gap-2.5 min-w-0 w-52 flex-shrink-0">
+                <h1 class="font-serif text-[17px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
             </div>
-            <div class="flex items-center gap-3 flex-shrink-0">
+
+            {{-- Center: Search bar — navigates to seniors.index with ?search= --}}
+            {{-- Use / key to focus. Shows current search value when on senior pages. --}}
+            <form action="{{ route('seniors.index') }}" method="GET"
+                  x-data="{}"
+                  @keydown.slash.window.prevent="$refs.topbarSearch.focus()"
+                  class="flex-1 hidden md:block max-w-sm mx-auto">
+                <div class="topbar-search">
+                    <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5 text-ink-300 dark:text-[#4a5550] flex-shrink-0" />
+                    <input x-ref="topbarSearch"
+                           type="text"
+                           name="search"
+                           value="{{ request()->routeIs('seniors.*') ? request('search') : '' }}"
+                           placeholder="Search seniors by name or OSCA ID…"
+                           autocomplete="off" />
+                    <kbd class="text-[10px] text-ink-300 dark:text-[#4a5550] font-mono bg-paper-rule/60 dark:bg-[#2b3530]/80 px-1.5 py-0.5 rounded-md flex-shrink-0 leading-none">/</kbd>
+                </div>
+            </form>
+
+            {{-- Right: utilities --}}
+            <div class="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                {{-- Flash messages --}}
                 @foreach (['success'=>'low','warning'=>'moderate','info'=>'info','error'=>'critical'] as $type => $variant)
                     @if (session($type))
-                    <div class="badge badge-{{ $variant }}">{{ session($type) }}</div>
+                    <div class="badge badge-{{ $variant }} mr-1">{{ session($type) }}</div>
                     @endif
                 @endforeach
-                <span class="text-[11px] text-ink-400 dark:text-[#4a5550] tnum whitespace-nowrap">{{ now()->format('D, M j') }}</span>
-                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
+
+                {{-- Date --}}
+                <span class="text-[11px] text-ink-400 dark:text-[#4a5550] tnum whitespace-nowrap hidden lg:block px-1">{{ now()->format('D, M j') }}</span>
+
+                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
+
+                {{-- ML Services status --}}
                 @php
                     $navHealth = \Illuminate\Support\Facades\Cache::remember('ml_nav_health', 30, function () {
                         try {
@@ -281,19 +314,29 @@
                         default           => 'All analysis services unavailable',
                     };
                 @endphp
-                <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570] hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors" title="{{ $navTitle }}">
+                <a href="{{ route('ml.status') }}"
+                   class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
+                          hover:text-ink-900 dark:hover:text-[#e4e1d8] hover:bg-paper-2 dark:hover:bg-[#202a26]
+                          px-2 py-1.5 rounded-lg transition-all duration-150"
+                   title="{{ $navTitle }}">
                     <span class="status-dot {{ $navDotClass }}"></span>
-                    <span class="font-medium">Services</span>
+                    <span class="font-medium hidden sm:inline text-[11.5px]">Services</span>
                 </a>
-                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530]"></div>
-                <button class="btn btn-ghost p-1.5" title="Notifications">
+
+                <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
+
+                {{-- Notification bell --}}
+                <button class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-400 dark:text-[#6b7570]
+                               hover:bg-paper-2 dark:hover:bg-[#202a26] hover:text-ink-700 dark:hover:text-[#c8c4bc]
+                               transition-all duration-150 cursor-not-allowed opacity-50"
+                        title="Notifications (coming soon)" disabled>
                     <x-heroicon-o-bell class="w-4 h-4" />
                 </button>
             </div>
         </header>
 
         {{-- Page content --}}
-        <main class="flex-1 overflow-y-auto min-h-0 px-9 py-8 pb-10">
+        <main class="flex-1 overflow-y-auto min-h-0 px-7 py-7 pb-10 bg-paper dark:bg-[#131917]">
             @yield('content')
         </main>
     </div>

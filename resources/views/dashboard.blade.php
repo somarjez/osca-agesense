@@ -22,6 +22,21 @@
         return arr.map(c => PALETTE[c] ?? c);
     }
 
+    function isDark() {
+        return document.documentElement.classList.contains('dark');
+    }
+
+    function chartColors() {
+        const dark = isDark();
+        return {
+            grid:        dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+            gridY:       dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+            tick:        dark ? '#6b7570' : '#8a8f86',
+            pointLabel:  dark ? '#8a9087' : '#6b7269',
+            doughnutBorder: dark ? '#1a201d' : '#ffffff',
+        };
+    }
+
     function upsert(id, config) {
         const canvas = document.getElementById(id);
         if (!canvas) return;
@@ -34,6 +49,7 @@
         const el = document.getElementById('dashboard-chart-data');
         if (!el) return;
         const p = JSON.parse(el.textContent);
+        const C = chartColors();
 
         // Risk distribution — doughnut
         upsert('riskChart', {
@@ -44,7 +60,7 @@
                     data: p.risk.data,
                     backgroundColor: recolor(p.risk.colors),
                     borderWidth: 2,
-                    borderColor: '#fff',
+                    borderColor: C.doughnutBorder,
                 }],
             },
             options: {
@@ -67,7 +83,7 @@
                     data: p.cluster.data,
                     backgroundColor: recolor(p.cluster.colors),
                     borderWidth: 2,
-                    borderColor: '#fff',
+                    borderColor: C.doughnutBorder,
                 }],
             },
             options: {
@@ -89,9 +105,9 @@
                 datasets: [{
                     data: p.domain.data,
                     backgroundColor: 'rgba(47, 101, 82, 0.15)',
-                    borderColor: '#2f6552',
+                    borderColor: '#3f8068',
                     borderWidth: 2,
-                    pointBackgroundColor: '#2f6552',
+                    pointBackgroundColor: '#3f8068',
                     pointRadius: 3,
                 }],
             },
@@ -102,9 +118,18 @@
                     r: {
                         beginAtZero: true,
                         max: 100,
-                        ticks: { stepSize: 25, font: { size: 10 } },
-                        grid: { color: 'rgba(0,0,0,0.06)' },
-                        pointLabels: { font: { size: 11 } },
+                        ticks: {
+                            stepSize: 25,
+                            font: { size: 10 },
+                            color: C.tick,
+                            backdropColor: 'transparent',
+                        },
+                        grid: { color: C.grid },
+                        angleLines: { color: C.grid },
+                        pointLabels: {
+                            font: { size: 11 },
+                            color: C.pointLabel,
+                        },
                     },
                 },
                 plugins: { legend: { display: false } },
@@ -118,8 +143,8 @@
                 labels: p.age.labels,
                 datasets: [{
                     data: p.age.data,
-                    backgroundColor: '#2f6552',
-                    borderRadius: 4,
+                    backgroundColor: '#3f8068',
+                    borderRadius: 6,
                     borderSkipped: false,
                 }],
             },
@@ -128,15 +153,39 @@
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: C.tick, font: { size: 11 } },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: C.gridY },
+                        ticks: { color: C.tick, font: { size: 11 } },
+                    },
                 },
             },
         });
     }
 
+    // Re-render charts when dark mode changes (Alpine dispatches a custom event)
+    function observeDark() {
+        const html = document.documentElement;
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.attributeName === 'class') {
+                    setTimeout(render, 50);
+                    break;
+                }
+            }
+        });
+        observer.observe(html, { attributes: true });
+    }
+
     document.addEventListener('livewire:navigated', () => setTimeout(render, 0));
     document.addEventListener('livewire:updated', render);
+    document.addEventListener('DOMContentLoaded', () => {
+        observeDark();
+    });
 })();
 </script>
 @endpush

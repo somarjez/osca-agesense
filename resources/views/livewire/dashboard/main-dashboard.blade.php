@@ -63,8 +63,8 @@
 
     {{-- Active filter context banner --}}
     @if ($selectedBarangay || $selectedRisk)
-        <div class="flex items-center gap-2 text-[12px] text-ink-600 bg-info-50 border border-info-200 rounded-lg px-4 py-2.5">
-            <x-heroicon-o-funnel class="w-3.5 h-3.5 text-info-600 flex-shrink-0" />
+        <div class="flex items-center gap-2 text-[12px] text-info-700 dark:text-info-500 bg-info-100/50 dark:bg-info-500/10 border border-info-100 dark:border-info-500/20 rounded-xl px-4 py-2.5">
+            <x-heroicon-o-funnel class="w-3.5 h-3.5 text-info-500 flex-shrink-0" />
             <span>
                 Showing data for
                 @if ($selectedBarangay)
@@ -124,17 +124,17 @@
             <div class="overflow-auto max-h-56 scrollbar-thin -mx-1">
                 <table class="w-full text-[12.5px]">
                     <thead>
-                        <tr class="text-left text-ink-500">
-                            <th class="pb-2 font-medium uppercase tracking-wider text-[10.5px]">Barangay</th>
-                            <th class="pb-2 font-medium text-right uppercase tracking-wider text-[10.5px]">Total</th>
-                            <th class="pb-2 font-medium text-right uppercase tracking-wider text-[10.5px]">High Risk</th>
+                        <tr class="text-left">
+                            <th class="pb-2 font-semibold uppercase tracking-[0.1em] text-[10.5px] text-ink-400 dark:text-[#6b7570]">Barangay</th>
+                            <th class="pb-2 font-semibold text-right uppercase tracking-[0.1em] text-[10.5px] text-ink-400 dark:text-[#6b7570]">Total</th>
+                            <th class="pb-2 font-semibold text-right uppercase tracking-[0.1em] text-[10.5px] text-ink-400 dark:text-[#6b7570]">High Risk</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-paper-rule">
+                    <tbody class="divide-y divide-paper-rule dark:divide-[#2b3530]">
                         @foreach ($barangayBreakdown as $row)
                             <tr>
-                                <td class="py-2 text-ink-700 font-medium">{{ $row['barangay'] }}</td>
-                                <td class="py-2 text-right font-mono tnum text-ink-900">{{ $row['total'] }}</td>
+                                <td class="py-2 text-ink-700 dark:text-[#b0b5b2] font-medium text-[12.5px]">{{ $row['barangay'] }}</td>
+                                <td class="py-2 text-right font-mono tnum text-ink-900 dark:text-[#e4e1d8] text-[12.5px]">{{ $row['total'] }}</td>
                                 <td class="py-2 text-right">
                                     @if (($row['high'] ?? 0) > 0)
                                         <span class="badge badge-high">{{ $row['high'] }}</span>
@@ -164,7 +164,7 @@
             <div class="divide-y divide-paper-rule">
                 @forelse ($recentSeniors as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
-                    <a href="{{ route('seniors.show', $senior->id) }}" class="px-5 py-3 flex items-center gap-3 hover:bg-paper-2 transition-colors">
+                    <a href="{{ route('seniors.show', $senior->id) }}" class="px-5 py-3 flex items-center gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="w-8 h-8 rounded-full bg-forest-100 grid place-items-center flex-shrink-0">
                             <span class="text-[11px] font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name, 0, 1) . substr($senior->last_name, 0, 1)) }}</span>
                         </div>
@@ -191,7 +191,7 @@
             <x-slot name="noPadding">true</x-slot>
             <div class="divide-y divide-paper-rule">
                 @forelse ($pendingRecs as $rec)
-                    <div class="px-5 py-3 hover:bg-paper-2 transition-colors">
+                    <div class="px-5 py-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="flex items-start gap-3">
                             <span class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-md grid place-items-center text-[11px] font-bold tnum bg-high-100 text-high-700">
                                 {{ $rec->priority }}

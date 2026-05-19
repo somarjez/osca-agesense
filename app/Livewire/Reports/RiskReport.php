@@ -20,7 +20,10 @@ class RiskReport extends Component
 
     public function render()
     {
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
+
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -29,7 +32,7 @@ class RiskReport extends Component
             ->when($this->filterRisk,     fn($q) => $q->where('overall_risk_level', strtoupper($this->filterRisk)))
             ->when($this->filterCluster,  fn($q) => $q->where('cluster_named_id', $this->filterCluster))
             ->when($this->filterBarangay, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($sq) => $sq->where('barangay', $this->filterBarangay))
+                $q->whereHas('seniorCitizen', fn($sq) => $sq->active()->where('barangay', $this->filterBarangay))
             )
             ->orderBy($this->sortBy, $this->sortDir);
 

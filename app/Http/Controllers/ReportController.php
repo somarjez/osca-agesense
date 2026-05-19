@@ -40,8 +40,10 @@ class ReportController extends Controller
      */
     public function cluster(Request $request)
     {
-        // Latest ML result per senior
+        // Latest ML result per active senior only
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -127,7 +129,9 @@ class ReportController extends Controller
      */
     public function risk(Request $request)
     {
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -204,7 +208,9 @@ class ReportController extends Controller
             abort(404, 'Barangay not found.');
         }
 
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -263,7 +269,9 @@ class ReportController extends Controller
      */
     public function exportCluster()
     {
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -408,7 +416,9 @@ class ReportController extends Controller
      */
     public function exportRisk()
     {
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
