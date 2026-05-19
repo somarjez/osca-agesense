@@ -1077,7 +1077,17 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
     raw_cluster_id: Optional[int] = None
 
-    if "_precomputed_raw_cluster_id" in preprocessed:
+    if "_precomputed_named_id" in preprocessed:
+        # Direct named cluster injection — bypasses raw->named mapping lookup entirely.
+        # Used by fix_cluster_distribution.py after auto-calibrating the mapping.
+        raw_cluster_id   = int(preprocessed.get("_precomputed_raw_cluster_id", 0))
+        named_id         = max(1, min(3, int(preprocessed["_precomputed_named_id"])))
+        reduced_features = list(preprocessed.get("reduced_features") or [])
+        scaled_features  = list(preprocessed.get("scaled_features")  or [])
+        cluster_profile  = cluster_profiles[named_id]
+        # Skip to recommendations — all cluster assignment logic below is bypassed
+        warnings_list.append(f"Cluster named_id={named_id} injected directly (auto-calibrated mapping).")
+    elif "_precomputed_raw_cluster_id" in preprocessed:
         # Fast path: batch_cluster_assign already ran UMAP+KMeans for the whole batch.
         raw_cluster_id   = int(preprocessed["_precomputed_raw_cluster_id"])
         reduced_features = list(preprocessed.get("reduced_features") or [])
@@ -1152,20 +1162,19 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             raw_cluster_id = _fallback_cluster_from_wellbeing(wb)
             warnings_list.append("KMeans unavailable/incompatible; heuristic cluster assignment used.")
 
-    if cluster_map and raw_cluster_id in cluster_map:
-        named_id = cluster_map[raw_cluster_id]
-    else:
-        # Bug 9 fix: raw_cluster_id+1 could be 4 (or 0) if KMeans returns an unexpected
-        # label.  Clamp to [1,3] and warn so the issue is visible in logs.
-        named_id = raw_cluster_id + 1
-        if named_id < 1 or named_id > 3:
-            logger.warning(
-                "raw_cluster_id=%s produced out-of-range named_id=%s; clamping to [1,3].",
-                raw_cluster_id, named_id,
-            )
-
-    named_id = max(1, min(3, int(named_id)))
-    cluster_profile = cluster_profiles[named_id]
+    if "_precomputed_named_id" not in preprocessed:
+        # Normal path: resolve named_id from raw_cluster_id via cluster_map
+        if cluster_map and raw_cluster_id in cluster_map:
+            named_id = cluster_map[raw_cluster_id]
+        else:
+            named_id = raw_cluster_id + 1
+            if named_id < 1 or named_id > 3:
+                logger.warning(
+                    "raw_cluster_id=%s produced out-of-range named_id=%s; clamping to [1,3].",
+                    raw_cluster_id, named_id,
+                )
+        named_id = max(1, min(3, int(named_id)))
+        cluster_profile = cluster_profiles[named_id]
 
     notebook_override = None
     notebook_recommendations = None

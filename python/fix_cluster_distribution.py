@@ -34,7 +34,6 @@ from inference_service import (
     batch_cluster_assign, infer,
     _db_connect, _load_model, _load_first_model, _load_json,
     _safe_float, _clip01, _get_risk_level, _priority_flag,
-    _load_cluster_mapping,
 )
 
 
@@ -349,8 +348,13 @@ def main():
         with open(mapping_path, "w") as f:
             json.dump({str(k): v for k, v in corrected_map.items()}, f, indent=2)
         print(f"  [ OK ] cluster_mapping.json updated.")
-        # Clear the lru_cache so infer() picks up the new mapping in this process
-        _load_cluster_mapping.cache_clear()
+        # Inject named_id directly into each payload so infer() uses it without
+        # relying on the lru_cache being cleared (cache clearing is unreliable
+        # when infer() and this script share the same imported module).
+        for preprocessed in payloads:
+            raw_id = preprocessed.get("_precomputed_raw_cluster_id")
+            if raw_id is not None and raw_id in corrected_map:
+                preprocessed["_precomputed_named_id"] = corrected_map[raw_id]
     else:
         print(f"  [WARN] Could not auto-calibrate (raw clusters: {list(raw_qol_totals.keys())}). Using existing mapping.")
 
