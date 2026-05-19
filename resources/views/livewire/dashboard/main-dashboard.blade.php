@@ -29,6 +29,19 @@
         <x-kpi label="Pending Actions" :value="number_format($stats['pendingRecs'])" accent="moderate" sub="Recommendations open" />
     </div>
 
+    {{-- ── Model info strip ── --}}
+    <div class="flex items-center gap-2 text-[11px] text-ink-400 -mt-4">
+        <span class="font-semibold text-ink-500">Prediction Source:</span>
+        <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded
+            {{ $stats['predictionSource'] === 'Notebook Export' ? 'text-forest-700 bg-forest-50' : 'text-moderate-700 bg-moderate-50' }}">
+            {{ $stats['predictionSource'] }}
+        </span>
+        <span class="text-ink-300">&middot;</span>
+        <span>Model Version: <span class="font-mono font-semibold text-ink-600">{{ $stats['modelVersion'] }}</span></span>
+        <span class="text-ink-300">&middot;</span>
+        <span>DB: <span class="font-mono font-semibold text-ink-600">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.database') }}</span></span>
+    </div>
+
     {{-- ── Filter bar ── --}}
     <div class="flex flex-wrap items-center gap-3">
         <div class="eyebrow">Filter</div>

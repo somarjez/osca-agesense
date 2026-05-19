@@ -160,14 +160,19 @@
                     <div>
                         <h3 class="font-semibold text-slate-800 text-base">Run Batch Health Assessment?</h3>
                         <p class="text-sm text-slate-500 mt-1">
-                            This will assess <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong>: prepare data → assign health group → score risk → generate recommendations.
+                            This will assess <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong> and overwrite their current risk scores and cluster assignments.
                         </p>
-                        <p class="text-xs text-slate-400 mt-2">Jobs are queued and processed in the background. Progress updates every 3 seconds. You can safely close this tab — the queue worker continues independently.</p>
+                        <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
+                            <p class="font-semibold">Only run this when intentionally recomputing results.</p>
+                            <p>For the 283 seed seniors, results are sourced from the validated notebook export. Running batch will re-apply those same notebook scores as long as <code class="font-mono bg-amber-100 px-0.5 rounded">ENABLE_NOTEBOOK_OVERRIDES=true</code> is set in <code class="font-mono bg-amber-100 px-0.5 rounded">.env</code>.</p>
+                            <p>If notebook overrides are disabled, scores will be recomputed by the live model and <strong>may not match the notebook.</strong></p>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">Jobs are queued and processed in the background. You can safely close this tab.</p>
                     </div>
                 </div>
                 <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
                     <button @click="showConfirm = false" class="btn">Cancel</button>
-                    <button @click="start()" class="btn btn-primary">Start Batch</button>
+                    <button @click="start()" class="btn btn-primary">Confirm &amp; Run Batch</button>
                 </div>
             </div>
         </div>

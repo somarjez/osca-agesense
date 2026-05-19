@@ -187,13 +187,35 @@
                     @endforeach
                 </div>
 
-                {{-- Wellbeing --}}
+                {{-- Wellbeing + Prediction Source --}}
                 <div class="text-right flex-shrink-0">
                     <div class="eyebrow mb-1">Wellbeing</div>
                     <div class="font-serif text-3xl font-semibold tnum">
                         {{ number_format($ml->wellbeing_score * 100, 0) }}<span class="text-sm text-ink-400">/100</span>
                     </div>
                     <div class="text-[11px] text-ink-400 mt-1">Analyzed {{ $ml->processed_at?->diffForHumans() }}</div>
+                    @php
+                        $meta = $ml->raw_output['model_metadata'] ?? [];
+                        $sourceLabel = match(true) {
+                            !empty($meta['notebook_override_applied']) => 'Notebook Export',
+                            !empty($meta['db_cache_hit'])              => 'Saved DB Result',
+                            isset($meta['model_version'])              => 'Live ML Model',
+                            default                                    => 'Heuristic Fallback',
+                        };
+                        $sourceColor = match($sourceLabel) {
+                            'Notebook Export'  => 'text-forest-600 bg-forest-50',
+                            'Saved DB Result'  => 'text-info-700 bg-info-50',
+                            'Live ML Model'    => 'text-moderate-700 bg-moderate-50',
+                            default            => 'text-ink-500 bg-paper-2',
+                        };
+                        $modelVer = $meta['model_version'] ?? $ml->model_version ?? 'v1';
+                    @endphp
+                    <div class="mt-1.5 flex items-center justify-end gap-1">
+                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded {{ $sourceColor }}">
+                            {{ $sourceLabel }}
+                        </span>
+                        <span class="text-[10px] text-ink-400 font-mono">{{ $modelVer }}</span>
+                    </div>
                 </div>
 
             </div>

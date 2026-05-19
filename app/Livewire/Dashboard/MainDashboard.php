@@ -86,7 +86,14 @@ class MainDashboard extends Component
             ))
             ->count();
 
-        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs');
+        $modelVersion = MlResult::whereIn('id', $latestIds)->value('model_version') ?? '—';
+        $notebookOverrides = MlResult::whereIn('id', $latestIds)
+            ->whereNotNull('raw_output')
+            ->whereRaw("JSON_EXTRACT(raw_output, '$.model_metadata.notebook_override_applied') = true")
+            ->count();
+        $predictionSource = $notebookOverrides > 0 ? 'Notebook Export' : 'Live ML Model';
+
+        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs', 'modelVersion', 'predictionSource');
     }
 
     private function getRiskDistribution(): array
