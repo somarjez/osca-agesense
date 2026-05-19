@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -55,8 +56,8 @@ class ExportTest extends TestCase
         );
         $this->viewer->syncRoles(['viewer']);
 
-        // Seed a minimal active senior so PDF/CSV/Excel export tests always have data.
-        // DatabaseTransactions rolls this back after each test.
+        // Seed a minimal active senior + ML result so all export tests have data.
+        // DatabaseTransactions rolls everything back after each test.
         $this->senior = SeniorCitizen::firstOrCreate(
             ['osca_id' => 'TST-2026-0001'],
             [
@@ -67,6 +68,26 @@ class ExportTest extends TestCase
                 'age'           => 76,
                 'gender'        => 'Male',
                 'status'        => 'active',
+            ]
+        );
+
+        // HIGH risk so the senior appears in both the cluster CSV and risk CSV exports.
+        MlResult::firstOrCreate(
+            ['senior_citizen_id' => $this->senior->id],
+            [
+                'cluster_id'        => 2,
+                'cluster_named_id'  => 3,
+                'cluster_name'      => 'Low Functioning / Multi-domain Risk',
+                'overall_risk_level'=> 'HIGH',
+                'ic_risk_level'     => 'high',
+                'env_risk_level'    => 'high',
+                'func_risk_level'   => 'high',
+                'composite_risk'    => 0.75,
+                'ic_risk'           => 0.72,
+                'env_risk'          => 0.68,
+                'func_risk'         => 0.70,
+                'wellbeing_score'   => 0.30,
+                'processed_at'      => now(),
             ]
         );
     }
