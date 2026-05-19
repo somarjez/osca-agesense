@@ -27,6 +27,7 @@ Write-Host "    8.  Build frontend assets"
 Write-Host "    9.  Create Python virtual environment"
 Write-Host "   10.  Install Python ML dependencies"
 Write-Host "   11.  Sync ML model files from osca_output"
+Write-Host "   12.  Align cluster distribution (ensures consistent results across devices)"
 Write-Host ""
 Write-Host "  Estimated time: 5-15 minutes (depending on internet speed)"
 Write-Host ""
@@ -231,7 +232,7 @@ Write-Host " [ OK ] Python ML dependencies installed."
 Write-Host ""
 
 # ── STEP 9: Sync ML model files ─────────────────────────────────────────────────
-Write-Host " -- [9/9] Syncing ML model files from osca_output --"
+Write-Host " -- [9/10] Syncing ML model files from osca_output --"
 $oscaOutput = "$PROJECT\..\osca_output"
 if (Test-Path "$oscaOutput\model") {
     Write-Host " Found osca_output\model - copying model files to python\models ..."
@@ -241,16 +242,27 @@ if (Test-Path "$oscaOutput\model") {
 } else {
     Write-Host " osca_output\model not found - keeping existing python\models files."
 }
-if (Test-Path "$oscaOutput\predictions") {
-    Write-Host " Found osca_output\predictions - copying prediction CSVs ..."
-    if (-not (Test-Path "$PROJECT\python\models\predictions")) {
-        New-Item -ItemType Directory "$PROJECT\python\models\predictions" | Out-Null
+Write-Host ""
+
+# ── STEP 10: Align cluster distribution ─────────────────────────────────────────
+Write-Host " -- [10/10] Aligning cluster distribution (fix_cluster_distribution.py) --"
+Write-Host " Each device runs its own local database. This step re-processes all seniors"
+Write-Host " in one batch UMAP transform so cluster results are identical across all devices."
+Write-Host " This may take 1-2 minutes..."
+Write-Host ""
+$fixScript = "$PROJECT\python\fix_cluster_distribution.py"
+$pythonExe = "$PROJECT\python\venv\Scripts\python.exe"
+if ((Test-Path $fixScript) -and (Test-Path $pythonExe)) {
+    & $pythonExe $fixScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host " [WARN] Cluster alignment encountered errors. Results may differ across devices."
+        Write-Host "        Re-run manually: python\venv\Scripts\python.exe python\fix_cluster_distribution.py"
+    } else {
+        Write-Host " [ OK ] Cluster distribution aligned."
     }
-    Copy-Item "$oscaOutput\predictions\senior_predictions.csv"          "$PROJECT\python\models\predictions\" -Force -ErrorAction SilentlyContinue
-    Copy-Item "$oscaOutput\predictions\senior_recommendations_flat.csv" "$PROJECT\python\models\predictions\" -Force -ErrorAction SilentlyContinue
-    Write-Host " [ OK ] Prediction CSVs synced."
 } else {
-    Write-Host " osca_output\predictions not found - keeping existing prediction CSVs."
+    Write-Host " [SKIP] fix_cluster_distribution.py or Python venv not found - skipping."
+    Write-Host "        Run manually after setup: python\venv\Scripts\python.exe python\fix_cluster_distribution.py"
 }
 Write-Host ""
 
