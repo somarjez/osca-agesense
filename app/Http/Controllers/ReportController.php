@@ -313,7 +313,7 @@ class ReportController extends Controller
                 'Cluster ID','Cluster Name','Risk Level','Composite Risk',
                 'IC Risk','Env Risk','Func Risk','Wellbeing Score','Processed At']);
             foreach ($data as $row) {
-                fputcsv($file, (array) $row);
+                fputcsv($file, array_values($row->toArray()));
             }
             fclose($file);
         };
@@ -450,7 +450,7 @@ class ReportController extends Controller
             fputcsv($file, ['OSCA ID','Name','Barangay','Age','Risk Level',
                 'Composite Risk','IC Risk Level','Env Risk Level','Func Risk Level','Processed At']);
             foreach ($data as $row) {
-                fputcsv($file, (array) $row);
+                fputcsv($file, array_values($row->toArray()));
             }
             fclose($file);
         };
