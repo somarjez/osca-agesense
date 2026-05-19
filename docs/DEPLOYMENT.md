@@ -99,7 +99,7 @@ One file is gitignored and must be obtained from the project lead before setup. 
 |---|---|
 | `osca.csv` | Project root — same folder as `setup.bat` |
 
-> **Note:** The prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are no longer required. The system now uses a DB-backed ML result cache — consistent results across all devices are guaranteed through the shared MySQL database. See [ML_PIPELINE.md — Cross-device Consistency](ML_PIPELINE.md#cross-device-consistency).
+> **Note:** The prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are no longer required. See [ML_PIPELINE.md — Cross-device Consistency](ML_PIPELINE.md#cross-device-consistency) for details on how consistent results are maintained across devices.
 
 #### Setup steps
 
@@ -109,9 +109,16 @@ One file is gitignored and must be obtained from the project lead before setup. 
 3. Create the MySQL database: CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 4. Place osca.csv in the project root
 5. Double-click setup.bat
+6. After setup completes, run the one-time recluster (see note below)
 ```
 
 `setup.bat` handles: `composer install`, `npm install`, `.env` creation and key sync, application key generation, database migrations, CSV seeding (if `osca.csv` is present), frontend build, Python virtual environment creation, and Python dependency installation.
+
+> **Important — each device runs its own local database.** After seeding, run this command once to align cluster assignments with the notebook. Without it, different devices will show different health group results for the same seniors:
+> ```powershell
+> python\venv\Scripts\python.exe python\fix_cluster_distribution.py
+> ```
+> This takes ~1–2 minutes and only needs to be run once after the initial seed. It processes all seniors together in one batch UMAP transform so the results are identical across all devices.
 
 After first-time setup, use `start.bat` to launch the system every session.
 
@@ -461,17 +468,23 @@ Once logged in as an administrator, go to **Administration → User Management**
 
 ## 9. Loading Existing Data
 
-### Prediction CSVs — no longer required
+### Important — each device has its own local database
 
-The prediction CSV files have been retired. The system now uses a **DB-backed ML result cache** — after the first machine processes a senior, results are stored in `ml_results` and all other devices read from there. No CSV files need to be transferred between machines.
+Each of the three devices runs its own local MySQL database seeded from `osca.csv`. Because of this, cluster assignments must be aligned on every device after seeding — otherwise each device will produce different health group results for the same seniors.
 
-After a fresh seed on a new machine, run the batch re-clustering script once to ensure all seniors are processed consistently via a full-population UMAP transform (same as the notebook):
+**After every fresh seed, run this once:**
 
 ```powershell
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
 ```
 
-This is only needed after `migrate:fresh` + re-seed. For normal operation, running "Run Full Batch" from the ML dashboard automatically re-clusters all seniors after every batch analysis — no manual script needed.
+This processes all seniors together in a single batch UMAP transform (same as the notebook) and updates every `ml_results` row in the local database. It takes ~1–2 minutes and must be run on every device after `setup.bat` or `migrate:fresh` + re-seed.
+
+For normal day-to-day operation — adding new seniors, running individual assessments — **Run Full Batch** from the ML dashboard (`/ml/batch`) automatically re-clusters all seniors after every batch run. No manual script needed.
+
+### Prediction CSVs — no longer required
+
+The prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) have been retired. Risk scores and recommendations are now computed live by the inference service and stored in `ml_results`. No CSV files need to be transferred between machines.
 
 ### CSV bulk import
 
@@ -506,57 +519,73 @@ After re-cloning, run `setup.bat` to recreate `.env`, install dependencies, and 
 
 ---
 
-## 10. Syncing Other Devices After a Code Update
+## 10. What Other Devices Need To Do
 
-When the lead device pushes a new release (features, bug fixes, or ML pipeline changes), every other machine must pull and restart. The steps below cover all cases.
+### First-time setup on a new device
 
-### Standard update (no schema change)
+The repo is already cloned on the other devices. Run these steps in order:
 
 ```powershell
-# 1. Pull latest code
+# Step 1 — Pull the latest code
 git pull
 
-# 2. Restart start.bat — this restarts the queue worker with the new code
-#    Close all existing terminals first, then double-click start.bat
-```
+# Step 2 — Run setup (installs dependencies, seeds database, builds frontend)
+#           Place osca.csv in the project root first
+setup.bat
 
-That's all. The queue worker **must be restarted** after any PHP code change — it loads classes once at startup and will keep running the old version until restarted. If you skip this step, new jobs (like `RecalculateClusters`) will fail with "Call to undefined method" errors.
-
-### After a migration (new database columns)
-
-```powershell
-git pull
-php artisan migrate
-# Then restart start.bat as above
-```
-
-### After a fresh seed on a new machine
-
-```powershell
-# 1. Run setup.bat (first time only)
-# 2. After seeding completes, run the one-time recluster:
+# Step 3 — Align cluster results (run ONCE after setup completes)
 python\venv\Scripts\python.exe python\fix_cluster_distribution.py
-# 3. Start normally with start.bat
+
+# Step 4 — Start the system
+start.bat
 ```
+
+Step 3 is critical. Without it, each device's cluster assignments will differ from each other because UMAP behaves differently when processing seniors one at a time vs. all together. This script processes all seniors in one batch, producing results identical to the notebook regardless of CPU.
+
+---
+
+### After a code update (lead device pushed new changes)
+
+```powershell
+# Step 1 — Pull latest code
+git pull
+
+# Step 2 — Apply any new database migrations (check if any .php files changed in database/migrations/)
+php artisan migrate
+
+# Step 3 — Close all terminals, then double-click start.bat
+#           The queue worker MUST restart to load updated PHP classes.
+#           Skipping this causes jobs to fail with "Call to undefined method" errors.
+start.bat
+```
+
+If frontend assets changed (`resources/js/` or `resources/css/`), also run:
+```powershell
+npm run build
+```
+
+---
 
 ### After a queue worker crash or "Finalising health group assignments…" stuck forever
 
-The recluster job (`RecalculateClusters`) has `tries = 1` — it does not auto-retry on failure.
+The `RecalculateClusters` job does not auto-retry on failure (`tries = 1`).
 
 ```powershell
-# 1. Restart start.bat (restarts queue worker with fresh code)
-# 2. Clear the failed job
+# Step 1 — Restart start.bat (close all terminals first)
+# Step 2 — Clear the failed job
 php artisan queue:flush
-# 3. Re-run batch from /ml/batch — the recluster will now complete correctly
+# Step 3 — Go to /ml/batch and click Run Full Batch again
 ```
 
-### Quick checklist for each device after any push
+---
 
-- [ ] `git pull` completed without conflicts
-- [ ] `php artisan migrate` if new migrations exist (check `database/migrations/`)
-- [ ] `start.bat` restarted (queue worker running fresh)
-- [ ] `npm run build` if frontend assets changed (check `resources/js/` or `resources/css/`)
-- [ ] Python services online (green dot in nav bar)
+### Quick checklist — after any pull
+
+- [ ] `git pull` completed without merge conflicts
+- [ ] `php artisan migrate` if new migration files exist
+- [ ] `start.bat` restarted (queue worker picks up new code)
+- [ ] `npm run build` if JS/CSS files changed
+- [ ] Green dot in nav bar (Python services online)
 
 ---
 
