@@ -11,6 +11,7 @@ class MlResult extends Model
     protected $fillable = [
         'senior_citizen_id', 'qol_survey_id', 'model_version',
         'prediction_source', 'is_cached_prediction', 'critical_flag',
+        'is_stale', 'stale_reason', 'stale_at',
         'cluster_id', 'cluster_named_id', 'cluster_name',
         'ic_risk', 'env_risk', 'func_risk', 'composite_risk', 'wellbeing_score',
         'ic_risk_level', 'env_risk_level', 'func_risk_level', 'overall_risk_level',
@@ -30,6 +31,8 @@ class MlResult extends Model
         'scored_at'           => 'datetime',
         'is_cached_prediction' => 'boolean',
         'critical_flag'        => 'boolean',
+        'is_stale'             => 'boolean',
+        'stale_at'             => 'datetime',
         'ic_risk'          => 'float',
         'env_risk'         => 'float',
         'func_risk'        => 'float',
@@ -88,6 +91,48 @@ class MlResult extends Model
     public function isUrgentPriority(): bool
     {
         return $this->priority_flag === 'urgent';
+    }
+
+    /**
+     * Reasons that invalidate data-derived cached results, including notebook_cache.
+     * Any change to the senior's actual input data means the stored result no longer
+     * reflects their current situation, regardless of how it was originally produced.
+     */
+    private const DATA_CHANGE_REASONS = [
+        'senior_profile_updated',
+        'qol_updated',
+    ];
+
+    /**
+     * Mark this result as stale without deleting it.
+     * The stale result is preserved and displayed until the next analysis run.
+     *
+     * notebook_cache rows CAN be marked stale when the senior's actual input data
+     * changes (senior_profile_updated, qol_updated) — the stored result no longer
+     * reflects the senior's current situation and must be recomputed.
+     *
+     * notebook_cache rows are NOT marked stale for model-version-only invalidation —
+     * that protection is handled in findReusableResult() and is defense/pilot-specific.
+     */
+    public function markStale(string $reason): void
+    {
+        // notebook_cache rows are protected from version-only invalidation.
+        // They can still be marked stale when real input data changes.
+        if ($this->prediction_source === 'notebook_cache'
+            && !in_array($reason, self::DATA_CHANGE_REASONS, true)) {
+            return;
+        }
+
+        $this->update([
+            'is_stale'     => true,
+            'stale_reason' => $reason,
+            'stale_at'     => now(),
+        ]);
+    }
+
+    public function isStale(): bool
+    {
+        return (bool) $this->is_stale;
     }
 
     public function getClusterColorAttribute(): string

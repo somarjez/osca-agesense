@@ -10,6 +10,7 @@
 > - The trained model artifacts in `python/models/` are already committed to the repository.
 > - The original 283 seeded seniors are scored via `notebook_cache` (their results were validated in the notebook and stored in the database).
 > - New seniors added after seeding are scored by the live model pipeline (`live_model` prediction path).
+> - `notebook_cache` rows are marked stale — and will be recomputed via live_model — if a senior's profile or QoL data changes. Model version bumps alone do not invalidate notebook_cache rows.
 > - Only run this workflow when the model needs to be retrained from scratch and a new set of artifacts must replace the existing ones.
 
 ---

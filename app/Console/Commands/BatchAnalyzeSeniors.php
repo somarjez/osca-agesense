@@ -15,22 +15,24 @@ use Illuminate\Support\Facades\DB;
  * Falls back to local Python subprocess mode automatically when Flask
  * HTTP services are unavailable.
  *
+ * By default, valid non-stale results with a matching model_version are reused
+ * and not recomputed. Use --force to recompute every row regardless.
+ *
  * Options:
  *   --chunk=N                    Process N seniors per chunk (default: 50)
  *   --barangay=NAME              Limit to a specific barangay
+ *   --force                      Recompute all rows, ignoring existing cached results
+ *   --stale-only                 Recompute only stale or version-mismatched rows
  *   --strict-notebook-cache      After batch completes, exit 1 if any seed senior
  *                                 has prediction_source != notebook_cache
- *
- * Usage:
- *   php artisan ml:batch-analyze
- *   php artisan ml:batch-analyze --chunk=25 --strict-notebook-cache
- *   php artisan ml:batch-analyze --barangay="San Isidro" --strict-notebook-cache
  */
 class BatchAnalyzeSeniors extends Command
 {
     protected $signature = 'ml:batch-analyze
-                            {--chunk=50      : Number of seniors per processing chunk}
-                            {--barangay=     : Limit processing to a specific barangay}
+                            {--chunk=50           : Number of seniors per processing chunk}
+                            {--barangay=          : Limit processing to a specific barangay}
+                            {--force              : Recompute all rows, ignoring existing cached results}
+                            {--stale-only         : Only recompute stale or version-mismatched rows}
                             {--strict-notebook-cache : Exit 1 if any seed senior has prediction_source != notebook_cache after batch}';
 
     protected $description = 'Run ML batch analysis for all active seniors with a QoL survey.';
@@ -41,6 +43,8 @@ class BatchAnalyzeSeniors extends Command
 
         $chunkSize  = max(1, (int) ($this->option('chunk') ?: 50));
         $barangay   = $this->option('barangay');
+        $force      = (bool) $this->option('force');
+        $staleOnly  = (bool) $this->option('stale-only');
         $strictMode = (bool) $this->option('strict-notebook-cache');
 
         $query = SeniorCitizen::active()
@@ -56,12 +60,10 @@ class BatchAnalyzeSeniors extends Command
         $this->info("=== ml:batch-analyze ===");
         $this->info("Seniors to process : {$total}");
         $this->info("Chunk size         : {$chunkSize}");
-        if ($barangay) {
-            $this->info("Barangay filter    : {$barangay}");
-        }
-        if ($strictMode) {
-            $this->info("Mode               : --strict-notebook-cache enabled");
-        }
+        if ($barangay) $this->info("Barangay filter    : {$barangay}");
+        if ($force)    $this->info("Mode               : --force (recompute all)");
+        if ($staleOnly) $this->info("Mode               : --stale-only (skip valid rows)");
+        if ($strictMode) $this->info("Post-check         : --strict-notebook-cache enabled");
         $this->line('');
 
         if ($total === 0) {
@@ -69,40 +71,102 @@ class BatchAnalyzeSeniors extends Command
             return self::SUCCESS;
         }
 
-        $succeeded = 0;
-        $failed    = 0;
-        $bar       = $this->output->createProgressBar($total);
+        // Counters
+        $reused                  = 0;
+        $staleRecomputed         = 0;
+        $versionMismatchRecomputed = 0;
+        $missingComputed         = 0;
+        $fallbackUpgraded        = 0;
+        $failed                  = 0;
+        $notebookCacheCount      = 0;
+        $liveModelCount          = 0;
+        $fallbackCount           = 0;
+
+        $bar = $this->output->createProgressBar($total);
         $bar->start();
 
-        $query->chunk($chunkSize, function ($seniors) use ($ml, &$succeeded, &$failed, $bar) {
-            $items = $seniors
-                ->filter(fn($s) => $s->latestQolSurvey !== null)
-                ->map(fn($s) => ['senior' => $s, 'survey' => $s->latestQolSurvey])
-                ->values()
-                ->all();
+        $query->chunk($chunkSize, function ($seniors) use (
+            $ml, $force, $staleOnly,
+            &$reused, &$staleRecomputed, &$versionMismatchRecomputed,
+            &$missingComputed, &$fallbackUpgraded, &$failed,
+            &$notebookCacheCount, &$liveModelCount, &$fallbackCount,
+            $bar
+        ) {
+            foreach ($seniors as $senior) {
+                $survey = $senior->latestQolSurvey;
+                if (!$survey) {
+                    $bar->advance();
+                    continue;
+                }
 
-            if (empty($items)) {
-                return;
-            }
+                // Determine what to do with this senior's existing result
+                $existing = MlResult::where('senior_citizen_id', $senior->id)
+                    ->where('qol_survey_id', $survey->id)
+                    ->orderByDesc('id')
+                    ->first();
 
-            $results = $ml->runBatchPipeline($items);
+                $needsRecompute = $this->needsRecompute($existing, $ml, $force, $staleOnly);
 
-            foreach ($results as $res) {
-                if ($res['success'] ?? false) {
-                    $succeeded++;
-                } else {
+                if (!$needsRecompute) {
+                    // Reuse valid result — track source counts
+                    $reused++;
+                    match ($existing->prediction_source) {
+                        'notebook_cache' => $notebookCacheCount++,
+                        'live_model'     => $liveModelCount++,
+                        default          => $fallbackCount++,
+                    };
+                    $bar->advance();
+                    continue;
+                }
+
+                // Determine recompute reason for counter tracking
+                $recomputeReason = $this->recomputeReason($existing, $ml, $force);
+
+                try {
+                    $result = $ml->runPipeline($senior, $survey, force: true);
+
+                    match ($recomputeReason) {
+                        'stale'            => $staleRecomputed++,
+                        'version_mismatch' => $versionMismatchRecomputed++,
+                        'missing'          => $missingComputed++,
+                        'fallback_upgrade' => $fallbackUpgraded++,
+                        default            => $missingComputed++,
+                    };
+
+                    match ($result->prediction_source) {
+                        'notebook_cache' => $notebookCacheCount++,
+                        'live_model'     => $liveModelCount++,
+                        default          => $fallbackCount++,
+                    };
+                } catch (\Throwable $e) {
                     $failed++;
                 }
+
+                $bar->advance();
             }
-            $bar->advance(count($items));
         });
 
         $bar->finish();
         $this->line("\n");
-        $this->info("Batch complete — succeeded: {$succeeded}, failed: {$failed}");
+
+        $this->info("=== Batch Summary ===");
+        $this->table(
+            ['Category', 'Count'],
+            [
+                ['Reused (valid, not recomputed)',         $reused],
+                ['Stale → recomputed',                    $staleRecomputed],
+                ['Version mismatch → recomputed',         $versionMismatchRecomputed],
+                ['Missing → computed',                    $missingComputed],
+                ['Fallback upgraded → recomputed',        $fallbackUpgraded],
+                ['Failed',                                $failed],
+                ['', ''],
+                ['Result: notebook_cache',                $notebookCacheCount],
+                ['Result: live_model',                    $liveModelCount],
+                ['Result: fallback',                      $fallbackCount],
+            ]
+        );
         $this->line('');
 
-        // ── Strict notebook-cache check ────────────────────────────────────
         if ($strictMode) {
             return $this->runStrictCheck();
         }
@@ -110,30 +174,68 @@ class BatchAnalyzeSeniors extends Command
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
 
+    private function needsRecompute(?MlResult $existing, MlService $ml, bool $force, bool $staleOnly): bool
+    {
+        if ($force) {
+            return true;
+        }
+
+        // No existing row — must compute
+        if ($existing === null) {
+            return true;
+        }
+
+        // Stale — must recompute
+        if ($existing->is_stale) {
+            return true;
+        }
+
+        // Model version changed — must recompute (notebook_cache is immune)
+        if ($existing->prediction_source !== 'notebook_cache'
+            && $existing->model_version !== MlService::MODEL_VERSION) {
+            return true;
+        }
+
+        // Fallback result — upgrade to live_model when services are available
+        if ($existing->prediction_source === 'fallback' && $ml->isPreprocessAvailable()) {
+            return true;
+        }
+
+        // --stale-only: if we reach here, row is valid — skip it
+        if ($staleOnly) {
+            return false;
+        }
+
+        // Default: reuse valid rows
+        return false;
+    }
+
+    private function recomputeReason(?MlResult $existing, MlService $ml, bool $force): string
+    {
+        if ($existing === null) return 'missing';
+        if ($existing->is_stale) return 'stale';
+        if ($existing->prediction_source === 'fallback' && $ml->isPreprocessAvailable()) return 'fallback_upgrade';
+        if ($existing->model_version !== MlService::MODEL_VERSION) return 'version_mismatch';
+        return 'force';
+    }
+
     /**
      * After batch completes, verify all seed seniors have notebook_cache.
-     * "Seed senior" = any senior whose identity (norm_name + barangay + age)
-     * appears in the check_prediction_sources.py CSV set.  Since we cannot
-     * easily load the CSV here, we use the simpler heuristic: any senior
-     * with prediction_source = live_model is a candidate mismatch.
-     *
-     * Returns SUCCESS (0) if no live_model rows remain, FAILURE (1) otherwise.
      */
     private function runStrictCheck(): int
     {
         $this->info("=== --strict-notebook-cache check ===");
 
-        // Get latest ml_result per active senior
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereHas('seniorCitizen', fn($q) => $q->active())
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
-        $nbCount   = MlResult::whereIn('id', $latestIds)
+        $nbCount  = MlResult::whereIn('id', $latestIds)
             ->where('prediction_source', 'notebook_cache')
             ->count();
 
-        $liveRows  = MlResult::whereIn('id', $latestIds)
+        $liveRows = MlResult::whereIn('id', $latestIds)
             ->where('prediction_source', 'live_model')
             ->with('seniorCitizen')
             ->get();
@@ -158,7 +260,7 @@ class BatchAnalyzeSeniors extends Command
 
         $this->table(['ID', 'Name', 'Barangay', 'Age', 'Source'], $rows);
         $this->line('');
-        $this->error("--strict-notebook-cache check FAILED: " . $liveRows->count() . " live_model row(s) remain.");
+        $this->error("--strict-notebook-cache FAILED: " . $liveRows->count() . " live_model row(s) remain.");
         $this->line("Run: php artisan ml:repair-notebook-cache");
 
         return self::FAILURE;

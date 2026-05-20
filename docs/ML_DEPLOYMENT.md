@@ -18,6 +18,7 @@ This guide explains how the ML pipeline is deployed, how model artifacts are man
 10. [When to Enable or Disable Notebook Overrides](#10-when-to-enable-or-disable-notebook-overrides)
 11. [Environment Variables Reference](#11-environment-variables-reference)
 12. [Troubleshooting](#12-troubleshooting)
+13. [ML Result Staleness](#13-ml-result-staleness)
 
 ---
 
@@ -410,6 +411,38 @@ python\venv\Scripts\pip.exe install pymysql
 ### Prediction source shows fallback
 
 The Python ML services were unreachable when the analysis ran. Start the services and re-run analysis for any affected seniors. Fallback results are approximate and should not be used for the defense.
+
+---
+
+## 13. ML Result Staleness
+
+The system stores one ML result row per senior and reuses it on subsequent visits rather than recomputing every time. A result is marked **stale** when the stored estimate no longer reflects the senior's current data.
+
+### When a result is marked stale
+
+| Trigger | notebook_cache | live_model |
+|---|---|---|
+| Senior profile field changes (age, income, household, etc.) | Yes — stale | Yes — stale |
+| QoL survey updated or new survey submitted | Yes — stale | Yes — stale |
+| Model version bumped (new `MODEL_VERSION`) | **No — exempt** | Yes — recompute |
+
+`notebook_cache` rows are **exempt from model-version invalidation**. The notebook predictions are fixed baselines validated against the thesis notebook; changing the version string does not make them incorrect.
+
+### Stale result behavior
+
+- Stale results remain visible in the UI with a stale indicator until the next analysis run.
+- When a user clicks "Run Analysis" for a stale senior, the pipeline recomputes and overwrites the stale row.
+- `ml:batch-analyze` (without `--force`) automatically recomputes all stale rows.
+
+### Verifying staleness behavior
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\test_staleness.py
+```
+
+Expected: **20 PASS, 0 FAIL**
+
+The script covers: initial state, profile-change staleness, QoL-change staleness, notebook_cache data-change staleness, notebook_cache version-only exemption, model-version detection, reusable row count, and prediction source distribution.
 
 ---
 
