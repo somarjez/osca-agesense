@@ -67,7 +67,7 @@ All artefacts live in `python/models/` (overridable via `ML_MODELS_PATH` in `.en
 | `cluster_mapping.json` | Maps raw KMeans IDs `{0,1,2}` → named IDs `{1,2,3}` |
 | `asset_weights.json` | Runtime-overridable scoring weights (see [Runtime Configuration](#runtime-configuration)) |
 | `cluster_metadata.json` | Optional — overrides cluster names/descriptions without code changes |
-| ~~`predictions/senior_predictions.csv`~~ | Removed — superseded by DB-backed ML result cache (see [Cross-device Consistency](#cross-device-consistency)) |
+| `predictions/senior_predictions.csv` | Notebook-validated per-senior predictions — required when `ENABLE_NOTEBOOK_OVERRIDES=true` (defense/pilot mode). Gitignored; distribute out-of-band. |
 
 ---
 
@@ -372,11 +372,16 @@ All three cluster IDs must be present or the file is ignored and hardcoded defau
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
-**Default: `false`** (CSV-based override system has been retired).
+Controls which prediction path is used for the 283 original seeded seniors.
 
-Previously, this flag made the inference service match seniors against `senior_predictions.csv`. That file has been removed — the DB-backed ML result cache (described below) now provides cross-device consistency without requiring any per-machine CSV files.
+| Value | Mode | Behaviour |
+|---|---|---|
+| `true` | **Defense / pilot mode** | Original 283 seeded seniors are served from the `notebook_cache` — their risk scores, clusters, and composite values come directly from the notebook-validated database rows. New or unmatched seniors always use the live model regardless of this setting. |
+| `false` | **Pure live-model mode** | All seniors are processed through the live inference pipeline (preprocess → UMAP → KMeans → GBR/RFR). Useful for validating that model artifacts produce deterministic results across runs. |
 
-Leave this set to `false`. Setting it to `true` has no effect unless the CSV files are manually restored.
+**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 seeded seniors exactly match the notebook-validated values (HIGH=54, MODERATE=191, LOW=38).
+
+**For model validation and determinism testing, set `ENABLE_NOTEBOOK_OVERRIDES=false`.** All seniors run through the live model pipeline, allowing you to verify that repeated runs produce consistent scores.
 
 ---
 

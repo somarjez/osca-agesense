@@ -1,11 +1,34 @@
 # AgeSense — Database Sharing & Dump Guide
 
+> **Authoritative guide:** [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) is the current recommended guide with full step-by-step instructions.
+> This file contains supplementary detail on export/import commands, verification queries, and privacy rules.
+
 This guide covers two approaches for keeping all three team devices in sync:
 
 | Approach | Best for | Requires |
 |---|---|---|
 | **Shared Remote MySQL** | Final defense, live demo | Same WiFi/LAN |
 | **Database Dump Import** | Offline, backup, travel | USB / file transfer |
+
+---
+
+## When Identical Results Require the Same DB Dump
+
+**You need the same database dump when:**
+- All devices must show the exact same risk distribution (HIGH=54, MODERATE=191, LOW=38)
+- All devices must show the exact same cluster distribution (C1=75, C2=132, C3=76)
+- You need screenshots or data from multiple devices to match identically for Chapter 4
+
+**You do NOT need the same dump when:**
+- You are developing or testing on a local device
+- The database was independently seeded from `osca.csv` with `ENABLE_NOTEBOOK_OVERRIDES=true` — the 283 notebook_cache rows will have the same risk scores, but new seniors added locally will differ
+- You are only testing the live model path on a new senior
+
+**Why different local databases may naturally produce different outputs for new seniors:**
+- When `ENABLE_NOTEBOOK_OVERRIDES=false`, the live model scores seniors through UMAP + KMeans
+- UMAP results can vary slightly across different CPU architectures or OS versions
+- The risk scores (GBR/RFR) will be identical across devices for the same input, but cluster assignments may differ
+- This is expected behavior and not a bug — use the shared DB or import the same dump when consistent cluster results are required for multiple devices
 
 ---
 

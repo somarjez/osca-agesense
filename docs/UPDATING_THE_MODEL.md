@@ -3,6 +3,15 @@
 > **Audience:** The developer who owns the Jupyter notebook and retrains the model.
 > Other machines (collaborators, other laptops) do not need the notebook — they just `git pull` and reseed.
 
+> **Scope — read this first:**
+> This file describes the retraining workflow. **Normal deployment and defense setup do not require running the notebook.**
+> For normal setup, follow [DEPLOYMENT.md](DEPLOYMENT.md) and [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) instead.
+>
+> - The trained model artifacts in `python/models/` are already committed to the repository.
+> - The original 283 seeded seniors are scored via `notebook_cache` (their results were validated in the notebook and stored in the database).
+> - New seniors added after seeding are scored by the live model pipeline (`live_model` prediction path).
+> - Only run this workflow when the model needs to be retrained from scratch and a new set of artifacts must replace the existing ones.
+
 ---
 
 ## Table of Contents
@@ -191,7 +200,7 @@ Before committing, do a quick sanity check:
 1. Start the system: `start.bat`
 2. Go to `/ml/status` — confirm both services show `ok`
 3. Go to the dashboard — confirm the risk distribution matches your notebook output:
-   - HIGH: 56, MODERATE: 193, LOW: 39, Urgent: 2
+   - HIGH: 54, MODERATE: 191, LOW: 38
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
 If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
@@ -292,10 +301,9 @@ Start the system with `start.bat` and open the browser. The dashboard should sho
 | Metric | Expected value |
 |---|---|
 | Total seniors | 283 |
-| HIGH risk | 56 |
-| MODERATE risk | 193 |
-| LOW risk | 39 |
-| Urgent | 2 |
+| HIGH risk | 54 |
+| MODERATE risk | 191 |
+| LOW risk | 38 |
 | Pending recommendations | ~2,273 |
 
 If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-numbers) below.
@@ -310,7 +318,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
-- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=193, LOW=39, Urgent=2)
+- [ ] Dashboard shows correct distribution (HIGH=54, MODERATE=191, LOW=38)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
@@ -323,7 +331,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] `git pull`
 - [ ] `start.bat` ran at least once (to sync `.env` keys)
 - [ ] `php artisan migrate:fresh --seed` completed with `ML success: 283`
-- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=193, LOW=39, Urgent=2)
+- [ ] Dashboard shows correct distribution (HIGH=54, MODERATE=191, LOW=38)
 
 ---
 
