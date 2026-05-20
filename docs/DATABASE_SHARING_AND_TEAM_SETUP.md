@@ -255,25 +255,16 @@ EXIT;
 
 ### Step 6 — Import the dump
 
-If the dump was exported with `--databases` (it was, per the export command above):
+> **Important — do NOT use `<` in PowerShell**
+> The `<` redirect operator is not supported in PowerShell and will throw a `RedirectionNotSupported` error.
+> Use `Get-Content` to pipe the file instead, as shown below.
 
 **Laragon (this project uses Laragon):**
 ```powershell
-& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
+Get-Content "database\backups\agesense_main_validated_dump.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 ```
 
-**If `mysql` is in PATH:**
-```powershell
-mysql -u root < database\backups\agesense_main_validated_dump.sql
-```
-
-**Standard MySQL install:**
-```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root `
-    < database\backups\agesense_main_validated_dump.sql
-```
-
-> **Note:** Because the dump was created with `--databases`, it includes `CREATE DATABASE` and `USE` statements. Importing with `mysql -u root -p < dump.sql` is sufficient — you do not need to specify the database name.
+> **Note:** Because the dump was created with `--databases`, it includes `CREATE DATABASE` and `USE` statements. You do not need to specify the database name.
 
 ### Step 7 — Run Laravel cleanup
 ```powershell
@@ -464,7 +455,7 @@ EXIT;
 ```
 ```powershell
 # Step 2 — Reimport the validated dump
-& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
+Get-Content "database\backups\agesense_main_validated_dump.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 
 # Step 3 — Clear caches and run migrations
 php artisan config:clear
@@ -561,8 +552,8 @@ python\venv\Scripts\python.exe python/check_prediction_sources.py
 # CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 # EXIT;
 
-# Import
-& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
+# Import (use Get-Content — the < operator is not supported in PowerShell)
+Get-Content "database\backups\agesense_main_validated_dump.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 php artisan config:clear; php artisan cache:clear; php artisan migrate --force
 ```
 
