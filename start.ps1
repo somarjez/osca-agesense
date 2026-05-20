@@ -145,7 +145,7 @@ Write-Host "       (Models load ~30 seconds on first run)"
 # This outer log captures the startup orchestration output from start_services.ps1 itself.
 $mlStartLog    = "$PROJECT\storage\logs\python-services-start.log"
 $mlStartErrLog = "$PROJECT\storage\logs\python-services-start.err.log"
-Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","$PROJECT\python\start_services.ps1" -WindowStyle Hidden -RedirectStandardOutput $mlStartLog -RedirectStandardError $mlStartErrLog
+Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","`"$PROJECT\python\start_services.ps1`"" -WindowStyle Hidden -RedirectStandardOutput $mlStartLog -RedirectStandardError $mlStartErrLog
 
 # ── [2/3] Queue worker ──────────────────────────────────────────────────────────
 Write-Host " [2/3] Starting Laravel queue worker in background..."
@@ -172,7 +172,7 @@ $queuePsi.RedirectStandardError  = $true
 
 # ── [2b] Task scheduler ─────────────────────────────────────────────────────────
 Write-Host " [2b]  Starting Laravel task scheduler in background..."
-Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","$PROJECT\scheduler_loop.ps1","-PhpExe",$PHP,"-ProjectDir",$PROJECT -WindowStyle Hidden
+Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","`"$PROJECT\scheduler_loop.ps1`"","-PhpExe","`"$PHP`"","-ProjectDir","`"$PROJECT`"" -WindowStyle Hidden
 
 # ── [3/3] Laravel server ────────────────────────────────────────────────────────
 Write-Host " [3/3] Starting Laravel development server..."
