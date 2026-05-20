@@ -44,9 +44,27 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _resolve_model_dir() -> str:
-    env_model_dir = os.environ.get("ML_MODELS_PATH")
+    # Canonical sentinel files that must all exist for a directory to qualify.
+    # This prevents silently loading a stale or incomplete artifact bundle.
+    _SENTINEL_FILES = ("feature_list.json", "scaler.pkl", "cluster_mapping.json")
+
+    env_model_dir = os.environ.get("ML_MODELS_PATH") or _read_dotenv_value("ML_MODELS_PATH")
     if env_model_dir:
-        return env_model_dir if os.path.isabs(env_model_dir) else os.path.join(BASE_DIR, env_model_dir)
+        resolved = env_model_dir if os.path.isabs(env_model_dir) else os.path.join(BASE_DIR, env_model_dir)
+        if os.path.isdir(resolved):
+            missing = [f for f in _SENTINEL_FILES if not os.path.exists(os.path.join(resolved, f))]
+            if missing:
+                logger.warning(
+                    "ML_MODELS_PATH='%s' is missing sentinel files: %s. "
+                    "Run python/scripts/validate_model_artifacts.py to diagnose.",
+                    resolved, missing,
+                )
+            return resolved
+        logger.warning(
+            "ML_MODELS_PATH='%s' does not exist (resolved: '%s'). "
+            "Falling back to auto-detection — set ML_MODELS_PATH in .env to pin a canonical path.",
+            env_model_dir, resolved,
+        )
 
     candidates = [
         os.path.join(BASE_DIR, "python", "models"),
@@ -55,8 +73,22 @@ def _resolve_model_dir() -> str:
         os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "model")),
     ]
     for candidate in candidates:
+        if os.path.isdir(candidate) and all(
+            os.path.exists(os.path.join(candidate, f)) for f in _SENTINEL_FILES
+        ):
+            logger.warning(
+                "ML_MODELS_PATH not set — auto-selected model dir: '%s'. "
+                "Add ML_MODELS_PATH=python/models to .env for deterministic deployment.",
+                candidate,
+            )
+            return candidate
+    # Last resort: return first that exists as a directory, or canonical default
+    for candidate in candidates:
         if os.path.isdir(candidate):
             return candidate
+    logger.error(
+        "No valid model directory found. Create python/models/ and set ML_MODELS_PATH in .env."
+    )
     return candidates[0]
 
 
@@ -92,7 +124,165 @@ ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
 # when model .pkl files are retrained; bump major for schema-breaking changes.
-MODEL_VERSION = "1.1.0"  # 1.1.0 — notebook overrides enabled, thresholds restored to notebook values (2026-05-20)
+MODEL_VERSION = "1.1.0"
+
+# Expected artifact dimensions (must match the notebook training run).
+# These constants let startup validation catch mismatched bundles early.
+_EXPECTED_SCALER_N_FEATURES  = 39   # scaler.feature_names_in_ length
+_EXPECTED_UMAP_N_COMPONENTS  = 10   # umap_nd.pkl n_components
+_EXPECTED_UMAP_INPUT_N_FEATS = 31   # feature_list.json length (UMAP raw input)
+_EXPECTED_KMEANS_N_CLUSTERS  = 3    # kmeans.pkl n_clusters
+_EXPECTED_KMEANS_N_FEATURES  = 10   # kmeans.pkl n_features_in_ (== UMAP output)
+_EXPECTED_CLUSTER_RAW_IDS    = {0, 1, 2}  # all raw KMeans IDs must be in cluster_mapping.json
+
+
+def _validate_artifacts_at_startup() -> None:
+    """
+    Cross-check the loaded artifact bundle for shape/key consistency.
+    Logs PASS or WARN for each check. Does NOT raise — the service remains
+    available so callers get a structured error rather than a crash.
+    Mismatches indicate a mixed-bundle deployment and should be fixed with
+    python/scripts/validate_model_artifacts.py.
+    """
+    issues: List[str] = []
+
+    def _warn(msg: str) -> None:
+        issues.append(msg)
+        logger.warning("[ARTIFACT MISMATCH] %s", msg)
+
+    # ── feature_list.json ────────────────────────────────────────────────────
+    fl_path = os.path.join(MODEL_DIR, "feature_list.json")
+    if not os.path.exists(fl_path):
+        _warn("feature_list.json missing — UMAP input feature list unavailable.")
+    else:
+        try:
+            import json as _json
+            with open(fl_path, encoding="utf-8") as _f:
+                fl = _json.load(_f)
+            if not isinstance(fl, list):
+                _warn("feature_list.json is not a JSON array.")
+            elif len(fl) != _EXPECTED_UMAP_INPUT_N_FEATS:
+                _warn(
+                    f"feature_list.json has {len(fl)} features; expected {_EXPECTED_UMAP_INPUT_N_FEATS}. "
+                    "This file must list the UMAP training features (post-VIF subset), "
+                    "NOT the full scaler input. Re-export from osca5.ipynb."
+                )
+        except Exception as exc:
+            _warn(f"feature_list.json unreadable: {exc}")
+
+    # ── scaler.pkl ───────────────────────────────────────────────────────────
+    sc_path = os.path.join(MODEL_DIR, "scaler.pkl")
+    if not os.path.exists(sc_path):
+        _warn("scaler.pkl missing.")
+    else:
+        try:
+            import pickle as _pkl
+            with open(sc_path, "rb") as _f:
+                sc = _pkl.load(_f)
+            n = int(getattr(sc, "n_features_in_", -1))
+            if n != _EXPECTED_SCALER_N_FEATURES:
+                _warn(
+                    f"scaler.pkl was trained on {n} features; expected {_EXPECTED_SCALER_N_FEATURES}. "
+                    "Re-export scaler from osca5.ipynb with the correct training set."
+                )
+            if not hasattr(sc, "feature_names_in_"):
+                _warn(
+                    "scaler.pkl has no feature_names_in_. "
+                    "The scaler must be fitted on a DataFrame so feature names are preserved."
+                )
+        except Exception as exc:
+            _warn(f"scaler.pkl unloadable: {exc}")
+
+    # ── umap_nd.pkl ──────────────────────────────────────────────────────────
+    umap_path = os.path.join(MODEL_DIR, "umap_nd.pkl")
+    if not os.path.exists(umap_path):
+        umap_path = os.path.join(MODEL_DIR, "umap_reducer.pkl")
+    if not os.path.exists(umap_path):
+        _warn("umap_nd.pkl (and umap_reducer.pkl) missing.")
+    else:
+        try:
+            with open(umap_path, "rb") as _f:
+                u = _pkl.load(_f)
+            nc = getattr(u, "n_components", -1)
+            if nc != _EXPECTED_UMAP_N_COMPONENTS:
+                _warn(
+                    f"UMAP n_components={nc}; expected {_EXPECTED_UMAP_N_COMPONENTS}. "
+                    "Re-export umap_nd.pkl from osca5.ipynb."
+                )
+            if hasattr(u, "_raw_data"):
+                raw_ncols = u._raw_data.shape[1] if u._raw_data is not None else -1
+                if raw_ncols != _EXPECTED_UMAP_INPUT_N_FEATS:
+                    _warn(
+                        f"UMAP was trained on {raw_ncols} input features; "
+                        f"feature_list.json has {_EXPECTED_UMAP_INPUT_N_FEATS}. "
+                        "feature_list.json does not match the UMAP training data."
+                    )
+            if not hasattr(u, "embedding_"):
+                _warn("UMAP artifact has no embedding_ — it may not be fitted.")
+        except Exception as exc:
+            _warn(f"UMAP artifact unloadable: {exc}")
+
+    # ── kmeans.pkl ───────────────────────────────────────────────────────────
+    km_path = os.path.join(MODEL_DIR, "kmeans.pkl")
+    if not os.path.exists(km_path):
+        km_path = os.path.join(MODEL_DIR, "kmeans_model.pkl")
+    if not os.path.exists(km_path):
+        _warn("kmeans.pkl missing.")
+    else:
+        try:
+            with open(km_path, "rb") as _f:
+                km = _pkl.load(_f)
+            nc = getattr(km, "n_clusters", -1)
+            nf = getattr(km, "n_features_in_", -1)
+            if nc != _EXPECTED_KMEANS_N_CLUSTERS:
+                _warn(f"KMeans n_clusters={nc}; expected {_EXPECTED_KMEANS_N_CLUSTERS}.")
+            if nf != _EXPECTED_KMEANS_N_FEATURES:
+                _warn(
+                    f"KMeans n_features_in_={nf}; expected {_EXPECTED_KMEANS_N_FEATURES} "
+                    f"(== UMAP n_components). "
+                    "KMeans and UMAP were not trained together in this artifact bundle."
+                )
+        except Exception as exc:
+            _warn(f"KMeans artifact unloadable: {exc}")
+
+    # ── cluster_mapping.json ─────────────────────────────────────────────────
+    cm_path = os.path.join(MODEL_DIR, "cluster_mapping.json")
+    if not os.path.exists(cm_path):
+        _warn("cluster_mapping.json missing.")
+    else:
+        try:
+            import json as _json2
+            with open(cm_path, encoding="utf-8") as _f:
+                cm = _json2.load(_f)
+            raw_ids_in_map = {int(k) for k in cm.keys()}
+            missing_ids = _EXPECTED_CLUSTER_RAW_IDS - raw_ids_in_map
+            if missing_ids:
+                _warn(
+                    f"cluster_mapping.json is missing raw cluster IDs: {sorted(missing_ids)}. "
+                    "All KMeans raw IDs {0,1,2} must be mapped. "
+                    "Re-export cluster_mapping.json from osca5.ipynb."
+                )
+        except Exception as exc:
+            _warn(f"cluster_mapping.json unreadable: {exc}")
+
+    # ── GBR/RFR risk indicator models ────────────────────────────────────────
+    for fn in ["gbr_ic_risk.pkl", "rfr_ic_risk.pkl",
+               "gbr_env_risk.pkl", "rfr_env_risk.pkl",
+               "gbr_func_risk.pkl", "rfr_func_risk.pkl"]:
+        if not os.path.exists(os.path.join(MODEL_DIR, fn)):
+            _warn(f"{fn} missing — risk indicator ensemble will use fallback scores.")
+
+    if issues:
+        logger.warning(
+            "Artifact validation found %d issue(s) in MODEL_DIR='%s'. "
+            "Run: python/venv/Scripts/python.exe python/scripts/validate_model_artifacts.py",
+            len(issues), MODEL_DIR,
+        )
+    else:
+        logger.info(
+            "Artifact validation PASSED (%d checks) — MODEL_DIR='%s'",
+            9, MODEL_DIR,
+        )
 
 
 # ── DB-backed ML result cache ─────────────────────────────────────────────────
@@ -146,6 +336,9 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
     Query the latest ml_results row for this senior. Returns a dict shaped like
     a notebook_override payload so the same injection path is reused.
     Returns None if not found or DB is unreachable.
+
+    Also returns the raw prediction_source so the infer() caller can decide
+    whether to skip re-scoring notebook_cache rows.
     """
     if not senior_id:
         return None
@@ -159,7 +352,8 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
                 SELECT cluster_id, cluster_named_id, cluster_name,
                        composite_risk, ic_risk, env_risk, func_risk,
                        overall_risk_level, wellbeing_score,
-                       ic_score, env_score, func_score, qol_score
+                       ic_score, env_score, func_score, qol_score,
+                       prediction_source, model_version
                 FROM ml_results
                 WHERE senior_citizen_id = %s
                 ORDER BY id DESC
@@ -172,19 +366,22 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
             return None
         # Map to the same shape as notebook_override payloads
         return {
-            "cluster_id":       int(row["cluster_named_id"] or 1),
-            "cluster_name":     row.get("cluster_name"),
-            "risk_level":       (row.get("overall_risk_level") or "").upper(),
-            "composite_risk":   float(row["composite_risk"] or 0.0),
-            "ml_ic_risk":       float(row["ic_risk"] or 0.0),
-            "ml_env_risk":      float(row["env_risk"] or 0.0),
-            "ml_func_risk":     float(row["func_risk"] or 0.0),
-            "ic_score":         float(row["ic_score"] or 3.0),
-            "env_score":        float(row["env_score"] or 3.0),
-            "func_score":       float(row["func_score"] or 3.0),
-            "qol_score":        float(row["qol_score"] or 3.0),
+            "cluster_id":         int(row["cluster_named_id"] or 1),
+            "cluster_name":       row.get("cluster_name"),
+            "risk_level":         (row.get("overall_risk_level") or "").upper(),
+            "composite_risk":     float(row["composite_risk"] or 0.0),
+            "ml_ic_risk":         float(row["ic_risk"] or 0.0),
+            "ml_env_risk":        float(row["env_risk"] or 0.0),
+            "ml_func_risk":       float(row["func_risk"] or 0.0),
+            "ic_score":           float(row["ic_score"] or 3.0),
+            "env_score":          float(row["env_score"] or 3.0),
+            "func_score":         float(row["func_score"] or 3.0),
+            "qol_score":          float(row["qol_score"] or 3.0),
             # raw_cluster_id is cluster_named_id - 1 (KMeans 0-indexed)
-            "_raw_cluster_id":  max(0, int(row["cluster_named_id"] or 1) - 1),
+            "_raw_cluster_id":    max(0, int(row["cluster_named_id"] or 1) - 1),
+            # Propagate source/version so infer() can detect notebook_cache rows
+            "_prediction_source": row.get("prediction_source") or "",
+            "_model_version":     row.get("model_version") or "",
         }
     except Exception as exc:
         logger.debug("DB cache lookup failed (non-fatal): %s", exc)
@@ -539,8 +736,30 @@ def _load_json(filename: str) -> Optional[Any]:
 
 
 def _normalize_identity_part(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value or ""))
+    """
+    Robust Unicode normalization for Filipino names and barangay strings.
+
+    Steps:
+    1. NFC-compose first so pre-composed chars (e.g. UTF-8 ñ U+00F1) are unified.
+    2. Explicitly replace ñ/Ñ with 'n' before decomposition — this covers both
+       proper UTF-8 ñ (U+00F1) and cp1252 ñ that survived mis-encoding.
+    3. NFKD-decompose to split remaining accented letters into base + combining.
+    4. Strip all combining (accent) characters, keeping base ASCII letters.
+    5. Lowercase, trim, collapse anything non-alphanumeric.
+
+    This ensures the CSV (which may be saved in cp1252) and the DB (UTF-8)
+    both resolve the same normalised key for names containing ñ, é, etc.
+    """
+    text = str(value or "")
+    # Step 1: NFC compose (unify any decomposed sequences first)
+    text = unicodedata.normalize("NFC", text)
+    # Step 2: handle ñ/Ñ explicitly so it maps to 'n' not empty
+    text = text.replace("ñ", "n").replace("Ñ", "n")   # ñ → n, Ñ → N→n
+    # Step 3: NFKD decompose remaining accented chars
+    text = unicodedata.normalize("NFKD", text)
+    # Step 4: strip combining diacritical marks
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    # Step 5: lowercase, trim, keep only [a-z0-9]
     text = text.lower().strip()
     return re.sub(r"[^a-z0-9]+", "", text)
 
@@ -586,7 +805,31 @@ def _load_notebook_cluster_index() -> Dict[str, Dict[Any, Any]]:
     fallback_bucket: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
     name_barangay_bucket: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
     name_bucket: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-    with open(predictions_path, "r", encoding="utf-8-sig", newline="") as csvfile:
+    # Try UTF-8-sig first; fall back to cp1252 (Windows Excel default).
+    # Many Philippine government CSV exports use cp1252 which encodes ñ as 0xF1.
+    # Reading cp1252 bytes as UTF-8 corrupts ñ into U+FFFD ('?'), breaking
+    # the normalisation match for names like Opeña → must read as cp1252 first.
+    _csv_encodings = ["utf-8-sig", "utf-8", "cp1252", "latin-1"]
+    _opened_file = None
+    for _enc in _csv_encodings:
+        try:
+            _f = open(predictions_path, "r", encoding=_enc, errors="strict", newline="")
+            # Consume a few lines to detect encoding errors early
+            _preview = [_f.readline() for _ in range(5)]
+            _f.seek(0)
+            _opened_file = _f
+            logger.info("senior_predictions.csv opened with encoding=%s", _enc)
+            break
+        except (UnicodeDecodeError, LookupError):
+            try:
+                _f.close()
+            except Exception:
+                pass
+    if _opened_file is None:
+        # Last resort: replace undecodable bytes silently
+        _opened_file = open(predictions_path, "r", encoding="cp1252", errors="replace", newline="")
+        logger.warning("senior_predictions.csv: all encodings failed strict mode; using cp1252 with replacement.")
+    with _opened_file as csvfile:
         for row in csv.DictReader(csvfile):
             key = _identity_key(
                 row.get("first_name"),
@@ -668,7 +911,24 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
         return {"full_name_barangay": {}, "name_barangay": {}}
 
     full_name_barangay: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-    with open(recommendations_path, "r", encoding="utf-8-sig", newline="") as csvfile:
+    # Same encoding-detection logic as predictions CSV (cp1252 / utf-8 auto-detect)
+    _rec_encodings = ["utf-8-sig", "utf-8", "cp1252", "latin-1"]
+    _rec_file = None
+    for _enc in _rec_encodings:
+        try:
+            _f = open(recommendations_path, "r", encoding=_enc, errors="strict", newline="")
+            [_f.readline() for _ in range(5)]
+            _f.seek(0)
+            _rec_file = _f
+            break
+        except (UnicodeDecodeError, LookupError):
+            try:
+                _f.close()
+            except Exception:
+                pass
+    if _rec_file is None:
+        _rec_file = open(recommendations_path, "r", encoding="cp1252", errors="replace", newline="")
+    with _rec_file as csvfile:
         for row in csv.DictReader(csvfile):
             name = str(row.get("name", "")).strip()
             if not name:
@@ -1087,6 +1347,91 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     _db_cached = None
     if senior_id and "_precomputed_named_id" not in preprocessed:
         _db_cached = _db_cache_lookup(senior_id)
+
+    # Notebook-cache protection: if the DB already has a notebook_cache result
+    # (prediction_source = 'notebook_cache', model_version = 1.1.0), do NOT
+    # re-score — return it directly.  This prevents a re-analysis run from
+    # overwriting validated notebook results with live model scores.
+    # ml:repair-notebook-cache bypasses this by not going through infer() for
+    # seniors that need repair; it forces a fresh CSV match instead.
+    if (
+        ENABLE_NOTEBOOK_OVERRIDES
+        and _db_cached
+        and _db_cached.get("_prediction_source") == "notebook_cache"
+        and "_precomputed_named_id" not in preprocessed
+    ):
+        # Build a minimal but complete result from the DB cache so the caller
+        # gets a properly-shaped payload with prediction_source = notebook_cache.
+        named_id      = max(1, min(3, int(_db_cached["cluster_id"])))
+        cluster_profs = _load_cluster_profiles()
+        cluster_prof  = cluster_profs[named_id]
+        raw_cluster   = _db_cached["_raw_cluster_id"]
+        ic_r   = _db_cached["ml_ic_risk"]
+        env_r  = _db_cached["ml_env_risk"]
+        func_r = _db_cached["ml_func_risk"]
+        comp   = _db_cached["composite_risk"]
+        lvl    = (_db_cached["risk_level"] or "MODERATE").upper()
+        if lvl == "CRITICAL":
+            lvl = "HIGH"
+        section_scores = preprocessed.get("section_scores", {}) or {}
+        who_scores     = preprocessed.get("who_domain_scores", {}) or {}
+        rule_scores    = preprocessed.get("rule_scores", {}) or {}
+        feature_map    = preprocessed.get("feature_map", {}) or {}
+        raw_context    = preprocessed.get("raw_context", {}) or {}
+        pf             = _priority_flag(comp)
+        recs = _build_recommendations(named_id, lvl, feature_map, section_scores, raw_context, pf)
+        # Try to attach notebook recommendations if available
+        nb_recs = _resolve_notebook_recommendations(preprocessed.get("identity", {}) or {})
+        if nb_recs:
+            recs = nb_recs
+        return {
+            "status": "success",
+            "cluster": {
+                "raw_id": raw_cluster, "named_id": named_id,
+                "name": cluster_prof["name"],
+                "ic": cluster_prof["ic"], "env": cluster_prof["env"], "func": cluster_prof["func"],
+                "description": cluster_prof["description"],
+            },
+            "risk_scores": {
+                "ic_risk": round(ic_r, 4), "env_risk": round(env_r, 4),
+                "func_risk": round(func_r, 4), "composite_risk": round(comp, 4),
+                "wellbeing_score": round(float(section_scores.get("overall_wellbeing", 0.5)), 4),
+            },
+            "risk_levels": {
+                "ic": _get_risk_level(ic_r), "env": _get_risk_level(env_r),
+                "func": _get_risk_level(func_r), "overall": lvl,
+            },
+            "priority_flag": pf,
+            "domain_risks": {
+                "risk_medical":    round(float(rule_scores.get("risk_medical",    0.0)), 4),
+                "risk_financial":  round(float(rule_scores.get("risk_financial",  0.0)), 4),
+                "risk_social":     round(float(rule_scores.get("risk_social",     0.0)), 4),
+                "risk_functional": round(float(rule_scores.get("risk_functional", 0.0)), 4),
+                "risk_housing":    round(float(rule_scores.get("risk_housing",    0.0)), 4),
+                "risk_hc_access":  round(float(rule_scores.get("risk_hc_access",  0.0)), 4),
+                "risk_sensory":    round(float(rule_scores.get("risk_sensory",    0.0)), 4),
+                "rule_composite":  round(float(rule_scores.get("rule_composite",  comp)), 4),
+            },
+            "who_scores": {
+                "ic_score":   round(float(_db_cached.get("ic_score",   3.0)), 4),
+                "env_score":  round(float(_db_cached.get("env_score",  3.0)), 4),
+                "func_score": round(float(_db_cached.get("func_score", 3.0)), 4),
+                "qol_score":  round(float(_db_cached.get("qol_score",  3.0)), 4),
+            },
+            "recommendations": recs,
+            "section_scores": section_scores,
+            "model_metadata": {
+                "model_version": MODEL_VERSION,
+                "model_dir": MODEL_DIR,
+                "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
+                "notebook_override_applied": True,
+                "db_cache_hit": True,
+                "prediction_source": "notebook_cache",
+                "is_cached_prediction": True,
+            },
+            "warnings": ["notebook_cache result returned from DB (re-scoring skipped)."],
+        }
+
     if _db_cached:
         preprocessed = dict(preprocessed)
         preprocessed["_precomputed_raw_cluster_id"] = _db_cached["_raw_cluster_id"]
@@ -1516,7 +1861,13 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
 # ── Flask API ─────────────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "service": "osca-inference"})
+    return jsonify({
+        "status": "ok",
+        "service": "osca-inference",
+        "model_dir": MODEL_DIR,
+        "model_version": MODEL_VERSION,
+        "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
+    })
 
 
 @app.route("/infer", methods=["POST"])
@@ -1557,6 +1908,7 @@ def batch_infer_endpoint():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("INFERENCE_PORT", 5002))
-    logger.info("Starting OSCA Inference Service on port %s", port)
-    app.run(host="0.0.0.0", port=port, debug=False)
+    port = int(os.environ.get("INFERENCE_PORT", os.environ.get("PYTHON_INFERENCE_PORT", 5002)))
+    logger.info("Starting OSCA Inference Service on port %s — MODEL_DIR=%s", port, MODEL_DIR)
+    _validate_artifacts_at_startup()
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)

@@ -1077,4 +1077,4 @@ def preprocess_endpoint():
 if __name__ == "__main__":
     port = int(os.environ.get("PREPROCESS_PORT", 5001))
     logger.info("Starting OSCA Preprocessing Service on port %s", port)
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
