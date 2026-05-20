@@ -3,7 +3,7 @@
 @section('page-subtitle', number_format($stats['total']) . ' active seniors · Pagsanjan, Laguna')
 
 @section('content')
-<div class="space-y-6" x-data="bulkUpload()">
+<div class="space-y-6" x-data="seniorIndex()">
 
     {{-- Stats strip --}}
     <div class="grid grid-cols-2 gap-4">
@@ -52,7 +52,7 @@
                 @endif
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" @click.stop="open = true" class="btn btn-ghost">
+                <button type="button" @click.stop="uploadOpen = true" class="btn btn-ghost">
                     <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                     Bulk Upload
                 </button>
@@ -111,11 +111,35 @@
         </div>
     </form>
 
+    {{-- Bulk action bar (visible when rows are selected) --}}
+    <div x-show="selected.length > 0" x-cloak
+         class="card px-4 py-3 flex items-center justify-between gap-3 border-forest-200 bg-forest-50/60 dark:bg-forest-900/10">
+        <div class="flex items-center gap-2 text-[13px] text-ink-800">
+            <x-heroicon-o-check-circle class="w-4 h-4 text-forest-600" />
+            <span><span class="font-semibold" x-text="selected.length"></span> record(s) selected</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @click="selected = []" class="btn btn-ghost text-[12px] px-3 py-1.5">Deselect all</button>
+            <button @click="bulkArchiveOpen = true"
+                    class="btn text-[12px] px-3 py-1.5 text-high-700 border-high-200 hover:bg-high-50">
+                <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
+                Archive Selected
+            </button>
+        </div>
+    </div>
+
     {{-- Table — overflow-visible so tooltip popups aren't clipped by the card --}}
     <div class="card overflow-visible">
         <table class="w-full">
             <thead>
                 <tr>
+                    <th class="th w-8">
+                        <input type="checkbox"
+                               class="rounded border-paper-rule text-forest-600 focus:ring-forest-500"
+                               :checked="allOnPageSelected()"
+                               :indeterminate="selected.length > 0 && !allOnPageSelected()"
+                               @change="toggleAll($event.target.checked)">
+                    </th>
                     <th class="th">OSCA ID</th>
                     <th class="th">Name</th>
                     <th class="th">Barangay</th>
@@ -129,7 +153,14 @@
             <tbody>
                 @forelse ($seniors as $senior)
                 @php $ml = $senior->latestMlResult; @endphp
-                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors duration-100">
+                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors duration-100"
+                    :class="selected.includes({{ $senior->id }}) ? 'bg-forest-50/60 dark:bg-forest-900/10' : ''">
+                    <td class="td w-8">
+                        <input type="checkbox"
+                               class="rounded border-paper-rule text-forest-600 focus:ring-forest-500"
+                               :checked="selected.includes({{ $senior->id }})"
+                               @change="toggleRow({{ $senior->id }}, $event.target.checked)">
+                    </td>
                     <td class="td">
                         <span class="font-mono text-[11.5px] text-ink-500 tnum">{{ $senior->osca_id }}</span>
                     </td>
@@ -254,7 +285,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="px-4 py-16 text-center">
+                    <td colspan="9" class="px-4 py-16 text-center">
                         <p class="font-serif text-base text-ink-500">No senior citizens found.</p>
                         <p class="text-[12.5px] text-ink-400 mt-1">Try adjusting your filters or register a new senior.</p>
                         <a href="{{ route('seniors.create') }}" class="btn btn-primary mt-4 inline-flex">
@@ -298,11 +329,46 @@
     </div>
     @endif
 
-    {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
-    <div x-show="open" x-cloak
+    {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
+    <div x-show="bulkArchiveOpen" x-cloak
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="close()"
-         @keydown.escape.window="if(open) close()">
+         @keydown.escape.window="bulkArchiveOpen = false">
+        <div class="card max-w-sm w-full shadow-2xl" @click.outside="bulkArchiveOpen = false">
+            <div class="card-head">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-high-50 grid place-items-center flex-shrink-0">
+                        <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
+                    </div>
+                    <div class="card-title">Archive selected records?</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-[13px] text-ink-700">
+                    <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved to Archives. Their data is preserved and can be restored at any time.
+                </p>
+                <form id="bulk-archive-form" method="POST" action="{{ route('seniors.bulk-archive') }}">
+                    @csrf
+                    <template x-for="id in selected" :key="id">
+                        <input type="hidden" name="ids[]" :value="id">
+                    </template>
+                </form>
+                <div class="flex gap-2 justify-end mt-5">
+                    <button @click="bulkArchiveOpen = false" class="btn">Cancel</button>
+                    <button @click="document.getElementById('bulk-archive-form').submit()"
+                            class="btn btn-danger">
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
+                        Archive Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
+    <div x-show="uploadOpen" x-cloak
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+         @click.self="closeUpload()"
+         @keydown.escape.window="if(uploadOpen) closeUpload()">
         <div class="card w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]" @click.stop>
 
             {{-- Modal header --}}
@@ -316,7 +382,7 @@
                         <div class="card-sub">Import multiple senior citizen records from a CSV or Excel file.</div>
                     </div>
                 </div>
-                <button @click="close()" class="btn btn-ghost p-1.5">
+                <button @click="closeUpload()" class="btn btn-ghost p-1.5">
                     <x-heroicon-o-x-mark class="w-4 h-4" />
                 </button>
             </div>
@@ -447,7 +513,7 @@
                     Rows with missing required fields are skipped. Existing records are <em>not</em> overwritten.
                 </p>
                 <div class="flex gap-2">
-                    <button type="button" @click="close()" class="btn">Cancel</button>
+                    <button type="button" @click="closeUpload()" class="btn">Cancel</button>
                     <button type="button" @click="submit()"
                             :disabled="!fileName || uploading"
                             :class="(!fileName || uploading) ? 'opacity-50 cursor-not-allowed' : ''"
@@ -472,15 +538,43 @@
 
 @push('scripts')
 <script>
-function bulkUpload() {
+function seniorIndex() {
     return {
-        open: {{ $errors->has('file') ? 'true' : 'false' }},
+        // Multi-select state
+        selected: [],
+        bulkArchiveOpen: false,
+        pageIds: @json($seniors->pluck('id')),
+
+        toggleRow(id, checked) {
+            if (checked) {
+                if (!this.selected.includes(id)) this.selected.push(id);
+            } else {
+                this.selected = this.selected.filter(i => i !== id);
+            }
+        },
+
+        toggleAll(checked) {
+            if (checked) {
+                this.pageIds.forEach(id => {
+                    if (!this.selected.includes(id)) this.selected.push(id);
+                });
+            } else {
+                this.selected = this.selected.filter(id => !this.pageIds.includes(id));
+            }
+        },
+
+        allOnPageSelected() {
+            return this.pageIds.length > 0 && this.pageIds.every(id => this.selected.includes(id));
+        },
+
+        // Bulk upload state
+        uploadOpen: {{ $errors->has('file') ? 'true' : 'false' }},
         dragging: false,
         fileName: null,
         uploading: false,
 
-        close() {
-            this.open = false;
+        closeUpload() {
+            this.uploadOpen = false;
             this.dragging = false;
         },
 
@@ -496,8 +590,6 @@ function bulkUpload() {
         },
 
         setFile(file) {
-            const allowed = ['text/csv', 'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
             const ext = file.name.split('.').pop().toLowerCase();
             if (!['csv','xls','xlsx','txt'].includes(ext)) {
                 alert('Please upload a CSV or Excel file (.csv, .xlsx, .xls).');

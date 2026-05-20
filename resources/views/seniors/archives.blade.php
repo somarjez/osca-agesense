@@ -3,7 +3,7 @@
 @section('page-subtitle', 'Soft-deleted senior citizen records and QoL surveys — restore or permanently remove')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="archiveIndex()">
 
     {{-- Filter --}}
     <form method="GET" class="card">
@@ -40,10 +40,39 @@
         </div>
     </form>
 
+    {{-- Bulk action bar --}}
+    <div x-show="selected.length > 0" x-cloak
+         class="card px-4 py-3 flex items-center justify-between gap-3 border-forest-200 bg-forest-50/60 dark:bg-forest-900/10">
+        <div class="flex items-center gap-2 text-[13px] text-ink-800">
+            <x-heroicon-o-check-circle class="w-4 h-4 text-forest-600" />
+            <span><span class="font-semibold" x-text="selected.length"></span> record(s) selected</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @click="selected = []" class="btn btn-ghost text-[12px] px-3 py-1.5">Deselect all</button>
+            <button @click="bulkRestoreOpen = true"
+                    class="btn text-[12px] px-3 py-1.5 text-forest-700 border-forest-200 hover:bg-forest-50">
+                <x-heroicon-o-arrow-uturn-left class="w-3.5 h-3.5" />
+                Restore Selected
+            </button>
+            <button @click="bulkDeleteOpen = true"
+                    class="btn text-[12px] px-3 py-1.5 text-critical-700 border-critical-200 hover:bg-critical-50">
+                <x-heroicon-o-trash class="w-3.5 h-3.5" />
+                Delete Selected
+            </button>
+        </div>
+    </div>
+
     <div class="card overflow-hidden">
         <table class="w-full">
             <thead>
                 <tr>
+                    <th class="th w-8">
+                        <input type="checkbox"
+                               class="rounded border-paper-rule text-forest-600 focus:ring-forest-500"
+                               :checked="allOnPageSelected()"
+                               :indeterminate="selected.length > 0 && !allOnPageSelected()"
+                               @change="toggleAll($event.target.checked)">
+                    </th>
                     <th class="th">OSCA ID</th>
                     <th class="th">Name</th>
                     <th class="th">Barangay</th>
@@ -54,7 +83,14 @@
             </thead>
             <tbody>
                 @forelse ($seniors as $senior)
-                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                <tr class="group hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors"
+                    :class="selected.includes({{ $senior->id }}) ? 'bg-forest-50/60 dark:bg-forest-900/10' : ''">
+                    <td class="td w-8">
+                        <input type="checkbox"
+                               class="rounded border-paper-rule text-forest-600 focus:ring-forest-500"
+                               :checked="selected.includes({{ $senior->id }})"
+                               @change="toggleRow({{ $senior->id }}, $event.target.checked)">
+                    </td>
                     <td class="td">
                         <span class="font-mono text-[11.5px] text-ink-500 tnum">{{ $senior->osca_id }}</span>
                     </td>
@@ -133,7 +169,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="td text-center py-16">
+                    <td colspan="7" class="td text-center py-16">
                         <p class="font-serif text-lg text-ink-700">No archived records.</p>
                         <p class="text-sm text-ink-400 mt-1">Archived seniors will appear here.</p>
                     </td>
@@ -225,5 +261,120 @@
         </div>
         @endif
     </div>
+
+    {{-- ── Bulk Restore Confirmation Modal ──────────────────────────────── --}}
+    <div x-show="bulkRestoreOpen" x-cloak
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+         @keydown.escape.window="bulkRestoreOpen = false">
+        <div class="card max-w-sm w-full shadow-2xl" @click.outside="bulkRestoreOpen = false">
+            <div class="card-head">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-forest-50 grid place-items-center flex-shrink-0">
+                        <x-heroicon-o-arrow-uturn-left class="w-4 h-4 text-forest-700" />
+                    </div>
+                    <div class="card-title">Restore selected records?</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-[13px] text-ink-700">
+                    <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved back to Active Records. Their QoL surveys will also be restored.
+                </p>
+                <form id="bulk-restore-form" method="POST" action="{{ route('seniors.bulk-restore') }}">
+                    @csrf
+                    <template x-for="id in selected" :key="id">
+                        <input type="hidden" name="ids[]" :value="id">
+                    </template>
+                </form>
+                <div class="flex gap-2 justify-end mt-5">
+                    <button @click="bulkRestoreOpen = false" class="btn">Cancel</button>
+                    <button @click="document.getElementById('bulk-restore-form').submit()"
+                            class="btn btn-primary">
+                        <x-heroicon-o-arrow-uturn-left class="w-3.5 h-3.5" />
+                        Restore Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Bulk Delete Confirmation Modal ───────────────────────────────── --}}
+    <div x-show="bulkDeleteOpen" x-cloak
+         class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+         @keydown.escape.window="bulkDeleteOpen = false">
+        <div class="rounded-2xl shadow-2xl max-w-sm w-full p-6"
+             style="background:#ffffff; color:#1e293b;"
+             @click.outside="bulkDeleteOpen = false">
+            <div class="flex items-start gap-3 mb-4">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fee2e2;">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold" style="color:#b91c1c;">Permanently delete selected records?</h3>
+                    <p class="text-sm mt-1" style="color:#475569;">
+                        <strong x-text="selected.length" style="color:#334155;"></strong> senior record(s) and all associated data — QoL surveys, ML results, and recommendations — will be permanently erased.
+                    </p>
+                    <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg" style="color:#dc2626; background:#fef2f2;">
+                        This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+            <form id="bulk-delete-form" method="POST" action="{{ route('seniors.bulk-delete') }}">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+            </form>
+            <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
+                <button @click="bulkDeleteOpen = false"
+                        class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                        style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
+                        onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                    Cancel
+                </button>
+                <button @click="document.getElementById('bulk-delete-form').submit()"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                        style="background:#dc2626; color:#ffffff; border:1px solid #dc2626;"
+                        onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                    Delete Forever
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+@push('scripts')
+<script>
+function archiveIndex() {
+    return {
+        selected: [],
+        bulkRestoreOpen: false,
+        bulkDeleteOpen: false,
+        pageIds: @json($seniors->pluck('id')),
+
+        toggleRow(id, checked) {
+            if (checked) {
+                if (!this.selected.includes(id)) this.selected.push(id);
+            } else {
+                this.selected = this.selected.filter(i => i !== id);
+            }
+        },
+
+        toggleAll(checked) {
+            if (checked) {
+                this.pageIds.forEach(id => {
+                    if (!this.selected.includes(id)) this.selected.push(id);
+                });
+            } else {
+                this.selected = this.selected.filter(id => !this.pageIds.includes(id));
+            }
+        },
+
+        allOnPageSelected() {
+            return this.pageIds.length > 0 && this.pageIds.every(id => this.selected.includes(id));
+        },
+    };
+}
+</script>
+@endpush
 @endsection

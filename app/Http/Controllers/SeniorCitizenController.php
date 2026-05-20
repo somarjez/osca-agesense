@@ -89,6 +89,60 @@ class SeniorCitizenController extends Controller
         return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) {
+            return back()->with('error', 'No records selected.');
+        }
+        $seniors = SeniorCitizen::whereIn('id', $ids)->get();
+        foreach ($seniors as $senior) {
+            $senior->qolSurveys()->each(fn($s) => $s->delete());
+            $senior->delete();
+        }
+        $count = $seniors->count();
+        return redirect()->route('seniors.index')->with('success', "{$count} senior record(s) archived.");
+    }
+
+    public function bulkRestore(Request $request)
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) {
+            return back()->with('error', 'No records selected.');
+        }
+        $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
+        foreach ($seniors as $senior) {
+            \App\Models\QolSurvey::onlyTrashed()
+                ->where('senior_citizen_id', $senior->id)
+                ->each(fn($s) => $s->restore());
+            $senior->restore();
+        }
+        $count = $seniors->count();
+        return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) restored.");
+    }
+
+    public function bulkForceDestroy(Request $request)
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) {
+            return back()->with('error', 'No records selected.');
+        }
+        $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
+        foreach ($seniors as $senior) {
+            foreach ($senior->qolSurveys()->withTrashed()->get() as $survey) {
+                if ($survey->mlResult) {
+                    $survey->mlResult->recommendations()->delete();
+                    $survey->mlResult->delete();
+                }
+                $survey->forceDelete();
+            }
+            $senior->mlResults()->delete();
+            $senior->forceDelete();
+        }
+        $count = $seniors->count();
+        return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) permanently deleted.");
+    }
+
     public function archives(Request $request)
     {
         $seniors = SeniorCitizen::onlyTrashed()
@@ -140,7 +194,7 @@ class SeniorCitizenController extends Controller
                 $survey->mlResult->recommendations()->delete();
                 $survey->mlResult->delete();
             }
-            $survey->delete();
+            $survey->forceDelete();
         }
 
         $senior->mlResults()->delete();
