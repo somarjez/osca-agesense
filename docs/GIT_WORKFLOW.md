@@ -10,15 +10,16 @@
 1. [One-time Setup — Clone and Configure](#1-one-time-setup--clone-and-configure)
 2. [Daily Workflow — Start of Every Work Session](#2-daily-workflow--start-of-every-work-session)
 3. [Making Changes](#3-making-changes)
-4. [Commit Message Format](#4-commit-message-format)
-5. [Pushing Your Branch](#5-pushing-your-branch)
-6. [Opening a Pull Request](#6-opening-a-pull-request)
-7. [While Your PR Is Under Review](#7-while-your-pr-is-under-review)
-8. [After Your PR Is Merged](#8-after-your-pr-is-merged)
-9. [Branch Naming Rules](#9-branch-naming-rules)
-10. [Do's and Don'ts](#10-dos-and-donts)
-11. [Common Mistakes and How to Fix Them](#11-common-mistakes-and-how-to-fix-them)
-12. [Quick Reference Card](#12-quick-reference-card)
+4. [Run Validation Before Committing](#4-run-validation-before-committing)
+5. [Commit Message Format](#5-commit-message-format)
+6. [Pushing Your Branch](#6-pushing-your-branch)
+7. [Opening a Pull Request](#7-opening-a-pull-request)
+8. [While Your PR Is Under Review](#8-while-your-pr-is-under-review)
+9. [After Your PR Is Merged](#9-after-your-pr-is-merged)
+10. [Branch Naming Rules](#10-branch-naming-rules)
+11. [Do's and Don'ts](#11-dos-and-donts)
+12. [Common Mistakes and How to Fix Them](#12-common-mistakes-and-how-to-fix-them)
+13. [Quick Reference Card](#13-quick-reference-card)
 
 ---
 
@@ -194,7 +195,52 @@ Commit often — one commit per logical change. Do not bundle unrelated changes 
 
 ---
 
-## 4. Commit Message Format
+## 4. Run Validation Before Committing
+
+Before staging and committing code that touches the ML pipeline, Python services, or deployment scripts, run these checks. If any check fails, fix the issue before committing.
+
+### Artifact validation
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+```
+Expected: **51 PASS, 0 FAIL, 0 WARN**
+
+### Reproducibility test
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+```
+Expected: **28 PASS, 0 FAIL**
+
+### What to check before staging
+
+```powershell
+git status
+```
+
+Review the output carefully. Make sure you are not about to stage:
+- `.env` — contains credentials and must never be committed
+- `osca.csv` — contains real personal data, must never be committed
+- `database/backups/*.sql` — database dumps with personal data, must never be committed
+- `python/models/predictions/senior_predictions.csv` — gitignored, must never be committed
+- `storage/app/ml_models/*.pkl` — gitignored runtime mirror copies
+- `vendor/`, `node_modules/`, `python/venv/` — generated directories, gitignored
+- Temporary files: `*.bak`, `read_xlsx_temp.php`, `ml_err_*.txt`, `ml_out_*.json`
+
+Stage only the files that are part of your actual change:
+
+```powershell
+git add path/to/specific/file.php
+git diff --staged                   ← review exactly what will be committed
+git commit -m "feat: description"
+```
+
+See the full [Before Push Checklist in DEPLOYMENT.md](DEPLOYMENT.md#9-before-push-checklist) for all required checks before pushing.
+
+---
+
+## 5. Commit Message Format
 
 All commits must follow the **Conventional Commits** format. The branch protection rules on `main` enforce this — a commit that does not match the pattern will be rejected.
 
@@ -259,7 +305,7 @@ chore(python): upgrade umap-learn to 0.5.6
 
 ---
 
-## 5. Pushing Your Branch
+## 6. Pushing Your Branch
 
 Once you have at least one commit, push your branch to GitHub:
 
@@ -288,7 +334,7 @@ git push
 
 ---
 
-## 6. Opening a Pull Request
+## 7. Opening a Pull Request
 
 ### Step 1 — Go to GitHub
 
@@ -332,7 +378,7 @@ Click **Create pull request**.
 
 ---
 
-## 7. While Your PR Is Under Review
+## 8. While Your PR Is Under Review
 
 ### What to do while waiting
 
@@ -383,7 +429,7 @@ All three must show a green checkmark before the PR can be merged. If a check fa
 
 ---
 
-## 8. After Your PR Is Merged
+## 9. After Your PR Is Merged
 
 ### Step 1 — Switch back to main and pull
 
@@ -400,13 +446,34 @@ git branch -d feat/your-feature-name
 
 GitHub deletes the remote branch automatically after merging (if the repo is configured to do so). If not, delete it manually on GitHub: **Pull requests → Closed → your PR → Delete branch**.
 
-### Step 3 — Start fresh for your next task
+### Step 3 — Notify other team members
+
+After your PR is merged, tell your teammates to pull the latest main so they are not working on outdated code:
+
+```bash
+git checkout main
+git pull origin main
+```
+
+If any migration files were added in your PR, teammates also need to run:
+```powershell
+php artisan migrate
+```
+
+If Python requirements changed, they need:
+```powershell
+python\venv\Scripts\pip.exe install -r python\requirements.txt
+```
+
+Then restart the system (`stop.bat` → `start.bat`) so the queue worker picks up new PHP classes.
+
+### Step 4 — Start fresh for your next task
 
 Go back to [Step 2 — Daily Workflow](#2-daily-workflow--start-of-every-work-session) and create a new branch from the updated `main`.
 
 ---
 
-## 9. Branch Naming Rules
+## 10. Branch Naming Rules
 
 Branch names must match this pattern (enforced by the ruleset):
 
@@ -439,7 +506,7 @@ HOTFIX              # Uppercase
 
 ---
 
-## 10. Do's and Don'ts
+## 11. Do's and Don'ts
 
 ### Do's
 
@@ -468,7 +535,7 @@ HOTFIX              # Uppercase
 
 ---
 
-## 11. Common Mistakes and How to Fix Them
+## 12. Common Mistakes and How to Fix Them
 
 ### "I committed to main directly"
 
@@ -566,7 +633,7 @@ Fix any Vite/TypeScript errors shown in the output.
 
 ---
 
-## 12. Quick Reference Card
+## 13. Quick Reference Card
 
 ```
 SETUP (once)
@@ -599,4 +666,18 @@ AFTER PR IS MERGED
 COMMIT TYPES:  feat  fix  chore  docs  refactor  test  style  perf  ci
 
 BRANCH FORMAT: feat/short-description  fix/short-description  chore/short-description
+
+BEFORE PUSHING — run these:
+  python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py  → 51 PASS
+  python\venv\Scripts\python.exe python\scripts\test_reproducibility.py      → 28 PASS
+  git status  → check for .env, *.sql, *.pkl, or temp files
 ```
+
+---
+
+## Related Documents
+
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Complete system setup, Pre-Defense Checklist, Before Push Checklist
+- [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) — ML artifact validation and service startup
+- [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) — Database sharing and team sync
+- [README.md](README.md) — Documentation index

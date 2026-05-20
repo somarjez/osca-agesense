@@ -70,6 +70,27 @@ class MlService
     }
 
     /**
+     * Run the full pipeline for a single senior, forcing overwrite of any
+     * existing notebook_cache result.  Used by ml:repair-notebook-cache.
+     */
+    public function runPipelineForRepair(SeniorCitizen $senior, QolSurvey $survey): MlResult
+    {
+        set_time_limit(0);
+
+        $raw = $this->buildRawPayload($senior, $survey);
+
+        if ($this->isPreprocessAvailable()) {
+            $preprocessed = $this->callPreprocess($raw);
+            $inferResult  = $this->callInfer($preprocessed);
+        } else {
+            $inferResult  = $this->localCombinedOrFallback($raw);
+            $preprocessed = [];
+        }
+
+        return $this->persistResults($senior, $survey, $preprocessed, $inferResult, force: true);
+    }
+
+    /**
      * Run the pipeline for a batch of seniors in one Python subprocess.
      * Eliminates per-senior subprocess cold-start overhead for batch runs.
      *
@@ -714,7 +735,8 @@ class MlService
         SeniorCitizen $senior,
         QolSurvey $survey,
         array $preprocessed,
-        array $inferResult
+        array $inferResult,
+        bool $force = false
     ): MlResult {
         $cluster      = $inferResult['cluster']      ?? [];
         $scores       = $inferResult['risk_scores']  ?? [];
@@ -733,6 +755,25 @@ class MlService
             ? 'fallback'
             : ($meta['prediction_source'] ?? (($meta['notebook_override_applied'] ?? false) ? 'notebook_cache' : 'live_model'));
         $isCached          = $predictionSource === 'notebook_cache';
+
+        // Notebook-cache protection: if an existing ml_result for this senior already
+        // has prediction_source = notebook_cache AND model_version = 1.1.0, do NOT
+        // overwrite it unless $force = true is passed (used by ml:repair-notebook-cache).
+        // This prevents a routine re-analysis run from degrading a validated notebook
+        // result into a live_model result.
+        if (!$force && $predictionSource !== 'notebook_cache') {
+            $existing = MlResult::where('senior_citizen_id', $senior->id)
+                ->where('qol_survey_id', $survey->id)
+                ->orderByDesc('id')
+                ->first();
+            if ($existing
+                && $existing->prediction_source === 'notebook_cache'
+                && $existing->model_version     === self::MODEL_VERSION
+            ) {
+                // Return the protected row unchanged — do not overwrite it.
+                return $existing->load('recommendations');
+            }
+        }
 
         $compositeRisk     = (float) ($scores['composite_risk'] ?? 0);
         $overallLevel      = $levels['overall'] ?? null;

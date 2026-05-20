@@ -1,0 +1,422 @@
+# ML Deployment Guide — AgeSense
+
+This guide explains how the ML pipeline is deployed, how model artifacts are managed, and how to verify that a device is using the correct models before a demo or defense.
+
+---
+
+## Table of Contents
+
+1. [How ML Deployment Works — the Short Version](#1-how-ml-deployment-works--the-short-version)
+2. [The Notebook vs the Deployed System](#2-the-notebook-vs-the-deployed-system)
+3. [Canonical Artifact Directory](#3-canonical-artifact-directory)
+4. [Required Artifact Files](#4-required-artifact-files)
+5. [Two Prediction Paths](#5-two-prediction-paths)
+6. [Starting the ML Services](#6-starting-the-ml-services)
+7. [Validating Artifacts on Any Device](#7-validating-artifacts-on-any-device)
+8. [Testing Reproducibility](#8-testing-reproducibility)
+9. [Copying the Artifact Bundle to Another Device](#9-copying-the-artifact-bundle-to-another-device)
+10. [When to Enable or Disable Notebook Overrides](#10-when-to-enable-or-disable-notebook-overrides)
+11. [Environment Variables Reference](#11-environment-variables-reference)
+12. [Troubleshooting](#12-troubleshooting)
+
+---
+
+## 1. How ML Deployment Works — the Short Version
+
+1. The ML models were trained once in the Jupyter notebook (`osca5.ipynb`) and exported as `.pkl` and `.json` files.
+2. Those exported files are the **artifact bundle**. They live in `python/models/`.
+3. Two Python Flask services load the artifacts at startup and serve predictions over HTTP.
+4. Laravel calls those services for every senior citizen analysis.
+5. The notebook is **not part of the deployed system**. The system only uses the exported artifacts.
+
+You do not need to run the notebook to deploy or use the system. You only need the artifact bundle.
+
+---
+
+## 2. The Notebook vs the Deployed System
+
+| Notebook | Deployed system |
+|---|---|
+| Used for training and exporting artifacts | Used for serving predictions to users |
+| Runs in Jupyter | Runs as two Flask services (ports 5001 and 5002) |
+| Required only by the model developer | Not required on any deployment device |
+| Produces `.pkl` and `.json` files | **Consumes** `.pkl` and `.json` files |
+| Output goes to `osca_output/` | Reads from `python/models/` |
+
+When someone says "the system uses the model," they mean the deployed Flask services are loading the `.pkl` artifact files. The notebook has no role in serving predictions.
+
+**Important constraints that must never be changed during deployment:**
+- Do not retrain models.
+- Do not change thresholds or the risk formula.
+- Do not change the cluster mapping.
+- `feature_list.json` must remain 31 features — UMAP was trained on 31 post-VIF features.
+- The inference service never calls `UMAP.fit()` or `UMAP.fit_transform()` — it uses `transform()` only.
+
+---
+
+## 3. Canonical Artifact Directory
+
+The single authoritative source of ML artifacts is:
+
+```
+osca-system/python/models/
+```
+
+> **Pulling the repo alone is not enough on a new device.**
+> The model files are large binary files. While the `.pkl` and `.json` files in `python/models/` are committed to git and will be downloaded on `git clone`, the `senior_predictions.csv` file is gitignored and must be transferred separately.
+>
+> The `storage/app/ml_models/` directory is a runtime mirror. Its `.pkl` files are NOT committed to git (they are gitignored). The canonical source is always `python/models/`.
+
+The `.env` variable `ML_MODELS_PATH=python/models` tells the inference service where to find artifacts. If this is not set, the service falls back to auto-detection — which is a deployment risk because a different directory might be selected on a different machine.
+
+---
+
+## 4. Required Artifact Files
+
+All files in this table must be present in `python/models/` for the system to work correctly.
+
+| File | Description | Expected shape |
+|---|---|---|
+| `scaler.pkl` | StandardScaler | 39 input features, 283 training rows |
+| `umap_nd.pkl` | UMAP reducer | **31** input features → 10 components |
+| `kmeans.pkl` | KMeans | k=3, 10 input features (UMAP output) |
+| `feature_list.json` | UMAP input feature names | **31-element array** (post-VIF subset, NOT 39) |
+| `cluster_mapping.json` | Raw KMeans ID → named cluster ID | `{"0": 3, "1": 1, "2": 2}` exactly |
+| `cluster_metadata.json` | Cluster names and descriptions | 3 clusters |
+| `ml_risk_features.json` | Ensemble input feature names | 51-element array |
+| `gbr_ic_risk.pkl` | GBR for IC risk | 51 input features |
+| `gbr_env_risk.pkl` | GBR for ENV risk | 51 input features |
+| `gbr_func_risk.pkl` | GBR for FUNC risk | 51 input features |
+| `rfr_ic_risk.pkl` | RFR for IC risk | 51 input features |
+| `rfr_env_risk.pkl` | RFR for ENV risk | 51 input features |
+| `rfr_func_risk.pkl` | RFR for FUNC risk | 51 input features |
+| `asset_weights.json` | Scoring weight table | — |
+| `vif_retained_features.json` | VIF analysis output | — |
+| `predictions/senior_predictions.csv` | Notebook results for 283 seed seniors | 283 rows (gitignored) |
+
+**Critical notes:**
+- `feature_list.json` must contain **31 features** (not 39). The scaler has 39 input features, but only 31 are passed to UMAP after VIF filtering.
+- `cluster_mapping.json` must be exactly `{"0": 3, "1": 1, "2": 2}`. This maps raw KMeans cluster IDs to named cluster IDs: raw 0 → C3 (Low Functioning), raw 1 → C1 (High Functioning), raw 2 → C2 (Moderate).
+- `predictions/senior_predictions.csv` is required for the notebook_cache prediction path (see Section 5).
+
+---
+
+## 5. Two Prediction Paths
+
+The inference service uses two different paths depending on the senior and the `ENABLE_NOTEBOOK_OVERRIDES` setting.
+
+### Path A — Notebook cache (`prediction_source = notebook_cache`)
+
+**Used for:** The original 283 seed seniors when `ENABLE_NOTEBOOK_OVERRIDES=true`.
+
+The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (which was populated from `senior_predictions.csv` during seeding). UMAP and the GBR/RFR models are **not called** for these seniors. The result is always identical across all devices regardless of hardware.
+
+**Guaranteed distribution for the 283 seed seniors:**
+- HIGH: 54
+- MODERATE: 191
+- LOW: 38
+- C1 (High Functioning): 75
+- C2 (Moderate / Mixed Needs): 132
+- C3 (Low Functioning / Multi-domain Risk): 76
+
+Use this path for demos and the defense. It eliminates any possibility of floating-point variance across different CPUs.
+
+### Path B — Live model (`prediction_source = live_model`)
+
+**Used for:** New seniors added after seeding (always), and all seniors when `ENABLE_NOTEBOOK_OVERRIDES=false`.
+
+Every senior is scored live: scaler → feature subset → UMAP transform → KMeans → GBR/RFR ensemble → composite risk formula.
+
+The composite risk formula is:
+```
+ml_composite = IC*0.35 + ENV*0.35 + FUNC*0.30
+composite = rule_composite*0.45 + ml_composite*0.55
+```
+
+Risk levels:
+- HIGH: composite ≥ 0.50
+- MODERATE: composite ≥ 0.30
+- LOW: composite < 0.30
+- URGENT priority flag: composite ≥ 0.70
+
+The live model path is the production path for ongoing data collection beyond the initial 283 seniors.
+
+### Path C — Fallback (`prediction_source = fallback`)
+
+**Used for:** When the Python ML services are unreachable and local subprocess also fails.
+
+The fallback uses a PHP heuristic — section scores computed from age only. Results are approximate and should be recomputed when services are restored. A "Fallback" badge appears on the senior's profile.
+
+### Checking prediction sources in the database
+
+```sql
+SELECT prediction_source, COUNT(*)
+FROM ml_results
+GROUP BY prediction_source;
+```
+
+Expected for defense mode: `notebook_cache: 283, live_model: N` (where N is any new seniors you added).
+
+---
+
+## 6. Starting the ML Services
+
+### Using start.bat (recommended)
+
+```
+Double-click start.bat
+```
+
+This starts both services automatically in the background. See [DEPLOYMENT.md](DEPLOYMENT.md) for details.
+
+### Starting manually
+
+Open two terminal windows in the project root:
+
+```powershell
+# Terminal 1 — Preprocess service (port 5001)
+python\venv\Scripts\python.exe python\services\preprocess_service.py
+
+# Terminal 2 — Inference service (port 5002)
+python\venv\Scripts\python.exe python\services\inference_service.py
+```
+
+**Always use the venv python.** Never use the system `python` command — it will pick up the wrong Python version and missing packages.
+
+The inference service prints a startup summary when it loads. Look for artifact validation output and `[ARTIFACT MISMATCH]` warnings. If any mismatch is reported, stop the service and re-transfer the artifact bundle.
+
+### Verifying services are running
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:5001/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:5002/health -UseBasicParsing
+```
+
+The inference service `/health` response includes:
+```json
+{
+  "status": "ok",
+  "service": "osca-inference",
+  "model_dir": "...",
+  "model_version": "1.1.0",
+  "notebook_overrides_enabled": true
+}
+```
+
+Confirm `notebook_overrides_enabled` matches what you set in `.env`.
+
+### After changing .env
+
+The Flask services load `.env` values once at startup. After changing any `.env` variable (especially `ENABLE_NOTEBOOK_OVERRIDES`), run:
+
+```powershell
+.\stop.bat
+.\start.bat
+```
+
+---
+
+## 7. Validating Artifacts on Any Device
+
+Before a demo or defense on any device, run the standalone validation script:
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+```
+
+Expected result: **51 PASS, 0 FAIL, 0 WARN**
+
+The script checks:
+- All required artifact files are present
+- `scaler.pkl` has 39 features (283-senior training run)
+- `umap_nd.pkl` has 31 input features and 10 output components
+- `kmeans.pkl` has k=3 clusters and 10 input features
+- `feature_list.json` lists exactly 31 features
+- `cluster_mapping.json` maps `{0→3, 1→1, 2→2}` correctly
+- All 6 GBR/RFR models accept 51 input features each
+- `senior_predictions.csv` is present with 283 rows
+- End-to-end forward pass completes without error
+- UMAP usage mode (transform-only — fit/fit_transform are not called)
+
+If any check FAIL:
+- Re-transfer the artifact bundle from the main laptop.
+- Do not retrain models.
+- Do not manually edit `.pkl` or `.json` files.
+
+---
+
+## 8. Testing Reproducibility
+
+After services are running, run the reproducibility test to confirm the pipeline produces identical results for the same input across two runs and between single and batch inference:
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+```
+
+Expected: **28 PASS, 0 FAIL**
+
+To test a specific senior:
+```powershell
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py --senior-id 42
+```
+
+The test checks:
+- `cluster.raw_id`, `cluster.named_id`, `cluster.name` — identical between run 1 and run 2
+- `ic_risk`, `env_risk`, `func_risk`, `composite_risk` — exact float match
+- `risk_levels.overall`, `risk_levels.ic`, `risk_levels.env`, `risk_levels.func`
+- `priority_flag`
+- Recommendation count and first recommendation text
+- All of the above for `/infer` vs `/batch_infer`
+
+If any check FAIL:
+1. Confirm both services are running and healthy.
+2. Check `storage/logs/python-inference.err.log` for errors.
+3. Confirm `ML_MODELS_PATH=python/models` in `.env`.
+4. Run artifact validation to check for mismatches.
+
+---
+
+## 9. Copying the Artifact Bundle to Another Device
+
+> The artifact bundle is NOT fully downloaded by `git clone` alone. `senior_predictions.csv` is gitignored and must be transferred separately.
+
+### Option A — ZIP archive (recommended for USB transfer)
+
+On the source (main) laptop:
+```powershell
+# From the osca-system/ project root
+Compress-Archive -Path python/models -DestinationPath osca_models_v1.1.0.zip
+```
+
+Transfer `osca_models_v1.1.0.zip` to the target device via USB or shared folder.
+
+On the target device:
+```powershell
+# Unzip into the project root — overwrites any existing python/models/
+Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+```
+
+### Option B — Direct folder copy (USB)
+
+1. Copy the entire `python/models/` directory from the main laptop (including the `predictions/` subdirectory).
+2. Place it at `osca-system/python/models/` on the target device.
+
+### After copying — mandatory steps on the target device
+
+```
+[ ] 1. Confirm ML_MODELS_PATH=python/models is in .env
+[ ] 2. Confirm ENABLE_NOTEBOOK_OVERRIDES=true is in .env
+[ ] 3. Run artifact validation:
+        python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+        → Expected: 51 PASS, 0 FAIL, 0 WARN
+[ ] 4. Start both Flask services (start.bat or manually)
+[ ] 5. Run reproducibility test:
+        python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+        → Expected: 28 PASS, 0 FAIL
+[ ] 6. Import the database dump if exact same 283 results are required
+        (follow DATABASE_SHARING_AND_TEAM_SETUP.md)
+```
+
+If step 3 fails, the artifact bundle is incomplete or corrupted — re-transfer from the source laptop.
+
+---
+
+## 10. When to Enable or Disable Notebook Overrides
+
+| Scenario | `ENABLE_NOTEBOOK_OVERRIDES` |
+|---|---|
+| Demo or defense with the 283 seed seniors | `true` |
+| Adding and testing new seniors live | `true` (new seniors always use live model path) |
+| Verifying that the live model works correctly | `false` |
+| Validating that live model matches notebook output | `false` — then run `test_reproducibility.py` |
+
+Switching this setting requires restarting both Flask services (stop.bat → start.bat).
+
+---
+
+## 11. Environment Variables Reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `ML_MODELS_PATH` | *(auto)* | Path to artifact directory. **Always set this to `python/models`.** |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | `true` = use stored notebook_cache results for seed seniors. Set `true` for demos. |
+| `NUMBA_THREADING_LAYER` | `workqueue` | Set in code at startup. Forces single-threaded UMAP for determinism. |
+| `NUMBA_NUM_THREADS` | `1` | Set in code at startup. One UMAP thread per inference call. |
+| `OMP_NUM_THREADS` | `1` | Set in code at startup. One OpenMP thread. |
+| `PYTHON_INFERENCE_PORT` | `5002` | Port for the inference Flask service. |
+| `PYTHON_PREPROCESS_PORT` | `5001` | Port for the preprocess Flask service. |
+
+The three NUMBA/OMP variables are set automatically in `inference_service.py` using `os.environ.setdefault()`. They do not need to be in `.env` under normal conditions.
+
+---
+
+## 12. Troubleshooting
+
+### validate_model_artifacts.py reports FAIL on feature_list.json
+
+`feature_list.json` must contain the **31 post-VIF features used as UMAP input**, not the full 39-feature scaler input. If the file has 39 entries, it was exported from the wrong notebook cell. Re-export from the VIF/UMAP cell in `osca5.ipynb` and copy the corrected file to `python/models/`.
+
+### validate_model_artifacts.py reports FAIL on cluster_mapping.json
+
+The correct mapping is `{"0": 3, "1": 1, "2": 2}`. Any other mapping produces wrong cluster names. Re-export from `osca5.ipynb` or manually set the file to the correct value and re-run validation.
+
+### Cluster distribution does not match HIGH=54 / MODERATE=191 / LOW=38
+
+1. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`.
+2. Restart services (stop.bat → start.bat).
+3. Check in the database:
+   ```sql
+   SELECT prediction_source, COUNT(*) FROM ml_results GROUP BY prediction_source;
+   ```
+   All 283 rows should show `notebook_cache`.
+4. If any rows show `live_model`, re-seed:
+   ```powershell
+   php artisan db:seed --class=SeniorCitizenSeeder
+   ```
+
+### Two devices produce different risk levels for the same senior
+
+1. Run `validate_model_artifacts.py` on both devices. Confirm artifacts match.
+2. Confirm both devices have `ML_MODELS_PATH=python/models` in `.env`.
+3. Restart Flask services on both devices after confirming `.env`.
+4. If `ENABLE_NOTEBOOK_OVERRIDES=true` and DB rows differ, re-import from the canonical dump (see [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md)).
+
+### Flask service won't start — port already in use
+
+Run `stop.bat` first to release ports 5001 and 5002. Then run `start.bat`.
+
+If `stop.bat` reports a port is still bound:
+```powershell
+# Find and kill the process manually
+Get-NetTCPConnection -LocalPort 5001 -State Listen
+Stop-Process -Id <OwningProcess> -Force
+```
+
+### Inference service shows `notebook_overrides_enabled: false` after setting true in .env
+
+The Flask services load `.env` once at startup. After changing `.env`, you must restart both services:
+```powershell
+.\stop.bat
+.\start.bat
+```
+
+### ModuleNotFoundError: No module named pymysql
+
+The inference service uses pymysql to read the DB cache. It is optional — without it, the DB cache is disabled and every senior gets scored live. Install it with:
+```powershell
+python\venv\Scripts\pip.exe install pymysql
+```
+
+### Prediction source shows fallback
+
+The Python ML services were unreachable when the analysis ran. Start the services and re-run analysis for any affected seniors. Fallback results are approximate and should not be used for the defense.
+
+---
+
+## Related Documents
+
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Complete system setup and the Pre-Defense Device Checklist
+- [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) — Database export, import, and shared MySQL
+- [ML_PIPELINE.md](ML_PIPELINE.md) — Internal ML architecture and feature engineering
+- [UPDATING_THE_MODEL.md](UPDATING_THE_MODEL.md) — How to retrain and redistribute models
+- [README.md](README.md) — Documentation index

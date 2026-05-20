@@ -1,139 +1,120 @@
 # Deployment Guide — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Audience:** System administrators and developers setting up the system for the first time or deploying to a new environment.
-> **Last Updated:** 2026-05-19
+> **Audience:** Anyone setting up the system on a new device.
+> **Platform:** Windows 10/11 with Laragon (recommended) or standard PHP/MySQL install.
 
 ---
 
 ## Table of Contents
 
 1. [System Requirements](#1-system-requirements)
-2. [Directory Structure Overview](#2-directory-structure-overview)
-3. [Installation — Development (Windows)](#3-installation--development-windows)
-4. [Environment Configuration](#4-environment-configuration)
-5. [Database Setup](#5-database-setup)
-6. [Python ML Services Setup](#6-python-ml-services-setup)
-7. [Running the Application](#7-running-the-application)
-8. [First Login and Default Credentials](#8-first-login-and-default-credentials)
-9. [Loading Existing Data](#9-loading-existing-data)
-10. [What Other Devices Need To Do](#10-what-other-devices-need-to-do)
-11. [Production Deployment Checklist](#11-production-deployment-checklist)
-12. [Common Setup Errors](#12-common-setup-errors)
+2. [Recommended Setup — setup.bat](#2-recommended-setup--setupbat)
+3. [Manual Setup — Step by Step](#3-manual-setup--step-by-step)
+4. [Starting the System](#4-starting-the-system)
+5. [Stopping the System](#5-stopping-the-system)
+6. [Environment Configuration Reference](#6-environment-configuration-reference)
+7. [Default Login Accounts](#7-default-login-accounts)
+8. [Pre-Defense Device Checklist](#8-pre-defense-device-checklist)
+9. [Before Push Checklist](#9-before-push-checklist)
+10. [After a Code Update (git pull)](#10-after-a-code-update-git-pull)
+11. [Common Setup Errors](#11-common-setup-errors)
 
 ---
 
 ## 1. System Requirements
 
-### Minimum (development / pilot)
-
 | Component | Requirement |
 |---|---|
-| OS | Windows 10/11 (production: Ubuntu 22.04 LTS recommended) |
+| OS | Windows 10 or Windows 11 |
 | PHP | 8.2 or higher |
 | Composer | 2.x |
 | Node.js | 18 LTS or higher |
 | NPM | 9 or higher |
-| MySQL | 8.0 or higher (or MariaDB 10.6+) |
-| **Python** | **3.12.x exactly** — see note below |
+| MySQL | 8.0 or higher (Laragon includes this) |
+| Python | **3.12.x exactly** — see note below |
 | Git | 2.x |
 | RAM | 4 GB minimum, 8 GB recommended |
-| Disk | 2 GB free (models + database + app) |
+| Disk | 3 GB free |
 
-> **Python version must be 3.12.x.** The ML dependencies (numba 0.65.0, umap-learn 0.5.12) are pinned to versions that are fully tested on Python 3.12. Python 3.13 causes a numba JIT compilation error (`pop from empty list` in byteflow.py) that prevents UMAP from running. Python 3.10 or 3.11 may work but are untested. Download Python 3.12 from: https://www.python.org/downloads/release/python-3126/
+> **Python must be 3.12.x.** The ML dependencies (numba 0.65.0, umap-learn 0.5.12) are tested only on Python 3.12. Python 3.13 causes a numba error that prevents UMAP from running. Download Python 3.12 at: https://www.python.org/downloads/release/python-3126/
+> During installation, check **"Add Python to PATH"**.
 
-### PHP extensions required
-
-```
-php-pdo, php-mysql, php-mbstring, php-xml, php-curl, php-zip,
-php-fileinfo, php-bcmath, php-tokenizer, php-ctype, php-json
-```
-
-Verify with: `php -m | findstr -i "pdo mysql mbstring"`
+**Recommended tool stack for Windows:**
+- [Laragon](https://laragon.org/) — provides PHP, MySQL, and Composer in one installer
+- [Node.js 18 LTS](https://nodejs.org/)
+- [Python 3.12](https://www.python.org/downloads/release/python-3126/)
+- [Git for Windows](https://git-scm.com/)
 
 ---
 
-## 2. Directory Structure Overview
+## 2. Recommended Setup — setup.bat
+
+`setup.bat` handles the full setup automatically. Use this for any device setting up the system for the first time.
+
+### Before running setup
+
+You need the following files that are not in the git repository:
+
+| File | Where to place it | Why needed |
+|---|---|---|
+| `osca.csv` | Project root (same folder as `setup.bat`) | Imports 283 senior citizen records |
+| `python/models/` artifact bundle | `osca-system/python/models/` | ML model files (.pkl, .json) |
+
+The artifact bundle must be transferred from the main laptop via USB or ZIP file. See [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) for transfer instructions.
+
+### Create the MySQL database first
+
+Before running setup, create the database in MySQL:
+
+```sql
+CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Using Laragon:
+```powershell
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root -e "CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+### Run setup
 
 ```
-osca-system/
-├── app/
-│   ├── Console/Commands/   Artisan commands (osca:purge-expired)
-│   ├── Http/Controllers/   Route controllers (BulkUploadController, MlController, etc.)
-│   ├── Http/Middleware/    NoTimeLimit middleware (applied to ML and bulk upload routes)
-│   ├── Jobs/               ProcessMlBatch queued job
-│   ├── Livewire/           Livewire components (dashboard, reports, forms)
-│   ├── Models/             Eloquent models (including ActivityLog)
-│   ├── Observers/          ActivityLogObserver
-│   ├── Services/           MlService, ClusterAnalyticsService
-│   └── Support/            ClusterMetrics helper
-├── database/
-│   ├── migrations/         Database schema definitions
-│   └── seeders/            OscaCsvSeeder (bulk import)
-├── docs/                   This documentation
-├── python/
-│   ├── models/             Trained artefacts (.pkl, .json) including cluster_mapping.json
-│   ├── services/           preprocess_service.py, inference_service.py, local_ml_runner.py
-│   ├── tests/              test_ml_pipeline.py, test_inference_paths.py, test_inference_e2e.py
-│   ├── venv/               Python virtual environment (not committed)
-│   ├── fix_cluster_distribution.py   One-time cluster alignment script (run after every seed)
-│   ├── start_services.ps1  Windows startup script
-│   └── start_services.sh   Linux/macOS startup script
-├── resources/
-│   ├── js/                 Alpine.js + Chart.js frontend
-│   └── views/              Blade templates
-├── routes/                 web.php, auth.php, seniors.php, surveys.php, ml.php, reports.php, recommendations.php, users.php
-├── pyrightconfig.json      VS Code Pylance config (points to python/venv for import resolution)
-├── storage/
-│   └── logs/               queue.log, queue.err.log, ml_startup.log
-└── .env                    Environment configuration (not committed)
+Double-click setup.bat
 ```
+
+Or from a terminal:
+```powershell
+.\setup.bat
+```
+
+`setup.bat` will:
+1. Check prerequisites (PHP, Composer, Node.js, Python)
+2. Install PHP dependencies (`composer install`)
+3. Install Node.js dependencies (`npm install`)
+4. Create `.env` from `.env.example` and generate application key
+5. Warn if `ML_MODELS_PATH` or `ENABLE_NOTEBOOK_OVERRIDES` are missing from `.env`
+6. Run database migrations
+7. Import senior citizen data from `osca.csv` (if present)
+8. Build frontend assets (`npm run build`)
+9. Create Python virtual environment at `python/venv`
+10. Install Python ML dependencies from `python/requirements.txt`
+11. Copy ML model files from `osca_output/model/` (if present)
+12. **Run `validate_model_artifacts.py`** — setup stops with a clear error if artifacts are missing or mismatched
+
+When setup completes, you will see:
+
+```
+  Next step — start the system:
+    Double-click  start.bat
+```
+
+If setup stops at step 12 with an artifact validation failure, the `python/models/` bundle is missing or incomplete. Copy the correct bundle from the main laptop and re-run setup. **Do not retrain models.**
 
 ---
 
-## 3. Installation — Development (Windows)
+## 3. Manual Setup — Step by Step
 
-### Recommended path — `setup.bat` (automated)
-
-For any machine cloning the project for the first time (including collaborators), the recommended approach is the automated batch script.
-
-#### Before running setup — collect these private files
-
-One file is gitignored and must be obtained from the project lead before setup. It contains real personal data and is never committed to the repository.
-
-| File | Where to place it |
-|---|---|
-| `osca.csv` | Project root — same folder as `setup.bat` |
-
-> **Note:** The prediction CSV files (`senior_predictions.csv`, `senior_recommendations_flat.csv`) are no longer required. The system uses trained model files committed to the repository.
-
-#### Setup steps
-
-```
-1. git clone https://github.com/somarjez/osca-agesense.git
-2. cd osca-agesense
-3. Create the MySQL database: CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-4. Place osca.csv in the project root
-5. Double-click setup.bat
-```
-
-`setup.bat` handles everything automatically:
-- `composer install`, `npm install`
-- `.env` creation and key sync, application key generation
-- Database migrations and CSV seeding (if `osca.csv` present)
-- Frontend build (`npm run build`)
-- Python virtual environment creation (`python/venv`)
-- Python dependency installation from `requirements.txt`
-- ML model file sync from `osca_output/model/` if present
-- **Auto-runs `fix_cluster_distribution.py`** to align cluster assignments (Step 10/10 of setup)
-
-After setup completes, use `start.bat` to launch the system every session.
-
-> **Why `fix_cluster_distribution.py` runs automatically:** Each device has its own local MySQL database seeded from `osca.csv`. UMAP's transform can orient cluster IDs differently on different machines. This script runs all seniors through a single batch transform and **auto-calibrates `cluster_mapping.json`** to ensure the cluster labels (High Functioning / Moderate / Low Functioning) are correct on every device. Without it, C1 and C2 may be swapped.
-
----
-
-### Manual setup (alternative)
+Use this only if `setup.bat` is unavailable or you need to set up components individually.
 
 ### Step 1 — Clone the repository
 
@@ -148,11 +129,10 @@ cd osca-agesense
 composer install
 ```
 
-### Step 3 — Install Node dependencies and build assets
+### Step 3 — Install Node.js dependencies
 
 ```powershell
 npm install
-npm run build
 ```
 
 ### Step 4 — Copy and configure environment file
@@ -162,244 +142,198 @@ copy .env.example .env
 php artisan key:generate
 ```
 
-Edit `.env` — at minimum set the database credentials (see Section 4).
+Then open `.env` and set your database credentials and ML settings (see [Section 6](#6-environment-configuration-reference)).
 
-### Step 5 — Run database migrations
-
-```powershell
-php artisan migrate
-```
-
-### Step 6 — Set up Python virtual environment
-
-```powershell
-cd python
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-cd ..
-```
-
-> Use Python 3.12 specifically. If you have multiple Python versions installed, use `py -3.12 -m venv venv`.
-
-### Step 7 — Seed the database
-
-```powershell
-php artisan db:seed   # requires osca.csv at project root or ../osca.csv
-```
-
-### Step 8 — Align cluster assignments (required after every seed)
-
-```powershell
-python\venv\Scripts\python.exe python\fix_cluster_distribution.py
-```
-
-This takes ~1–2 minutes. See Section 9 for details on why this is required.
-
-### Step 9 — Start the application
-
-```powershell
-# Easiest: double-click start.bat
-# Or manually:
-php artisan serve
-```
-
-The application opens at `http://127.0.0.1:8000`.
-
----
-
-## 4. Environment Configuration
-
-Key `.env` variables:
-
-### Application
-
-| Variable | Example | Description |
-|---|---|---|
-| `APP_NAME` | `AgeSense` | Application name shown in the browser title |
-| `APP_ENV` | `local` / `production` | Environment mode |
-| `APP_DEBUG` | `true` / `false` | Show detailed errors (set `false` in production) |
-| `APP_URL` | `http://localhost:8000` | Base URL of the application |
-
-### Database
-
-| Variable | Example | Description |
-|---|---|---|
-| `DB_CONNECTION` | `mysql` | Database driver |
-| `DB_HOST` | `127.0.0.1` | Database host |
-| `DB_PORT` | `3306` | Database port |
-| `DB_DATABASE` | `osca_db` | Database name |
-| `DB_USERNAME` | `root` | Database username |
-| `DB_PASSWORD` | `yourpassword` | Database password |
-
-### Session and Cache
-
-| Variable | Recommended | Description |
-|---|---|---|
-| `SESSION_DRIVER` | `database` | Stores sessions in the database |
-| `SESSION_LIFETIME` | `120` | Session expiry in minutes |
-| `CACHE_STORE` | `database` | Cache driver |
-| `QUEUE_CONNECTION` | `database` | Queue driver (uses `jobs` table) |
-
-### ML Services
-
-| Variable | Default | Description |
-|---|---|---|
-| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python microservices — **no port suffix** |
-| `PYTHON_PREPROCESS_PORT` | `5001` | Preprocessor service port |
-| `PYTHON_INFERENCE_PORT` | `5002` | Inference service port |
-| `ML_MODELS_PATH` | `python/models` | Path to `.pkl` / `.json` model artefacts |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | Retired — CSV override system replaced by live ML inference. Leave `false`. |
-| `PYTHON_TIMEOUT` | `120` | Seconds to wait for a local Python subprocess. Increase on slow machines. |
-| `PYTHON_EXECUTABLE` | _(auto)_ | Override the Python binary. Leave blank to auto-detect from `python/venv`. |
-
-### Mail (notifications)
-
-| Variable | Default | Description |
-|---|---|---|
-| `MAIL_MAILER` | `log` | Set to `smtp` for real email delivery |
-| `MAIL_HOST` | `127.0.0.1` | SMTP host |
-| `MAIL_PORT` | `1025` | SMTP port |
-
----
-
-## 5. Database Setup
-
-### Create the database
+### Step 5 — Create the MySQL database
 
 ```sql
 CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-### Run migrations
+### Step 6 — Run database migrations
 
 ```powershell
 php artisan migrate
 ```
 
-This creates all tables: `users`, `senior_citizens`, `qol_surveys`, `ml_results`, `recommendations`, `activity_logs`, `cluster_snapshots`, `jobs`, `sessions`, etc.
+### Step 7 — Import senior citizen data (if osca.csv is available)
 
-### Reset and re-seed (development only)
-
+Place `osca.csv` in the project root, then:
 ```powershell
-php artisan migrate:fresh
-php artisan db:seed   # requires osca.csv at project root or ../osca.csv
-python\venv\Scripts\python.exe python\fix_cluster_distribution.py
+php artisan db:seed
 ```
 
-> **Warning:** `migrate:fresh` drops all tables. Never run on a device with live data you care about. Always run `fix_cluster_distribution.py` after re-seeding.
+### Step 8 — Build frontend assets
+
+```powershell
+npm run build
+```
+
+### Step 9 — Create the Python virtual environment
+
+```powershell
+py -3.12 -m venv python\venv
+```
+
+> Use `py -3.12` to ensure Python 3.12 is used, not another installed version.
+
+### Step 10 — Install Python ML dependencies
+
+```powershell
+python\venv\Scripts\pip.exe install -r python\requirements.txt
+```
+
+### Step 11 — Transfer the ML artifact bundle
+
+Copy the `python/models/` directory from the main laptop. See [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md).
+
+### Step 12 — Validate ML artifacts
+
+```powershell
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+```
+
+Expected: **51 PASS, 0 FAIL, 0 WARN**
+
+If any check fails, the artifact bundle is incomplete. Re-transfer from the main laptop.
+
+### Step 13 — Start the system
+
+```powershell
+.\start.bat
+```
 
 ---
 
-## 6. Python ML Services Setup
+## 4. Starting the System
 
-### Virtual environment
+### Recommended — start.bat
 
-```powershell
-cd python
-py -3.12 -m venv venv        # use py -3.12 if multiple Python versions are installed
-venv\Scripts\activate
-pip install -r requirements.txt
-cd ..
+```
+Double-click start.bat
 ```
 
-### Start services manually
+`start.bat` does the following in order:
+1. Checks for `.env` and prerequisites
+2. Auto-adds any new keys from `.env.example` into `.env`
+3. Detects PHP (PATH → Laragon → XAMPP)
+4. Checks if MySQL is running; tries to start it if not
+5. Clears compiled view cache
+6. Starts both Python ML services in the background (logs to `storage/logs/python-preprocess.log` and `storage/logs/python-inference.log`)
+7. Starts the Laravel queue worker in the background
+8. Starts the Laravel task scheduler in the background
+9. Opens `http://127.0.0.1:8000` in your browser after 5 seconds
+10. Starts the Laravel development server in the foreground
 
+Press **Ctrl+C** to stop the development server. The ML services and queue worker continue running in the background until you run `stop.bat` or restart your computer.
+
+**Log files produced by start.bat:**
+
+| Log file | Contents |
+|---|---|
+| `storage/logs/python-preprocess.log` | Preprocess service output |
+| `storage/logs/python-inference.log` | Inference service output (model loading, errors) |
+| `storage/logs/python-services-start.log` | Startup orchestration output |
+| `storage/logs/queue.log` | Queue worker output |
+| `storage/logs/scheduler.log` | Scheduled task output |
+
+**Confirming services are running:**
 ```powershell
-# Windows (PowerShell) — start both services
-cd python
-.\start_services.ps1
-
-# Or start individually
-cd python/services
-python preprocess_service.py   # runs on port 5001
-python inference_service.py    # runs on port 5002
+Invoke-WebRequest http://127.0.0.1:5001/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:5002/health -UseBasicParsing
 ```
 
-### Verify services are running
+Both should return `{"status":"ok"}`.
+
+### Manual start (individual terminals)
+
+Open three separate terminals in the project root:
 
 ```powershell
-Invoke-WebRequest http://127.0.0.1:5001/health
-Invoke-WebRequest http://127.0.0.1:5002/health
-```
+# Terminal 1 — Preprocess service (port 5001)
+python\venv\Scripts\python.exe python\services\preprocess_service.py
 
-Both should return `{"status": "ok"}`.
+# Terminal 2 — Inference service (port 5002)
+python\venv\Scripts\python.exe python\services\inference_service.py
 
-### Model artefacts
-
-All trained `.pkl` files are committed to `python/models/` and downloaded automatically on `git clone` or `git pull`. Verify with:
-
-```powershell
-dir python\models\
-```
-
-Expected files: `scaler.pkl`, `umap_nd.pkl`, `umap_nd.pkl`, `kmeans.pkl`, `gbr_ic_risk.pkl`, `gbr_env_risk.pkl`, `gbr_func_risk.pkl`, `rfr_ic_risk.pkl`, `rfr_env_risk.pkl`, `rfr_func_risk.pkl`, `edu_encoder.pkl`, `income_encoder.pkl`, `feature_list.json`, `cluster_mapping.json`, `asset_weights.json`, `cluster_metadata.json`, `cluster_eval_metrics.json`.
-
-> **`cluster_mapping.json` is auto-updated** by `fix_cluster_distribution.py` on each device. It maps raw KMeans IDs to named cluster IDs (1=High Functioning, 2=Moderate, 3=Low Functioning). This file is committed to git as a baseline but will be correctly re-calibrated for each device's UMAP orientation when the alignment script runs.
-
----
-
-## 7. Running the Application
-
-### Development (Windows — recommended)
-
-Double-click `start.bat`. It does everything automatically:
-
-1. Detects PHP (PATH → Laragon → XAMPP)
-2. Starts Python ML services in the background (`start_services.ps1`)
-3. Starts the Laravel queue worker as a hidden background process (logs to `storage/logs/queue.log`)
-4. Opens `http://127.0.0.1:8000` in your browser
-5. Starts the Laravel development server in the foreground
-
-Press `Ctrl+C` to stop the server. The ML services and queue worker continue in the background until you close all terminals or restart.
-
-### Development (manual — single terminal)
-
-```powershell
-# Start Python ML services
-powershell -File python\start_services.ps1
-
-# Start queue worker (keep running for batch ML inference)
-php artisan queue:work --queue=default
-
-# Start Laravel in a separate terminal
+# Terminal 3 — Laravel
 php artisan serve
 ```
 
-### Production (Ubuntu/nginx)
+---
 
-1. Build frontend assets:
-   ```bash
-   npm run build
-   ```
+## 5. Stopping the System
 
-2. Configure nginx to point to `/public`.
+```
+Double-click stop.bat
+```
 
-3. Set permissions:
-   ```bash
-   chmod -R 775 storage bootstrap/cache
-   chown -R www-data:www-data storage bootstrap/cache
-   ```
+`stop.bat` will:
+- Stop PHP processes for this project (artisan serve, queue worker, scheduler)
+- Stop the Python ML services on ports 5001 and 5002
+- Confirm that ports 5001 and 5002 are free after stopping
 
-4. Run migrations:
-   ```bash
-   php artisan migrate --force
-   ```
-
-5. Start Python services as system services (systemd):
-   ```bash
-   # /etc/systemd/system/osca-inference.service
-   [Service]
-   ExecStart=/var/www/osca-agesense/python/venv/bin/python /var/www/osca-agesense/python/services/inference_service.py
-   Restart=always
-   User=www-data
-   ```
+Always run `stop.bat` before running `start.bat` again. This prevents duplicate services from binding the same port.
 
 ---
 
-## 8. First Login and Default Credentials
+## 6. Environment Configuration Reference
 
-Three accounts are created automatically by `UserSeeder` (runs as part of `php artisan db:seed`).
+The `.env` file in the project root controls all runtime settings. Never commit `.env` to git.
+
+### Required settings — fill these in after creating `.env`
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=osca_db
+DB_USERNAME=root
+DB_PASSWORD=
+
+ML_MODELS_PATH=python/models
+ENABLE_NOTEBOOK_OVERRIDES=true
+```
+
+### ML settings
+
+| Variable | Value | Description |
+|---|---|---|
+| `ML_MODELS_PATH` | `python/models` | Path to ML artifact files. Always set this explicitly. |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | `true` = the original 283 seed seniors use stored notebook results (fast, deterministic). New seniors always use the live model regardless of this setting. Set to `true` for demos and defense. |
+| `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python services — no port suffix. |
+| `PYTHON_PREPROCESS_PORT` | `5001` | Port for the preprocess service. |
+| `PYTHON_INFERENCE_PORT` | `5002` | Port for the inference service. |
+| `PYTHON_TIMEOUT` | `120` | Seconds to wait for a Python subprocess. Increase on slow machines. |
+
+### Application settings
+
+| Variable | Development value | Description |
+|---|---|---|
+| `APP_ENV` | `local` | Change to `production` for live deployment. |
+| `APP_DEBUG` | `true` | Change to `false` in production to hide error details. |
+| `APP_URL` | `http://localhost` | Base URL of the application. |
+
+### Database settings (for shared remote MySQL during defense)
+
+```env
+DB_HOST=192.168.1.100    # Host laptop's IP address
+DB_USERNAME=agesense_user
+DB_PASSWORD=your_password
+```
+
+After changing `.env`, run:
+```powershell
+php artisan config:clear
+php artisan cache:clear
+```
+Then restart both Flask services (stop.bat → start.bat).
+
+---
+
+## 7. Default Login Accounts
+
+Three accounts are created automatically when you seed the database.
 
 | Role | Email | Initial Password |
 |---|---|---|
@@ -407,244 +341,207 @@ Three accounts are created automatically by `UserSeeder` (runs as part of `php a
 | Encoder | `encoder@osca.local` | `Encoder@OSCA2026!` |
 | Viewer | `viewer@osca.local` | `Viewer@OSCA2026!` |
 
-> **Change all passwords immediately after first login.**
-
-### What each role can do
+> Change all passwords after first login. To reset to defaults: `php artisan db:seed --class=UserSeeder`
 
 | Capability | admin | encoder | viewer |
 |---|---|---|---|
-| Dashboard, reports, recommendations (view) | ✅ | ✅ | ✅ |
-| Create and edit senior profiles | ✅ | ✅ | ❌ |
-| Bulk CSV upload | ✅ | ✅ | ❌ |
-| Manage QoL surveys | ✅ | ✅ | ❌ |
-| Run ML inference | ✅ | ✅ | ❌ |
-| Archive / restore / permanently delete seniors | ✅ | ❌ | ❌ |
-| Activity log, CSV exports, cluster snapshots | ✅ | ❌ | ❌ |
-| User account management | ✅ | ❌ | ❌ |
-
-### Resetting a locked account
-
-```powershell
-php artisan db:seed --class=UserSeeder
-```
-
-This restores default passwords for all three seed accounts without touching senior data.
+| Dashboard, reports, recommendations (view) | Yes | Yes | Yes |
+| Create and edit senior profiles | Yes | Yes | No |
+| Run ML analysis | Yes | Yes | No |
+| Archive / restore / permanently delete seniors | Yes | No | No |
+| User account management | Yes | No | No |
 
 ---
 
-## 9. Loading Existing Data
+## 8. Pre-Defense Device Checklist
 
-### Important — each device has its own local database
+Run these steps in order on every device before a demo or defense. Do not skip steps.
 
-Each device runs its own local MySQL database seeded from `osca.csv`. This means cluster assignments must be **auto-calibrated on every device after seeding** — otherwise devices may show different health group counts for the same seniors.
+```
+[ ] 1. Pull the latest code:
+        git pull origin main
 
-**After every fresh seed, run:**
+[ ] 2. Transfer the python/models artifact bundle (if not already present):
+        - Copy osca_models_v1.1.0.zip from the main laptop via USB
+        - Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+        - Or copy the python/models/ folder directly
 
-```powershell
-python\venv\Scripts\python.exe python\fix_cluster_distribution.py
+[ ] 3. Check .env settings:
+        - ML_MODELS_PATH=python/models
+        - ENABLE_NOTEBOOK_OVERRIDES=true
+        - DB_HOST, DB_USERNAME, DB_PASSWORD are correct
+
+[ ] 4. Run setup.bat (or confirm all dependencies are installed):
+        .\setup.bat
+        OR confirm:
+          - vendor/ exists (composer install done)
+          - public/build/ exists (npm run build done)
+          - python/venv/Scripts/python.exe exists
+
+[ ] 5. Validate ML artifact bundle:
+        python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+        → Expected: 51 PASS, 0 FAIL, 0 WARN
+
+[ ] 6. Stop any running services first:
+        .\stop.bat
+
+[ ] 7. Start the system:
+        .\start.bat
+
+[ ] 8. Confirm both Python services are healthy:
+        Invoke-WebRequest http://127.0.0.1:5001/health -UseBasicParsing
+        Invoke-WebRequest http://127.0.0.1:5002/health -UseBasicParsing
+        → Both should return {"status":"ok"}
+
+[ ] 9. Run the reproducibility test:
+        python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+        → Expected: 28 PASS, 0 FAIL
+
+[ ] 10. Import the database dump (if exact same 283 results are required):
+        (follow DATABASE_SHARING_AND_TEAM_SETUP.md)
+        After import, verify prediction_source distribution:
+          notebook_cache: 283, live_model: 0 or more (for any new seniors added)
+
+[ ] 11. Confirm the dashboard shows the correct numbers:
+        Total seniors   : 283 (plus any new additions)
+        Risk — HIGH     : 54 (notebook_cache rows only)
+        Risk — MODERATE : 191
+        Risk — LOW      : 38
+        Cluster C1      : 75
+        Cluster C2      : 132
+        Cluster C3      : 76
+        Prediction source — Notebook Cache : 283
+
+[ ] 12. Test one senior profile page:
+        - Open any senior's profile
+        - Confirm cluster name, risk indicator, and recommendations are displayed
+        - Confirm no "Fallback" badge appears
+
+[ ] 13. System is ready.
+        URL: http://127.0.0.1:8000
 ```
 
-This script:
-1. Preprocesses all seniors
-2. Runs one batch UMAP + KMeans transform on all seniors together
-3. **Auto-calibrates `cluster_mapping.json`** using cluster size + mean wellbeing to ensure C1 = High Functioning, C2 = Moderate, C3 = Low Functioning on this specific device
-4. Runs full inference for all seniors and updates every `ml_results` row
-5. Takes ~1–2 minutes
+If step 5 fails: the artifact bundle is incomplete. Re-transfer from the main laptop. Do not retrain models.
 
-**Expected output (example — counts vary as seniors are added):**
-```
-Step 2: Batch UMAP + KMeans (single transform for all seniors)...
-  [batch] batch KMeans path used successfully for 289 seniors.
+If step 9 fails: check `storage/logs/python-inference.err.log` for the error.
 
-Step 3: Auto-calibrating cluster mapping for this device...
-  Raw cluster sizes: {2: 134, 1: 78, 0: 77}
-  Small cluster mean wellbeing: {1: 0.7592, 0: 0.5908}
-  Anchor: C2(Moderate)=raw2, C1(HighFunc)=raw1, C3(LowFunc)=raw0
-  Corrected raw->named mapping: {1: 1, 2: 2, 0: 3}
-  [ OK ] cluster_mapping.json updated.
-
-New cluster distribution:
-  C1: 78
-  C2: 134
-  C3: 77
-New risk distribution:
-  HIGH: 34
-  LOW: 83
-  MODERATE: 172
-```
-
-The expected pattern: **C2 is always the largest cluster** (roughly 2× C1 or C3). If C1 or C3 shows ~134 seniors, calibration failed — re-run the script.
-
-The risk distribution (HIGH/MODERATE/LOW counts) must be **identical** across all devices. The C1/C2/C3 counts may differ by ±1–2 seniors due to UMAP borderline cases — this is normal and does not affect individual senior assessments.
-
-### Why results are consistent across devices
-
-The 283 seniors in `osca.csv` are the same data the model was trained on. All 5 additional seniors were added via bulk upload after training. The model files (`.pkl`, `.json`) are identical on every device since they are committed to git. The `fix_cluster_distribution.py` auto-calibration ensures the cluster labels mean the same thing on every device regardless of UMAP orientation.
-
-### Validation
-
-After running `fix_cluster_distribution.py`, run the validation script to confirm semantic correctness:
-
-```powershell
-python\venv\Scripts\python.exe python\validate_clusters.py
-```
-
-Expected result: `ALL CHECKS PASSED`. The script verifies:
-- C1 wellbeing > C2 > C3 (correct ordering)
-- C1 composite risk < C2 < C3
-- C2 is the largest cluster (~2× the size of C1 or C3)
-- 0% HIGH risk seniors in C1, 0% LOW risk seniors in C3
-
-If any check fails, re-run `fix_cluster_distribution.py` and check again.
-
-### CSV bulk import
-
-Upload new seniors in bulk via **Senior Records → Bulk Upload** in the web interface (supports CSV and Excel). The template can be downloaded from the same page.
-
-After a large bulk upload, run `fix_cluster_distribution.py` again to re-calibrate cluster assignments across the new population.
-
-### Manual entry
-
-Register seniors one at a time via **Senior Records → New Profile** in the web interface.
+If dashboard numbers are wrong: confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`, then restart services (stop.bat → start.bat).
 
 ---
 
-## 10. What Other Devices Need To Do
+## 9. Before Push Checklist
 
-### First-time setup on a new device
+Run these steps before committing and pushing code. All checks must pass.
 
-```powershell
-# Step 1 — Clone the repository
-git clone https://github.com/somarjez/osca-agesense.git
-cd osca-agesense
+```
+[ ] 1. Artifact validation must pass:
+        python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+        → Must show: 51 PASS, 0 FAIL, 0 WARN
 
-# Step 2 — Create MySQL database
-# Run in MySQL: CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+[ ] 2. Reproducibility test must pass:
+        python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+        → Must show: 28 PASS, 0 FAIL
 
-# Step 3 — Place osca.csv in the project root
+[ ] 3. Start/stop scripts must work without errors:
+        .\stop.bat
+        .\start.bat
+        → Both services healthy on ports 5001 and 5002
 
-# Step 4 — Run automated setup (installs all dependencies, seeds DB, builds frontend, creates venv)
-setup.bat
-# setup.bat automatically runs fix_cluster_distribution.py at the end (Step 10/10)
+[ ] 4. Individual and batch analysis must produce identical results:
+        (test_reproducibility.py covers this — run 1 vs run 2 vs batch all PASS)
 
-# Step 5 — Start the system
-start.bat
+[ ] 5. A new senior must produce prediction_source=live_model:
+        - Create a new senior in the UI and run analysis
+        - Check the profile page shows "Live ML Model" as prediction source
+        - No "Fallback" badge
+
+[ ] 6. No fallback results appear unless intentionally tested.
+
+[ ] 7. Review git status:
+        git status
+        → Check for accidentally staged files
+
+[ ] 8. .env must NOT be in git status (it is gitignored):
+        If it appears: git rm --cached .env
+
+[ ] 9. Remove temporary or debug files:
+        - No read_xlsx_temp.php or similar one-off scripts
+        - No *.bak or *.bak_old files
+        - No storage/app/ml_err_*.txt or ml_out_*.json files
+
+[ ] 10. Commit only specific files — do not use git add . blindly:
+        git status                   ← review everything
+        git add path/to/file         ← stage specific files
+        git diff --staged            ← review what will be committed
+
+[ ] 11. Commit message must follow the format:
+        feat: add barangay filter to risk report
+        fix: correct cluster display on profile page
+        docs: update DEPLOYMENT.md checklist
+
+[ ] 12. Push and confirm CI passes:
+        git push origin your-branch-name
 ```
 
-> **Python version:** If `setup.bat` creates the venv with the wrong Python version, delete `python\venv` and recreate it manually:
-> ```powershell
-> Remove-Item -Recurse -Force python\venv
-> py -3.12 -m venv python\venv
-> python\venv\Scripts\pip.exe install -r python\requirements.txt
-> python\venv\Scripts\python.exe python\fix_cluster_distribution.py
-> ```
+Files that must never be committed:
+- `.env`
+- `osca.csv`
+- `database/backups/*.sql`
+- `python/models/predictions/senior_predictions.csv`
+- `storage/app/ml_err_*.txt`, `storage/app/ml_out_*.json`
+- `storage/app/ml_models/*.pkl` (mirror copies — canonical is `python/models/`)
+- `vendor/`, `node_modules/`, `python/venv/`
 
 ---
 
-### After a code update (lead device pushed new changes)
+## 10. After a Code Update (git pull)
+
+When the project lead pushes new changes:
 
 ```powershell
-# Step 1 — Pull latest code
-git pull
+# 1. Pull latest code
+git pull origin main
 
-# Step 2 — Apply any new database migrations
+# 2. Apply new database migrations (if any migration files changed)
 php artisan migrate
 
-# Step 3 — Restart start.bat (close all terminals first)
-#           Queue worker MUST restart to load updated PHP classes.
-start.bat
-```
-
-If frontend assets changed (`resources/js/` or `resources/css/`):
-```powershell
+# 3. Rebuild frontend assets (if JS or CSS files changed)
 npm run build
-```
 
-If `python/requirements.txt` changed:
-```powershell
+# 4. Install new Python dependencies (if requirements.txt changed)
 python\venv\Scripts\pip.exe install -r python\requirements.txt
+
+# 5. Restart the system so services load new code
+.\stop.bat
+.\start.bat
 ```
 
----
-
-### After a queue worker crash or "Finalising health group assignments…" stuck
-
-The `RecalculateClusters` job does not auto-retry (`tries = 1`).
-
-```powershell
-# Step 1 — Restart start.bat (close all terminals first)
-# Step 2 — Clear the failed job
-php artisan queue:flush
-# Step 3 — Go to /ml/batch and click Run Full Batch again
-```
+The queue worker must be restarted after any PHP code change — it loads classes at startup and will not pick up new code until restarted. Running `stop.bat` then `start.bat` handles this automatically.
 
 ---
 
-### Cluster results look wrong after a fresh setup
-
-If C1 shows ~132 seniors instead of ~77, the cluster mapping is inverted. Run:
-
-```powershell
-python\venv\Scripts\python.exe python\fix_cluster_distribution.py
-```
-
-The script auto-detects and corrects the raw→named cluster mapping for this device.
-
----
-
-### Quick checklist — after any pull
-
-- [ ] `git pull` completed without merge conflicts
-- [ ] `php artisan migrate` if new migration files exist
-- [ ] `start.bat` restarted (queue worker picks up new code)
-- [ ] `npm run build` if JS/CSS files changed
-- [ ] `pip install -r python\requirements.txt` if `requirements.txt` changed
-- [ ] Green dot in nav bar (Python services online)
-
----
-
-## 11. Production Deployment Checklist
-
-Before going live with real data:
-
-- [ ] Change all default account passwords (admin, encoder, viewer) via **User Management** or re-seed
-- [ ] Set `APP_DEBUG=false` in `.env`
-- [ ] Set `APP_ENV=production` in `.env`
-- [ ] Confirm `SESSION_DRIVER=database` and sessions table exists
-- [ ] Confirm `QUEUE_CONNECTION=database` and `jobs` / `job_batches` tables exist
-- [ ] Confirm queue worker starts on boot (systemd on Linux, Task Scheduler on Windows)
-- [ ] Confirm ML model artefacts are present in `python/models/` (auto-present after `git clone`)
-- [ ] Confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in `.env`
-- [ ] Verify Python 3.12 is the version used by `python/venv`
-- [ ] Verify Python services start on boot
-- [ ] Set up automated database backups (daily minimum)
-- [ ] Configure HTTPS (TLS certificate)
-- [ ] Test all three ML fallback tiers on the target server
-- [ ] Verify Activity Log is recording entries at `/activity-log`
-- [ ] Run `fix_cluster_distribution.py` after initial seed on every device
-
----
-
-## 12. Common Setup Errors
+## 11. Common Setup Errors
 
 | Error | Cause | Fix |
 |---|---|---|
-| `php artisan migrate` fails with "Access denied" | Wrong DB credentials | Check `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST` in `.env` |
-| `composer install` fails with PHP version error | PHP < 8.2 installed | Install PHP 8.2+ |
-| `php` not found | PHP not on PATH | Install Laragon (auto-detected) or add PHP to system PATH |
-| Python services show "Offline" | Services not started | Run `.\python\start_services.ps1` or use `start.bat` |
-| Batch ML inference stuck at 0% | Queue worker not running | Check `storage/logs/queue.log`; run `php artisan queue:work` manually |
-| `pop from empty list` in numba during UMAP | Stale numba JIT cache or Python version mismatch | Delete and recreate `python\venv` with Python 3.12; re-run `pip install -r python\requirements.txt` |
-| `batch KMeans path failed (pop from empty list)` | numba can't compile UMAP distance function — Python version incompatible with numba 0.65.0 | Confirm `python\venv\Scripts\python.exe --version` shows Python 3.12.x; if not, recreate venv with `py -3.12 -m venv python\venv` |
-| C1 or C3 shows ~134 seniors (cluster labels swapped) | UMAP orientation flipped on this device — `cluster_mapping.json` calibrated incorrectly | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` then `python\validate_clusters.py` |
-| C1/C2/C3 counts differ by ±1–2 from another device | Normal UMAP borderline variance on identical data | Expected — differences of 1–2 seniors are acceptable. Risk counts (HIGH/MODERATE/LOW) must be identical. |
-| Wrong cluster distribution after seeding | `fix_cluster_distribution.py` not run after seed | Run `python\venv\Scripts\python.exe python\fix_cluster_distribution.py` |
-| "Finalising health group assignments…" stuck | Queue worker not restarted after code update | Restart `start.bat`, run `php artisan queue:flush`, re-run batch from `/ml/batch` |
-| `Call to undefined method MlService::runRecluster()` | Queue worker loaded old MlService class | Restart `start.bat` — worker reloads all classes on startup |
-| Pylance shows "Import could not be resolved" for pymysql / preprocess_service | VS Code not pointing at the venv | `pyrightconfig.json` is committed — reload VS Code window to apply it |
-| `osca.csv not found` during seeding | File not placed before running setup | Place `osca.csv` in the project root (same folder as `setup.bat`) |
-| PHP Fatal error: Maximum execution time of 30 seconds | Long ML operation on a non-ML route | ML routes and bulk upload route have `no.time.limit` middleware applied; if occurring elsewhere, check which route is timing out |
-| `WinError 10106` in Python service logs | Numba socket conflict on Windows | Restart the ML services from `/ml/status` |
-| `UMAP` import error on Python startup | Missing packages | Re-run `pip install -r python/requirements.txt` with venv activated |
-| Assets not loading (404 on `/build/`) | Vite build not run | Run `npm run build` |
-| Encrypted field shows gibberish in database | `APP_KEY` changed after data was encrypted | Restore the original `APP_KEY` from a backup `.env` |
+| `php artisan migrate` fails with "Access denied" | Wrong DB credentials in `.env` | Check `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST` |
+| Python services show "Offline" in the UI | Services not started | Run `.\start.bat` or start services manually |
+| Port already in use on 5001 or 5002 | Old service still running | Run `.\stop.bat` first, then `.\start.bat` |
+| `pop from empty list` in Python logs | Wrong Python version (not 3.12) | Delete `python\venv`, recreate with `py -3.12 -m venv python\venv`, reinstall requirements |
+| Artifact validation shows FAIL | Missing or wrong files in `python/models/` | Transfer the correct artifact bundle from the main laptop |
+| Dashboard shows wrong risk distribution | `ENABLE_NOTEBOOK_OVERRIDES` is `false` | Set to `true` in `.env`, restart services |
+| "Finalising health group assignments…" stuck | Queue worker not running | Close all terminals, run `.\stop.bat`, then `.\start.bat` |
+| Assets not loading (404 on /build/) | Frontend not built | Run `npm run build` |
+| `UMAP import error` on Python startup | Missing Python packages | Run `python\venv\Scripts\pip.exe install -r python\requirements.txt` |
+| `osca.csv not found` during seeding | File not placed in project root | Place `osca.csv` in the same folder as `setup.bat` |
+| Encrypted field shows gibberish in DB | `APP_KEY` changed after data was saved | Restore the original `APP_KEY` from the original `.env` |
+| `ModuleNotFoundError: No module named pymysql` | pymysql not installed (optional) | `python\venv\Scripts\pip.exe install pymysql` |
+
+---
+
+## Related Documents
+
+- [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) — Artifact validation, service startup, prediction paths
+- [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) — DB export, import, and shared MySQL setup
+- [GIT_WORKFLOW.md](GIT_WORKFLOW.md) — Branching, commits, and pull requests
+- [README.md](README.md) — Documentation index

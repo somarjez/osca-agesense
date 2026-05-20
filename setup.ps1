@@ -26,8 +26,8 @@ Write-Host "    7.  Seed sample data (if osca.csv is present)"
 Write-Host "    8.  Build frontend assets"
 Write-Host "    9.  Create Python virtual environment"
 Write-Host "   10.  Install Python ML dependencies"
-Write-Host "   11.  Sync ML model files from osca_output"
-Write-Host "   12.  Align cluster distribution (ensures consistent results across devices)"
+Write-Host "   11.  Validate ML artifact bundle (python/models/)"
+Write-Host "   12.  Sync ML model files from osca_output (if present)"
 Write-Host ""
 Write-Host "  Estimated time: 5-15 minutes (depending on internet speed)"
 Write-Host ""
@@ -154,6 +154,18 @@ if (-not (Test-Path "$PROJECT\.env")) {
 }
 
 & $PHP "$PROJECT\artisan" key:generate --ansi
+
+# Warn if critical ML keys are missing from .env
+$envContent = Get-Content "$PROJECT\.env" -Raw
+if ($envContent -notmatch '(?m)^ML_MODELS_PATH=.+') {
+    Write-Host " [WARN] ML_MODELS_PATH is not set in .env"
+    Write-Host "        Add this line:  ML_MODELS_PATH=python/models"
+}
+if ($envContent -notmatch '(?m)^ENABLE_NOTEBOOK_OVERRIDES=.+') {
+    Write-Host " [WARN] ENABLE_NOTEBOOK_OVERRIDES is not set in .env"
+    Write-Host "        Add this line:  ENABLE_NOTEBOOK_OVERRIDES=true"
+    Write-Host "        (Use 'true' for demos/defense with the 283 seed seniors)"
+}
 Write-Host ""
 
 # ── STEP 4: Database ────────────────────────────────────────────────────────────
@@ -231,41 +243,41 @@ if ($LASTEXITCODE -ne 0) { Bail "pip install failed. Check the output above." }
 Write-Host " [ OK ] Python ML dependencies installed."
 Write-Host ""
 
-# ── STEP 9: Sync ML model files ─────────────────────────────────────────────────
-Write-Host " -- [9/10] Syncing ML model files from osca_output --"
+# ── STEP 9: Sync ML model files from osca_output (optional) ─────────────────────
+Write-Host " -- [9/12] Syncing ML model files from osca_output (if present) --"
 $oscaOutput = "$PROJECT\..\osca_output"
 if (Test-Path "$oscaOutput\model") {
     Write-Host " Found osca_output\model - copying model files to python\models ..."
     Copy-Item "$oscaOutput\model\*.pkl"  "$PROJECT\python\models\" -Force -ErrorAction SilentlyContinue
     Copy-Item "$oscaOutput\model\*.json" "$PROJECT\python\models\" -Force -ErrorAction SilentlyContinue
-    # cluster_map.pkl from osca_output may have a different raw→named mapping than what
-    # cluster_mapping.json (committed to git) defines. Remove it so the JSON takes precedence.
+    # cluster_map.pkl from osca_output may carry a different raw→named mapping.
+    # Remove it so cluster_mapping.json (the committed canonical file) takes precedence.
     Remove-Item "$PROJECT\python\models\cluster_map.pkl" -Force -ErrorAction SilentlyContinue
-    Write-Host " [ OK ] Model files synced."
+    Write-Host " [ OK ] Model files synced from osca_output."
 } else {
     Write-Host " osca_output\model not found - keeping existing python\models files."
+    Write-Host " (This is normal. The python\models bundle must be transferred separately."
+    Write-Host "  See docs\ML_DEPLOYMENT.md for instructions.)"
 }
 Write-Host ""
 
-# ── STEP 10: Align cluster distribution ─────────────────────────────────────────
-Write-Host " -- [10/10] Aligning cluster distribution (fix_cluster_distribution.py) --"
-Write-Host " Each device runs its own local database. This step re-processes all seniors"
-Write-Host " in one batch UMAP transform so cluster results are identical across all devices."
-Write-Host " This may take 1-2 minutes..."
-Write-Host ""
-$fixScript = "$PROJECT\python\fix_cluster_distribution.py"
-$pythonExe = "$PROJECT\python\venv\Scripts\python.exe"
-if ((Test-Path $fixScript) -and (Test-Path $pythonExe)) {
-    & $pythonExe $fixScript
+# ── STEP 10: Validate ML artifact bundle ─────────────────────────────────────────
+Write-Host " -- [10/12] Validating ML artifact bundle (python\models\) --"
+$validateScript = "$PROJECT\python\scripts\validate_model_artifacts.py"
+$venvPython     = "$PROJECT\python\venv\Scripts\python.exe"
+if (Test-Path $validateScript) {
+    Write-Host " Running validate_model_artifacts.py ..."
+    Write-Host ""
+    & $venvPython $validateScript
     if ($LASTEXITCODE -ne 0) {
-        Write-Host " [WARN] Cluster alignment encountered errors. Results may differ across devices."
-        Write-Host "        Re-run manually: python\venv\Scripts\python.exe python\fix_cluster_distribution.py"
-    } else {
-        Write-Host " [ OK ] Cluster distribution aligned."
+        Write-Host ""
+        Bail "ML artifact validation FAILED. The python\models bundle is missing or has mismatched files.`n  - If this is a fresh clone, transfer python\models from the main laptop (see docs\ML_DEPLOYMENT.md).`n  - Do NOT retrain models. Copy the correct artifact bundle and re-run setup."
     }
+    Write-Host ""
+    Write-Host " [ OK ] ML artifact bundle validated (51 PASS expected)."
 } else {
-    Write-Host " [SKIP] fix_cluster_distribution.py or Python venv not found - skipping."
-    Write-Host "        Run manually after setup: python\venv\Scripts\python.exe python\fix_cluster_distribution.py"
+    Write-Host " [WARN] validate_model_artifacts.py not found - skipping artifact check."
+    Write-Host "        Run manually: python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py"
 }
 Write-Host ""
 
@@ -274,13 +286,19 @@ Write-Host " =========================================="
 Write-Host ""
 Write-Host "  Setup complete!"
 Write-Host ""
-Write-Host "  To start the system:"
+Write-Host "  Next step — start the system:"
+Write-Host ""
 Write-Host "    Double-click  start.bat"
+Write-Host "    -- or run in terminal --"
+Write-Host "    .\start.bat"
 Write-Host ""
 Write-Host "  System URL : http://127.0.0.1:8000"
 Write-Host ""
 Write-Host "  Three accounts were created by the seeder."
 Write-Host "  Refer to the OSCA Administrator for login credentials."
+Write-Host ""
+Write-Host "  ML artifact bundle: VALIDATED"
+Write-Host "  See docs\ML_DEPLOYMENT.md for deployment and device-transfer details."
 Write-Host ""
 Write-Host " =========================================="
 Write-Host ""

@@ -66,6 +66,7 @@ if (-not (Test-Path $venvPython)) {
 
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
 
+# ── Release any existing listeners on 5001/5002 ──────────────────────────────
 $listeners = netstat -ano | Select-String 'LISTENING' | Select-String ':5001|:5002'
 foreach ($line in $listeners) {
     $parts = ($line -replace '\s+', ' ').Trim().Split(' ')
@@ -74,22 +75,74 @@ foreach ($line in $listeners) {
         Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
     }
 }
-
 Start-Sleep -Seconds 1
 
-$preprocessLog = Join-Path $logsDir 'preprocess.log'
-$preprocessErr = Join-Path $logsDir 'preprocess.err.log'
-$inferenceLog = Join-Path $logsDir 'inference.log'
-$inferenceErr = Join-Path $logsDir 'inference.err.log'
+# Confirm ports are free before starting
+foreach ($port in @(5001, 5002)) {
+    $still = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($still) {
+        Write-Output "[ML][WARN] Port $port still in use by PID $($still.OwningProcess) after kill attempt."
+    }
+}
 
+# ── Log file paths (used by start.ps1 for log hints) ─────────────────────────
+$preprocessLog = Join-Path $logsDir 'python-preprocess.log'
+$preprocessErr = Join-Path $logsDir 'python-preprocess.err.log'
+$inferenceLog  = Join-Path $logsDir 'python-inference.log'
+$inferenceErr  = Join-Path $logsDir 'python-inference.err.log'
+
+# ── Spawn services using venv python exclusively ──────────────────────────────
 $preprocessCmd = "`$env:ML_MODELS_PATH='$modelsPath'; `$env:ENABLE_NOTEBOOK_OVERRIDES='$enableNotebookOverrides'; `$env:PREPROCESS_PORT='5001'; Set-Location '$projectDir'; & '$venvPython' '$servicesDir\preprocess_service.py'"
-$inferenceCmd = "`$env:ML_MODELS_PATH='$modelsPath'; `$env:ENABLE_NOTEBOOK_OVERRIDES='$enableNotebookOverrides'; `$env:INFERENCE_PORT='5002'; Set-Location '$projectDir'; & '$venvPython' '$servicesDir\inference_service.py'"
+$inferenceCmd  = "`$env:ML_MODELS_PATH='$modelsPath'; `$env:ENABLE_NOTEBOOK_OVERRIDES='$enableNotebookOverrides'; `$env:INFERENCE_PORT='5002'; Set-Location '$projectDir'; & '$venvPython' '$servicesDir\inference_service.py'"
 
 Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $preprocessCmd) -RedirectStandardOutput $preprocessLog -RedirectStandardError $preprocessErr -WindowStyle Hidden | Out-Null
-Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $inferenceCmd) -RedirectStandardOutput $inferenceLog -RedirectStandardError $inferenceErr -WindowStyle Hidden | Out-Null
+Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $inferenceCmd)  -RedirectStandardOutput $inferenceLog  -RedirectStandardError $inferenceErr  -WindowStyle Hidden | Out-Null
 
-Start-Sleep -Seconds 4
+Write-Output "[ML] ML_MODELS_PATH=$modelsPath"
+Write-Output "[ML] ENABLE_NOTEBOOK_OVERRIDES=$enableNotebookOverrides"
+Write-Output "[ML] Preprocess log : storage\logs\python-preprocess.log"
+Write-Output "[ML] Inference log  : storage\logs\python-inference.log"
+Write-Output "[ML] Waiting for services to start (UMAP loads ~30s on first run)..."
 
-Write-Output "ML_MODELS_PATH=$modelsPath"
-Write-Output "ENABLE_NOTEBOOK_OVERRIDES=$enableNotebookOverrides"
-netstat -ano | Select-String ':5001|:5002'
+# ── Poll /health on both services (up to 60 seconds) ─────────────────────────
+function Wait-ServiceHealth($name, $url, $timeoutSec) {
+    $deadline = (Get-Date).AddSeconds($timeoutSec)
+    $ok = $false
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+            if ($resp.StatusCode -eq 200) { $ok = $true; break }
+        } catch {}
+        Start-Sleep -Seconds 2
+    }
+    if ($ok) {
+        Write-Output "[ML]  [ OK ] $name is healthy ($url)"
+    } else {
+        Write-Output "[ML] [WARN] $name did not respond within ${timeoutSec}s. Check log for errors."
+    }
+    return $ok
+}
+
+$ppOk  = Wait-ServiceHealth "Preprocess service" "http://127.0.0.1:5001/health" 60
+$infOk = Wait-ServiceHealth "Inference service"  "http://127.0.0.1:5002/health" 60
+
+# ── Final port confirmation ───────────────────────────────────────────────────
+Write-Output ""
+Write-Output "[ML] Port status after startup:"
+netstat -ano | Select-String ':5001|:5002' | Select-String 'LISTENING'
+
+foreach ($port in @(5001, 5002)) {
+    $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($conn) {
+        Write-Output "[ML]  Port $port : LISTENING (PID $($conn.OwningProcess))"
+    } else {
+        Write-Output "[ML]  Port $port : NOT listening — service may have crashed. Check the log."
+    }
+}
+
+if (-not $ppOk -or -not $infOk) {
+    Write-Output ""
+    Write-Output "[ML] One or more services failed to start. Tail the logs for details:"
+    Write-Output "     Get-Content storage\logs\python-preprocess.err.log -Tail 30"
+    Write-Output "     Get-Content storage\logs\python-inference.err.log  -Tail 30"
+}
