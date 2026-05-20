@@ -98,13 +98,18 @@ class MlService
             return null;
         }
 
-        // Stale: profile or QoL changed since last scoring — must recompute.
+        // Stale: input data changed since last scoring — must recompute regardless of source.
+        // notebook_cache rows can become stale when the senior's profile or QoL changes.
         if ($existing->is_stale) {
             return null;
         }
 
-        // Model version mismatch: artifacts were updated — must recompute.
-        if ($existing->model_version !== self::MODEL_VERSION) {
+        // Model version mismatch — must recompute, EXCEPT for notebook_cache rows.
+        // notebook_cache rows are the notebook-validated baseline and are not invalidated
+        // by artifact version bumps during defense/pilot mode (ENABLE_NOTEBOOK_OVERRIDES=true).
+        // Only data changes (captured by is_stale) invalidate notebook_cache rows.
+        if ($existing->prediction_source !== 'notebook_cache'
+            && $existing->model_version !== self::MODEL_VERSION) {
             return null;
         }
 

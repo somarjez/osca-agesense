@@ -14,8 +14,11 @@ use Illuminate\Database\Eloquent\Model;
  * Stale results are NOT deleted — they remain visible in the UI with a stale
  * indicator until the next analysis run overwrites them.
  *
- * notebook_cache rows are never marked stale — they are permanently validated
- * from the notebook and can only be changed via ml:repair-notebook-cache.
+ * notebook_cache rows ARE marked stale when real input data changes
+ * (senior_profile_updated, qol_updated) — the stored result no longer reflects
+ * the senior's current situation and must be recomputed via live_model.
+ * notebook_cache rows are NOT invalidated by model_version bumps alone;
+ * that protection is handled in MlService::findReusableResult().
  */
 class MlResultStalenessObserver
 {
@@ -107,8 +110,10 @@ class MlResultStalenessObserver
 
     private function markLatestStale(int $seniorId, string $reason): void
     {
+        // Find the latest result regardless of current stale state.
+        // If it is already stale for a different reason, we still update stale_reason
+        // to the most recent cause so the UI and logs reflect what changed last.
         $latest = MlResult::where('senior_citizen_id', $seniorId)
-            ->where('is_stale', false)
             ->orderByDesc('id')
             ->first();
 

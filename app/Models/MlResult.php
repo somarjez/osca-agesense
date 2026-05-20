@@ -94,13 +94,32 @@ class MlResult extends Model
     }
 
     /**
+     * Reasons that invalidate data-derived cached results, including notebook_cache.
+     * Any change to the senior's actual input data means the stored result no longer
+     * reflects their current situation, regardless of how it was originally produced.
+     */
+    private const DATA_CHANGE_REASONS = [
+        'senior_profile_updated',
+        'qol_updated',
+    ];
+
+    /**
      * Mark this result as stale without deleting it.
      * The stale result is preserved and displayed until the next analysis run.
+     *
+     * notebook_cache rows CAN be marked stale when the senior's actual input data
+     * changes (senior_profile_updated, qol_updated) — the stored result no longer
+     * reflects the senior's current situation and must be recomputed.
+     *
+     * notebook_cache rows are NOT marked stale for model-version-only invalidation —
+     * that protection is handled in findReusableResult() and is defense/pilot-specific.
      */
     public function markStale(string $reason): void
     {
-        // Never mark notebook_cache rows stale — they are permanently validated.
-        if ($this->prediction_source === 'notebook_cache') {
+        // notebook_cache rows are protected from version-only invalidation.
+        // They can still be marked stale when real input data changes.
+        if ($this->prediction_source === 'notebook_cache'
+            && !in_array($reason, self::DATA_CHANGE_REASONS, true)) {
             return;
         }
 
