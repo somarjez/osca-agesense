@@ -45,9 +45,32 @@ foreach ($proc in $psProcs) {
 
 Write-Host ""
 if ($killed -gt 0) {
-    Write-Host " [ OK ] Stopped $killed process(es). All AgeSense services are offline."
+    Write-Host " [ OK ] Stopped $killed process(es)."
 } else {
     Write-Host " [ -- ] No running AgeSense processes found."
+}
+
+# ── Confirm ports 5001 and 5002 are free ────────────────────────────────────
+Write-Host ""
+Write-Host " Verifying ports are released..."
+Start-Sleep -Seconds 1
+$portsStillBound = 0
+foreach ($port in @(5001, 5002)) {
+    $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($conn) {
+        Write-Host " [WARN] Port $port still in use by PID $($conn.OwningProcess)."
+        Write-Host "        Stop that process manually: Stop-Process -Id $($conn.OwningProcess) -Force"
+        $portsStillBound++
+    } else {
+        Write-Host "  [ OK ] Port $port is free."
+    }
+}
+
+Write-Host ""
+if ($portsStillBound -eq 0) {
+    Write-Host " All AgeSense services are offline. Ports 5001 and 5002 are free."
+} else {
+    Write-Host " WARNING: $portsStillBound port(s) still bound. Check the processes listed above."
 }
 
 Write-Host ""

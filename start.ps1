@@ -141,8 +141,10 @@ Write-Host " Clearing compiled view cache..."
 # ── [1/3] Python ML services ────────────────────────────────────────────────────
 Write-Host " [1/3] Starting Python ML services in background..."
 Write-Host "       (Models load ~30 seconds on first run)"
-$mlStartLog    = "$PROJECT\storage\logs\ml_startup.log"
-$mlStartErrLog = "$PROJECT\storage\logs\ml_startup.err.log"
+# start_services.ps1 writes individual logs to python-preprocess.log / python-inference.log.
+# This outer log captures the startup orchestration output from start_services.ps1 itself.
+$mlStartLog    = "$PROJECT\storage\logs\python-services-start.log"
+$mlStartErrLog = "$PROJECT\storage\logs\python-services-start.err.log"
 Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","$PROJECT\python\start_services.ps1" -WindowStyle Hidden -RedirectStandardOutput $mlStartLog -RedirectStandardError $mlStartErrLog
 
 # ── [2/3] Queue worker ──────────────────────────────────────────────────────────
@@ -183,9 +185,11 @@ Write-Host " -----------------------------------------------"
 Write-Host "  System URL : http://127.0.0.1:8000"
 Write-Host ""
 Write-Host "  Background processes started silently."
-Write-Host "  Logs: storage\logs\ml_startup.log  (ML services)"
-Write-Host "        storage\logs\queue.log        (queue worker)"
-Write-Host "        storage\logs\scheduler.log    (task scheduler)"
+Write-Host "  Logs: storage\logs\python-preprocess.log      (preprocess service)"
+Write-Host "        storage\logs\python-inference.log       (inference service)"
+Write-Host "        storage\logs\python-services-start.log  (ML startup output)"
+Write-Host "        storage\logs\queue.log                  (queue worker)"
+Write-Host "        storage\logs\scheduler.log              (task scheduler)"
 Write-Host ""
 Write-Host "  Press Ctrl+C to stop the server."
 Write-Host " -----------------------------------------------"
