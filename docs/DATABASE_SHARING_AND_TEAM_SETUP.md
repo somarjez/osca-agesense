@@ -425,21 +425,48 @@ Yes — but only for development and testing. Local database results are not off
 
 ### Dashboard counts are different from the main device
 
+**How to tell which problem it is:**
+- Dashboard shows `DB: 127.0.0.1:osca_db` → device is still reading its own local database, not the shared one. Fix the `.env` first (see below).
+- Dashboard shows the correct `DB_HOST` IP but wrong counts → dump was imported on top of old data. Do a clean reimport.
+
 **Possible causes:**
+- `DB_HOST` is still `127.0.0.1` — device never switched to shared MySQL
+- Typo in `DB_HOST` (e.g. `192.168.1.4s` instead of `192.168.1.4`)
+- Config cache not cleared after editing `.env` — Laravel is still reading the old value
 - Dump was imported on top of an old database — mixed/duplicate records
-- Different `DB_HOST` — device is reading a different database
-- Laravel cache not cleared after changing `.env`
 - `ml_results` rows missing (migration not run)
 
-**Fix:**
+**Fix — wrong DB_HOST (device reading its own local DB):**
+```
+DB_HOST=<host-laptop-IP>
+DB_USERNAME=agesense_user
+DB_PASSWORD=osca_2026_pass
+```
+Then:
 ```powershell
-# Drop and reimport cleanly (Laragon)
+php artisan config:clear
+php artisan cache:clear
+```
+Restart `php artisan serve` and confirm the dashboard shows `DB: <host-IP>:osca_db`.
+
+**Fix — dump imported on top of old data (mixed records):**
+
+Always drop the database first — never import on top of existing data.
+
+```powershell
+# Step 1 — Open MySQL and drop the old database
 & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
-# DROP DATABASE IF EXISTS osca_db;
-# CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-# EXIT;
+```
+```sql
+DROP DATABASE IF EXISTS osca_db;
+CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+```
+```powershell
+# Step 2 — Reimport the validated dump
 & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root < database\backups\agesense_main_validated_dump.sql
 
+# Step 3 — Clear caches and run migrations
 php artisan config:clear
 php artisan cache:clear
 php artisan migrate --force
@@ -450,10 +477,10 @@ php artisan migrate --force
 ### Other device cannot connect to shared MySQL
 
 **Possible causes:**
-- Wrong `DB_HOST` — double-check `ipconfig` on the host laptop
-- Firewall blocking port 3306 on the host
-- MySQL `bind-address` still set to `127.0.0.1`
-- Wrong username or password
+- Wrong `DB_HOST` — double-check `ipconfig` on the host laptop (typos like `192.168.1.4s` are easy to miss)
+- Config cache not cleared after editing `.env` — run `php artisan config:clear`
+- Firewall rule not created on the host — see Step 5
+- Wrong username or password (`agesense_user` / the password you set in Step 4)
 
 **Fix:**
 
