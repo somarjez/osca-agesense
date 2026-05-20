@@ -50,9 +50,22 @@ class MlService
      * Run the full pipeline for a single senior citizen.
      * Uses combined local mode (1 subprocess instead of 2) when Flask is unavailable.
      */
-    public function runPipeline(SeniorCitizen $senior, QolSurvey $survey): MlResult
+    public function runPipeline(SeniorCitizen $senior, QolSurvey $survey, bool $force = false): MlResult
     {
         set_time_limit(0);
+
+        // Cache reuse: return the existing result without calling Python services when:
+        //   1. A result exists for this senior + survey pair
+        //   2. It is not stale (profile/QoL unchanged since last scoring)
+        //   3. Its model_version matches the currently running inference service version
+        //   4. prediction_source is notebook_cache or live_model (not fallback)
+        //   5. force reanalysis has not been requested
+        if (!$force) {
+            $cached = $this->findReusableResult($senior, $survey);
+            if ($cached !== null) {
+                return $cached->load('recommendations');
+            }
+        }
 
         $raw = $this->buildRawPayload($senior, $survey);
 
@@ -66,7 +79,41 @@ class MlService
             $preprocessed = [];
         }
 
-        return $this->persistResults($senior, $survey, $preprocessed, $inferResult);
+        return $this->persistResults($senior, $survey, $preprocessed, $inferResult, force: $force);
+    }
+
+    /**
+     * Return the existing MlResult if it can be safely reused, null otherwise.
+     * A result is reusable when it is not stale, model_version matches, and
+     * prediction_source is a validated source (not fallback).
+     */
+    public function findReusableResult(SeniorCitizen $senior, QolSurvey $survey): ?MlResult
+    {
+        $existing = MlResult::where('senior_citizen_id', $senior->id)
+            ->where('qol_survey_id', $survey->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$existing) {
+            return null;
+        }
+
+        // Stale: profile or QoL changed since last scoring — must recompute.
+        if ($existing->is_stale) {
+            return null;
+        }
+
+        // Model version mismatch: artifacts were updated — must recompute.
+        if ($existing->model_version !== self::MODEL_VERSION) {
+            return null;
+        }
+
+        // Fallback results are low-quality (PHP heuristic) — recompute when Python is available.
+        if ($existing->prediction_source === 'fallback' && $this->isPreprocessAvailable()) {
+            return null;
+        }
+
+        return $existing;
     }
 
     /**
@@ -510,7 +557,7 @@ class MlService
         }
     }
 
-    private function isPreprocessAvailable(): bool
+    public function isPreprocessAvailable(): bool
     {
         if ($this->preprocessAvailable !== null) {
             return $this->preprocessAvailable;
@@ -757,10 +804,11 @@ class MlService
         $isCached          = $predictionSource === 'notebook_cache';
 
         // Notebook-cache protection: if an existing ml_result for this senior already
-        // has prediction_source = notebook_cache AND model_version = 1.1.0, do NOT
-        // overwrite it unless $force = true is passed (used by ml:repair-notebook-cache).
-        // This prevents a routine re-analysis run from degrading a validated notebook
-        // result into a live_model result.
+        // has prediction_source = notebook_cache AND model_version = current, do NOT
+        // overwrite it unless $force = true (used by ml:repair-notebook-cache).
+        // This prevents a routine re-analysis from degrading a validated notebook result.
+        // Note: runPipeline() already gates on findReusableResult() before reaching here,
+        // so this guard handles the runBatchPipeline() path which calls persistResults directly.
         if (!$force && $predictionSource !== 'notebook_cache') {
             $existing = MlResult::where('senior_citizen_id', $senior->id)
                 ->where('qol_survey_id', $survey->id)
@@ -770,7 +818,6 @@ class MlService
                 && $existing->prediction_source === 'notebook_cache'
                 && $existing->model_version     === self::MODEL_VERSION
             ) {
-                // Return the protected row unchanged — do not overwrite it.
                 return $existing->load('recommendations');
             }
         }
@@ -783,11 +830,15 @@ class MlService
         $mlResult = MlResult::updateOrCreate(
             ['senior_citizen_id' => $senior->id, 'qol_survey_id' => $survey->id],
             [
-                'model_version'       => self::MODEL_VERSION,
-                'prediction_source'   => $predictionSource,
+                'model_version'        => self::MODEL_VERSION,
+                'prediction_source'    => $predictionSource,
                 'is_cached_prediction' => $isCached,
-                'critical_flag'       => $criticalFlag,
-                'scored_at'           => now(),
+                'critical_flag'        => $criticalFlag,
+                // Clear staleness — this is a fresh scored result.
+                'is_stale'             => false,
+                'stale_reason'         => null,
+                'stale_at'             => null,
+                'scored_at'            => now(),
                 'cluster_id'          => $cluster['raw_id']   ?? null,
                 'cluster_named_id'    => $cluster['named_id'] ?? null,
                 'cluster_name'        => $cluster['name']     ?? null,

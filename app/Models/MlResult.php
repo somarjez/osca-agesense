@@ -11,6 +11,7 @@ class MlResult extends Model
     protected $fillable = [
         'senior_citizen_id', 'qol_survey_id', 'model_version',
         'prediction_source', 'is_cached_prediction', 'critical_flag',
+        'is_stale', 'stale_reason', 'stale_at',
         'cluster_id', 'cluster_named_id', 'cluster_name',
         'ic_risk', 'env_risk', 'func_risk', 'composite_risk', 'wellbeing_score',
         'ic_risk_level', 'env_risk_level', 'func_risk_level', 'overall_risk_level',
@@ -30,6 +31,8 @@ class MlResult extends Model
         'scored_at'           => 'datetime',
         'is_cached_prediction' => 'boolean',
         'critical_flag'        => 'boolean',
+        'is_stale'             => 'boolean',
+        'stale_at'             => 'datetime',
         'ic_risk'          => 'float',
         'env_risk'         => 'float',
         'func_risk'        => 'float',
@@ -88,6 +91,29 @@ class MlResult extends Model
     public function isUrgentPriority(): bool
     {
         return $this->priority_flag === 'urgent';
+    }
+
+    /**
+     * Mark this result as stale without deleting it.
+     * The stale result is preserved and displayed until the next analysis run.
+     */
+    public function markStale(string $reason): void
+    {
+        // Never mark notebook_cache rows stale — they are permanently validated.
+        if ($this->prediction_source === 'notebook_cache') {
+            return;
+        }
+
+        $this->update([
+            'is_stale'     => true,
+            'stale_reason' => $reason,
+            'stale_at'     => now(),
+        ]);
+    }
+
+    public function isStale(): bool
+    {
+        return (bool) $this->is_stale;
     }
 
     public function getClusterColorAttribute(): string

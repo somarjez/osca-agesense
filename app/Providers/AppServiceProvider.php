@@ -6,6 +6,7 @@ use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Observers\ActivityLogObserver;
+use App\Observers\MlResultStalenessObserver;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,5 +35,9 @@ class AppServiceProvider extends ServiceProvider
         SeniorCitizen::observe(ActivityLogObserver::class);
         QolSurvey::observe(ActivityLogObserver::class);
         Recommendation::observe(ActivityLogObserver::class);
+
+        // ML result staleness — marks cached results stale when profile or QoL data changes
+        SeniorCitizen::observe(MlResultStalenessObserver::class);
+        QolSurvey::observe(MlResultStalenessObserver::class);
     }
 }
