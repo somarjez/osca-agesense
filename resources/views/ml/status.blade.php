@@ -144,6 +144,30 @@
         </div>
     </div>
 
+    {{-- Predictions info strip --}}
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-400 -mt-2">
+        <span class="font-semibold text-ink-500">Predictions:</span>
+        @if ($stats['notebook_cache'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-forest-700 bg-forest-50 border border-forest-200">
+                Notebook-Validated Cache: {{ number_format($stats['notebook_cache']) }}
+            </span>
+        @endif
+        @if ($stats['live_model'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-info-700 bg-info-50 border border-info-200">
+                Live ML Model: {{ number_format($stats['live_model']) }}
+            </span>
+        @endif
+        @if ($stats['fallback'] > 0)
+            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded text-ink-600 bg-paper-2 border border-paper-rule">
+                Fallback: {{ number_format($stats['fallback']) }}
+            </span>
+        @endif
+        <span class="text-ink-300">&middot;</span>
+        <span>Model: <span class="font-mono font-semibold text-ink-600">{{ $stats['model_version'] }}</span></span>
+        <span class="text-ink-300">&middot;</span>
+        <span>DB: <span class="font-mono font-semibold text-ink-600">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.database') }}</span></span>
+    </div>
+
     {{-- DB + System Status Panel --}}
     <div class="card">
         <div class="card-head">
