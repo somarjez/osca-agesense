@@ -525,25 +525,52 @@ git commit -m "model: update trained files from notebook rerun YYYY-MM-DD"
 git push
 ```
 
-### Other machines — condensed workflow
+### Other machines — complete 8-step setup
+
+> Full details with troubleshooting in [docs/DATABASE_SHARING_AND_TEAM_SETUP.md](docs/DATABASE_SHARING_AND_TEAM_SETUP.md).
 
 ```powershell
-# 1. Receive updated files from training machine developer (out-of-band):
-#    - osca.csv                              → place in project root
-#    - senior_predictions.csv               → place in python\models\predictions\
-#    - senior_recommendations_flat.csv      → place in python\models\predictions\
+# Step 1 — Get the latest code
+git switch main
+git pull origin main
 
-# 2. Pull latest model .pkl/.json files from the repo:
-git pull
+# Step 2 — Install dependencies
+composer install
+npm install
+npm run build
 
-# 3. Sync .env keys (always before reseeding):
-start.bat    # can close immediately after it launches
+# Step 3 — Set up .env (run start.bat once, close after browser opens)
+.\start.bat
 
-# 4. Re-import data with the updated model:
-php artisan migrate:fresh --seed
+# Step 4 — Import the dump (clean slate)
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
+# DROP DATABASE IF EXISTS osca_db;
+# CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# EXIT;
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root osca_db < "path\to\agesense_defense_20260521.sql"
+
+# Step 5 — Migrations and cache clear
+php artisan migrate
+php artisan config:clear
+php artisan cache:clear
+
+# Step 6 — Sync ML model artifacts
+# Copy python/models/ from the main laptop (same as you do on the main laptop)
+
+# Step 7 — Validate ML pipeline (all three must pass)
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+# Expected: 51 PASS, 0 FAIL, 0 WARN
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+# Expected: 28 PASS, 0 FAIL
+python\venv\Scripts\python.exe python\scripts\test_staleness.py
+# Expected: 20 PASS, 0 FAIL
+
+# Step 8 — Start and check the dashboard
+.\start.bat
+# Expected: Total=286, HIGH=56, MODERATE=192, LOW=38, Notebook-Validated Cache: 283
 ```
 
-Expected result: `ML success: 283, fallback: 0, errors: 0` and dashboard shows HIGH=56, MODERATE=193, LOW=39, Urgent=2.
+> **Steps 6–7 are the ones most people skip.** They are what ensures the ML pipeline produces identical results across devices, not just the DB import.
 
 > See [docs/UPDATING_THE_MODEL.md](docs/UPDATING_THE_MODEL.md) for detailed explanations, troubleshooting, and a printable checklist.
 

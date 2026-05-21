@@ -201,7 +201,7 @@ Before committing, do a quick sanity check:
 1. Start the system: `start.bat`
 2. Go to `/ml/status` — confirm both services show `ok`
 3. Go to the dashboard — confirm the risk distribution matches your notebook output:
-   - HIGH: 54, MODERATE: 191, LOW: 38
+   - HIGH: 56, MODERATE: 192, LOW: 38
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
 If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
@@ -301,11 +301,11 @@ Start the system with `start.bat` and open the browser. The dashboard should sho
 
 | Metric | Expected value |
 |---|---|
-| Total seniors | 283 |
-| HIGH risk | 54 |
-| MODERATE risk | 191 |
+| Total seniors | 286 |
+| HIGH risk | 56 |
+| MODERATE risk | 192 |
 | LOW risk | 38 |
-| Pending recommendations | ~2,273 |
+| Notebook-Validated Cache | 283 |
 
 If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-numbers) below.
 
@@ -319,20 +319,26 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
-- [ ] Dashboard shows correct distribution (HIGH=54, MODERATE=191, LOW=38)
+- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=192, LOW=38)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
 
 ### Other machines (after training machine pushes)
 
-- [ ] Received all three private files from training machine developer (out-of-band): `osca.csv`, `senior_predictions.csv`, `senior_recommendations_flat.csv`
-- [ ] `osca.csv` placed in project root
-- [ ] Both prediction CSVs placed in `python/models/predictions/`
-- [ ] `git pull`
-- [ ] `start.bat` ran at least once (to sync `.env` keys)
-- [ ] `php artisan migrate:fresh --seed` completed with `ML success: 283`
-- [ ] Dashboard shows correct distribution (HIGH=54, MODERATE=191, LOW=38)
+Follow the 8-step teammate setup in [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md).
+
+Quick checklist:
+- [ ] `git switch main && git pull origin main`
+- [ ] `composer install && npm install && npm run build`
+- [ ] `start.bat` ran once (to sync `.env` keys)
+- [ ] Imported `agesense_defense_20260521.sql` into clean `osca_db`
+- [ ] `php artisan migrate && php artisan config:clear && php artisan cache:clear`
+- [ ] `python/models/` artifact bundle synced from main laptop
+- [ ] `validate_model_artifacts.py` → 51 PASS, 0 FAIL
+- [ ] `test_reproducibility.py` → 28 PASS, 0 FAIL
+- [ ] `test_staleness.py` → 20 PASS, 0 FAIL
+- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=192, LOW=38, Cache: 283)
 
 ---
 
