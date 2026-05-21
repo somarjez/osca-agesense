@@ -112,13 +112,15 @@ The inference service uses two different paths depending on the senior and the `
 
 The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (which was populated from `senior_predictions.csv` during seeding). UMAP and the GBR/RFR models are **not called** for these seniors. The result is always identical across all devices regardless of hardware.
 
-**Guaranteed distribution for the 283 seed seniors:**
+**Guaranteed distribution for the 283 seed seniors (notebook_cache rows only):**
 - HIGH: 54
 - MODERATE: 191
 - LOW: 38
 - C1 (High Functioning): 75
 - C2 (Moderate / Mixed Needs): 132
 - C3 (Low Functioning / Multi-domain Risk): 76
+
+> The dashboard total is **286** (3 additional seniors scored via live model). Dashboard totals will show HIGH=56, MODERATE=192, LOW=38.
 
 Use this path for demos and the defense. It eliminates any possibility of floating-point variance across different CPUs.
 
@@ -361,7 +363,7 @@ The three NUMBA/OMP variables are set automatically in `inference_service.py` us
 
 The correct mapping is `{"0": 3, "1": 1, "2": 2}`. Any other mapping produces wrong cluster names. Re-export from `osca5.ipynb` or manually set the file to the correct value and re-run validation.
 
-### Cluster distribution does not match HIGH=54 / MODERATE=191 / LOW=38
+### Cluster distribution does not match HIGH=56 / MODERATE=192 / LOW=38
 
 1. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`.
 2. Restart services (stop.bat → start.bat).

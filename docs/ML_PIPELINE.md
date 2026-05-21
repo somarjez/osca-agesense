@@ -379,7 +379,7 @@ Controls which prediction path is used for the 283 original seeded seniors.
 | `true` | **Defense / pilot mode** | Original 283 seeded seniors are served from the `notebook_cache` — their risk scores, clusters, and composite values come directly from the notebook-validated database rows. New or unmatched seniors always use the live model regardless of this setting. |
 | `false` | **Pure live-model mode** | All seniors are processed through the live inference pipeline (preprocess → UMAP → KMeans → GBR/RFR). Useful for validating that model artifacts produce deterministic results across runs. |
 
-**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 seeded seniors exactly match the notebook-validated values (HIGH=54, MODERATE=191, LOW=38).
+**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 notebook-cache seniors exactly match the notebook-validated values. Total dashboard counts will be HIGH=56, MODERATE=192, LOW=38 (includes 3 additional seniors scored via live model).
 
 **For model validation and determinism testing, set `ENABLE_NOTEBOOK_OVERRIDES=false`.** All seniors run through the live model pipeline, allowing you to verify that repeated runs produce consistent scores.
 

@@ -15,7 +15,7 @@ This guide covers two approaches for keeping all three team devices in sync:
 ## When Identical Results Require the Same DB Dump
 
 **You need the same database dump when:**
-- All devices must show the exact same risk distribution (HIGH=54, MODERATE=191, LOW=38)
+- All devices must show the exact same risk distribution (HIGH=56, MODERATE=192, LOW=38)
 - All devices must show the exact same cluster distribution (C1=75, C2=132, C3=76)
 - You need screenshots or data from multiple devices to match identically for Chapter 4
 
@@ -38,15 +38,15 @@ Before sharing the database, verify the main laptop shows exactly:
 
 | Metric | Expected |
 |---|---|
-| Total active seniors | 283 |
-| Risk — HIGH | 54 |
-| Risk — MODERATE | 191 |
+| Total active seniors | 286 |
+| Risk — HIGH | 56 |
+| Risk — MODERATE | 192 |
 | Risk — LOW | 38 |
-| Critical flag | 1 (HIGH + composite ≥ 0.70) |
 | Cluster C1 — High Functioning | 75 |
 | Cluster C2 — Moderate / Mixed Needs | 132 |
 | Cluster C3 — Low Functioning / Multi-domain Risk | 76 |
-| Prediction source | Notebook-Validated Cache: 283 |
+| Prediction source — Notebook-Validated Cache | 283 |
+| Prediction source — Live ML Model | 3 |
 
 Run the validation script to confirm:
 ```powershell
@@ -203,9 +203,9 @@ And restart Flask inference service on those devices.
 ### Step 7 — Verify all devices show the same dashboard
 Open the dashboard on each device and confirm:
 - Same total seniors
-- Same Risk Distribution (HIGH=54, MODERATE=191, LOW=38)
+- Same Risk Distribution (HIGH=56, MODERATE=192, LOW=38)
 - Same Health Groups (C1=75, C2=132, C3=76)
-- Same Prediction Source Summary (Notebook-Validated Cache: 283)
+- Same Prediction Source Summary (Notebook-Validated Cache: 283, Live: 3)
 - Same Model Version
 - Same DB host shown in the info strip
 
@@ -230,14 +230,14 @@ Expected output:
 ```
   PREDICTION SOURCE BREAKDOWN
     Notebook-Validated Cache : 283
-    Live ML Model            : 0
+    Live ML Model            : 3
     Heuristic Fallback       : 0
 
   RISK INDICATOR DISTRIBUTION
-    HIGH                     : 54   (expected 54)
-    MODERATE                 : 191  (expected 191)
+    HIGH                     : 56   (expected 56)
+    MODERATE                 : 192  (expected 192)
     LOW                      : 38   (expected 38)
-    Total                    : 283  [PASS]
+    Total                    : 286  [PASS]
 
   CLUSTER DISTRIBUTION
     C1 High Functioning      : 75   (expected 75)
@@ -251,25 +251,22 @@ Expected output:
 ### 3. Check via Tinker
 ```php
 // Active seniors
-App\Models\SeniorCitizen::active()->count();              // 283
+App\Models\SeniorCitizen::active()->count();              // 286
 
 // ML results
-App\Models\MlResult::count();                            // ≥ 283
+App\Models\MlResult::count();                            // ≥ 286
 
 // Prediction sources
 App\Models\MlResult::groupBy('prediction_source')
     ->selectRaw('prediction_source, COUNT(*) as cnt')
     ->pluck('cnt','prediction_source');
-// ['notebook_cache' => 283]
+// ['notebook_cache' => 283, 'live_model' => 3]
 
 // Risk distribution
 App\Models\MlResult::groupBy('overall_risk_level')
     ->selectRaw('overall_risk_level, COUNT(*) as cnt')
     ->pluck('cnt','overall_risk_level');
-// ['HIGH'=>54, 'MODERATE'=>191, 'LOW'=>38]
-
-// Critical flag
-App\Models\MlResult::where('critical_flag', true)->count(); // 1
+// ['HIGH'=>56, 'MODERATE'=>192, 'LOW'=>38]
 ```
 
 ---

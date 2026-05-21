@@ -157,9 +157,32 @@ class MlService
             return [];
         }
 
+        // Reuse valid existing results before sending anything to Python.
+        // This mirrors BatchAnalyzeSeniors::needsRecompute() — valid non-stale rows
+        // with matching model_version are returned as-is. Only stale, missing,
+        // fallback, or version-mismatch rows are sent to the pipeline.
+        $output         = [];
+        $itemsToCompute = [];
+        $computeMap     = []; // maps original $items index → $itemsToCompute index
+
+        foreach ($items as $i => $item) {
+            $reusable = $this->findReusableResult($item['senior'], $item['survey']);
+            if ($reusable !== null) {
+                $output[$i] = ['success' => true, 'result' => $reusable->load('recommendations'), 'error' => null];
+            } else {
+                $computeMap[count($itemsToCompute)] = $i;
+                $itemsToCompute[]                   = $item;
+            }
+        }
+
+        if (empty($itemsToCompute)) {
+            ksort($output);
+            return array_values($output);
+        }
+
         $payloads = array_map(
             fn($item) => $this->buildRawPayload($item['senior'], $item['survey']),
-            $items
+            $itemsToCompute
         );
 
         // Choose batch strategy based on service availability
@@ -169,12 +192,12 @@ class MlService
             $rawResults = $this->callBatchLocal($payloads);
         }
 
-        $output = [];
-        foreach ($items as $i => $item) {
-            $entry = $rawResults[$i] ?? ['success' => false, 'error' => 'No result returned'];
+        foreach ($itemsToCompute as $j => $item) {
+            $originalIndex = $computeMap[$j];
+            $entry         = $rawResults[$j] ?? ['success' => false, 'error' => 'No result returned'];
 
             if (!($entry['success'] ?? false)) {
-                $output[] = [
+                $output[$originalIndex] = [
                     'success' => false,
                     'result'  => null,
                     'error'   => $entry['error'] ?? 'Unknown error',
@@ -183,15 +206,16 @@ class MlService
             }
 
             try {
-                $inferResult = $entry['data'] ?? $entry;
-                $result = $this->persistResults($item['senior'], $item['survey'], [], $inferResult);
-                $output[] = ['success' => true, 'result' => $result, 'error' => null];
+                $inferResult               = $entry['data'] ?? $entry;
+                $result                    = $this->persistResults($item['senior'], $item['survey'], [], $inferResult);
+                $output[$originalIndex]    = ['success' => true, 'result' => $result, 'error' => null];
             } catch (\Exception $e) {
-                $output[] = ['success' => false, 'result' => null, 'error' => $e->getMessage()];
+                $output[$originalIndex] = ['success' => false, 'result' => null, 'error' => $e->getMessage()];
             }
         }
 
-        return $output;
+        ksort($output);
+        return array_values($output);
     }
 
     /**
@@ -699,6 +723,11 @@ class MlService
     /**
      * Re-run batch UMAP+KMeans for all seniors in one transform and update ml_results.
      * Called automatically after every batch analysis to keep cluster assignments stable.
+     *
+     * Skipped when all active ml_results are notebook_cache — those rows are the
+     * notebook-validated baseline and must not be overwritten by a live UMAP run.
+     * fix_cluster_distribution.py also protects notebook_cache rows internally,
+     * but skipping the entire subprocess when it would do nothing is faster and safer.
      */
     public function runRecluster(): bool
     {
@@ -707,6 +736,19 @@ class MlService
             Log::warning('runRecluster: script or Python executable not found — skipping.');
             return false;
         }
+
+        // Count non-notebook_cache active ml_result rows that would actually be updated.
+        // If there are none, running fix_cluster_distribution.py is a no-op — skip it.
+        $liveRows = MlResult::whereHas('seniorCitizen', fn($q) => $q->active())
+            ->where('prediction_source', '!=', 'notebook_cache')
+            ->count();
+
+        if ($liveRows === 0) {
+            Log::info('runRecluster: all active rows are notebook_cache — skipping recluster.');
+            return true;
+        }
+
+        Log::info("runRecluster: {$liveRows} live_model/fallback rows found — running recluster.");
 
         try {
             $process = new Process(

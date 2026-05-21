@@ -15,17 +15,18 @@ Before any sharing, the main device must confirm these exact numbers:
 
 | Metric | Expected |
 |---|---|
-| Total active seniors | 283 |
-| QoL Surveyed | 283 |
-| Risk — HIGH | 54 |
-| Risk — MODERATE | 191 |
+| Total active seniors | 286 |
+| QoL Surveyed | 286 |
+| Risk — HIGH | 56 |
+| Risk — MODERATE | 192 |
 | Risk — LOW | 38 |
-| Critical flag | 1 |
 | Cluster C1 — High Functioning | 75 |
 | Cluster C2 — Moderate / Mixed Needs | 132 |
 | Cluster C3 — Low Functioning / Multi-domain Risk | 76 |
 | Prediction Source | Notebook-Validated Cache: 283 |
 | Model Version | 1.1.0 |
+
+> **Note:** Total is 286, but only 283 show `Notebook-Validated Cache`. The remaining 3 seniors were added after the notebook run and score via the live model path — this is expected and correct.
 
 ---
 
@@ -105,14 +106,13 @@ php artisan view:clear
 Open the app in a browser and confirm:
 
 ```
-Total Seniors   : 283
-QoL Surveyed    : 283
+Total Seniors   : 286
+QoL Surveyed    : 286
 
 Risk Distribution:
   LOW           : 38
-  MODERATE      : 191
-  HIGH          : 54
-  Critical flag : 1
+  MODERATE      : 192
+  HIGH          : 56
 
 Health Groups:
   C1 High Functioning                    : 75
@@ -121,7 +121,7 @@ Health Groups:
 
 Prediction Source Summary:
   Notebook-Validated Cache : 283
-  Live ML Model            : 0
+  Live ML Model            : 3
   Fallback                 : 0
 ```
 
@@ -195,14 +195,19 @@ Expected: **Size(MB) = 2 or more**. A 0-byte file means the export failed — re
 
 ---
 
-## OTHER DEVICE: Importing the Main Validated Database Dump
+## OTHER DEVICE: Complete Teammate Setup (8 Steps)
 
-### Step 1 — Pull the latest code
+> **This is the standard setup order for every teammate.** Follow all 8 steps in sequence. Do not skip Steps 6–7 — they are the steps most commonly missed and are what ensures the ML pipeline produces identical results across devices.
+
+### Step 1 — Get the latest code
+
 ```powershell
-git pull
+git switch main
+git pull origin main
 ```
 
-### Step 2 — Install PHP and Node dependencies
+### Step 2 — Install dependencies
+
 ```powershell
 composer install
 npm install
@@ -210,104 +215,119 @@ npm run build
 ```
 
 ### Step 3 — Set up `.env`
-```powershell
-copy .env.example .env
-php artisan key:generate
+
+Run `start.bat` once so it generates `.env` from `.env.example` and syncs any new keys, then close after the browser opens:
+
+```
+Double-click  start.bat   (close the window after the browser opens)
 ```
 
-Edit `.env` and set:
-```
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=osca_db
-DB_USERNAME=root
-DB_PASSWORD=
-```
+> If `.env` does not exist yet, `start.bat` creates it automatically. If it already exists, it only adds missing keys — it never overwrites values you have set.
 
-### Step 4 — Get the dump file
+### Step 4 — Import the dump (clean slate)
 
-Copy `agesense_main_validated_dump.sql` from the main device via USB into:
-```
-database\backups\agesense_main_validated_dump.sql
-```
+Get the dump file `agesense_defense_20260521.sql` from the main laptop via USB and place it anywhere accessible.
 
-### Step 5 — Drop and recreate the local database (clean slate)
-
-Open MySQL — use the path that matches your setup:
-
-**Laragon (this project):**
+Open MySQL (Laragon):
 ```powershell
 & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 ```
 
-**If `mysql` is in PATH:**
-```powershell
-mysql -u root
-```
-
-Inside MySQL, run:
+Inside MySQL, drop and recreate the database:
 ```sql
 DROP DATABASE IF EXISTS osca_db;
 CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 EXIT;
 ```
 
-### Step 6 — Import the dump
-
-> **Important — do NOT use `<` in PowerShell**
-> The `<` redirect operator is not supported in PowerShell and will throw a `RedirectionNotSupported` error.
-> Use `Get-Content` to pipe the file instead, as shown below.
-
-**Laragon (this project uses Laragon):**
+Import the dump:
 ```powershell
-Get-Content "database\backups\agesense_main_validated_dump.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
+# Replace the path with where you placed the dump file
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root osca_db < "path\to\agesense_defense_20260521.sql"
 ```
 
-> **Note:** Because the dump was created with `--databases`, it includes `CREATE DATABASE` and `USE` statements. You do not need to specify the database name.
+> **Important — PowerShell and the `<` operator:**
+> The `<` redirect operator is NOT supported in PowerShell for native executables. If you get a `RedirectionNotSupported` error, use `Get-Content` instead:
+> ```powershell
+> Get-Content "path\to\agesense_defense_20260521.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root osca_db
+> ```
 
-### Step 7 — Run Laravel cleanup
+### Step 5 — Run migrations and clear caches
+
 ```powershell
+php artisan migrate
 php artisan config:clear
 php artisan cache:clear
-php artisan route:clear
-php artisan view:clear
-php artisan migrate --force
 ```
 
-### Step 8 — Install Python dependencies
+### Step 6 — Sync ML model artifacts
+
+Copy the `python/models/` directory from the main laptop (the same folder you sync on the main laptop). This includes all `.pkl`, `.json` files, and the `predictions/` subdirectory.
+
+**Option A — ZIP transfer (recommended for USB):**
 ```powershell
-python\venv\Scripts\pip.exe install -r python\requirements.txt
+# On the main laptop — create the ZIP:
+Compress-Archive -Path python/models -DestinationPath osca_models_v1.1.0.zip
+
+# On the target device — extract:
+Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
 ```
 
-### Step 9 — Start the app
+**Option B — Direct folder copy:**
+Copy the entire `python/models/` folder from the main laptop to `osca-system/python/models/` on this device, replacing any existing files.
+
+> After copying, confirm these settings are in `.env`:
+> ```
+> ML_MODELS_PATH=python/models
+> ENABLE_NOTEBOOK_OVERRIDES=true
+> ```
+
+### Step 7 — Validate ML artifacts and pipeline
+
+Run all three validation scripts in order. Each must pass before the system is ready.
+
 ```powershell
-php artisan serve
+# 1. Validate all model artifact files are present and correct
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
 ```
+Expected: **51 PASS, 0 FAIL, 0 WARN**
 
-### Step 10 — Verify the dashboard matches the main device
-
-Expected result after import:
-```
-Total Seniors   : 283
-QoL Surveyed    : 283
-LOW             : 38
-MODERATE        : 191
-HIGH            : 54
-Critical flag   : 1
-C1              : 75
-C2              : 132
-C3              : 76
-Prediction Source: Notebook-Validated Cache: 283
-```
-
-Run the validation script to confirm:
 ```powershell
-python\venv\Scripts\pip.exe install pymysql
-python\venv\Scripts\python.exe python/check_prediction_sources.py
+# 2. Confirm the pipeline produces identical results across two runs and between single/batch inference
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+```
+Expected: **28 PASS, 0 FAIL**
+
+```powershell
+# 3. Confirm stale-result detection works correctly
+python\venv\Scripts\python.exe python\scripts\test_staleness.py
+```
+Expected: **20 PASS, 0 FAIL**
+
+> If any script shows FAIL: re-transfer the `python/models/` artifact bundle from the main laptop. Do not retrain models.
+
+### Step 8 — Check the dashboard
+
+Start the system:
+```
+Double-click  start.bat
 ```
 
-Expected: `OVERALL VALIDATION: PASS`
+Open `http://127.0.0.1:8000` and confirm the dashboard shows:
+
+```
+Total Seniors              : 286
+Risk — HIGH                : 56
+Risk — MODERATE            : 192
+Risk — LOW                 : 38
+Notebook-Validated Cache   : 283
+```
+
+If the numbers are wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`, then run `stop.bat` → `start.bat` to restart the Flask services.
+
+---
+
+> **Why Steps 6–7 matter:** The database dump gives you the correct senior records and ML result rows, but the Flask services need the matching `.pkl` model files to score any new senior added after the dump. Steps 6–7 confirm the artifact bundle is intact and reproducible — skipping them is the most common cause of wrong results across devices.
 
 ---
 
@@ -413,6 +433,28 @@ Yes — but only for development and testing. Local database results are not off
 ---
 
 ## Troubleshooting
+
+### Running batch analysis changes results on the teammate device
+
+**Symptom:** After importing the same dump, the teammate device runs batch analysis and ends up with different risk or cluster values from the main device.
+
+**Root cause — two separate bugs (both now fixed):**
+
+1. **`runBatchPipeline()` did not reuse valid rows.** The UI batch button dispatches `ProcessMlBatch` jobs, which called `runBatchPipeline()`. That method previously sent every senior to Python regardless of whether a valid result already existed. `live_model` rows were recomputed through UMAP on the teammate's machine, producing different cluster assignments if artifacts differed even slightly.
+
+2. **`RecalculateClusters` overwrote `notebook_cache` rows.** After every UI batch completes, `RecalculateClusters` dispatches `fix_cluster_distribution.py`, which re-ran UMAP batch transform across **all seniors** and wrote the results back — including `notebook_cache` rows. This destroyed the validated notebook baseline on the teammate device every time the UI batch button was pressed.
+
+**Fixes applied:**
+- `MlService::runBatchPipeline()` now calls `findReusableResult()` first. Valid `notebook_cache` and `live_model` rows are returned as-is without touching Python.
+- `MlService::runRecluster()` now skips the entire recluster subprocess when all active rows are `notebook_cache` — a no-op for the normal defense state.
+- `fix_cluster_distribution.py` now explicitly protects `notebook_cache` rows from being overwritten even when the script does run (for the case where `live_model` rows genuinely need reclustering after new seniors are added).
+
+**Rule going forward:**
+- After a clean dump import, running the UI batch button should be a no-op — all rows are valid and will be reused.
+- After adding new seniors and running their analysis, `RecalculateClusters` will recluster only the `live_model` rows, not the `notebook_cache` baseline.
+- Do not use `--force` or `php artisan ml:batch-analyze --force` for cross-device consistency tests.
+
+---
 
 ### Dashboard counts are different from the main device
 
@@ -533,28 +575,58 @@ Then re-run the assessment only after the Analysis Services page shows all servi
 
 ## Quick Reference: Commands at a Glance
 
-### Main device — validate
+### Main device — validate and export dump (Laragon)
 ```powershell
+# Validate prediction sources
 python\venv\Scripts\pip.exe install pymysql
 python\venv\Scripts\python.exe python/check_prediction_sources.py
+# Expected: OVERALL VALIDATION: PASS
+
+# Export dump
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root --databases osca_db --routines --triggers --events "--result-file=database\backups\agesense_defense_20260521.sql"
 ```
 
-### Main device — export dump (Laragon)
+### Other device — complete 8-step setup
 ```powershell
-& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" -u root --databases osca_db --routines --triggers --events "--result-file=database\backups\agesense_main_validated_dump.sql"
-```
+# Step 1 — Get code
+git switch main
+git pull origin main
 
-### Other device — clean import (Laragon)
-```powershell
-# Open MySQL
+# Step 2 — Install dependencies
+composer install
+npm install
+npm run build
+
+# Step 3 — Set up .env (run start.bat once, close after browser opens)
+.\start.bat
+
+# Step 4 — Import dump (clean slate)
 & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
 # DROP DATABASE IF EXISTS osca_db;
 # CREATE DATABASE osca_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 # EXIT;
+& "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root osca_db < "path\to\agesense_defense_20260521.sql"
+# (if < fails in PS, use: Get-Content "path\to\dump.sql" | & "...mysql.exe" -u root osca_db)
 
-# Import (use Get-Content — the < operator is not supported in PowerShell)
-Get-Content "database\backups\agesense_main_validated_dump.sql" | & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root
-php artisan config:clear; php artisan cache:clear; php artisan migrate --force
+# Step 5 — Migrations and cache clear
+php artisan migrate
+php artisan config:clear
+php artisan cache:clear
+
+# Step 6 — Sync ML artifacts (copy python/models/ from main laptop, same as you do on main laptop)
+# ZIP option: Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+
+# Step 7 — Validate ML pipeline (all three must pass)
+python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
+# Expected: 51 PASS, 0 FAIL, 0 WARN
+python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
+# Expected: 28 PASS, 0 FAIL
+python\venv\Scripts\python.exe python\scripts\test_staleness.py
+# Expected: 20 PASS, 0 FAIL
+
+# Step 8 — Start and verify dashboard
+.\start.bat
+# Expected: Total=286, HIGH=56, MODERATE=192, LOW=38, Notebook-Validated Cache: 283
 ```
 
 ### Shared MySQL — client device `.env`
@@ -564,10 +636,4 @@ DB_DATABASE=osca_db
 DB_USERNAME=agesense_user
 DB_PASSWORD=strong_password_here
 ```
-Then: `php artisan config:clear && php artisan cache:clear`
-
-### Verify after import or shared DB
-```powershell
-python\venv\Scripts\python.exe python/check_prediction_sources.py
-# Expected: OVERALL VALIDATION: PASS
-```
+Then: `php artisan config:clear` and `php artisan cache:clear`
