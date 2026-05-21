@@ -20,6 +20,9 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
         Route::get('/archives',             [SeniorCitizenController::class, 'archives'])->name('archives');
         Route::post('/{id}/restore',        [SeniorCitizenController::class, 'restore'])->name('restore');
         Route::delete('/{id}/force-delete', [SeniorCitizenController::class, 'forceDestroy'])->name('force-delete');
+        Route::post('/bulk-archive',        [SeniorCitizenController::class, 'bulkDestroy'])->name('bulk-archive');
+        Route::post('/bulk-restore',        [SeniorCitizenController::class, 'bulkRestore'])->name('bulk-restore');
+        Route::post('/bulk-delete',         [SeniorCitizenController::class, 'bulkForceDestroy'])->name('bulk-delete');
     });
 
     // Wildcard routes below
