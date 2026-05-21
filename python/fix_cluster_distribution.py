@@ -404,11 +404,26 @@ def main():
     else:
         print(f"  [WARN] Could not auto-calibrate (raw clusters found: {list(raw_sizes.keys())}). Using existing mapping.")
 
+    # Fetch prediction_source and is_stale for all ml_result rows so we can
+    # protect notebook_cache rows from being overwritten.
+    protected_result_ids = set()
+    if any(row.get("ml_result_id") for row in valid_seniors):
+        result_ids = [row["ml_result_id"] for row in valid_seniors if row.get("ml_result_id")]
+        with conn.cursor() as cur:
+            fmt = ",".join(["%s"] * len(result_ids))
+            cur.execute(
+                f"SELECT id FROM ml_results WHERE id IN ({fmt}) AND prediction_source = 'notebook_cache' AND is_stale = 0",
+                result_ids,
+            )
+            protected_result_ids = {r["id"] for r in cur.fetchall()}
+    print(f"  notebook_cache rows protected from overwrite: {len(protected_result_ids)}")
+
     print("\nStep 4: Running inference and updating DB...")
     cluster_counts = {1: 0, 2: 0, 3: 0}
     risk_counts = {"LOW": 0, "MODERATE": 0, "HIGH": 0}
     updated = 0
     skipped = 0
+    protected = 0
 
     for i, (preprocessed, row) in enumerate(zip(payloads, valid_seniors)):
         try:
@@ -418,12 +433,15 @@ def main():
             cluster_counts[named_id] = cluster_counts.get(named_id, 0) + 1
             risk_counts[risk] = risk_counts.get(risk, 0) + 1
 
-            if row["ml_result_id"]:
-                update_ml_result(conn, row["ml_result_id"], row["id"], result)
-                updated += 1
-            else:
+            if not row["ml_result_id"]:
                 skipped += 1
                 print(f"  [NO ML RESULT] senior {row['id']} — skipped (run batch analysis first)")
+            elif row["ml_result_id"] in protected_result_ids:
+                # notebook_cache row with no data changes — preserve as-is
+                protected += 1
+            else:
+                update_ml_result(conn, row["ml_result_id"], row["id"], result)
+                updated += 1
 
             if (i + 1) % 50 == 0:
                 print(f"  Processed {i+1}/{len(payloads)}...")
@@ -434,7 +452,7 @@ def main():
     conn.close()
 
     print(f"\n{'='*50}")
-    print(f"Done. Updated: {updated}  Skipped: {skipped}")
+    print(f"Done. Updated: {updated}  Protected (notebook_cache): {protected}  Skipped: {skipped}")
     print(f"\nNew cluster distribution:")
     for c, n in sorted(cluster_counts.items()):
         print(f"  C{c}: {n}")
