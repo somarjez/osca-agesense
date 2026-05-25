@@ -431,6 +431,50 @@ if all(_exists(f) for f in ["feature_list.json", "umap_nd.pkl" if _exists("umap_
         )
     except Exception as exc:
         _fail("End-to-end forward pass", str(exc))
+
+    # ── Centroids file (optional) ─────────────────────────────────────────────
+    centroid_path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
+    if os.path.exists(centroid_path):
+        try:
+            with open(centroid_path, encoding="utf-8") as _f:
+                cd = json.load(_f)
+            if set(cd["centroids"].keys()) != {"1", "2", "3"}:
+                _fail("Cluster centroids file",
+                      f"Expected keys 1,2,3 — got {list(cd['centroids'].keys())}")
+            elif cd["feature_names"] != fl2:
+                _fail("Cluster centroids file",
+                      "feature_names mismatch with feature_list.json")
+            else:
+                _pass("Cluster centroids file",
+                      f"{len(cd['centroids'])} clusters, {cd['n_features']} features, "
+                      f"generated {cd.get('generated_at','unknown')}")
+
+                # Agreement check: deterministic and UMAP paths should agree on the
+                # well-centred test vector. Use test_cluster[0] (the 31D vector already
+                # sent to UMAP above) so the feature spaces are identical.
+                import sys as _sys
+                _svc_path = os.path.join(BASE_DIR, "python", "services")
+                if _svc_path not in _sys.path:
+                    _sys.path.insert(0, _svc_path)
+                from inference_service import _deterministic_cluster_assign
+                det_id = _deterministic_cluster_assign(
+                    test_cluster[0].tolist(), fl2
+                )
+                if det_id is not None and det_id != named:
+                    _warn(
+                        "Deterministic vs UMAP cluster agreement",
+                        f"Deterministic assigned C{det_id}, UMAP assigned C{named} — "
+                        "may diverge near cluster boundaries; review if unexpected."
+                    )
+                elif det_id is not None:
+                    _pass("Deterministic vs UMAP cluster agreement",
+                          f"Both assign C{named}")
+        except Exception as _exc:
+            _fail("Cluster centroids file", str(_exc))
+    else:
+        _warn("Cluster centroids file",
+              "Not found — run generate_cluster_centroids.py to enable deterministic mode")
+
 else:
     _warn("Cross-file consistency check", "Skipped — one or more required files missing.")
 
