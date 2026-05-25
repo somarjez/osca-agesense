@@ -7,7 +7,7 @@
 <div class="space-y-5">
 
     {{-- ── Filters ── --}}
-    <form method="GET" class="card">
+    <div class="card">
         <div class="card-head">
             <div class="card-title">Filter Log</div>
             <div class="flex items-center gap-3">
@@ -21,6 +21,7 @@
                 </form>
             </div>
         </div>
+        <form method="GET">
         <div class="card-body flex flex-wrap items-end gap-4">
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Action</label>
@@ -47,7 +48,8 @@
                 @endif
             </div>
         </div>
-    </form>
+        </form>
+    </div>
 
     {{-- ── Log table ── --}}
     <div x-data="{
