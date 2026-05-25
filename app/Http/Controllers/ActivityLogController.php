@@ -25,7 +25,7 @@ class ActivityLogController extends Controller
     {
         $request->validate([
             'ids'   => ['required', 'array'],
-            'ids.*' => ['integer'],
+            'ids.*' => ['integer', 'min:1'],
         ]);
 
         ActivityLog::whereIn('id', $request->ids)->delete();

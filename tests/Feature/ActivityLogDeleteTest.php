@@ -124,6 +124,9 @@ class ActivityLogDeleteTest extends TestCase
              ->delete(route('activity-log.clear'))
              ->assertRedirect(route('activity-log.index'));
 
+        // DatabaseTransactions wraps all rows (including pre-existing seed data) in the
+        // same transaction, so query()->delete() empties the table completely. The
+        // transaction is rolled back after the test restoring all rows.
         $this->assertEquals(0, ActivityLog::count());
     }
 
