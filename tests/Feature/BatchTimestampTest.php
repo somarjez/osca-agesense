@@ -58,8 +58,12 @@ class BatchTimestampTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('ml.batch'));
 
         $response->assertOk();
-        $response->assertViewHas('lastBatchRun',   $timestamp);
         $response->assertViewHas('lastBatchCount', 283);
+        $viewTimestamp = $response->viewData('lastBatchRun');
+        $this->assertInstanceOf(\Carbon\Carbon::class, $viewTimestamp,
+            'lastBatchRun should be a Carbon instance.');
+        $this->assertTrue($timestamp->equalTo($viewTimestamp),
+            'lastBatchRun timestamp does not match the cached value.');
     }
 
     #[Test]
