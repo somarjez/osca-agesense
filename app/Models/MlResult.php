@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MlResult extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'senior_citizen_id', 'qol_survey_id', 'model_version',
         'prediction_source', 'is_cached_prediction', 'critical_flag',

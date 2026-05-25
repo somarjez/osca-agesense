@@ -75,6 +75,13 @@ class SeniorCitizen extends Model
 
     public function getAgeAttribute(): int
     {
+        // Export queries compute age via SQL (TIMESTAMPDIFF) and alias it as 'age'.
+        // When that SQL value is present, use it directly — date_of_birth is not
+        // selected in those queries, so the Carbon fallback would return 0.
+        if (array_key_exists('age', $this->attributes) && $this->attributes['age'] !== null) {
+            return (int) $this->attributes['age'];
+        }
+        // Full model loads (profile page, PDF, show view) use the Carbon path.
         return $this->date_of_birth?->diffInYears(now()) ?? 0;
     }
 

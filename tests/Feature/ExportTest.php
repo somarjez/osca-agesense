@@ -163,8 +163,15 @@ class ExportTest extends TestCase
         $this->assertStringContainsString('Composite Risk', $body);
 
         // Must have data rows beyond the header
-        $lines = array_filter(explode("\n", trim($body)));
+        $lines = array_values(array_filter(explode("\n", trim($body))));
         $this->assertGreaterThan(1, count($lines), 'CSV has no data rows — only the header was written.');
+
+        // Age column must never be 0 for a senior born in 1950.
+        // Column order in cluster CSV: OSCA ID, Name, Barangay, Age, Gender, …
+        $dataRow = str_getcsv($lines[1]);   // first data row (index 0 = header)
+        $ageValue = (int) $dataRow[3];      // Age is the 4th column (0-indexed: 3)
+        $this->assertGreaterThan(0, $ageValue,
+            "Age column in cluster CSV is 0 — getAgeAttribute accessor bug.");
     }
 
     #[Test]
@@ -209,6 +216,13 @@ class ExportTest extends TestCase
             // "HIGH" must appear in each data row
             $this->assertStringContainsString('HIGH', $line, "Data row does not contain HIGH: $line");
         }
+
+        // Age must be non-zero in the risk CSV as well.
+        // Column order in risk CSV: OSCA ID, Name, Barangay, Age, Risk Level, …
+        $firstDataRow = str_getcsv($lines[1]);
+        $ageValue = (int) $firstDataRow[3];
+        $this->assertGreaterThan(0, $ageValue,
+            "Age column in risk CSV is 0 — getAgeAttribute accessor bug.");
     }
 
     #[Test]

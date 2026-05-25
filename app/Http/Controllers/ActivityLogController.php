@@ -20,4 +20,28 @@ class ActivityLogController extends Controller
 
         return view('activity_log.index', compact('logs', 'actions'));
     }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids'   => ['required', 'array'],
+            'ids.*' => ['integer', 'min:1'],
+        ]);
+
+        ActivityLog::whereIn('id', $request->ids)->delete();
+
+        $count = count($request->ids);
+        $noun  = $count === 1 ? 'entry' : 'entries';
+        return back()->with('success', "{$count} log {$noun} deleted.");
+    }
+
+    public function clear()
+    {
+        // Use delete() rather than truncate() — truncate issues an implicit
+        // commit in MySQL which breaks DatabaseTransactions in tests.
+        ActivityLog::query()->delete();
+
+        return redirect()->route('activity-log.index')
+            ->with('success', 'All activity log entries have been cleared.');
+    }
 }

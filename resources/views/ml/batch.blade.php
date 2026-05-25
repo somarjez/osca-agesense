@@ -110,6 +110,15 @@
             <div class="flex-1 min-w-0">
                 <p class="font-semibold text-ink-900">Run Full Batch Assessment</p>
                 <p class="text-sm text-ink-500 mb-3">Assesses all seniors with a QoL survey: prepares data → assigns health group → scores risk → generates recommendations.</p>
+                <p class="text-xs text-ink-400 mt-1 mb-3">
+                    Last run:
+                    @if ($lastBatchRun)
+                        {{ $lastBatchRun->format('d M Y, g:i A') }}
+                        &middot; {{ $lastBatchCount }} senior(s)
+                    @else
+                        <span class="text-ink-300">Never run on this machine</span>
+                    @endif
+                </p>
 
                 {{-- Result / error banners --}}
                 <p x-show="resultMsg && !running" x-text="resultMsg"

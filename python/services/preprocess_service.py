@@ -16,6 +16,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import pandas as pd
 from flask import Flask, request, jsonify
 
 warnings.filterwarnings("ignore")
@@ -946,7 +947,9 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
         scaler_input_names = list(scaler.feature_names_in_)
         scaler_vector = [float(enc.get(k, 0.0)) for k in scaler_input_names]
         try:
-            scaled_full = scaler.transform([scaler_vector])[0]
+            scaled_full = scaler.transform(
+                pd.DataFrame([scaler_vector], columns=scaler_input_names)
+            )[0]
         except Exception:
             arr = np.array(scaler_vector, dtype=np.float64)
             std = float(arr.std()) or 1.0

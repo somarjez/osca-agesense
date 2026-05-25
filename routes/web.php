@@ -16,9 +16,11 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Admin only
-    Route::get('/activity-log', [ActivityLogController::class, 'index'])
-        ->name('activity-log.index')
-        ->middleware('role:admin');
+    Route::middleware('role:admin')->prefix('activity-log')->name('activity-log.')->group(function () {
+        Route::get('/',       [ActivityLogController::class, 'index'])->name('index');
+        Route::delete('bulk', [ActivityLogController::class, 'bulkDestroy'])->name('bulk-destroy');
+        Route::delete('all',  [ActivityLogController::class, 'clear'])->name('clear');
+    });
 
     require __DIR__ . '/seniors.php';
     require __DIR__ . '/surveys.php';

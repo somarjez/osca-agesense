@@ -33,6 +33,7 @@ except ImportError:
     _PYMYSQL_AVAILABLE = False
 
 import numpy as np
+import pandas as pd
 from flask import Flask, request, jsonify
 
 warnings.filterwarnings("ignore")
@@ -1489,12 +1490,14 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                 if hasattr(scaler, "feature_names_in_") and isinstance(feature_names, list) and feature_names:
                     scaler_input_names = list(scaler.feature_names_in_)
                     scaler_row = _vector_from_feature_map(feature_map, scaler_input_names)
-                    full_scaled = scaler.transform([scaler_row])[0]
+                    full_scaled = scaler.transform(
+                        pd.DataFrame([scaler_row], columns=scaler_input_names)
+                    )[0]
                     scaler_feat_idx = {f: i for i, f in enumerate(scaler_input_names)}
                     row_scaled_30 = [float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
                                      for f in feature_names]
                     reducer.transform_seed = 42
-                    if getattr(reducer, "_rp_forest", None) is None:
+                    if not getattr(reducer, "_rp_forest", None):
                         reducer.transform_queue_size = 0.0
                     row_reduced  = reducer.transform([row_scaled_30])
                     raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
@@ -1511,7 +1514,9 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                         cluster_input_names = None
                     if cluster_input_names:
                         cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
-                        row_scaled   = scaler.transform([cluster_row])[0].tolist()
+                        row_scaled   = scaler.transform(
+                            pd.DataFrame([cluster_row], columns=cluster_input_names)
+                        )[0].tolist()
                         reducer.transform_seed = 42
                         if getattr(reducer, "_rp_forest", None) is None:
                             reducer.transform_queue_size = 0.0

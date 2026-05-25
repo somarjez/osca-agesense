@@ -70,7 +70,9 @@ class MlController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('ml.batch', compact('pending', 'totalEligible'));
+        return view('ml.batch', compact('pending', 'totalEligible'))
+            ->with('lastBatchRun',   Cache::get('ml_last_batch_started'))
+            ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'));
     }
 
     /**
@@ -103,6 +105,10 @@ class MlController extends Controller
         Cache::put("{$cacheKey}:total",     count($seniorIds), now()->addHours(2));
         Cache::put("{$cacheKey}:processed", 0,                 now()->addHours(2));
         Cache::put("{$cacheKey}:failed",    0,                 now()->addHours(2));
+
+        // NEW — record when the last full batch was started, shown on the batch page.
+        Cache::put('ml_last_batch_started',      now(),              now()->addDays(90));
+        Cache::put('ml_last_batch_senior_count', count($seniorIds),  now()->addDays(90));
 
         return response()->json([
             'queued'    => true,
