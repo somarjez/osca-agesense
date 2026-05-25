@@ -1398,7 +1398,11 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                 "ic_risk": round(ic_r, 4), "env_risk": round(env_r, 4),
                 "func_risk": round(func_r, 4), "composite_risk": round(comp, 4),
                 "wellbeing_score": round(
-                    float(_db_cached.get("wellbeing_score") or section_scores.get("overall_wellbeing", 0.5)),
+                    float(
+                        _db_cached.get("wellbeing_score")
+                        if _db_cached.get("wellbeing_score") is not None
+                        else section_scores.get("overall_wellbeing", 0.5)
+                    ),
                     4
                 ),
             },
@@ -1631,7 +1635,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
     wellbeing_score = float(section_scores.get("overall_wellbeing", 0.5))
     # DB-cache override: pin wellbeing to the first-run value so it never drifts.
-    if _db_cached and _db_cached.get("wellbeing_score"):
+    if _db_cached and _db_cached.get("wellbeing_score") is not None:
         wellbeing_score = float(_db_cached["wellbeing_score"])
 
     # 3. Risk levels

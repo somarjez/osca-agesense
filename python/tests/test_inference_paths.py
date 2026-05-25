@@ -109,11 +109,11 @@ check("wellbeing_score in _db_cache_lookup return dict",
 # Confirm Edit B: notebook-cache early-return uses _db_cached.get("wellbeing_score")
 infer_src = inspect.getsource(_inf_svc.infer)
 check("notebook-cache path uses _db_cached wellbeing",
-      '_db_cached.get("wellbeing_score") or section_scores' in infer_src, True)
+      '_db_cached.get("wellbeing_score") is not None' in infer_src, True)
 
 # Confirm Edit C: normal path overrides from DB cache
 check("normal path overrides wellbeing from DB cache",
-      'if _db_cached and _db_cached.get("wellbeing_score")' in infer_src, True)
+      'if _db_cached and _db_cached.get("wellbeing_score") is not None' in infer_src, True)
 print()
 
 print("=" * 50)
