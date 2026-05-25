@@ -383,6 +383,7 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
             # Propagate source/version so infer() can detect notebook_cache rows
             "_prediction_source": row.get("prediction_source") or "",
             "_model_version":     row.get("model_version") or "",
+            "wellbeing_score":    float(row["wellbeing_score"] or 0.5),
         }
     except Exception as exc:
         logger.debug("DB cache lookup failed (non-fatal): %s", exc)
@@ -1396,7 +1397,10 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "risk_scores": {
                 "ic_risk": round(ic_r, 4), "env_risk": round(env_r, 4),
                 "func_risk": round(func_r, 4), "composite_risk": round(comp, 4),
-                "wellbeing_score": round(float(section_scores.get("overall_wellbeing", 0.5)), 4),
+                "wellbeing_score": round(
+                    float(_db_cached.get("wellbeing_score") or section_scores.get("overall_wellbeing", 0.5)),
+                    4
+                ),
             },
             "risk_levels": {
                 "ic": _get_risk_level(ic_r), "env": _get_risk_level(env_r),
@@ -1626,6 +1630,9 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     composite_risk = _clip01(rule_composite_val * 0.45 + ml_composite * 0.55)
 
     wellbeing_score = float(section_scores.get("overall_wellbeing", 0.5))
+    # DB-cache override: pin wellbeing to the first-run value so it never drifts.
+    if _db_cached and _db_cached.get("wellbeing_score"):
+        wellbeing_score = float(_db_cached["wellbeing_score"])
 
     # 3. Risk levels
     ic_level = _get_risk_level(ic_risk_raw)
