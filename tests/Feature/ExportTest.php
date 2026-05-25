@@ -163,7 +163,7 @@ class ExportTest extends TestCase
         $this->assertStringContainsString('Composite Risk', $body);
 
         // Must have data rows beyond the header
-        $lines = array_filter(explode("\n", trim($body)));
+        $lines = array_values(array_filter(explode("\n", trim($body))));
         $this->assertGreaterThan(1, count($lines), 'CSV has no data rows — only the header was written.');
 
         // Age column must never be 0 for a senior born in 1950.
