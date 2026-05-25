@@ -63,6 +63,9 @@ class MlService
         if (!$force) {
             $cached = $this->findReusableResult($senior, $survey);
             if ($cached !== null) {
+                // Bump processed_at so "Last Assessment" reflects this run, not the
+                // original computation date.  Scores and source are unchanged.
+                $cached->update(['processed_at' => now()]);
                 return $cached->load('recommendations');
             }
         }
@@ -168,6 +171,9 @@ class MlService
         foreach ($items as $i => $item) {
             $reusable = $this->findReusableResult($item['senior'], $item['survey']);
             if ($reusable !== null) {
+                // Bump processed_at so "Last Assessment" reflects this batch run, not
+                // the original computation date.  Scores and source are unchanged.
+                $reusable->update(['processed_at' => now()]);
                 $output[$i] = ['success' => true, 'result' => $reusable->load('recommendations'), 'error' => null];
             } else {
                 $computeMap[count($itemsToCompute)] = $i;
