@@ -19,6 +19,7 @@ import sys
 import json
 import pickle
 import struct
+import pandas as pd
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -412,13 +413,13 @@ if all(_exists(f) for f in ["feature_list.json", "umap_nd.pkl" if _exists("umap_
         os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
         os.environ.setdefault("NUMBA_NUM_THREADS", "1")
         sc_names2 = list(getattr(sc2, "feature_names_in_", fl2))
-        test_raw  = np.array([[3.0] * len(sc_names2)])
-        test_scaled = sc2.transform(test_raw)
+        test_df   = pd.DataFrame([[3.0] * len(sc_names2)], columns=sc_names2)
+        test_scaled = sc2.transform(test_df)
         feat_idx = {f: i for i, f in enumerate(sc_names2)}
         fl_idx   = [feat_idx[f] for f in fl2 if f in feat_idx]
         test_cluster = test_scaled[:, fl_idx]
         u2.transform_seed = 42
-        if getattr(u2, "_rp_forest", None) is None:
+        if not getattr(u2, "_rp_forest", None):
             u2.transform_queue_size = 0.0
         test_reduced = u2.transform(test_cluster)
         raw_id = int(km2.predict(test_reduced)[0])

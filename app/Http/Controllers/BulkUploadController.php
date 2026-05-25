@@ -153,6 +153,20 @@ class BulkUploadController extends Controller
                     continue;
                 }
 
+                // Duplicate guard: skip if an active (non-archived) senior with the
+                // same name, date of birth, and barangay already exists.
+                $alreadyExists = SeniorCitizen::where('first_name', $firstName)
+                    ->where('last_name', $lastName)
+                    ->where('date_of_birth', $dob)
+                    ->where('barangay', $barangay)
+                    ->exists();
+
+                if ($alreadyExists) {
+                    $skipped++;
+                    $errors[] = "Row " . ($lineNum + 2) . ": {$firstName} {$lastName} ({$barangay}, {$dob}) already exists — skipped.";
+                    continue;
+                }
+
                 $senior = SeniorCitizen::create([
                     'osca_id'                  => SeniorCitizen::generateOscaId($barangay),
                     'first_name'               => $firstName,
