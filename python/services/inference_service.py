@@ -121,6 +121,7 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
+ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", False)
 
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
@@ -735,6 +736,44 @@ def _load_json(filename: str) -> Optional[Any]:
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
     return None
+
+
+@lru_cache(maxsize=1)
+def _load_cluster_centroids_scaled() -> Optional[Dict[str, Any]]:
+    """Load cluster_centroids_scaled.json from MODEL_DIR (cached after first load)."""
+    path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _deterministic_cluster_assign(
+    vector: List[float],
+    feature_names: List[str],
+) -> Optional[int]:
+    """
+    Assign named cluster ID (1, 2, or 3) by nearest L2 centroid in the
+    N-dimensional scaled feature space (N = len(feature_list.json)).
+    Returns None if the centroids file is missing — caller falls back to UMAP.
+    """
+    data = _load_cluster_centroids_scaled()
+    if not data:
+        return None
+    centroid_names: List[str] = data["feature_names"]
+    centroids: Dict[str, List[float]] = data["centroids"]
+    feat_idx = {f: i for i, f in enumerate(feature_names)}
+    best_id: Optional[int] = None
+    best_dist = float("inf")
+    for named_id_str, centroid in centroids.items():
+        dist = sum(
+            (float(centroid[j]) - (vector[feat_idx[f]] if f in feat_idx else 0.0)) ** 2
+            for j, f in enumerate(centroid_names)
+        )
+        if dist < best_dist:
+            best_dist = dist
+            best_id = int(named_id_str)
+    return best_id
 
 
 def _normalize_identity_part(value: Any) -> str:

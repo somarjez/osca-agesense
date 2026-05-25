@@ -116,6 +116,24 @@ check("normal path overrides wellbeing from DB cache",
       'if _db_cached and _db_cached.get("wellbeing_score") is not None' in infer_src, True)
 print()
 
+print("=== ENABLE_DETERMINISTIC_CLUSTER flag ===")
+from inference_service import ENABLE_DETERMINISTIC_CLUSTER, _deterministic_cluster_assign, _load_cluster_centroids_scaled
+check("flag defaults to False", ENABLE_DETERMINISTIC_CLUSTER, False)
+print()
+
+print("=== _load_cluster_centroids_scaled (no file = None) ===")
+# cluster_centroids_scaled.json does not exist yet — function should return None
+result = _load_cluster_centroids_scaled()
+check("returns None when centroids file absent", result, None)
+print()
+
+print("=== _deterministic_cluster_assign (no file = None) ===")
+dummy_vector = [3.0] * 31
+dummy_names  = [f"feat_{i}" for i in range(31)]
+result = _deterministic_cluster_assign(dummy_vector, dummy_names)
+check("returns None when centroids file absent", result, None)
+print()
+
 print("=" * 50)
 print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
 sys.exit(0 if all_ok else 1)
