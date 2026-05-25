@@ -1529,6 +1529,38 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
         feature_names = _load_json("feature_list.json")
 
+        # ── Deterministic cluster assignment ─────────────────────────────────
+        # Bypasses UMAP for cross-device reproducibility. Only runs when:
+        #   • ENABLE_DETERMINISTIC_CLUSTER=true in .env
+        #   • No DB cache result exists for this senior yet
+        #   • cluster_centroids_scaled.json is present in MODEL_DIR
+        # Falls back to the live UMAP+KMeans path automatically if the file
+        # is missing or the flag is off.
+        _det_named_id: Optional[int] = None
+        if ENABLE_DETERMINISTIC_CLUSTER and not _db_cached:
+            _det_named_id = _deterministic_cluster_assign(
+                scaled_features,   # N-dim vector already in preprocessed (line ~1445)
+                feature_names,     # from feature_list.json, loaded 2 lines above
+            )
+
+        if _det_named_id is not None:
+            named_id = max(1, min(3, _det_named_id))
+            cluster_profile = cluster_profiles[named_id]
+            # Reverse-lookup raw_cluster_id: cluster_map is {0:3, 1:1, 2:2},
+            # NOT a simple +1 offset — must look up by value, not index.
+            raw_cluster_id = next(
+                (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
+                 if mapped_id == named_id),
+                0,
+            )
+            # Inject into preprocessed so the cluster-map re-lookup block
+            # below ("if '_precomputed_named_id' not in preprocessed:") is
+            # skipped and does not overwrite our named_id.
+            preprocessed = dict(preprocessed)
+            preprocessed["_precomputed_named_id"]      = named_id
+            preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
+            warnings_list.append("Deterministic cluster assignment used (UMAP skipped).")
+
         if scaler is not None and reducer is not None and kmeans is not None and feature_map:
             try:
                 # Notebook flow: scale all scaler features (VIF superset), then
