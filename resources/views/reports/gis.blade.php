@@ -44,8 +44,10 @@
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
                         <option value="markers">Senior Distribution Points</option>
-                        <option value="risk-zones">Risk Zone Overlay</option>
-                        <option value="accessibility-zones">Accessibility Coverage View</option>
+                        <option value="density-heatmap">Senior Density Heatmap</option>
+                        <option value="risk-heatmap">Risk Intensity Heatmap</option>
+                        <option value="accessibility-heatmap">Accessibility Need Heatmap</option>
+                        <option value="barangay-density">Barangay Density View</option>
                     </select>
                 </label>
                 <label class="block">
@@ -110,21 +112,38 @@
     const SOURCE_STAT_ID = 'gis-stat-source';
     const PAGSANJAN_CENTER = [14.2708, 121.4560];
     const DEFAULT_ZOOM = 15;
-    const MIN_ZOOM = 13;
+    const MIN_ZOOM = 8;
     const MAX_ZOOM = 18;
     const DEFAULT_FOCUS_BOUNDS_COORDS = [
-        [14.2585, 121.4425],
-        [14.2835, 121.4685],
+        [14.2598, 121.4442],
+        [14.2824, 121.4668],
     ];
     const NAVIGATION_BOUNDS_COORDS = [
-        [14.2470, 121.4300],
-        [14.2950, 121.4815],
+        [14.2555, 121.4395],
+        [14.2868, 121.4715],
     ];
     const MAP_FIT_OPTIONS = {
-        padding: [24, 24],
+        padding: [18, 18],
         maxZoom: 15,
         animate: false,
     };
+    const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
+    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
+    const HEATMAP_MODES = new Set(['density-heatmap', 'risk-heatmap', 'accessibility-heatmap']);
+    const HEATMAP_GRADIENT = {
+        0.15: '#2563eb',
+        0.35: '#22c55e',
+        0.60: '#facc15',
+        0.78: '#fb923c',
+        1.00: '#ef4444',
+    };
+    const BARANGAY_COLORS = [
+        '#14b8a6', '#f97316', '#8b5cf6', '#22c55e',
+        '#eab308', '#06b6d4', '#ef4444', '#84cc16',
+        '#f59e0b', '#6366f1', '#ec4899', '#10b981',
+        '#0ea5e9', '#a855f7', '#65a30d', '#dc2626',
+    ];
+    const ACCESSIBILITY_DISTANCE_CAP_METERS = 1500;
     let latestRequestId = 0;
     let latestSeniorGeoJson = null;
     let latestFacilityGeoJson = null;
@@ -157,11 +176,11 @@
             case 'HIGH':
                 return 1.0;
             case 'MODERATE':
-                return 0.7;
+                return 0.6;
             case 'LOW':
-                return 0.45;
+                return 0.3;
             default:
-                return 0.4;
+                return null;
         }
     }
 
@@ -219,8 +238,53 @@
         return window.L.latLngBounds(coords[0], coords[1]);
     }
 
+    function normalizedBounds(bounds, paddingRatio = 0) {
+        if (!bounds?.isValid?.()) return null;
+
+        const padded = paddingRatio > 0 ? bounds.pad(paddingRatio) : bounds;
+
+        return window.L.latLngBounds(
+            [padded.getSouth(), padded.getWest()],
+            [padded.getNorth(), padded.getEast()]
+        );
+    }
+
     function hasBoundaryFeatures(geojson) {
         return Array.isArray(geojson?.features) && geojson.features.length > 0;
+    }
+
+    function geoJsonBounds(geojson) {
+        if (!hasBoundaryFeatures(geojson)) {
+            return null;
+        }
+
+        const bounds = window.L.geoJSON(geojson).getBounds();
+
+        return bounds.isValid() ? bounds : null;
+    }
+
+    function municipalBoundaryBounds() {
+        return geoJsonBounds(latestMunicipalBoundaryGeoJson);
+    }
+
+    function barangayBoundaryBounds() {
+        return geoJsonBounds(latestBarangayBoundaryGeoJson);
+    }
+
+    function primaryBoundaryGeoJson() {
+        if (hasBoundaryFeatures(latestMunicipalBoundaryGeoJson)) {
+            return latestMunicipalBoundaryGeoJson;
+        }
+
+        if (hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
+            return latestBarangayBoundaryGeoJson;
+        }
+
+        return null;
+    }
+
+    function primaryBoundaryBounds() {
+        return municipalBoundaryBounds() ?? barangayBoundaryBounds();
     }
 
     function updateLegend(mode) {
@@ -238,9 +302,43 @@
 
         if (mode === 'markers') {
             legendEl.innerHTML = `
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-teal-500 border border-white inline-block"></span>Verified senior location</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border-2 border-dashed border-teal-500 bg-white inline-block"></span>Generalized fallback location</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[3px] bg-sky-600 inline-block rotate-45"></span>Facility</span>
+                ${boundaryLegend}
+            `;
+            return;
+        }
+
+        const heatmapLabels = {
+            'density-heatmap': ['Senior Density Heatmap', 'Low concentration', 'High concentration'],
+            'risk-heatmap': ['Risk Intensity Heatmap', 'Low risk intensity', 'High risk intensity'],
+            'accessibility-heatmap': ['Accessibility Need Heatmap', 'Better access', 'Greater access need'],
+        };
+        const heatmapLabel = heatmapLabels[mode];
+
+        if (heatmapLabel) {
+            legendEl.innerHTML = `
+                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
+                <span class="inline-flex items-center gap-2 min-w-[260px]">
+                    <span>${heatmapLabel[1]}</span>
+                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#2563eb 0%,#22c55e 30%,#facc15 58%,#fb923c 78%,#ef4444 100%);"></span>
+                    <span>${heatmapLabel[2]}</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
+                ${boundaryLegend}
+            `;
+            return;
+        }
+
+        if (mode === 'barangay-density') {
+            legendEl.innerHTML = `
+                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">Barangay Density View</span>
+                <span class="inline-flex items-center gap-2 min-w-[260px]">
+                    <span>Lower count</span>
+                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
+                    <span>Higher count</span>
+                </span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 ${boundaryLegend}
             `;
@@ -259,7 +357,24 @@
 
     function sourceStatusText(geojson) {
         if (geojson?.source === 'database') {
-            return `${geojson?.total ?? geojson.features?.length ?? 0} senior records loaded using generalized barangay-based placement.`;
+            const exactCount = Number(geojson?.metadata?.exact_coordinate_count ?? 0);
+            const generalizedCount = Number(geojson?.metadata?.generalized_coordinate_count ?? 0);
+            const needsManualPinCount = Number(geojson?.metadata?.needs_manual_pin_count ?? 0);
+            const total = geojson?.total ?? geojson.features?.length ?? 0;
+
+            if (geojson?.metadata?.exact_only) {
+                if (exactCount > 0) {
+                    return `${exactCount} exact saved senior pin(s) loaded. ${needsManualPinCount} record(s) still need manual location pins.`;
+                }
+
+                return `No exact saved senior pins yet. ${needsManualPinCount || generalizedCount} record(s) still need manual location pins.`;
+            }
+
+            if (exactCount > 0) {
+                return `${total} senior records loaded: ${exactCount} exact saved pin(s), ${generalizedCount} generalized fallback point(s).`;
+            }
+
+            return `${total} senior records loaded using generalized barangay-based placement.`;
         }
 
         return 'Sample generalized GIS data loaded for prototype testing.';
@@ -323,6 +438,14 @@
         return document.getElementById(selectId)?.value ?? 'all';
     }
 
+    function selectedBarangay() {
+        return getSelectedValue(BARANGAY_FILTER_ID);
+    }
+
+    function shouldClusterMarkers() {
+        return getSelectedValue(BARANGAY_FILTER_ID) === 'all';
+    }
+
     function filteredFeatures(features) {
         const selectedBarangay = getSelectedValue(BARANGAY_FILTER_ID);
         const selectedRisk = getSelectedValue(RISK_FILTER_ID);
@@ -347,10 +470,497 @@
         });
     }
 
+    function coordinateKind(feature) {
+        const props = feature.properties || {};
+        const status = String(props.location_status || '').toLowerCase();
+        const source = String(props.location_source || '').toLowerCase();
+        const accuracy = String(props.location_accuracy || '').toLowerCase();
+
+        if (status === 'generalized' || source === 'generalized_barangay_fallback') {
+            return 'fallback';
+        }
+
+        if (status === 'verified' || source === 'manual_pin' || source === 'gps_capture' || accuracy.includes('verified') || accuracy.includes('manual')) {
+            return 'verified';
+        }
+
+        if (status === 'imported' || source) {
+            return 'imported';
+        }
+
+        return 'fallback';
+    }
+
+    function isExactLocationFeature(feature) {
+        return coordinateKind(feature) !== 'fallback';
+    }
+
+    function exactLocationFeatures(features) {
+        return features.filter(isExactLocationFeature);
+    }
+
+    function coordinateStatusLabel(feature) {
+        const kind = coordinateKind(feature);
+
+        if (kind === 'verified') {
+            return 'Verified exact pin';
+        }
+
+        if (kind === 'imported') {
+            return 'Imported coordinates';
+        }
+
+        return 'Generalized fallback';
+    }
+
+    function verifiedSkipText(skippedCount) {
+        return skippedCount > 0
+            ? ` ${skippedCount} senior record(s) skipped because they have no verified coordinates.`
+            : '';
+    }
+
+    function validationStatusText(total, stats) {
+        return `${total} senior records loaded. ${stats.verifiedShown} verified points shown. ${stats.fallbackShown} generalized fallback points shown. ${stats.outsidePagsanjan} outside Pagsanjan hidden. ${stats.mismatches} coordinate mismatches hidden.`;
+    }
+
     function featureLatLng(feature) {
         const coords = feature.geometry?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) return null;
         return window.L.latLng(Number(coords[1]), Number(coords[0]));
+    }
+
+    function isHeatmapMode(mode) {
+        return HEATMAP_MODES.has(mode);
+    }
+
+    function numericValue(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function clampUnit(value) {
+        return Math.max(0, Math.min(1, value));
+    }
+
+    function accessibilityNeedWeight(properties) {
+        const proximityScore = numericValue(properties?.gis_proximity_score);
+        if (proximityScore !== null) {
+            return clampUnit(1 - (proximityScore / 100));
+        }
+
+        const accessibilityScore = numericValue(properties?.accessibility_score);
+        if (accessibilityScore !== null) {
+            const normalizedScore = accessibilityScore <= 1 ? accessibilityScore : accessibilityScore / 100;
+            return clampUnit(1 - normalizedScore);
+        }
+
+        const nearestDistance = numericValue(properties?.nearest_facility_distance_m);
+        if (nearestDistance !== null) {
+            return clampUnit(nearestDistance / ACCESSIBILITY_DISTANCE_CAP_METERS);
+        }
+
+        return null;
+    }
+
+    function heatmapWeight(feature, mode) {
+        const props = feature.properties || {};
+
+        if (mode === 'density-heatmap') {
+            return 1;
+        }
+
+        if (mode === 'risk-heatmap') {
+            return riskWeight(props.risk_level);
+        }
+
+        if (mode === 'accessibility-heatmap') {
+            return accessibilityNeedWeight(props);
+        }
+
+        return null;
+    }
+
+    function pointInRing(point, ring) {
+        const x = point[0];
+        const y = point[1];
+        let inside = false;
+
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const xi = Number(ring[i][0]);
+            const yi = Number(ring[i][1]);
+            const xj = Number(ring[j][0]);
+            const yj = Number(ring[j][1]);
+
+            if (![xi, yi, xj, yj].every(Number.isFinite)) {
+                continue;
+            }
+
+            const intersects = ((yi > y) !== (yj > y)) &&
+                (x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi);
+
+            if (intersects) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    function pointInPolygonCoordinates(point, polygonCoordinates) {
+        if (!Array.isArray(polygonCoordinates) || !polygonCoordinates.length) {
+            return false;
+        }
+
+        if (!pointInRing(point, polygonCoordinates[0])) {
+            return false;
+        }
+
+        return !polygonCoordinates.slice(1).some((hole) => pointInRing(point, hole));
+    }
+
+    function pointInsideBoundary(point, boundaryGeoJson) {
+        if (!hasBoundaryFeatures(boundaryGeoJson)) {
+            return true;
+        }
+
+        return boundaryGeoJson.features.some((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+
+            if (geometry?.type === 'Polygon') {
+                return pointInPolygonCoordinates(point, coordinates);
+            }
+
+            if (geometry?.type === 'MultiPolygon') {
+                return Array.isArray(coordinates) &&
+                    coordinates.some((polygon) => pointInPolygonCoordinates(point, polygon));
+            }
+
+            return false;
+        });
+    }
+
+    function normalizeBarangayName(name) {
+        return String(name || '')
+            .toLowerCase()
+            .replace(/\(pob\.\)/g, '(poblacion)')
+            .replace(/barangay i\s*\(pob\.\)/g, 'barangay i (poblacion)')
+            .replace(/barangay ii\s*\(pob\.\)/g, 'barangay ii (poblacion)')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function barangayNameFromBoundary(feature) {
+        return boundaryLabel(feature?.properties);
+    }
+
+    function barangayColor(name) {
+        const normalized = normalizeBarangayName(name);
+        let hash = 0;
+        for (let i = 0; i < normalized.length; i++) {
+            hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+            hash |= 0;
+        }
+
+        return BARANGAY_COLORS[Math.abs(hash) % BARANGAY_COLORS.length];
+    }
+
+    function hexToRgb(hex) {
+        const normalized = String(hex || '').replace('#', '');
+        if (!/^[0-9a-f]{6}$/i.test(normalized)) {
+            return [100, 116, 139];
+        }
+
+        return [
+            parseInt(normalized.slice(0, 2), 16),
+            parseInt(normalized.slice(2, 4), 16),
+            parseInt(normalized.slice(4, 6), 16),
+        ];
+    }
+
+    function colorWithAlpha(hex, alpha) {
+        const [r, g, b] = hexToRgb(hex);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    function selectedBarangayBoundaryFeature() {
+        const selected = selectedBarangay();
+        if (selected === 'all' || !hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
+            return null;
+        }
+
+        const normalizedSelected = normalizeBarangayName(selected);
+        return latestBarangayBoundaryGeoJson.features.find((feature) =>
+            normalizeBarangayName(barangayNameFromBoundary(feature)) === normalizedSelected
+        ) ?? null;
+    }
+
+    function assignedBarangayBoundaryFeature(feature) {
+        if (!hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
+            return null;
+        }
+
+        const normalizedBarangay = normalizeBarangayName(feature.properties?.barangay);
+
+        return latestBarangayBoundaryGeoJson.features.find((boundaryFeature) =>
+            normalizeBarangayName(barangayNameFromBoundary(boundaryFeature)) === normalizedBarangay
+        ) ?? null;
+    }
+
+    function featureCollectionFromFeature(feature) {
+        return {
+            type: 'FeatureCollection',
+            features: feature ? [feature] : [],
+        };
+    }
+
+    function featureBounds(feature) {
+        if (!feature) return null;
+        const bounds = window.L.geoJSON(feature).getBounds();
+        return bounds.isValid() ? bounds : null;
+    }
+
+    function featureInsideBoundaryFeature(feature, boundaryFeature) {
+        if (!boundaryFeature) return true;
+        const coords = feature.geometry?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) return false;
+
+        return pointInsideBoundary([Number(coords[0]), Number(coords[1])], featureCollectionFromFeature(boundaryFeature));
+    }
+
+    function featureInsidePrimaryBoundary(feature) {
+        const coords = feature.geometry?.coordinates;
+        const boundaryGeoJson = primaryBoundaryGeoJson();
+
+        return Array.isArray(coords) &&
+            coords.length >= 2 &&
+            pointInsideBoundary([Number(coords[0]), Number(coords[1])], boundaryGeoJson);
+    }
+
+    function featureInsideAssignedBarangay(feature) {
+        const boundaryFeature = assignedBarangayBoundaryFeature(feature);
+
+        if (!boundaryFeature) {
+            return true;
+        }
+
+        return featureInsideBoundaryFeature(feature, boundaryFeature);
+    }
+
+    function validatedFeatureSet(features, options = {}) {
+        const exactOnly = Boolean(options.exactOnly);
+        const stats = {
+            visible: [],
+            verifiedShown: 0,
+            fallbackShown: 0,
+            outsidePagsanjan: 0,
+            mismatches: 0,
+            skippedNoVerified: 0,
+        };
+
+        features.forEach((feature) => {
+            const kind = coordinateKind(feature);
+
+            if (!featureInsidePrimaryBoundary(feature)) {
+                stats.outsidePagsanjan++;
+                return;
+            }
+
+            if (!featureInsideAssignedBarangay(feature)) {
+                stats.mismatches++;
+                return;
+            }
+
+            if (exactOnly && kind === 'fallback') {
+                stats.skippedNoVerified++;
+                return;
+            }
+
+            stats.visible.push(feature);
+
+            if (kind === 'fallback') {
+                stats.fallbackShown++;
+            } else {
+                stats.verifiedShown++;
+            }
+        });
+
+        return stats;
+    }
+
+    function featuresInsidePrimaryBoundary(features) {
+        const boundaryGeoJson = primaryBoundaryGeoJson();
+        if (!hasBoundaryFeatures(boundaryGeoJson)) {
+            return features;
+        }
+
+        return features.filter((feature) => {
+            const coords = feature.geometry?.coordinates;
+            return Array.isArray(coords) &&
+                coords.length >= 2 &&
+                pointInsideBoundary([Number(coords[0]), Number(coords[1])], boundaryGeoJson);
+        });
+    }
+
+    function heatmapPoints(features, mode) {
+        return features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const weight = heatmapWeight(feature, mode);
+
+                if (!latlng || weight === null || weight <= 0) {
+                    return null;
+                }
+
+                return [latlng.lat, latlng.lng, weight];
+            })
+            .filter(Boolean);
+    }
+
+    function buildHeatmapLayer(features, mode) {
+        const points = heatmapPoints(features, mode);
+
+        if (!window.L.heatLayer) {
+            return { layer: null, points };
+        }
+
+        const max = mode === 'density-heatmap'
+            ? Math.max(1, Math.min(8, Math.ceil(points.length / 12)))
+            : 1;
+
+        return {
+            points,
+            layer: window.L.heatLayer(points, {
+                pane: 'gis-heat-pane',
+                radius: 34,
+                blur: 28,
+                maxZoom: 17,
+                minOpacity: 0.25,
+                max,
+                gradient: HEATMAP_GRADIENT,
+            }),
+        };
+    }
+
+    function riskScore(level) {
+        switch ((level || '').toUpperCase()) {
+            case 'HIGH':
+                return 3;
+            case 'MODERATE':
+                return 2;
+            case 'LOW':
+                return 1;
+            default:
+                return null;
+        }
+    }
+
+    function averageRiskLabel(score) {
+        if (score === null || !Number.isFinite(score)) return 'N/A';
+        if (score >= 2.5) return 'High';
+        if (score >= 1.5) return 'Moderate';
+        return 'Low';
+    }
+
+    function barangayStats(features) {
+        const stats = new Map();
+
+        features.forEach((feature) => {
+            const barangay = feature.properties?.barangay || 'Unknown';
+            const key = normalizeBarangayName(barangay);
+            const current = stats.get(key) ?? {
+                name: barangay,
+                count: 0,
+                verified: 0,
+                riskTotal: 0,
+                riskCount: 0,
+                proximityTotal: 0,
+                proximityCount: 0,
+            };
+            const risk = riskScore(feature.properties?.risk_level);
+            const proximity = numericValue(feature.properties?.gis_proximity_score);
+
+            current.count++;
+            if (isExactLocationFeature(feature)) current.verified++;
+            if (risk !== null) {
+                current.riskTotal += risk;
+                current.riskCount++;
+            }
+            if (proximity !== null) {
+                current.proximityTotal += proximity;
+                current.proximityCount++;
+            }
+
+            stats.set(key, current);
+        });
+
+        return stats;
+    }
+
+    function densityColor(count, maxCount) {
+        if (!maxCount || count <= 0) return '#dbeafe';
+        const ratio = count / maxCount;
+        if (ratio >= 0.75) return '#ef4444';
+        if (ratio >= 0.50) return '#fb923c';
+        if (ratio >= 0.25) return '#facc15';
+        return '#38bdf8';
+    }
+
+    function barangayDensityTooltip(name, stat) {
+        const avgRisk = stat?.riskCount ? averageRiskLabel(stat.riskTotal / stat.riskCount) : 'N/A';
+        const avgProximity = stat?.proximityCount ? `${(stat.proximityTotal / stat.proximityCount).toFixed(1)}` : 'N/A';
+
+        return `
+            <div class="space-y-1 text-[12px] leading-snug">
+                <div><strong>Barangay:</strong> ${name}</div>
+                <div><strong>Senior Count:</strong> ${stat?.count ?? 0}</div>
+                <div><strong>Verified Coordinates:</strong> ${stat?.verified ?? 0}</div>
+                <div><strong>Average Risk:</strong> ${avgRisk}</div>
+                <div><strong>Average GIS Proximity:</strong> ${avgProximity}</div>
+            </div>
+        `;
+    }
+
+    function buildBarangayDensityLayer(features) {
+        if (!hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
+            return window.L.layerGroup();
+        }
+
+        const stats = barangayStats(features);
+        const maxCount = Math.max(1, ...[...stats.values()].map((stat) => stat.count));
+        const selected = selectedBarangay();
+        const selectedNormalized = normalizeBarangayName(selected);
+
+        return window.L.geoJSON(latestBarangayBoundaryGeoJson, {
+            pane: 'gis-risk-pane',
+            filter(feature) {
+                return selected === 'all' ||
+                    normalizeBarangayName(barangayNameFromBoundary(feature)) === selectedNormalized;
+            },
+            style(feature) {
+                const name = barangayNameFromBoundary(feature);
+                const stat = stats.get(normalizeBarangayName(name));
+                const color = densityColor(stat?.count ?? 0, maxCount);
+
+                return {
+                    color: selected === 'all' ? '#475569' : '#0f172a',
+                    weight: selected === 'all' ? 1.4 : 2.8,
+                    opacity: 0.9,
+                    fillColor: color,
+                    fillOpacity: selected === 'all' ? 0.24 : 0.36,
+                };
+            },
+            onEachFeature(feature, layer) {
+                const name = barangayNameFromBoundary(feature);
+                layer.bindTooltip(name, {
+                    sticky: true,
+                    direction: 'center',
+                    opacity: 0.9,
+                    className: 'gis-boundary-tooltip',
+                });
+                layer.bindPopup(barangayDensityTooltip(name, stats.get(normalizeBarangayName(name))));
+            },
+        });
     }
 
     function computeCenter(features, mode) {
@@ -486,12 +1096,17 @@
         return { overlayGroup, pointLayer };
     }
 
-    function createMarkerIcon(color) {
+    function createMarkerIcon(color, kind = 'verified') {
+        const isFallback = kind === 'fallback';
+        const background = isFallback ? colorWithAlpha(color, 0.16) : color;
+        const border = isFallback ? `2px dashed ${color}` : '2px solid #ffffff';
+        const size = isFallback ? 13 : 14;
+
         return window.L.divIcon({
             className: 'gis-marker-icon',
-            html: `<span style="display:block;width:14px;height:14px;border-radius:9999px;background:${color};border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);"></span>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
+            html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:${background};border:${border};box-shadow:0 4px 10px rgba(15,23,42,0.18);"></span>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
             popupAnchor: [0, -8],
         });
     }
@@ -506,6 +1121,27 @@
         });
     }
 
+    function clusterTone(markers) {
+        const selected = selectedBarangay();
+        if (selected !== 'all') {
+            return barangayColor(selected);
+        }
+
+        const counts = new Map();
+        markers.forEach((marker) => {
+            const barangay = marker.options.gisBarangay;
+            if (!barangay) return;
+
+            const key = normalizeBarangayName(barangay);
+            const current = counts.get(key) ?? { barangay, count: 0 };
+            current.count++;
+            counts.set(key, current);
+        });
+
+        const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0];
+        return majority ? barangayColor(majority.barangay) : '#f97316';
+    }
+
     function popupHtml(properties) {
         const p = properties || {};
         return `
@@ -515,6 +1151,8 @@
                 <div><strong>Age:</strong> ${p.age ?? 'N/A'}</div>
                 <div><strong>Risk Level:</strong> ${p.risk_level ?? 'N/A'}</div>
                 <div><strong>Cluster:</strong> ${p.cluster ?? 'N/A'}</div>
+                <div><strong>Coordinate Source:</strong> ${p.location_source ?? 'N/A'}</div>
+                <div><strong>Location Status:</strong> ${coordinateStatusLabel({ properties: p })}</div>
                 ${p.composite_risk !== null && p.composite_risk !== undefined ? `<div><strong>Composite Risk:</strong> ${Number(p.composite_risk).toFixed(2)}</div>` : ''}
             </div>
         `;
@@ -581,8 +1219,8 @@
     function buildBoundaryLayer(featureCollection, options = {}) {
         return window.L.geoJSON(featureCollection, {
             pane: options.pane,
-            style() {
-                return options.style;
+            style(feature) {
+                return typeof options.style === 'function' ? options.style(feature) : options.style;
             },
             onEachFeature(feature, layer) {
                 if (options.tooltip) {
@@ -598,6 +1236,11 @@
     }
 
     function ensureMapPanes(map) {
+        if (!map.getPane('gis-heat-pane')) {
+            map.createPane('gis-heat-pane');
+            map.getPane('gis-heat-pane').style.zIndex = 370;
+        }
+
         if (!map.getPane('gis-barangay-pane')) {
             map.createPane('gis-barangay-pane');
             map.getPane('gis-barangay-pane').style.zIndex = 380;
@@ -606,6 +1249,11 @@
         if (!map.getPane('gis-municipal-pane')) {
             map.createPane('gis-municipal-pane');
             map.getPane('gis-municipal-pane').style.zIndex = 390;
+        }
+
+        if (!map.getPane('gis-mask-pane')) {
+            map.createPane('gis-mask-pane');
+            map.getPane('gis-mask-pane').style.zIndex = 385;
         }
 
         if (!map.getPane('gis-risk-pane')) {
@@ -632,6 +1280,9 @@
         const registry = {
             barangayBoundaries: window.L.layerGroup().addTo(map),
             municipalBoundary: window.L.layerGroup().addTo(map),
+            municipalMask: window.L.layerGroup().addTo(map),
+            heatmap: window.L.layerGroup().addTo(map),
+            barangayDensity: window.L.layerGroup().addTo(map),
             riskOverlay: window.L.layerGroup().addTo(map),
             facilities: window.L.layerGroup().addTo(map),
             seniors: window.L.layerGroup().addTo(map),
@@ -644,6 +1295,8 @@
 
     function clearDynamicLayers(map) {
         const layers = ensureLayerRegistry(map);
+        layers.heatmap.clearLayers();
+        layers.barangayDensity.clearLayers();
         layers.riskOverlay.clearLayers();
         layers.facilities.clearLayers();
         layers.seniors.clearLayers();
@@ -653,19 +1306,36 @@
         const layers = ensureLayerRegistry(map);
         layers.municipalBoundary.clearLayers();
         layers.barangayBoundaries.clearLayers();
+        layers.municipalMask.clearLayers();
+        const selected = normalizeBarangayName(selectedBarangay());
 
         if (hasBoundaryFeatures(barangayGeoJson)) {
             layers.barangayBoundaries.addLayer(buildBoundaryLayer(barangayGeoJson, {
                 pane: 'gis-barangay-pane',
                 tooltip: true,
-                style: {
-                    color: '#94a3b8',
-                    weight: 1,
-                    opacity: 0.65,
-                    fillColor: '#cbd5e1',
-                    fillOpacity: 0.06,
+                style(feature) {
+                    const name = barangayNameFromBoundary(feature);
+                    const isSelected = selected !== 'all' && normalizeBarangayName(name) === selected;
+                    const color = barangayColor(name);
+
+                    return {
+                        color: isSelected ? '#0f172a' : color,
+                        weight: isSelected ? 2.6 : 1.1,
+                        opacity: isSelected ? 0.95 : 0.75,
+                        fillColor: color,
+                        fillOpacity: isSelected ? 0.20 : 0.075,
+                    };
                 },
             }));
+        }
+
+        const primaryBoundary = primaryBoundaryGeoJson();
+
+        if (primaryBoundary) {
+            const maskLayer = buildMunicipalMaskLayer(primaryBoundary);
+            if (maskLayer) {
+                layers.municipalMask.addLayer(maskLayer);
+            }
         }
 
         if (hasBoundaryFeatures(municipalGeoJson)) {
@@ -674,9 +1344,10 @@
                 tooltip: false,
                 style: {
                     color: '#334155',
-                    weight: 2,
-                    opacity: 0.8,
-                    fillOpacity: 0,
+                    weight: 2.4,
+                    opacity: 0.92,
+                    fillColor: '#f8fafc',
+                    fillOpacity: 0.05,
                 },
             }));
         }
@@ -690,11 +1361,120 @@
         return points.length ? window.L.latLngBounds(points) : null;
     }
 
+    function buildMunicipalMaskLayer(featureCollection) {
+        if (!hasBoundaryFeatures(featureCollection)) {
+            return null;
+        }
+
+        const holes = [];
+
+        featureCollection.features.forEach((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+
+            if (!geometry || !Array.isArray(coordinates)) {
+                return;
+            }
+
+            if (geometry.type === 'Polygon') {
+                coordinates.forEach((ring) => {
+                    if (Array.isArray(ring) && ring.length >= 4) {
+                        holes.push(ring.map(([lng, lat]) => [lat, lng]));
+                    }
+                });
+            }
+
+            if (geometry.type === 'MultiPolygon') {
+                coordinates.forEach((polygon) => {
+                    if (!Array.isArray(polygon)) return;
+                    polygon.forEach((ring) => {
+                        if (Array.isArray(ring) && ring.length >= 4) {
+                            holes.push(ring.map(([lng, lat]) => [lat, lng]));
+                        }
+                    });
+                });
+            }
+        });
+
+        if (!holes.length) {
+            return null;
+        }
+
+        const outerRing = [
+            [-90, -360],
+            [-90, 360],
+            [90, 360],
+            [90, -360],
+        ];
+
+        return window.L.polygon([outerRing, ...holes], {
+            pane: 'gis-mask-pane',
+            stroke: false,
+            fillColor: '#e5e7eb',
+            fillOpacity: 1.0,
+            interactive: false,
+            bubblingMouseEvents: false,
+        });
+    }
+
+    function mapFocusBounds() {
+        const boundaryBounds = primaryBoundaryBounds();
+
+        if (boundaryBounds) {
+            return normalizedBounds(boundaryBounds, MUNICIPAL_FOCUS_PADDING_RATIO);
+        }
+
+        return boundsFromCoords(DEFAULT_FOCUS_BOUNDS_COORDS);
+    }
+
+    function mapNavigationBounds() {
+        const boundaryBounds = primaryBoundaryBounds();
+
+        if (boundaryBounds) {
+            return normalizedBounds(boundaryBounds, MUNICIPAL_NAVIGATION_PADDING_RATIO);
+        }
+
+        return boundsFromCoords(NAVIGATION_BOUNDS_COORDS);
+    }
+
+    function applyMapBoundaryConstraints(map) {
+        const navigationBounds = mapNavigationBounds();
+        if (!navigationBounds) return;
+
+        map.setMaxBounds(navigationBounds);
+        map.options.maxBoundsViscosity = 1.0;
+        map.panInsideBounds(navigationBounds, { animate: false });
+    }
+
+    function applyMapZoomConstraints(map) {
+        map.setMinZoom(MIN_ZOOM);
+
+        if (map.getZoom() < MIN_ZOOM) {
+            map.setZoom(MIN_ZOOM, { animate: false });
+        }
+    }
+
     function focusMapOnPagsanjan(map) {
-        map.fitBounds(boundsFromCoords(DEFAULT_FOCUS_BOUNDS_COORDS), MAP_FIT_OPTIONS);
+        const bounds = mapFocusBounds();
+        if (bounds) {
+            map.fitBounds(bounds, MAP_FIT_OPTIONS);
+        }
     }
 
     function focusMapOnActiveLayer(map, activeFeatures) {
+        const selectedFeature = selectedBarangayBoundaryFeature();
+        const selectedBounds = featureBounds(selectedFeature);
+        if (selectedBounds) {
+            map.fitBounds(selectedBounds.pad(0.08), MAP_FIT_OPTIONS);
+            return;
+        }
+
+        const boundaryBounds = primaryBoundaryBounds();
+        if (boundaryBounds) {
+            map.fitBounds(normalizedBounds(boundaryBounds, MUNICIPAL_FOCUS_PADDING_RATIO), MAP_FIT_OPTIONS);
+            return;
+        }
+
         if (activeFeatures.length === 1) {
             const point = featureLatLng(activeFeatures[0]);
             if (point) {
@@ -709,10 +1489,10 @@
             return;
         }
 
-        if (hasBoundaryFeatures(latestMunicipalBoundaryGeoJson)) {
-            const municipalBounds = window.L.geoJSON(latestMunicipalBoundaryGeoJson).getBounds();
-            if (municipalBounds.isValid()) {
-                map.fitBounds(municipalBounds.pad(0.08), MAP_FIT_OPTIONS);
+        if (primaryBoundaryBounds()) {
+            const fallbackBoundaryBounds = primaryBoundaryBounds();
+            if (fallbackBoundaryBounds) {
+                map.fitBounds(normalizedBounds(fallbackBoundaryBounds, MUNICIPAL_FOCUS_PADDING_RATIO), MAP_FIT_OPTIONS);
                 return;
             }
         }
@@ -723,53 +1503,58 @@
     function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         const activeFeatures = filteredFeatures(seniorGeoJson.features || []);
+        const markerStats = validatedFeatureSet(activeFeatures, { exactOnly: false });
+        const exactStats = validatedFeatureSet(activeFeatures, { exactOnly: true });
+        const renderStats = mode === 'markers' || mode === 'barangay-density' ? markerStats : exactStats;
         const facilityCollection = {
             type: 'FeatureCollection',
             features: facilityGeoJson?.features || [],
         };
         const layers = ensureLayerRegistry(map);
         clearDynamicLayers(map);
+        renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         updateLegend(mode);
-        updateSummaryCards(seniorGeoJson, activeFeatures);
+        updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
 
         if (!activeFeatures.length) {
-            updateSummaryCards(seniorGeoJson, activeFeatures);
             focusMapOnPagsanjan(map);
             setStatus('No senior records matched the selected filters.', 'neutral');
             return;
         }
 
+        const facilityLayer = buildFacilityLayer(facilityCollection);
+        if (facilityGeoJson?.features?.length) {
+            layers.facilities.addLayer(facilityLayer);
+        }
+
+        if (mode === 'barangay-density') {
+            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
+            setStatus(`${validationStatusText(activeFeatures.length, markerStats)} Barangay density uses filtered senior counts; tooltip separates verified coordinate counts.`, 'success');
+            return;
+        }
+
+        if (mode !== 'markers' && !exactStats.visible.length) {
+            focusMapOnActiveLayer(map, activeFeatures);
+            setStatus(`No verified senior coordinates matched this heatmap selection.${verifiedSkipText(exactStats.skippedNoVerified)} ${exactStats.outsidePagsanjan} outside Pagsanjan hidden. ${exactStats.mismatches} coordinate mismatches hidden.`, 'neutral');
+            return;
+        }
+
         const featureCollection = {
             type: 'FeatureCollection',
-            features: activeFeatures,
+            features: mode === 'markers' ? markerStats.visible : exactStats.visible,
         };
-        const facilityLayer = buildFacilityLayer(facilityCollection);
 
         if (mode === 'markers') {
-            const markerClusterLayer = window.L.markerClusterGroup({
-                showCoverageOnHover: false,
-                spiderfyOnMaxZoom: true,
-                disableClusteringAtZoom: 17,
-                maxClusterRadius: 40,
-                iconCreateFunction(cluster) {
-                    const markers = cluster.getAllChildMarkers();
-                    const hasHigh = markers.some((marker) => (marker.options.gisRiskLevel || '').toUpperCase() === 'HIGH');
-                    const hasModerate = markers.some((marker) => (marker.options.gisRiskLevel || '').toUpperCase() === 'MODERATE');
-                    const tone = hasHigh ? '#f97316' : (hasModerate ? '#f59e0b' : '#10b981');
-
-                    return window.L.divIcon({
-                        html: `<div style="background:${tone};color:#fff;width:38px;height:38px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:12px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                        className: 'gis-cluster-icon',
-                        iconSize: [38, 38],
-                    });
-                },
-            });
-
             const markerLayer = window.L.geoJSON(featureCollection, {
                 pointToLayer(feature, latlng) {
+                    const kind = coordinateKind(feature);
+                    const color = barangayColor(feature.properties?.barangay);
                     const marker = window.L.marker(latlng, {
-                        icon: createMarkerIcon(riskColor(feature.properties?.risk_level)),
+                        icon: createMarkerIcon(color, kind),
                         gisRiskLevel: feature.properties?.risk_level,
+                        gisBarangay: feature.properties?.barangay,
+                        gisCoordinateKind: kind,
                         pane: 'gis-senior-pane',
                     });
 
@@ -779,25 +1564,64 @@
                 },
             });
 
-            markerClusterLayer.addLayer(markerLayer);
-            layers.seniors.addLayer(markerClusterLayer);
-            if (facilityGeoJson?.features?.length) {
-                layers.facilities.addLayer(facilityLayer);
+            if (shouldClusterMarkers()) {
+                const markerClusterLayer = window.L.markerClusterGroup({
+                    showCoverageOnHover: false,
+                    spiderfyOnMaxZoom: true,
+                    disableClusteringAtZoom: 16,
+                    maxClusterRadius: 26,
+                    iconCreateFunction(cluster) {
+                        const markers = cluster.getAllChildMarkers();
+                        const tone = clusterTone(markers);
+
+                        return window.L.divIcon({
+                            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
+                            className: 'gis-cluster-icon',
+                            iconSize: [34, 34],
+                        });
+                    },
+                });
+
+                markerClusterLayer.addLayer(markerLayer);
+                layers.seniors.addLayer(markerClusterLayer);
+            } else {
+                layers.seniors.addLayer(markerLayer);
             }
 
-            focusMapOnActiveLayer(map, activeFeatures);
-            setStatus(sourceStatusText(seniorGeoJson), 'success');
+            focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
+            setStatus(validationStatusText(activeFeatures.length, markerStats), 'success');
             return;
         }
 
-        const { overlayGroup, pointLayer } = buildZoneOverlay(map, activeFeatures, mode);
+        if (isHeatmapMode(mode)) {
+            const { layer: heatLayer, points } = buildHeatmapLayer(exactStats.visible, mode);
+
+            if (!window.L.heatLayer) {
+                focusMapOnActiveLayer(map, exactStats.visible);
+                setStatus('Heatmap plugin is unavailable. Rebuild frontend assets to enable GIS heatmaps.', 'error');
+                return;
+            }
+
+            if (!points.length || !heatLayer) {
+                focusMapOnActiveLayer(map, exactStats.visible);
+                setStatus(`No exact saved pins had enough data for the selected heatmap mode.${verifiedSkipText(exactStats.skippedNoVerified)}`, 'neutral');
+                return;
+            }
+
+            layers.heatmap.addLayer(heatLayer);
+            focusMapOnActiveLayer(map, exactStats.visible);
+            setStatus(`Heatmap uses ${points.length} verified coordinate point(s). ${exactStats.skippedNoVerified} generalized fallback record(s) skipped. ${exactStats.outsidePagsanjan} outside Pagsanjan hidden. ${exactStats.mismatches} coordinate mismatches hidden.`, 'success');
+            return;
+        }
+
+        const { overlayGroup, pointLayer } = buildZoneOverlay(map, exactStats.visible, mode);
         layers.riskOverlay.addLayer(overlayGroup);
         if (facilityGeoJson?.features?.length) {
             layers.facilities.addLayer(facilityLayer);
         }
         layers.seniors.addLayer(pointLayer);
-        focusMapOnActiveLayer(map, activeFeatures);
-        setStatus(sourceStatusText(seniorGeoJson), 'success');
+        focusMapOnActiveLayer(map, exactStats.visible);
+        setStatus(`Overlay uses ${exactStats.visible.length} verified coordinate point(s).${verifiedSkipText(exactStats.skippedNoVerified)}`, 'success');
     }
 
     function refreshRenderedLayer() {
@@ -916,8 +1740,8 @@
         el._leaflet_map_instance = map;
         ensureMapPanes(map);
         ensureLayerRegistry(map);
-        map.setMaxBounds(boundsFromCoords(NAVIGATION_BOUNDS_COORDS));
-        map.options.maxBoundsViscosity = 0.25;
+        applyMapBoundaryConstraints(map);
+        applyMapZoomConstraints(map);
 
         window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -945,6 +1769,8 @@
                 latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
                 initializeFilters(seniorGeoJson.features || []);
                 renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
+                applyMapBoundaryConstraints(map);
+                applyMapZoomConstraints(map);
                 renderDataLayers(map, seniorGeoJson, facilityGeoJson);
                 scheduleMapSizeSync(map);
             })
