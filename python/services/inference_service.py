@@ -121,6 +121,7 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
+ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", False)
 
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
@@ -383,6 +384,7 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
             # Propagate source/version so infer() can detect notebook_cache rows
             "_prediction_source": row.get("prediction_source") or "",
             "_model_version":     row.get("model_version") or "",
+            "wellbeing_score":    float(row["wellbeing_score"] or 0.5),
         }
     except Exception as exc:
         logger.debug("DB cache lookup failed (non-fatal): %s", exc)
@@ -734,6 +736,44 @@ def _load_json(filename: str) -> Optional[Any]:
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
     return None
+
+
+@lru_cache(maxsize=1)
+def _load_cluster_centroids_scaled() -> Optional[Dict[str, Any]]:
+    """Load cluster_centroids_scaled.json from MODEL_DIR (cached after first load)."""
+    path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _deterministic_cluster_assign(
+    vector: List[float],
+    feature_names: List[str],
+) -> Optional[int]:
+    """
+    Assign named cluster ID (1, 2, or 3) by nearest L2 centroid in the
+    N-dimensional scaled feature space (N = len(feature_list.json)).
+    Returns None if the centroids file is missing — caller falls back to UMAP.
+    """
+    data = _load_cluster_centroids_scaled()
+    if not data:
+        return None
+    centroid_names: List[str] = data["feature_names"]
+    centroids: Dict[str, List[float]] = data["centroids"]
+    feat_idx = {f: i for i, f in enumerate(feature_names)}
+    best_id: Optional[int] = None
+    best_dist = float("inf")
+    for named_id_str, centroid in centroids.items():
+        dist = sum(
+            (float(centroid[j]) - (vector[feat_idx[f]] if f in feat_idx else 0.0)) ** 2
+            for j, f in enumerate(centroid_names)
+        )
+        if dist < best_dist:
+            best_dist = dist
+            best_id = int(named_id_str)
+    return best_id
 
 
 def _normalize_identity_part(value: Any) -> str:
@@ -1396,7 +1436,14 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "risk_scores": {
                 "ic_risk": round(ic_r, 4), "env_risk": round(env_r, 4),
                 "func_risk": round(func_r, 4), "composite_risk": round(comp, 4),
-                "wellbeing_score": round(float(section_scores.get("overall_wellbeing", 0.5)), 4),
+                "wellbeing_score": round(
+                    float(
+                        _db_cached.get("wellbeing_score")
+                        if _db_cached.get("wellbeing_score") is not None
+                        else section_scores.get("overall_wellbeing", 0.5)
+                    ),
+                    4
+                ),
             },
             "risk_levels": {
                 "ic": _get_risk_level(ic_r), "env": _get_risk_level(env_r),
@@ -1481,6 +1528,38 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         kmeans  = _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
 
         feature_names = _load_json("feature_list.json")
+
+        # ── Deterministic cluster assignment ─────────────────────────────────
+        # Bypasses UMAP for cross-device reproducibility. Only runs when:
+        #   • ENABLE_DETERMINISTIC_CLUSTER=true in .env
+        #   • No DB cache result exists for this senior yet
+        #   • cluster_centroids_scaled.json is present in MODEL_DIR
+        # Falls back to the live UMAP+KMeans path automatically if the file
+        # is missing or the flag is off.
+        _det_named_id: Optional[int] = None
+        if ENABLE_DETERMINISTIC_CLUSTER and not _db_cached:
+            _det_named_id = _deterministic_cluster_assign(
+                scaled_features,   # N-dim vector already in preprocessed (line ~1445)
+                feature_names,     # from feature_list.json, loaded 2 lines above
+            )
+
+        if _det_named_id is not None:
+            named_id = max(1, min(3, _det_named_id))
+            cluster_profile = cluster_profiles[named_id]
+            # Reverse-lookup raw_cluster_id: cluster_map is {0:3, 1:1, 2:2},
+            # NOT a simple +1 offset — must look up by value, not index.
+            raw_cluster_id = next(
+                (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
+                 if mapped_id == named_id),
+                0,
+            )
+            # Inject into preprocessed so the cluster-map re-lookup block
+            # below ("if '_precomputed_named_id' not in preprocessed:") is
+            # skipped and does not overwrite our named_id.
+            preprocessed = dict(preprocessed)
+            preprocessed["_precomputed_named_id"]      = named_id
+            preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
+            warnings_list.append("Deterministic cluster assignment used (UMAP skipped).")
 
         if scaler is not None and reducer is not None and kmeans is not None and feature_map:
             try:
@@ -1626,6 +1705,9 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     composite_risk = _clip01(rule_composite_val * 0.45 + ml_composite * 0.55)
 
     wellbeing_score = float(section_scores.get("overall_wellbeing", 0.5))
+    # DB-cache override: pin wellbeing to the first-run value so it never drifts.
+    if _db_cached and _db_cached.get("wellbeing_score") is not None:
+        wellbeing_score = float(_db_cached["wellbeing_score"])
 
     # 3. Risk levels
     ic_level = _get_risk_level(ic_risk_raw)
