@@ -121,17 +121,21 @@ from inference_service import ENABLE_DETERMINISTIC_CLUSTER, _deterministic_clust
 check("flag defaults to False", ENABLE_DETERMINISTIC_CLUSTER, False)
 print()
 
-print("=== _load_cluster_centroids_scaled (no file = None) ===")
-# cluster_centroids_scaled.json does not exist yet — function should return None
+print("=== _load_cluster_centroids_scaled (file exists) ===")
+# cluster_centroids_scaled.json exists — function should return the data dict
 result = _load_cluster_centroids_scaled()
-check("returns None when centroids file absent", result, None)
+check("returns dict when centroids file exists", result is not None, True)
+if result:
+    check("dict has 'centroids' key", "centroids" in result, True)
+    check("dict has 'feature_names' key", "feature_names" in result, True)
 print()
 
-print("=== _deterministic_cluster_assign (no file = None) ===")
+print("=== _deterministic_cluster_assign (file exists) ===")
 dummy_vector = [3.0] * 31
 dummy_names  = [f"feat_{i}" for i in range(31)]
 result = _deterministic_cluster_assign(dummy_vector, dummy_names)
-check("returns None when centroids file absent", result, None)
+check("returns valid cluster ID when centroids file exists",
+      result in [1, 2, 3], True)
 print()
 
 print("=" * 50)
