@@ -947,19 +947,30 @@ class MlService
         $mlResult->recommendations()->delete();
         $recs = [];
         foreach ($inferResult['recommendations'] ?? [] as $rec) {
+            // documents_needed arrives as an array from Python; encode for JSON column.
+            $docsNeeded = $rec['documents_needed'] ?? null;
             $recs[] = [
-                'ml_result_id'      => $mlResult->id,
-                'senior_citizen_id' => $senior->id,
-                'priority'          => $rec['priority'],
-                'type'              => $rec['type'],
-                'domain'            => $rec['domain']      ?? null,
-                'category'          => $rec['category']    ?? null,
-                'action'            => $rec['action']      ?? '',
-                'urgency'           => $rec['urgency']     ?? null,
-                'risk_level'        => $rec['risk_level']  ?? null,
-                'notes'             => $rec['reason']      ?? null,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'ml_result_id'              => $mlResult->id,
+                'senior_citizen_id'         => $senior->id,
+                'priority'                  => $rec['priority'],
+                'type'                      => $rec['type'],
+                'domain'                    => $rec['domain']               ?? null,
+                'category'                  => $rec['category']             ?? null,
+                'action'                    => $rec['action']               ?? '',
+                'urgency'                   => $rec['urgency']              ?? null,
+                'risk_level'                => $rec['risk_level']           ?? null,
+                'notes'                     => $rec['reason']               ?? null,
+                // v2 enriched fields (null-safe for old ML payloads)
+                'recommendation_code'       => $rec['recommendation_code']  ?? null,
+                'service_provider'          => $rec['service_provider']     ?? null,
+                'evidence_source'           => $rec['evidence_source']      ?? null,
+                'eligibility_basis'         => $rec['eligibility_basis']    ?? null,
+                'documents_needed'          => is_array($docsNeeded)
+                                                ? json_encode($docsNeeded)
+                                                : null,
+                'requires_human_validation' => (bool) ($rec['requires_human_validation'] ?? true),
+                'created_at'                => now(),
+                'updated_at'                => now(),
             ];
         }
         if ($recs) {
