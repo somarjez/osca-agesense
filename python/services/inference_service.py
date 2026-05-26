@@ -998,6 +998,17 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             csv_priority = str(row.get("priority", "")).strip().lower()
             urgency_map = {"immediate": "immediate", "urgent": "urgent", "planned": "planned", "maintenance": "maintenance"}
             urgency = urgency_map.get(csv_priority, _recommendation_urgency(risk_level))
+            # v2 enriched fields (present only after notebook rerun with new cell 60)
+            rec_code = str(row.get("recommendation_code", "") or "").strip() or None
+            svc_provider = str(row.get("service_provider", "") or "").strip() or None
+            evidence = str(row.get("evidence_source", "") or "").strip() or None
+            rhv_raw = str(row.get("requires_human_validation", "1")).strip()
+            requires_hv = rhv_raw not in ("0", "false", "False", "")
+            docs_raw = str(row.get("documents_needed", "") or "").strip()
+            try:
+                docs_needed = json.loads(docs_raw) if docs_raw else None
+            except (json.JSONDecodeError, ValueError):
+                docs_needed = None
             actions.append({
                 "priority": len(actions) + 1,
                 "type": "domain",
@@ -1007,6 +1018,12 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 "reason": str(row.get("reason", "")),
                 "urgency": urgency,
                 "risk_level": risk_level.lower(),
+                # v2 fields — None if CSV pre-dates notebook v2 update
+                "recommendation_code":       rec_code,
+                "service_provider":          svc_provider,
+                "evidence_source":           evidence,
+                "requires_human_validation": requires_hv,
+                "documents_needed":          docs_needed,
             })
 
     return {"full_name_barangay": full_name_barangay}
