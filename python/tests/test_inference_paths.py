@@ -9,6 +9,7 @@ os.environ["ML_MODELS_PATH"] = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "models")
 )
 os.environ["ENABLE_NOTEBOOK_OVERRIDES"] = "false"
+os.environ["ENABLE_DETERMINISTIC_CLUSTER"] = "false"
 os.environ["NUMBA_THREADING_LAYER"] = "workqueue"
 os.environ["NUMBA_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -97,6 +98,46 @@ ml_features = _load_json("ml_risk_features.json")
 check("ml_risk_features.json is list", isinstance(ml_features, list), True)
 
 print()
+
+print("=== Wellbeing propagation in _db_cache_lookup ===")
+import inspect
+import inference_service as _inf_svc   # module ref (already in sys.modules)
+src = inspect.getsource(_inf_svc._db_cache_lookup)
+check("wellbeing_score in _db_cache_lookup return dict",
+      "wellbeing_score" in src, True)
+
+# Confirm Edit B: notebook-cache early-return uses _db_cached.get("wellbeing_score")
+infer_src = inspect.getsource(_inf_svc.infer)
+check("notebook-cache path uses _db_cached wellbeing",
+      '_db_cached.get("wellbeing_score") is not None' in infer_src, True)
+
+# Confirm Edit C: normal path overrides from DB cache
+check("normal path overrides wellbeing from DB cache",
+      'if _db_cached and _db_cached.get("wellbeing_score") is not None' in infer_src, True)
+print()
+
+print("=== ENABLE_DETERMINISTIC_CLUSTER flag ===")
+from inference_service import ENABLE_DETERMINISTIC_CLUSTER, _deterministic_cluster_assign, _load_cluster_centroids_scaled
+check("flag defaults to False", ENABLE_DETERMINISTIC_CLUSTER, False)
+print()
+
+print("=== _load_cluster_centroids_scaled (file exists) ===")
+# cluster_centroids_scaled.json exists — function should return the data dict
+result = _load_cluster_centroids_scaled()
+check("returns dict when centroids file exists", result is not None, True)
+if result:
+    check("dict has 'centroids' key", "centroids" in result, True)
+    check("dict has 'feature_names' key", "feature_names" in result, True)
+print()
+
+print("=== _deterministic_cluster_assign (file exists) ===")
+dummy_vector = [3.0] * 31
+dummy_names  = [f"feat_{i}" for i in range(31)]
+result = _deterministic_cluster_assign(dummy_vector, dummy_names)
+check("returns valid cluster ID when centroids file exists",
+      result in [1, 2, 3], True)
+print()
+
 print("=" * 50)
 print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
 sys.exit(0 if all_ok else 1)

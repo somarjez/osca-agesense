@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MlResult;
+use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -11,8 +12,6 @@ class SeniorCitizenController extends Controller
 {
     public function index(Request $request)
     {
-        $latestMlIds = MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id');
-
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
             ->when($request->search, fn($q) =>
@@ -76,14 +75,11 @@ class SeniorCitizenController extends Controller
         return view('seniors.edit', compact('senior'));
     }
 
-    public function update(Request $request, SeniorCitizen $senior)
-    {
-        return redirect()->route('seniors.show', $senior);
-    }
-
     public function destroy(SeniorCitizen $senior)
     {
-        // Soft-delete all QoL surveys so the QoL index doesn't show them as orphans
+        // Cascade soft-delete: recommendations → ml_results → surveys → senior
+        Recommendation::where('senior_citizen_id', $senior->id)->delete();
+        MlResult::where('senior_citizen_id', $senior->id)->delete();
         $senior->qolSurveys()->each(fn($s) => $s->delete());
         $senior->delete();
         return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
@@ -97,6 +93,8 @@ class SeniorCitizenController extends Controller
         }
         $seniors = SeniorCitizen::whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
+            Recommendation::where('senior_citizen_id', $senior->id)->delete();
+            MlResult::where('senior_citizen_id', $senior->id)->delete();
             $senior->qolSurveys()->each(fn($s) => $s->delete());
             $senior->delete();
         }
@@ -177,7 +175,9 @@ class SeniorCitizenController extends Controller
     public function restore(int $id)
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
-        // Restore QoL surveys that were soft-deleted when this senior was archived
+        // Restore all data that was soft-deleted when this senior was archived
+        Recommendation::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
+        MlResult::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
         \App\Models\QolSurvey::onlyTrashed()
             ->where('senior_citizen_id', $senior->id)
             ->each(fn($s) => $s->restore());
@@ -189,15 +189,12 @@ class SeniorCitizenController extends Controller
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
 
-        foreach ($senior->qolSurveys()->withTrashed()->get() as $survey) {
-            if ($survey->mlResult) {
-                $survey->mlResult->recommendations()->delete();
-                $survey->mlResult->delete();
-            }
-            $survey->forceDelete();
-        }
-
-        $senior->mlResults()->delete();
+        // Cascade hard-delete in dependency order: recommendations first,
+        // then ml_results (withTrashed so soft-deleted rows are included),
+        // then surveys, finally the senior.
+        Recommendation::withTrashed()->where('senior_citizen_id', $senior->id)->forceDelete();
+        MlResult::withTrashed()->where('senior_citizen_id', $senior->id)->forceDelete();
+        $senior->qolSurveys()->withTrashed()->each(fn($s) => $s->forceDelete());
         $senior->forceDelete();
 
         return redirect()->route('seniors.archives')->with('success', 'Senior record and all related data permanently deleted.');

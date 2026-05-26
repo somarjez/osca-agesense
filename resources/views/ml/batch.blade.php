@@ -143,7 +143,7 @@
 
             <button @click="showConfirm = true" :disabled="running"
                     class="btn btn-primary flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                <span x-show="!running">Run Full Batch ({{ $totalEligible }})</span>
+                <span x-show="!running">Run Full Batch ({{ $totalReady }})</span>
                 <span x-show="running" x-cloak>Running…</span>
             </button>
         </div>
@@ -164,7 +164,10 @@
                     <div>
                         <h3 class="font-semibold text-slate-800 text-base">Run Batch Health Assessment?</h3>
                         <p class="text-sm text-slate-500 mt-1">
-                            This will assess <strong class="text-slate-700">{{ $totalEligible }} senior(s)</strong> and overwrite their current risk scores and cluster assignments.
+                            This will assess <strong class="text-slate-700">{{ $totalReady }} senior(s)</strong> with processed QoL surveys and overwrite their current risk scores and cluster assignments.
+                            @if($totalEligible > $totalReady)
+                            <span class="text-slate-400">({{ $totalEligible - $totalReady }} others have unprocessed surveys and will be skipped.)</span>
+                            @endif
                         </p>
                         <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
                             <p class="font-semibold">Only run this when intentionally recomputing results.</p>

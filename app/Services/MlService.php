@@ -63,6 +63,9 @@ class MlService
         if (!$force) {
             $cached = $this->findReusableResult($senior, $survey);
             if ($cached !== null) {
+                // Bump processed_at so "Last Assessment" reflects this run, not the
+                // original computation date.  Scores and source are unchanged.
+                $cached->update(['processed_at' => now()]);
                 return $cached->load('recommendations');
             }
         }
@@ -168,6 +171,9 @@ class MlService
         foreach ($items as $i => $item) {
             $reusable = $this->findReusableResult($item['senior'], $item['survey']);
             if ($reusable !== null) {
+                // Bump processed_at so "Last Assessment" reflects this batch run, not
+                // the original computation date.  Scores and source are unchanged.
+                $reusable->update(['processed_at' => now()]);
                 $output[$i] = ['success' => true, 'result' => $reusable->load('recommendations'), 'error' => null];
             } else {
                 $computeMap[count($itemsToCompute)] = $i;
@@ -237,7 +243,10 @@ class MlService
             'inference'    => $this->inferenceUrl  . '/health',
         ] as $name => $url) {
             try {
-                $resp = Http::timeout(2)->connectTimeout(1)->get($url);
+                // 10s timeout: Flask loads models in ~30s on cold start but the
+                // /health endpoint responds quickly once the process is up.
+                // 3s connect timeout catches a completely dead port fast.
+                $resp = Http::timeout(10)->connectTimeout(3)->get($url);
                 $results[$name] = $resp->successful() ? 'ok' : 'error';
             } catch (\Exception) {
                 $results[$name] = 'unreachable';
@@ -607,7 +616,7 @@ class MlService
     private function checkHealth(string $url, string $serviceName): bool
     {
         try {
-            $resp = Http::timeout(2)->connectTimeout(2)->get($url);
+            $resp = Http::timeout(10)->connectTimeout(3)->get($url);
             if ($resp->successful()) {
                 return true;
             }
@@ -832,6 +841,21 @@ class MlService
         array $inferResult,
         bool $force = false
     ): MlResult {
+        // Validate required top-level keys before persisting. A missing key means
+        // Python returned a malformed or truncated response — better to fail loudly
+        // than to persist nulls that silently display as "Unknown" in the UI.
+        $requiredKeys = ['cluster', 'risk_scores', 'risk_levels'];
+        foreach ($requiredKeys as $key) {
+            if (!array_key_exists($key, $inferResult)) {
+                Log::error('ML inference result missing required key', [
+                    'key'    => $key,
+                    'senior' => $senior->id,
+                    'keys'   => array_keys($inferResult),
+                ]);
+                throw new \RuntimeException("ML inference result missing required key '{$key}' for senior {$senior->id}.");
+            }
+        }
+
         $cluster      = $inferResult['cluster']      ?? [];
         $scores       = $inferResult['risk_scores']  ?? [];
         $levels       = $inferResult['risk_levels']  ?? [];
