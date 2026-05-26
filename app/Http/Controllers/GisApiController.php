@@ -225,7 +225,6 @@ class GisApiController extends Controller
         return [
             'Anibong' => [14.2782, 121.4588],
             'Biñan' => [14.2757, 121.4506],
-            'BiÃ±an' => [14.2757, 121.4506],
             'Buboy' => [14.2667, 121.4602],
             'Calusiche' => [14.2629, 121.4524],
             'Cabanbanan' => [14.2685, 121.4477],

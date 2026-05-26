@@ -111,12 +111,19 @@ class ReportController extends Controller
 
         $evalMetrics = \App\Support\ClusterMetrics::load();
 
-        // Snapshot history — last 30 snapshots grouped by date, ordered newest first
-        $snapshots = ClusterSnapshot::orderByDesc('snapshot_date')
+        // Snapshot history — last 30 distinct snapshot dates, newest first.
+        // Fetch only those dates at DB level to avoid loading the entire table into memory.
+        $recentDates = ClusterSnapshot::selectRaw('DATE(snapshot_date) as snap_date')
+            ->groupBy('snap_date')
+            ->orderByDesc('snap_date')
+            ->limit(30)
+            ->pluck('snap_date');
+
+        $snapshots = ClusterSnapshot::whereIn(DB::raw('DATE(snapshot_date)'), $recentDates)
+            ->orderByDesc('snapshot_date')
             ->orderBy('cluster_id')
             ->get()
-            ->groupBy(fn($s) => $s->snapshot_date->format('Y-m-d'))
-            ->take(30);
+            ->groupBy(fn($s) => $s->snapshot_date->format('Y-m-d'));
 
         return view('reports.cluster', compact(
             'clusterSummary', 'barangayCluster', 'domainByCluster',
