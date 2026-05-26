@@ -1680,11 +1680,31 @@ def _build_recommendations(
     all_recs.extend(_functional_recs(merged, urgency=urgency, risk_level=risk_level_str))
     all_recs.extend(_hc_access_recs(merged, urgency=urgency, risk_level=risk_level_str))
 
-    # Re-number priorities globally after merging all domains
-    for idx, rec in enumerate(all_recs, start=1):
+    # Global cross-domain deduplication: each rule code and each action text
+    # should appear at most once regardless of which domain function added it.
+    # (Each domain function deduplicates internally, but codes like HLT-001
+    # can fire from both _health_recs and _functional_recs independently.)
+    seen_global_codes: set = set()
+    seen_global_actions: set = set()
+    deduped: List[Dict[str, Any]] = []
+    for rec in all_recs:
+        code   = rec.get("recommendation_code")
+        action = str(rec.get("action") or "").strip()
+        if code:
+            if code in seen_global_codes:
+                continue
+            seen_global_codes.add(code)
+        else:
+            if action in seen_global_actions:
+                continue
+            seen_global_actions.add(action)
+        deduped.append(rec)
+
+    # Re-number priorities globally after merging and deduplication
+    for idx, rec in enumerate(deduped, start=1):
         rec["priority"] = idx
 
-    return all_recs
+    return deduped
 
 
 # ── Main inference ────────────────────────────────────────────────────────────
