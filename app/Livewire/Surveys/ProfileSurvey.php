@@ -98,6 +98,9 @@ class ProfileSurvey extends Component
 
     public function save(): void
     {
+        // Livewire network calls bypass HTTP route middleware, so enforce role here.
+        abort_unless(auth()->user()?->hasAnyRole(['admin', 'encoder']), 403);
+
         $this->validateCurrentStep();
 
         $data = [

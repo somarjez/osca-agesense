@@ -12,8 +12,6 @@ class SeniorCitizenController extends Controller
 {
     public function index(Request $request)
     {
-        $latestMlIds = MlResult::select(DB::raw('MAX(id)'))->groupBy('senior_citizen_id');
-
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
             ->when($request->search, fn($q) =>
@@ -75,11 +73,6 @@ class SeniorCitizenController extends Controller
     public function edit(SeniorCitizen $senior)
     {
         return view('seniors.edit', compact('senior'));
-    }
-
-    public function update(Request $request, SeniorCitizen $senior)
-    {
-        return redirect()->route('seniors.show', $senior);
     }
 
     public function destroy(SeniorCitizen $senior)

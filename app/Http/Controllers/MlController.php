@@ -62,7 +62,13 @@ class MlController extends Controller
 
     public function batchIndex()
     {
+        // $totalEligible: all seniors with any QoL survey (shown in the table/pagination)
+        // $totalReady: subset with status='processed' — what batchRun() will actually process
+        // Keeping both avoids the UI showing "Run Batch (286)" when only 283 will run.
         $totalEligible = SeniorCitizen::active()->whereHas('latestQolSurvey')->count();
+        $totalReady    = SeniorCitizen::active()
+            ->whereHas('latestQolSurvey', fn($q) => $q->where('status', 'processed'))
+            ->count();
 
         $pending = SeniorCitizen::active()
             ->whereHas('latestQolSurvey')
@@ -70,7 +76,7 @@ class MlController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('ml.batch', compact('pending', 'totalEligible'))
+        return view('ml.batch', compact('pending', 'totalEligible', 'totalReady'))
             ->with('lastBatchRun',   Cache::get('ml_last_batch_started'))
             ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'));
     }

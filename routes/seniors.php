@@ -33,8 +33,9 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
     });
 
     Route::middleware('role:admin,encoder')->group(function () {
+        // Edit page renders the Livewire ProfileSurvey component, which POSTs directly
+        // via Livewire's own network layer — no PUT route is needed.
         Route::get('/{senior}/edit',  [SeniorCitizenController::class, 'edit'])->name('edit');
-        Route::put('/{senior}',       [SeniorCitizenController::class, 'update'])->name('update');
     });
 
     Route::middleware('role:admin')->group(function () {

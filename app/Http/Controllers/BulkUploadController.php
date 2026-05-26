@@ -260,17 +260,25 @@ class BulkUploadController extends Controller
         }
 
         // Trigger ML pipeline asynchronously for inserted seniors
+        $mlWarning = null;
         if ($pairs) {
             try {
                 app(MlService::class)->runBatchPipeline($pairs);
-            } catch (\Throwable) {
-                // ML failure does not block the import — seniors are saved
+            } catch (\Throwable $mlEx) {
+                // ML failure does not block the import — seniors are saved.
+                // Surface a warning so staff knows to run batch analysis manually.
+                $mlWarning = 'ML analysis failed for imported seniors (' . $mlEx->getMessage() . '). Run Batch Assessment manually to generate risk scores.';
+                \Illuminate\Support\Facades\Log::warning('Bulk upload ML pipeline failed', ['error' => $mlEx->getMessage()]);
             }
         }
 
         $msg = "Imported {$inserted} senior(s) successfully.";
         if ($skipped) {
             $msg .= " Skipped {$skipped} row(s) with missing required fields.";
+        }
+
+        if ($mlWarning) {
+            $errors[] = $mlWarning;
         }
 
         return redirect()->route('seniors.index')->with('bulk_success', $msg)
