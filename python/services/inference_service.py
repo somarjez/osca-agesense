@@ -135,7 +135,9 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
-ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", False)
+# Default True: nearest-centroid in scaled space is deterministic across devices.
+# Set ENABLE_DETERMINISTIC_CLUSTER=false in .env only for debugging UMAP behaviour.
+ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", True)
 
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
@@ -287,6 +289,45 @@ def _validate_artifacts_at_startup() -> None:
                "gbr_func_risk.pkl", "rfr_func_risk.pkl"]:
         if not os.path.exists(os.path.join(MODEL_DIR, fn)):
             _warn(f"{fn} missing — risk indicator ensemble will use fallback scores.")
+
+    # ── cluster_centroids_scaled.json (required for deterministic clustering) ──
+    cc_path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
+    if not os.path.exists(cc_path):
+        _warn(
+            "cluster_centroids_scaled.json missing — deterministic cluster assignment "
+            "will fall back to UMAP (non-deterministic). "
+            "Run: python/venv/Scripts/python.exe python/scripts/generate_cluster_centroids.py"
+        )
+
+    # ── model_manifest.json SHA-256 cross-check ──────────────────────────────
+    # If present, verify each artifact's hash matches the manifest. This catches
+    # mixed bundles (e.g., scaler from one training run, models from another).
+    import hashlib as _hashlib
+    manifest_path = os.path.join(MODEL_DIR, "model_manifest.json")
+    if os.path.exists(manifest_path):
+        try:
+            import json as _jm
+            with open(manifest_path, encoding="utf-8") as _f:
+                _manifest = _jm.load(_f)
+            _hashes = _manifest.get("sha256", {})
+            for _fname, _expected_hash in _hashes.items():
+                _fpath = os.path.join(MODEL_DIR, _fname)
+                if not os.path.exists(_fpath):
+                    continue  # missing file already caught above
+                _h = _hashlib.sha256()
+                with open(_fpath, "rb") as _f:
+                    for _chunk in iter(lambda: _f.read(65536), b""):
+                        _h.update(_chunk)
+                _actual = _h.hexdigest()
+                if _actual != _expected_hash:
+                    _warn(
+                        f"{_fname} SHA-256 mismatch: expected {_expected_hash[:12]}… "
+                        f"got {_actual[:12]}… — models on this device differ from the "
+                        "training device. Copy python/models/ from the training machine "
+                        "or re-run generate_cluster_centroids.py."
+                    )
+        except Exception as exc:
+            logger.warning("Could not read model_manifest.json: %s", exc)
 
     if issues:
         logger.warning(
@@ -1797,9 +1838,14 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         reduced_features = list(preprocessed.get("reduced_features") or [])
         scaled_features  = list(preprocessed.get("scaled_features")  or [])
     else:
-        # Single-senior path: scaler → UMAP → KMeans.
-        # In legacy OSCA_BATCH_MODE=1 (without batch_cluster_assign), reducer is
-        # skipped and the heuristic fallback below catches it.
+        # Single-senior path: scaler → [nearest-centroid OR UMAP] → cluster.
+        #
+        # Primary path (default): nearest-centroid in 31D scaled space.
+        #   - Pure matrix arithmetic — deterministic on every device.
+        #   - UMAP is NOT called (no numba, no random-projection variability).
+        #
+        # Fallback path: UMAP+KMeans (only when centroid file is missing or
+        #   ENABLE_DETERMINISTIC_CLUSTER=false is set for debug purposes).
         batch_mode = bool(os.environ.get("OSCA_BATCH_MODE"))
         scaler  = _load_model("scaler.pkl")
         reducer = None if batch_mode else _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
@@ -1807,61 +1853,57 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
         feature_names = _load_json("feature_list.json")
 
-        # ── Deterministic cluster assignment ─────────────────────────────────
-        # Bypasses UMAP for cross-device reproducibility. Only runs when:
-        #   • ENABLE_DETERMINISTIC_CLUSTER=true in .env
-        #   • No DB cache result exists for this senior yet
-        #   • cluster_centroids_scaled.json is present in MODEL_DIR
-        # Falls back to the live UMAP+KMeans path automatically if the file
-        # is missing or the flag is off.
-        _det_named_id: Optional[int] = None
-        if ENABLE_DETERMINISTIC_CLUSTER and not _db_cached:
-            _det_named_id = _deterministic_cluster_assign(
-                scaled_features,   # N-dim vector already in preprocessed (line ~1445)
-                feature_names,     # from feature_list.json, loaded 2 lines above
-            )
-
-        if _det_named_id is not None:
-            named_id = max(1, min(3, _det_named_id))
-            cluster_profile = cluster_profiles[named_id]
-            # Reverse-lookup raw_cluster_id: cluster_map is {0:3, 1:1, 2:2},
-            # NOT a simple +1 offset — must look up by value, not index.
-            raw_cluster_id = next(
-                (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
-                 if mapped_id == named_id),
-                0,
-            )
-            # Inject into preprocessed so the cluster-map re-lookup block
-            # below ("if '_precomputed_named_id' not in preprocessed:") is
-            # skipped and does not overwrite our named_id.
-            preprocessed = dict(preprocessed)
-            preprocessed["_precomputed_named_id"]      = named_id
-            preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
-            warnings_list.append("Deterministic cluster assignment used (UMAP skipped).")
-
-        if scaler is not None and reducer is not None and kmeans is not None and feature_map:
+        if scaler is not None and feature_map:
             try:
-                # Notebook flow: scale all scaler features (VIF superset), then
-                # select only the final clustering columns (feature_list.json) from
-                # the scaled output before passing to UMAP.
                 if hasattr(scaler, "feature_names_in_") and isinstance(feature_names, list) and feature_names:
+                    # Step 1 — scale (always needed regardless of cluster path)
                     scaler_input_names = list(scaler.feature_names_in_)
-                    scaler_row = _vector_from_feature_map(feature_map, scaler_input_names)
+                    scaler_row  = _vector_from_feature_map(feature_map, scaler_input_names)
                     full_scaled = scaler.transform(
                         pd.DataFrame([scaler_row], columns=scaler_input_names)
                     )[0]
                     scaler_feat_idx = {f: i for i, f in enumerate(scaler_input_names)}
-                    row_scaled_30 = [float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
-                                     for f in feature_names]
-                    reducer.transform_seed = 42
-                    if not getattr(reducer, "_rp_forest", None):
-                        reducer.transform_queue_size = 0.0
-                    row_reduced  = reducer.transform([row_scaled_30])
-                    raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
-                    reduced_features = row_reduced[0].tolist()
-                    scaled_features  = row_scaled_30
+                    row_scaled_30 = [
+                        float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
+                        for f in feature_names
+                    ]
+                    scaled_features = row_scaled_30
+
+                    # Step 2 — deterministic nearest-centroid (primary path)
+                    _det_named_id: Optional[int] = None
+                    if ENABLE_DETERMINISTIC_CLUSTER:
+                        _det_named_id = _deterministic_cluster_assign(row_scaled_30, feature_names)
+
+                    if _det_named_id is not None:
+                        # ✅ Centroid path — no UMAP invoked
+                        named_id = max(1, min(3, _det_named_id))
+                        cluster_profile = cluster_profiles[named_id]
+                        raw_cluster_id  = next(
+                            (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
+                             if mapped_id == named_id),
+                            0,
+                        )
+                        preprocessed = dict(preprocessed)
+                        preprocessed["_precomputed_named_id"]       = named_id
+                        preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
+                        warnings_list.append("Deterministic cluster assignment used (UMAP skipped).")
+
+                    elif reducer is not None and kmeans is not None:
+                        # ⚠️ UMAP fallback — only when centroid file missing or flag off
+                        warnings_list.append(
+                            "Falling back to UMAP cluster assignment "
+                            "(cluster_centroids_scaled.json missing or ENABLE_DETERMINISTIC_CLUSTER=false). "
+                            "Results may differ across devices."
+                        )
+                        reducer.transform_seed = 42
+                        if not getattr(reducer, "_rp_forest", None):
+                            reducer.transform_queue_size = 0.0
+                        row_reduced      = reducer.transform([row_scaled_30])
+                        raw_cluster_id   = _safe_kmeans_predict(kmeans, row_reduced)
+                        reduced_features = row_reduced[0].tolist()
+
                 else:
-                    # Fallback: try feature_names directly against scaler
+                    # Fallback: scaler has no feature_names_in_ (older artifact)
                     expected: int = int(getattr(scaler, "n_features_in_", 0) or 0)
                     cluster_input_names: Optional[List[str]] = feature_names
                     if not cluster_input_names or (expected and len(cluster_input_names) != expected):
@@ -1869,20 +1911,20 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                             "No cluster feature list matched scaler input size; cluster fallback used."
                         )
                         cluster_input_names = None
-                    if cluster_input_names:
+                    if cluster_input_names and reducer is not None and kmeans is not None:
                         cluster_row  = _vector_from_feature_map(feature_map, cluster_input_names)
                         row_scaled   = scaler.transform(
                             pd.DataFrame([cluster_row], columns=cluster_input_names)
                         )[0].tolist()
+                        scaled_features = row_scaled
                         reducer.transform_seed = 42
                         if getattr(reducer, "_rp_forest", None) is None:
                             reducer.transform_queue_size = 0.0
-                        row_reduced  = reducer.transform([row_scaled])
-                        raw_cluster_id  = _safe_kmeans_predict(kmeans, row_reduced)
+                        row_reduced      = reducer.transform([row_scaled])
+                        raw_cluster_id   = _safe_kmeans_predict(kmeans, row_reduced)
                         reduced_features = row_reduced[0].tolist()
-                        scaled_features  = row_scaled
             except Exception as exc:
-                warnings_list.append(f"Notebook-style cluster path failed: {exc}")
+                warnings_list.append(f"Cluster assignment failed: {exc}")
 
         if raw_cluster_id is None and kmeans is not None:
             try:

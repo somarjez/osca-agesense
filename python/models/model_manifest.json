@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-05-26T09:01:06",
+  "model_dir": "C:\\Users\\jramo\\OneDrive\\Desktop\\02. AgeSense\\osca-system\\osca-system\\python/models",
+  "sha256": {
+    "scaler.pkl": "82bc4c0f74462cac0110ae2298c475d9498eb6509eee7df7e3edb8ffaa055508",
+    "kmeans.pkl": "2bcdd158e2e415b1a5bc2319c5b435062c798ba914b9fca3aa49d36b992bc6c7",
+    "umap_nd.pkl": "92ef17ce0fc9351943554c499145b8cc0bd0d9dc88c55797958ed96f49ae09e9",
+    "feature_list.json": "6edb61e4c339727ea118590546275b5ec5bd9d6771099438a52aa4061953bbbc",
+    "cluster_mapping.json": "5a52b925c166f29d091a7981c85ed861cc5a434f342c9d1868004bbe8d786241"
+  }
+}
