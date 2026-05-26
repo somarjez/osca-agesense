@@ -11,12 +11,14 @@
     @php
     $grouped = $recommendations->groupBy('category');
     $catLabels = [
-        'health'     => 'Health',
-        'financial'  => 'Financial',
-        'social'     => 'Social',
-        'functional' => 'Functional',
-        'hc_access'  => 'Healthcare Access',
-        'general'    => 'General',
+        'health'        => 'Health',
+        'financial'     => 'Financial',
+        'livelihood'    => 'Livelihood',
+        'social'        => 'Social',
+        'mental_health' => 'Mental Health',
+        'functional'    => 'Functional',
+        'hc_access'     => 'Healthcare Access',
+        'general'       => 'General',
     ];
     @endphp
 
@@ -35,8 +37,33 @@
                         'planned' => 'bg-info-100 text-info-700',
                         default   => 'bg-paper-2 text-ink-500',
                     } }}">{{ $rec->priority }}</span>
-                <div class="flex-1">
-                    <p class="text-[13px] text-ink-800">{{ $rec->action }}</p>
+                <div class="flex-1 min-w-0">
+                    {{-- Recommendation code badge --}}
+                    @if ($rec->recommendation_code)
+                    <span class="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-paper-2 text-ink-500 mb-1">
+                        {{ $rec->recommendation_code }}
+                    </span>
+                    @endif
+
+                    <p class="text-[13px] text-ink-800 leading-relaxed">{{ $rec->action }}</p>
+
+                    {{-- Service provider --}}
+                    @if ($rec->service_provider)
+                    <p class="text-[11.5px] text-ink-500 mt-1.5 flex items-start gap-1">
+                        <x-heroicon-o-building-office-2 class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-ink-400" />
+                        <span>{{ $rec->service_provider }}</span>
+                    </p>
+                    @endif
+
+                    {{-- Evidence source --}}
+                    @if ($rec->evidence_source)
+                    <p class="text-[11px] text-ink-400 mt-0.5 flex items-start gap-1">
+                        <x-heroicon-o-document-text class="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <span class="italic">{{ $rec->evidence_source }}</span>
+                    </p>
+                    @endif
+
+                    {{-- Urgency / risk / target date row --}}
                     <div class="flex items-center gap-3 mt-1.5 flex-wrap">
                         @if ($rec->urgency === 'urgent')
                             <span class="badge badge-high">{{ ucfirst($rec->urgency) }}</span>
@@ -51,7 +78,13 @@
                         @if ($rec->target_date)
                         <span class="text-[11.5px] text-ink-400">Target: {{ $rec->target_date->format('M j, Y') }}</span>
                         @endif
+                        @if ($rec->requires_human_validation)
+                        <span class="text-[10.5px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                            Requires validation
+                        </span>
+                        @endif
                     </div>
+
                     @if ($rec->notes)
                     <p class="text-[11.5px] text-ink-400 mt-1 italic">{{ $rec->notes }}</p>
                     @endif

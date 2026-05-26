@@ -27,6 +27,20 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
+    from recommendation_rules import build_rec_from_rule as _build_rec_from_rule
+    _RULES_AVAILABLE = True
+except ImportError:
+    _RULES_AVAILABLE = False
+    def _build_rec_from_rule(  # type: ignore[misc]
+        code: str,
+        reason_override=None,
+        priority: int = 1,
+        urgency: str = "planned",
+        risk_level: str = "moderate",
+    ) -> dict:
+        return {}
+
+try:
     import pymysql
     _PYMYSQL_AVAILABLE = True
 except ImportError:
@@ -560,8 +574,8 @@ DISEASE_ACTIONS = {
     ],
     "cancer": [
         "Coordinate with oncologist for ongoing treatment / surveillance.",
-        "Apply for PCSO Individual Medical Assistance Program (IMAP).",
-        "Refer to Malasakit Center for hospital bill reduction.",
+        "Refer to PCSO Medical Assistance Program (MAP) or Malasakit Center for hospital bill assistance.",
+        "Assess eligibility for PhilHealth Z-Benefit (cancer) coverage.",
         "Assess caregiver support needs for treatment schedule.",
     ],
     "dementia": [
@@ -984,6 +998,17 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             csv_priority = str(row.get("priority", "")).strip().lower()
             urgency_map = {"immediate": "immediate", "urgent": "urgent", "planned": "planned", "maintenance": "maintenance"}
             urgency = urgency_map.get(csv_priority, _recommendation_urgency(risk_level))
+            # v2 enriched fields (present only after notebook rerun with new cell 60)
+            rec_code = str(row.get("recommendation_code", "") or "").strip() or None
+            svc_provider = str(row.get("service_provider", "") or "").strip() or None
+            evidence = str(row.get("evidence_source", "") or "").strip() or None
+            rhv_raw = str(row.get("requires_human_validation", "1")).strip()
+            requires_hv = rhv_raw not in ("0", "false", "False", "")
+            docs_raw = str(row.get("documents_needed", "") or "").strip()
+            try:
+                docs_needed = json.loads(docs_raw) if docs_raw else None
+            except (json.JSONDecodeError, ValueError):
+                docs_needed = None
             actions.append({
                 "priority": len(actions) + 1,
                 "type": "domain",
@@ -993,6 +1018,12 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 "reason": str(row.get("reason", "")),
                 "urgency": urgency,
                 "risk_level": risk_level.lower(),
+                # v2 fields — None if CSV pre-dates notebook v2 update
+                "recommendation_code":       rec_code,
+                "service_provider":          svc_provider,
+                "evidence_source":           evidence,
+                "requires_human_validation": requires_hv,
+                "documents_needed":          docs_needed,
             })
 
     return {"full_name_barangay": full_name_barangay}
@@ -1194,136 +1225,394 @@ def _as_bool(value: Any) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "y"}
 
 
-def financial_actions(row: Dict[str, Any], income_enc_val: float, eco_stability: float) -> List[str]:
-    actions: List[str] = []
+# ── Recommendation helpers (v2 — structured output with rule library) ─────────
+
+def _build_rec_action(
+    action: str,
+    priority: int,
+    urgency: str,
+    risk_level: str,
+    domain: str = "health",
+    service_provider: str = "",
+    evidence_source: str = "",
+) -> Dict[str, Any]:
+    """Wrap a plain action string as a full structured recommendation dict."""
+    return {
+        "priority": priority,
+        "type": "domain",
+        "domain": domain,
+        "category": domain,
+        "action": action,
+        "urgency": urgency,
+        "risk_level": risk_level,
+        "reason": "",
+        "service_provider": service_provider,
+        "evidence_source": evidence_source,
+        "recommendation_code": None,
+        "requires_human_validation": True,
+        "documents_needed": None,
+    }
+
+
+def _health_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """
+    Return structured health recommendation dicts.
+    Disease-specific clinical actions come from DISEASE_ACTIONS;
+    service referrals use the recommendation_rules library (HLT/SOC codes).
+    """
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
+    age_val = _safe_float(row.get("age"), 70)
+    has_checkup = _safe_float(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
+    env_fin_medical = _safe_float(row.get("env_fin_medical"), 3.0)
+    mob_outside = _safe_float(row.get("phy_mobility_outside"), 3.0)
+    mob_indoor = _safe_float(row.get("phy_mobility_indoor"), 3.0)
+
+    concern_fields = [
+        ("medical",   row.get("medical_concern", "")),
+        ("dental",    row.get("dental_concern", "")),
+        ("optical",   row.get("optical_concern", "")),
+        ("hearing",   row.get("hearing_concern", "")),
+        ("emotional", row.get("social_emotional_concern", "")),
+    ]
+    skip_tokens = {"none", "physically healthy", "healthy eyes", "healthy hearing",
+                   "healthy teeth", "nan", "", "n/a"}
+    matched_any = False
+    seen_disease: set = set()
+
+    for field_name, concern_text in concern_fields:
+        text_value = str(concern_text or "").strip()
+        if text_value.lower() in skip_tokens:
+            continue
+        text_lower = text_value.lower()
+
+        if field_name == "dental":
+            _add_rule("HLT-005")
+            matched_any = True
+            continue
+        if field_name == "optical":
+            _add_rule("HLT-006")
+            matched_any = True
+            continue
+        if field_name == "hearing":
+            _add_rule("HLT-007")
+            matched_any = True
+            continue
+        if field_name == "emotional":
+            _add_rule("SOC-004")
+            matched_any = True
+            continue
+
+        # Medical: match known diseases from DISEASE_ACTIONS for clinical specifics
+        matched_diseases = [kw for kw in DISEASE_ACTIONS if kw != "__generic__" and kw in text_lower]
+        if matched_diseases:
+            for disease in matched_diseases:
+                if disease not in seen_disease:
+                    seen_disease.add(disease)
+                    for action in DISEASE_ACTIONS[disease]:
+                        recs.append(_build_rec_action(
+                            action, _np(), urgency, risk_level,
+                            service_provider="RHU/BHC, PhilHealth YAKAP/Konsulta",
+                            evidence_source="DOH clinical management guidelines",
+                        ))
+                    matched_any = True
+            # Add YAKAP service referral codes for common chronic conditions
+            if any(k in text_lower for k in ["hypertension", "high blood pressure"]):
+                _add_rule("HLT-002")
+            if "diabetes" in text_lower:
+                _add_rule("HLT-003")
+        else:
+            for action in DISEASE_ACTIONS["__generic__"]:
+                recs.append(_build_rec_action(
+                    action, _np(), urgency, risk_level,
+                    service_provider="RHU/BHC",
+                    evidence_source="DOH primary care services",
+                ))
+            matched_any = True
+
+    # Mobility difficulty → fall risk / assistive device check
+    if mob_outside <= 2 or mob_indoor <= 2:
+        _add_rule("HLT-008")
+        matched_any = True
+
+    # No recent check-up or aged 70+ → primary care referral
+    if not has_checkup or age_val >= 70:
+        _add_rule("HLT-001")
+        matched_any = True
+
+    # Medicine cost difficulty
+    if env_fin_medical <= 2:
+        _add_rule("HLT-004")
+
+    if not matched_any:
+        recs.append(_build_rec_action(
+            "Senior reports no significant health concerns. Continue preventive monitoring.",
+            _np(), "maintenance", risk_level,
+            domain="health",
+            service_provider="OSCA, RHU/BHC",
+            evidence_source="WHO Healthy Ageing — preventive care",
+        ))
+
+    return recs
+
+
+def _financial_recs(
+    row: Dict[str, Any],
+    income_enc_val: float,
+    eco_stability: float,
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured financial recommendation dicts using the rule library (FIN/LVL codes)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
     income_band = int(min(max(income_enc_val, 1), 9))
-    real_asset_s = _safe_float(row.get("sec5_real_asset_score"), 0.3)
+    env_fin_medical = _safe_float(row.get("env_fin_medical"), 3.0)
+    env_fin_household = _safe_float(row.get("env_fin_household"), 3.0)
+    age_val = _safe_float(row.get("age"), 70)
+    func_indep = _safe_float(row.get("func_independence"), 3.0)
+
     if income_band <= 2 or eco_stability < 0.25:
-        actions += [
-            "Apply for DSWD Sustainable Livelihood Program (SLP) and Pantawid Pamilyang Pilipino Program (4Ps).",
-            "Request OSCA indigent assessment for free medicine allocation.",
-            "Apply for PCSO Individual Medical Assistance Program (IMAP).",
-            "Verify Malasakit Center enrollment for hospital bill reduction.",
-        ]
+        _add_rule("FIN-002")   # DSWD AICS crisis assistance
+        _add_rule("FIN-001")   # Social Pension for Indigent Senior Citizens
+        _add_rule("FIN-003")   # Malasakit Center / PCSO MAP
+        _add_rule("FIN-004")   # PhilHealth membership verification
     elif income_band <= 4 or eco_stability < 0.45:
-        actions += [
-            "Verify enrollment in PhilHealth (subsidized/indigent member category).",
-            "Apply for PCSO IMAP for medical assistance.",
-            "Request OSCA financial assistance program assessment.",
-        ]
+        _add_rule("FIN-002")
+        _add_rule("FIN-004")
     else:
-        actions += [
-            "Ensure active PhilHealth membership and check benefit utilization.",
-            "Review PhilHealth senior citizen outpatient package.",
-        ]
+        _add_rule("FIN-004")
+
+    # No pension → social pension referral regardless of income tier
     if _safe_float(row.get("has_pension")) == 0:
-        actions.append("Check eligibility for Social Pension for Indigent Senior Citizens (DSWD).")
-    if real_asset_s < 0.2:
-        actions.append("Assess eligibility for DSWD housing assistance programs.")
-    if _safe_float(row.get("env_fin_medical"), 3.0) <= 2:
-        actions.append("Refer to Botika ng Barangay for subsidized medicine access.")
-    if _safe_float(row.get("env_fin_household"), 3.0) <= 2:
-        actions.append("Link to local OSCA emergency financial assistance for utility bills.")
-    return actions
+        _add_rule("FIN-001")
+
+    # Medicine or household cost difficulty
+    if env_fin_medical <= 2:
+        _add_rule("FIN-003")
+    if env_fin_household <= 2:
+        _add_rule("FIN-002")
+
+    # Physical disability → PWD benefits
+    if _safe_float(row.get("sec4_has_disability", row.get("has_disability", 0))) == 1:
+        _add_rule("FIN-006")
+
+    # Centenarian milestone ages (Expanded Centenarians Act cash gift)
+    if int(age_val) in [80, 85, 90, 95, 100]:
+        _add_rule("FIN-005")
+
+    # Livelihood support — only for mobile, non-frail seniors with income need
+    if income_band <= 4 and func_indep >= 3:
+        _add_rule("LVL-001")
+
+    return recs
 
 
-def social_actions(row: Dict[str, Any]) -> List[str]:
-    actions: List[str] = []
-    if _as_bool(row.get("sec4_lives_alone", row.get("lives_alone", 0))):
-        actions.append("Enroll in OSCA regular home visit / buddy check program.")
-        actions.append("Coordinate with barangay for periodic welfare check visits.")
-    if _safe_float(row.get("soc_social_support"), 3.0) <= 2:
-        actions.append("Refer to DSWD Supplementary Feeding Program and group activities.")
-    if _safe_float(row.get("soc_close_friend"), 3.0) <= 2:
-        actions.append("Encourage attendance at OSCA senior friendship / social club.")
-    if _safe_float(row.get("sec2_family_support"), 0.5) < 0.3:
-        actions.append("Conduct family assessment for support capacity and caregiver stress.")
-    if not _as_bool(row.get("is_association_member", 0)):
-        actions.append("Encourage registration with the local Senior Citizen Association (SCA).")
-    return actions
+def _social_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured social recommendation dicts using the rule library (SOC codes)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
+    lives_alone = _as_bool(row.get("sec4_lives_alone", row.get("lives_alone", 0)))
+    soc_support = _safe_float(row.get("soc_social_support"), 3.0)
+    soc_close_friend = _safe_float(row.get("soc_close_friend"), 3.0)
+    family_support = _safe_float(row.get("sec2_family_support"), 0.5)
+    is_member = _as_bool(row.get("is_association_member", 0))
+    emotional_text = str(row.get("social_emotional_concern", "") or "").strip().lower()
+    skip_tokens = {"none", "nan", "", "n/a"}
+
+    if lives_alone:
+        _add_rule("SOC-001")   # BHW / OSCA welfare check
+
+    if soc_support <= 2 or soc_close_friend <= 2:
+        _add_rule("SOC-003")   # OSCA group activities / social engagement
+
+    if family_support < 0.3:
+        _add_rule("SOC-005")   # family support / caregiver capacity assessment
+
+    if not is_member:
+        _add_rule("SOC-002")   # Senior Citizen Association registration
+
+    if emotional_text and emotional_text not in skip_tokens:
+        if any(k in emotional_text for k in ["depression", "anxiety", "hopeless", "sad", "lonely", "grief"]):
+            _add_rule("SOC-004")   # mental health referral (RHU / NCMH 1553)
+
+    return recs
 
 
-def functional_actions(row: Dict[str, Any]) -> List[str]:
-    actions: List[str] = []
+def _functional_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured functional recommendation dicts using the rule library (FNC/HLT codes)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
     age_val = _safe_float(row.get("age"), 70)
     mob_outside = _safe_float(row.get("phy_mobility_outside"), 3.0)
     mob_indoor = _safe_float(row.get("phy_mobility_indoor"), 3.0)
     func_indep = _safe_float(row.get("func_independence"), 3.0)
     has_checkup = _safe_float(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
-    movable_s = _safe_float(row.get("sec5_movable_asset_score"), 0.3)
+
     if mob_outside <= 2 or mob_indoor <= 2:
-        actions.append("Request occupational therapy home visit for mobility assessment.")
-        actions.append("Assess need for assistive devices: cane, walker, wheelchair.")
-        actions.append("Conduct home hazard inspection - remove floor clutter, add grab bars.")
-    if movable_s < 0.3:
-        actions.append("Assess eligibility for DSWD assistive device program.")
+        _add_rule("HLT-008")   # fall risk / assistive device assessment
+
     if func_indep <= 2:
-        actions.append("Assess ADL limitations for home care support.")
-        actions.append("Link to DSWD / LGU home care services for assistance with daily tasks.")
+        _add_rule("FNC-001")   # ADL limitations / home care support
+
     if age_val >= 80:
-        actions.append("Schedule comprehensive geriatric assessment with physician.")
-        actions.append("Review polypharmacy - check for 5+ concurrent medications.")
+        _add_rule("FNC-002")   # comprehensive geriatric assessment / polypharmacy review
+
     if not has_checkup:
-        actions.append("Schedule immediate health screening at barangay health center (BHC).")
-    return actions
+        _add_rule("HLT-001")   # primary care referral
+
+    return recs
 
 
-def hc_access_actions(row: Dict[str, Any]) -> List[str]:
-    actions: List[str] = []
-    # healthcare_difficulty arrives as a list from DB (JSON field); join for substring matching
+def _hc_access_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured healthcare-access recommendation dicts (FNC/FIN codes)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
     _hc_raw = row.get("healthcare_difficulty", "")
     if isinstance(_hc_raw, (list, tuple)):
         hc_diff = " ".join(str(v) for v in _hc_raw).lower()
     else:
         hc_diff = str(_hc_raw or "").lower()
     service_acc = _safe_float(row.get("env_service_access"), 3.0)
-    movable_s = _safe_float(row.get("sec5_movable_asset_score"), 0.3)
-    if "cost" in hc_diff or "expensive" in hc_diff:
-        actions.append("Apply for Malasakit Center for reduced hospital costs.")
-        actions.append("Verify PhilHealth active status for outpatient/inpatient coverage.")
-    if "transport" in hc_diff or "distance" in hc_diff:
-        actions.append("Coordinate with barangay for transportation assistance to health facilities.")
-        actions.append("Request OSCA mobile health clinic schedule for community visit.")
-    if movable_s < 0.3:
-        actions.append("Assess availability of community transport or ride-sharing for clinic visits.")
-    if service_acc <= 2:
-        actions.append("Coordinate barangay health worker (BHW) for home-based health monitoring.")
-    return actions
 
+    if "cost" in hc_diff or "expensive" in hc_diff:
+        _add_rule("FIN-003")   # Malasakit / PCSO MAP
+        _add_rule("FIN-004")   # PhilHealth membership check
+
+    if "transport" in hc_diff or "distance" in hc_diff:
+        _add_rule("FNC-003")   # transport / distance barrier
+
+    if service_acc <= 2:
+        _add_rule("FNC-005")   # BHW home-based health monitoring
+
+    housing_concern = str(row.get("housing_concern", "") or "").strip().lower()
+    if housing_concern and housing_concern not in {"none", "nan", ""}:
+        _add_rule("FNC-004")   # home safety / housing concern
+
+    return recs
+
+
+# ── Backward-compatible aliases (return plain action strings) ─────────────────
 
 def generate_health_recs(row: Dict[str, Any]) -> List[str]:
-    recs: List[str] = []
-    seen = set()
-    concern_fields = [
-        row.get("medical_concern", ""),
-        row.get("dental_concern", ""),
-        row.get("optical_concern", ""),
-        row.get("hearing_concern", ""),
-        row.get("social_emotional_concern", ""),
-    ]
-    matched_any = False
-    skip_tokens = {"none", "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth", "nan", "", "n/a"}
-    for concern_text in concern_fields:
-        text_value = str(concern_text or "").strip()
-        if text_value.lower() in skip_tokens:
-            continue
-        text_lower = text_value.lower()
-        matched = [kw for kw in DISEASE_ACTIONS if kw != "__generic__" and kw in text_lower]
-        if matched:
-            for disease in matched:
-                if disease not in seen:
-                    seen.add(disease)
-                    recs.extend(DISEASE_ACTIONS[disease])
-                    matched_any = True
-        else:
-            generic_key = text_value[:40]
-            if generic_key not in seen:
-                seen.add(generic_key)
-                recs.extend(DISEASE_ACTIONS["__generic__"])
-                matched_any = True
-    if not matched_any:
-        recs.append("Senior reports no significant health concerns. Continue preventive monitoring.")
-    return list(dict.fromkeys(recs))
+    """Legacy alias — returns action strings only. New code should use _health_recs()."""
+    return [r["action"] for r in _health_recs(row)]
+
+
+def financial_actions(row: Dict[str, Any], income_enc_val: float, eco_stability: float) -> List[str]:
+    """Legacy alias — returns action strings only. New code should use _financial_recs()."""
+    return [r["action"] for r in _financial_recs(row, income_enc_val, eco_stability)]
+
+
+def social_actions(row: Dict[str, Any]) -> List[str]:
+    """Legacy alias — returns action strings only. New code should use _social_recs()."""
+    return [r["action"] for r in _social_recs(row)]
+
+
+def functional_actions(row: Dict[str, Any]) -> List[str]:
+    """Legacy alias — returns action strings only. New code should use _functional_recs()."""
+    return [r["action"] for r in _functional_recs(row)]
+
+
+def hc_access_actions(row: Dict[str, Any]) -> List[str]:
+    """Legacy alias — returns action strings only. New code should use _hc_access_recs()."""
+    return [r["action"] for r in _hc_access_recs(row)]
 
 
 def _build_recommendations(
@@ -1338,34 +1627,23 @@ def _build_recommendations(
     merged.update(section_scores)
     merged.update(raw_context)
 
-    grouped = {
-        "health": generate_health_recs(merged),
-        "financial": financial_actions(
-            merged,
-            _safe_float(merged.get("income_enc"), 5.0),
-            _safe_float(merged.get("sec5_eco_stability"), 0.4),
-        ),
-        "social": social_actions(merged),
-        "functional": functional_actions(merged),
-        "hc_access": hc_access_actions(merged),
-    }
-
-    recs: List[Dict[str, Any]] = []
-    priority = 1
     urgency = _recommendation_urgency(overall_level, priority_flag)
-    for domain, actions in grouped.items():
-        for action in actions:
-            recs.append({
-                "priority": priority,
-                "type": "domain",
-                "domain": domain,
-                "category": domain,
-                "action": action,
-                "urgency": urgency,
-                "risk_level": overall_level.lower(),
-            })
-            priority += 1
-    return recs
+    risk_level_str = overall_level.lower()
+    income_enc = _safe_float(merged.get("income_enc"), 5.0)
+    eco_stability = _safe_float(merged.get("sec5_eco_stability"), 0.4)
+
+    all_recs: List[Dict[str, Any]] = []
+    all_recs.extend(_health_recs(merged, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_financial_recs(merged, income_enc, eco_stability, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_social_recs(merged, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_functional_recs(merged, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_hc_access_recs(merged, urgency=urgency, risk_level=risk_level_str))
+
+    # Re-number priorities globally after merging all domains
+    for idx, rec in enumerate(all_recs, start=1):
+        rec["priority"] = idx
+
+    return all_recs
 
 
 # ── Main inference ────────────────────────────────────────────────────────────
