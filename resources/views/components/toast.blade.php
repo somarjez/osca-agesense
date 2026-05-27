@@ -12,10 +12,10 @@
         $message = session('success') ?? session('error') ?? session('warning') ?? session('info');
     }
     $styles = [
-        'success' => 'bg-low-50 border-low-200 text-low-800 dark:bg-low-900/30 dark:border-low-700 dark:text-low-200',
-        'error'   => 'bg-high-50 border-high-200 text-high-800 dark:bg-high-900/30 dark:border-high-700 dark:text-high-200',
-        'warning' => 'bg-moderate-50 border-moderate-200 text-moderate-800 dark:bg-moderate-900/30 dark:border-moderate-700 dark:text-moderate-200',
-        'info'    => 'bg-info-50 border-info-200 text-info-800 dark:bg-info-900/30 dark:border-info-700 dark:text-info-200',
+        'success' => 'bg-low-50 border-low-100 text-low-700 dark:bg-low-700/20 dark:border-low-100/30 dark:text-low-100',
+        'error'   => 'bg-high-50 border-high-100 text-high-700 dark:bg-high-700/20 dark:border-high-100/30 dark:text-high-100',
+        'warning' => 'bg-moderate-50 border-moderate-100 text-moderate-700 dark:bg-moderate-700/20 dark:border-moderate-100/30 dark:text-moderate-100',
+        'info'    => 'bg-info-100 border-info-100 text-info-700 dark:bg-info-700/20 dark:border-info-100/30 dark:text-info-100',
     ];
     $iconPaths = [
         'success' => 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
