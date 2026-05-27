@@ -69,7 +69,8 @@
                 <div class="mt-6 badge badge-critical w-full justify-start">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('login') }}" class="mt-7 space-y-4">
+            <form method="POST" action="{{ route('login') }}" class="mt-7 space-y-4"
+                  x-data="{ submitting: false }" @submit="submitting = true">
                 @csrf
                 <div>
                     <label for="email" class="eyebrow block mb-1.5">Email</label>
@@ -108,8 +109,21 @@
                     Keep me signed in on this device
                 </label>
 
-                <button type="submit" id="login-btn" class="btn btn-primary w-full justify-center py-2.5 text-[14px]">
-                    Sign in to AgeSense
+                <button type="submit" id="login-btn"
+                        :disabled="submitting"
+                        class="btn btn-primary w-full justify-center py-2.5 text-[14px] disabled:opacity-60 disabled:cursor-not-allowed">
+                    <template x-if="!submitting">
+                        <span>Sign in to AgeSense</span>
+                    </template>
+                    <template x-if="submitting">
+                        <span class="inline-flex items-center gap-2">
+                            <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                            Signing in…
+                        </span>
+                    </template>
                 </button>
             </form>
             <script>

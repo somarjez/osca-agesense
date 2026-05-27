@@ -19,12 +19,14 @@
                     class="flex-1 py-2 text-xs font-medium rounded-lg transition-all
                            {{ $step === $s
                               ? 'bg-forest-700 text-white shadow-sm'
-                              : ($step > $s ? 'bg-forest-100 text-forest-700' : 'bg-paper-2 text-ink-500 hover:bg-paper-rule') }}">
+                              : ($step > $s
+                                  ? 'bg-forest-100 dark:bg-forest-900/40 text-forest-700 dark:text-forest-400'
+                                  : 'bg-paper-2 dark:bg-[#202a26] text-ink-500 dark:text-[#6b7570] hover:bg-paper-rule dark:hover:bg-[#2b3530]') }}">
                 {{ $s }}. {{ explode('. ', $lbl)[1] ?? $lbl }}
             </button>
             @endforeach
         </div>
-        <div class="w-full bg-paper-rule rounded-full h-1">
+        <div class="w-full bg-paper-rule dark:bg-[#2b3530] rounded-full h-1">
             <div class="bg-forest-500 h-1 rounded-full transition-all duration-500"
                  style="width: {{ (($step - 1) / ($totalSteps - 1)) * 100 }}%"></div>
         </div>
@@ -47,12 +49,18 @@
 
         {{-- Validation errors --}}
         @if ($errors->any())
-        <div class="px-5 py-3 bg-red-50 border-b border-red-200">
-            <ul class="text-sm text-red-600 space-y-0.5">
-                @foreach ($errors->all() as $err)
-                    <li>• {{ $err }}</li>
-                @endforeach
-            </ul>
+        <div class="px-5 pt-4 pb-0">
+            <div class="flex items-start gap-3 bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30 rounded-xl px-4 py-3 mb-4">
+                <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-critical-700 dark:text-[#e08070] flex-shrink-0 mt-0.5" />
+                <div>
+                    <p class="text-[12.5px] font-semibold text-critical-700 dark:text-[#e08070] mb-1">Please fix the following errors:</p>
+                    <ul class="text-[12px] text-critical-700 dark:text-[#e08070] space-y-0.5">
+                        @foreach ($errors->all() as $err)
+                            <li>• {{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
         </div>
         @endif
 
@@ -64,49 +72,49 @@
             <div class="grid grid-cols-2 gap-4">
 
                 <div>
-                    <label class="block text-xs font-medium text-ink-600 mb-1">First Name <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">First Name <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <input type="text" wire:model="firstName" placeholder="Juan"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500 focus:border-transparent">
-                    @error('firstName') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                           class="form-input">
+                    @error('firstName') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Middle Name</label>
                     <input type="text" wire:model="middleName" placeholder="Santos"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-ink-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">Last Name <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <input type="text" wire:model="lastName" placeholder="Dela Cruz"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
-                    @error('lastName') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                           class="form-input">
+                    @error('lastName') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Name Extension</label>
                     <input type="text" wire:model="nameExtension" placeholder="Jr., Sr., II"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-ink-600 mb-1">Barangay <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">Barangay <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <select wire:model="barangay"
-                            class="w-full text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500 {{ $errors->has('barangay') ? 'border-red-400 bg-red-50' : 'border-paper-rule' }}">
+                            class="form-select {{ $errors->has('barangay') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         <option value="">Select barangay…</option>
                         @foreach (\App\Models\SeniorCitizen::barangayList() as $b)
                             <option value="{{ $b }}">{{ $b }}</option>
                         @endforeach
                     </select>
-                    @error('barangay') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    @error('barangay') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-ink-600 mb-1">Date of Birth <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">Date of Birth <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <input type="date" wire:model="dateOfBirth" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500 {{ $errors->has('dateOfBirth') ? 'border-red-400' : '' }}">
-                    @error('dateOfBirth') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                           class="form-input {{ $errors->has('dateOfBirth') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                    @error('dateOfBirth') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Gender</label>
                     <select wire:model="gender"
-                            class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                            class="form-input">
                         <option value="">Select…</option>
                         <option>Male</option><option>Female</option><option>Prefer not to say</option>
                     </select>
@@ -114,7 +122,7 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Marital Status</label>
                     <select wire:model="maritalStatus"
-                            class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                            class="form-input">
                         <option value="">Select…</option>
                         @foreach (['Single','Married','Widowed','Separated'] as $ms)
                             <option>{{ $ms }}</option>
@@ -124,7 +132,7 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Religion</label>
                     <select wire:model="religion"
-                            class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                            class="form-input">
                         <option value="">Select…</option>
                         @foreach (['Roman Catholic','Iglesia ni Cristo','Islam','Protestant / Evangelical','Seventh-day Adventist','Jehovah\'s Witness','Aglipayan','Other'] as $rel)
                             <option>{{ $rel }}</option>
@@ -134,7 +142,7 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Blood Type</label>
                     <select wire:model="bloodType"
-                            class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                            class="form-input">
                         <option value="">Unknown</option>
                         @foreach (['O+','O-','A+','A-','B+','B-','AB+','AB-'] as $bt)
                             <option>{{ $bt }}</option>
@@ -144,12 +152,12 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Contact Number</label>
                     <input type="text" wire:model="contactNumber" placeholder="09XX XXX XXXX"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Place of Birth</label>
                     <input type="text" wire:model="placeOfBirth"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
             </div>
 
@@ -160,12 +168,12 @@
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Consent Date</label>
                         <input type="date" wire:model="consentGivenAt"
-                               class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                               class="form-input">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Consent Method</label>
                         <select wire:model="consentMethod"
-                                class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                                class="form-input">
                             <option value="">Not recorded</option>
                             <option value="verbal">Verbal</option>
                             <option value="written">Written</option>
@@ -183,22 +191,22 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Number of Children</label>
                     <input type="number" wire:model="numChildren" min="0"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Number of Working Children</label>
                     <input type="number" wire:model="numWorkingChildren" min="0"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Household Size (total members)</label>
                     <input type="number" wire:model="householdSize" min="1"
-                           class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                           class="form-input">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Financially Supported by Children?</label>
                     <select wire:model="childFinancialSupport"
-                            class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500">
+                            class="form-input">
                         <option value="">Select…</option>
                         <option>Yes</option><option>No</option><option>Occasional</option><option>N/A</option>
                     </select>
@@ -369,7 +377,7 @@
                     <div class="mt-2">
                         <input type="text" wire:model="problemsNeedsOther"
                                placeholder="Please specify..."
-                               class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500 focus:outline-none">
+                               class="form-input">
                     </div>
                     @endif
                 </div>
@@ -468,7 +476,7 @@
                         <div class="mt-2">
                             <input type="text" wire:model="checkupScheduleOther"
                                    placeholder="Please specify schedule..."
-                                   class="w-full text-sm border border-paper-rule rounded-lg px-3 py-2 focus:ring-2 focus:ring-forest-500 focus:outline-none">
+                                   class="form-input">
                         </div>
                         @endif
                     </div>
@@ -480,28 +488,51 @@
         </div>
 
         {{-- ── Footer Navigation ── --}}
-        <div class="border-t border-paper-2 px-5 py-4 flex items-center gap-3">
+        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex items-center gap-3">
             @if ($step > 1)
             <button type="button" wire:click="prevStep"
-                    class="px-4 py-2 text-sm font-medium text-ink-600 border border-paper-rule rounded-lg hover:bg-paper transition-colors">
-                ← Back
+                    wire:loading.attr="disabled"
+                    wire:target="prevStep"
+                    class="btn">
+                <x-heroicon-o-arrow-left class="w-3.5 h-3.5" />
+                Back
             </button>
             @endif
 
             <div class="ml-auto flex gap-3">
                 @if ($step < $totalSteps)
                 <button type="button" wire:click="nextStep"
+                        wire:loading.attr="disabled"
+                        wire:target="nextStep"
                         class="btn btn-primary">
-                    Next →
+                    <span wire:loading.remove wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                        Next
+                        <x-heroicon-o-arrow-right class="w-3.5 h-3.5" />
+                    </span>
+                    <span wire:loading wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                        <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Loading…
+                    </span>
                 </button>
                 @else
                 <button wire:click="save"
+                        wire:loading.attr="disabled"
+                        wire:target="save"
                         class="btn btn-primary">
                     <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                        <x-heroicon-o-check class="w-4 h-4" />
                         Save Profile
                     </span>
-                    <span wire:loading wire:target="save">Saving…</span>
+                    <span wire:loading wire:target="save" class="inline-flex items-center gap-1.5">
+                        <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Saving…
+                    </span>
                 </button>
                 @endif
             </div>

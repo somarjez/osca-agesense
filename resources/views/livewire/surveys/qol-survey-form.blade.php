@@ -238,18 +238,45 @@
             </button>
             @endif
 
-            <button type="button" wire:click="saveDraft" class="btn btn-ghost text-[13px]">
-                Save Draft
+            <button type="button" wire:click="saveDraft"
+                    wire:loading.attr="disabled" wire:target="saveDraft"
+                    class="btn btn-ghost text-[13px]">
+                <span wire:loading.remove wire:target="saveDraft">Save Draft</span>
+                <span wire:loading wire:target="saveDraft">Saving…</span>
             </button>
 
             <div class="ml-auto flex gap-3">
                 @if ($step < $totalSteps)
-                <button type="button" wire:click="nextStep" class="btn btn-primary">
-                    Next Section →
+                <button type="button" wire:click="nextStep"
+                        wire:loading.attr="disabled" wire:target="nextStep"
+                        class="btn btn-primary">
+                    <span wire:loading.remove wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                        Next Section
+                        <x-heroicon-o-arrow-right class="w-3.5 h-3.5" />
+                    </span>
+                    <span wire:loading wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                        <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Loading…
+                    </span>
                 </button>
                 @else
-                <button type="button" wire:click="confirmSubmit" class="btn btn-primary">
-                    Submit &amp; Run Assessment
+                <button type="button" wire:click="confirmSubmit"
+                        wire:loading.attr="disabled" wire:target="confirmSubmit"
+                        class="btn btn-primary">
+                    <span wire:loading.remove wire:target="confirmSubmit" class="inline-flex items-center gap-1.5">
+                        <x-heroicon-o-check class="w-3.5 h-3.5" />
+                        Submit &amp; Run Assessment
+                    </span>
+                    <span wire:loading wire:target="confirmSubmit" class="inline-flex items-center gap-1.5">
+                        <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Processing…
+                    </span>
                 </button>
                 @endif
             </div>
@@ -271,12 +298,20 @@
                 </p>
                 <div class="flex gap-3 justify-end">
                     <button wire:click="$set('showConfirm', false)" class="btn">Cancel</button>
-                    <button wire:click="submitSurvey" class="btn btn-primary">
+                    <button wire:click="submitSurvey"
+                            wire:loading.attr="disabled" wire:target="submitSurvey"
+                            class="btn btn-primary">
                         <span wire:loading.remove wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <x-heroicon-o-check class="w-3.5 h-3.5" />
                             Confirm &amp; Submit
                         </span>
-                        <span wire:loading wire:target="submitSurvey">Processing…</span>
+                        <span wire:loading wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
+                            <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                            Processing…
+                        </span>
                     </button>
                 </div>
             </div>

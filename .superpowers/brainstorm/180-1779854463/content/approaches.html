@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Approaches</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; padding: 2rem; }
+  h1 { font-size: 1.375rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
+  .sub { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+
+  .approaches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+  .approach { background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.15s; position: relative; }
+  .approach:hover { border-color: #94a3b8; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .approach.selected { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+  .approach.recommended { border-color: #16a34a; }
+  .approach.recommended.selected { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
+
+  .rec-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: #16a34a; color: white; font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; padding: 0.2rem 0.75rem; border-radius: 999px; white-space: nowrap; }
+
+  .letter { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem; }
+  .a .letter { background: #f1f5f9; color: #475569; }
+  .b .letter { background: #dcfce7; color: #15803d; }
+  .c .letter { background: #eff6ff; color: #2563eb; }
+
+  .approach-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.375rem; }
+  .approach-sub { font-size: 0.8rem; color: #64748b; margin-bottom: 1.25rem; line-height: 1.4; }
+
+  .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.5rem; margin-top: 1rem; }
+  .section-label:first-of-type { margin-top: 0; }
+
+  .item-list { list-style: none; space-y: 0.25rem; }
+  .item-list li { font-size: 0.8rem; color: #475569; padding: 0.2rem 0; display: flex; gap: 0.5rem; align-items: flex-start; line-height: 1.4; }
+  .item-list li::before { content: ''; flex-shrink: 0; width: 5px; height: 5px; border-radius: 50%; margin-top: 0.45rem; }
+  .ok li::before  { background: #22c55e; }
+  .bad li::before { background: #ef4444; }
+  .warn li::before { background: #f59e0b; }
+
+  .meta-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+  .meta-chip { font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid; }
+  .effort-low  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+  .effort-med  { background: #fefce8; color: #854d0e; border-color: #fde68a; }
+  .effort-high { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+  .risk-low  { background: #f0f9ff; color: #075985; border-color: #bae6fd; }
+  .risk-med  { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+  .risk-high { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+
+  .scope-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: white; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+  .scope-table th { background: #f8fafc; padding: 0.6rem 1rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; border-bottom: 1px solid #e2e8f0; }
+  .scope-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+  .scope-table td:first-child { font-weight: 500; color: #1e293b; width: 200px; }
+  .scope-table tr:last-child td { border-bottom: none; }
+  .dot-yes  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 0.35rem; }
+  .dot-part { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; margin-right: 0.35rem; }
+  .dot-no   { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; margin-right: 0.35rem; }
+
+  .note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; font-size: 0.82rem; color: #1d4ed8; line-height: 1.55; margin-top: 1.5rem; }
+
+  .selected-indicator { display: none; position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; background: #2563eb; color: white; font-size: 0.75rem; align-items: center; justify-content: center; font-weight: 700; }
+  .approach.selected .selected-indicator { display: flex; }
+  .approach.recommended.selected .selected-indicator { background: #16a34a; }
+</style>
+<script>
+function select(el) {
+  document.querySelectorAll('.approach').forEach(a => a.classList.remove('selected'));
+  el.classList.add('selected');
+  const choice = el.dataset.choice;
+  if (window.recordChoice) window.recordChoice(choice, el.querySelector('.approach-title').textContent);
+}
+</script>
+</head>
+<body>
+
+<h1>Implementation Approach — AgeSense UI/UX Overhaul</h1>
+<p class="sub">Three ways to scope and sequence the improvements. Click to select your preferred approach.</p>
+
+<div class="approaches">
+
+  <!-- APPROACH A -->
+  <div class="approach a" data-choice="a" onclick="select(this)">
+    <div class="selected-indicator">✓</div>
+    <div class="letter">A</div>
+    <div class="approach-title">Tier-by-Tier Patch</div>
+    <div class="approach-sub">Fix issues in priority order without changing the overall structure. Each tier is a separate PR/commit.</div>
+
+    <div class="section-label">What gets done</div>
+    <ul class="item-list ok">
+      <li>All 5 critical issues fixed (profile form, flash messages, modals, subtitle, ARIA)</li>
+      <li>High-priority fixes: breadcrumb, chart ARIA, emoji icons replaced</li>
+      <li>Medium fixes applied where straightforward</li>
+    </ul>
+
+    <div class="section-label">Trade-offs</div>
+    <ul class="item-list warn">
+      <li>No new shared components — repeated fixes in each file</li>
+      <li>Missing components (page-header, toast, empty-state) not created</li>
+      <li>Report print styling stays basic</li>
+      <li>Future changes stay inconsistent without a component library</li>
+    </ul>
+
+    <div class="meta-row">
+      <span class="meta-chip effort-med">Medium effort</span>
+      <span class="meta-chip risk-low">Low risk</span>
+    </div>
+  </div>
+
+  <!-- APPROACH B (RECOMMENDED) -->
+  <div class="approach b recommended" data-choice="b" onclick="select(this)">
+    <div class="rec-label">★ Recommended</div>
+    <div class="selected-indicator">✓</div>
+    <div class="letter">B</div>
+    <div class="approach-title">Component-First Refactor</div>
+    <div class="approach-sub">Build the missing shared components first (page-header, breadcrumb, toast, alert, empty-state), then refactor all pages to use them — fixing every issue in the process.</div>
+
+    <div class="section-label">What gets done</div>
+    <ul class="item-list ok">
+      <li>New shared components: x-page-header, x-breadcrumb, x-toast, x-alert, x-empty-state</li>
+      <li>Profile survey refactored to use system design tokens</li>
+      <li>All 22 issues resolved, not just patched</li>
+      <li>Government-ready print layout for reports</li>
+      <li>Full WCAG 2.2 accessibility pass on all pages</li>
+      <li>Consistent recommendation cards with SVG icons</li>
+      <li>Formal page subtitle now visible everywhere</li>
+    </ul>
+
+    <div class="section-label">Trade-offs</div>
+    <ul class="item-list warn">
+      <li>Larger up-front component work (4–6 new Blade components)</li>
+      <li>Each page must be reviewed after refactor</li>
+      <li>Livewire bindings require care during refactor</li>
+    </ul>
+
+    <div class="meta-row">
+      <span class="meta-chip effort-high">Higher effort</span>
+      <span class="meta-chip risk-med">Manageable risk</span>
+    </div>
+  </div>
+
+  <!-- APPROACH C -->
+  <div class="approach c" data-choice="c" onclick="select(this)">
+    <div class="selected-indicator">✓</div>
+    <div class="letter">C</div>
+    <div class="approach-title">Full Government Redesign</div>
+    <div class="approach-sub">Everything in B, plus: redesign the topbar into a formal government-style page header, add a sticky page-action bar, redesign the senior profile page layout, and fully restyle the reports as official LGU documents.</div>
+
+    <div class="section-label">What gets done</div>
+    <ul class="item-list ok">
+      <li>Everything in Approach B</li>
+      <li>Topbar restructured: formal govt page header with LGU context visible</li>
+      <li>Senior profile: tabbed layout (Profile / Surveys / Assessment / Recommendations)</li>
+      <li>Reports: official header with LGU emblem placeholder, formal footer, print-optimized</li>
+      <li>Dashboard: clearer summary hero, mission-control feel</li>
+      <li>QoL survey: wider max-width, better section spacing</li>
+    </ul>
+
+    <div class="section-label">Trade-offs</div>
+    <ul class="item-list bad">
+      <li>Significantly more work — major layout changes to core pages</li>
+      <li>Higher risk of disrupting Livewire bindings</li>
+      <li>Requires more thorough QA across all roles</li>
+    </ul>
+
+    <div class="meta-row">
+      <span class="meta-chip effort-high">High effort</span>
+      <span class="meta-chip risk-high">Higher risk</span>
+    </div>
+  </div>
+
+</div>
+
+<hr class="divider">
+
+<h2 style="font-size:0.9rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#94a3b8; margin-bottom:1rem;">Coverage Comparison</h2>
+
+<table class="scope-table">
+  <thead>
+    <tr>
+      <th>Area</th>
+      <th>Approach A</th>
+      <th>Approach B</th>
+      <th>Approach C</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Critical issue fixes</td>
+      <td><span class="dot-yes"></span>All 5 fixed</td>
+      <td><span class="dot-yes"></span>All 5 fixed</td>
+      <td><span class="dot-yes"></span>All 5 fixed</td>
+    </tr>
+    <tr>
+      <td>Profile form redesign</td>
+      <td><span class="dot-part"></span>Token swap only</td>
+      <td><span class="dot-yes"></span>Full system refactor</td>
+      <td><span class="dot-yes"></span>Full system refactor</td>
+    </tr>
+    <tr>
+      <td>Breadcrumb navigation</td>
+      <td><span class="dot-part"></span>Manual per page</td>
+      <td><span class="dot-yes"></span>x-breadcrumb component</td>
+      <td><span class="dot-yes"></span>x-breadcrumb component</td>
+    </tr>
+    <tr>
+      <td>Toast / flash messages</td>
+      <td><span class="dot-part"></span>Fixed in layout only</td>
+      <td><span class="dot-yes"></span>x-toast component, ARIA</td>
+      <td><span class="dot-yes"></span>x-toast component, ARIA</td>
+    </tr>
+    <tr>
+      <td>Page header component</td>
+      <td><span class="dot-no"></span>Not created</td>
+      <td><span class="dot-yes"></span>x-page-header created</td>
+      <td><span class="dot-yes"></span>Formal govt header</td>
+    </tr>
+    <tr>
+      <td>Empty / loading states</td>
+      <td><span class="dot-no"></span>Not standardized</td>
+      <td><span class="dot-yes"></span>x-empty-state component</td>
+      <td><span class="dot-yes"></span>x-empty-state component</td>
+    </tr>
+    <tr>
+      <td>Chart accessibility</td>
+      <td><span class="dot-yes"></span>ARIA + text tables</td>
+      <td><span class="dot-yes"></span>ARIA + text tables</td>
+      <td><span class="dot-yes"></span>ARIA + text tables</td>
+    </tr>
+    <tr>
+      <td>Report print layout</td>
+      <td><span class="dot-part"></span>Basic print CSS</td>
+      <td><span class="dot-yes"></span>Formal print layout</td>
+      <td><span class="dot-yes"></span>Official LGU document</td>
+    </tr>
+    <tr>
+      <td>Senior profile layout</td>
+      <td><span class="dot-no"></span>Unchanged</td>
+      <td><span class="dot-part"></span>Cleaned up</td>
+      <td><span class="dot-yes"></span>Tabbed layout redesign</td>
+    </tr>
+    <tr>
+      <td>Recommendation cards</td>
+      <td><span class="dot-part"></span>Emoji → SVG icons</td>
+      <td><span class="dot-yes"></span>SVG icons + domain colors</td>
+      <td><span class="dot-yes"></span>SVG icons + domain colors</td>
+    </tr>
+    <tr>
+      <td>WCAG 2.2 pass</td>
+      <td><span class="dot-part"></span>Modals + skip link</td>
+      <td><span class="dot-yes"></span>Full pass, all pages</td>
+      <td><span class="dot-yes"></span>Full pass, all pages</td>
+    </tr>
+    <tr>
+      <td>Risk / effort</td>
+      <td>Low risk · Medium effort</td>
+      <td>Managed risk · High effort</td>
+      <td>Higher risk · Very high effort</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>My recommendation is B.</strong> It fixes every issue systematically, creates reusable components that make future work easier, and achieves government-ready quality — without the layout restructuring risk of C. The profile layout change in C (tabbed senior profile) is the main thing you'd give up. If you want that too, we can add it as an optional module in B.<br><br>
+  Click your preferred approach above, then let me know in the terminal.
+</div>
+
+</body>
+</html>

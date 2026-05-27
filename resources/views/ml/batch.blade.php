@@ -150,36 +150,42 @@
 
         {{-- Confirm modal --}}
         <div x-show="showConfirm" x-cloak
-             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             role="dialog" aria-modal="true" aria-labelledby="batch-confirm-title"
+             class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
              @keydown.escape.window="showConfirm = false">
-            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            <div class="card shadow-2xl max-w-md w-full"
                  @click.outside="showConfirm = false">
-                <div class="flex items-start gap-4 mb-4">
-                    <div class="w-10 h-10 rounded-full bg-forest-50 flex items-center justify-center flex-shrink-0">
-                        <svg class="h-5 w-5 text-forest-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-slate-800 text-base">Run Batch Health Assessment?</h3>
-                        <p class="text-sm text-slate-500 mt-1">
-                            This will assess <strong class="text-slate-700">{{ $totalReady }} senior(s)</strong> with processed QoL surveys and overwrite their current risk scores and cluster assignments.
-                            @if($totalEligible > $totalReady)
-                            <span class="text-slate-400">({{ $totalEligible - $totalReady }} others have unprocessed surveys and will be skipped.)</span>
-                            @endif
-                        </p>
-                        <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
-                            <p class="font-semibold">Only run this when intentionally recomputing results.</p>
-                            <p>For the 283 seed seniors, results are sourced from the validated notebook export. Running batch will re-apply those same notebook scores as long as <code class="font-mono bg-amber-100 px-0.5 rounded">ENABLE_NOTEBOOK_OVERRIDES=true</code> is set in <code class="font-mono bg-amber-100 px-0.5 rounded">.env</code>.</p>
-                            <p>If notebook overrides are disabled, scores will be recomputed by the live model and <strong>may not match the notebook.</strong></p>
+                <div class="card-head">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-forest-50 dark:bg-forest-900/40 grid place-items-center flex-shrink-0">
+                            <x-heroicon-o-arrow-path class="w-4 h-4 text-forest-700 dark:text-forest-400" />
                         </div>
-                        <p class="text-xs text-slate-400 mt-2">Jobs are queued and processed in the background. You can safely close this tab.</p>
+                        <div class="card-title" id="batch-confirm-title">Run Batch Health Assessment?</div>
                     </div>
+                    <button @click="showConfirm = false" class="btn btn-ghost p-1.5">
+                        <x-heroicon-o-x-mark class="w-4 h-4" />
+                    </button>
                 </div>
-                <div class="flex gap-3 justify-end pt-2 border-t border-slate-100">
-                    <button @click="showConfirm = false" class="btn">Cancel</button>
-                    <button @click="start()" class="btn btn-primary">Confirm &amp; Run Batch</button>
+                <div class="card-body space-y-4">
+                    <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
+                        This will assess <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $totalReady }} senior(s)</strong> with processed QoL surveys and update their current risk scores and health group assignments.
+                        @if($totalEligible > $totalReady)
+                        <span class="text-ink-400 dark:text-[#6b7570]">({{ $totalEligible - $totalReady }} others have unprocessed surveys and will be skipped.)</span>
+                        @endif
+                    </p>
+                    <div class="rounded-xl bg-moderate-50 dark:bg-moderate-50/10 border border-moderate-100 dark:border-moderate-700/30 px-4 py-3 text-[12px] text-moderate-700 dark:text-[#d4a830] space-y-1.5">
+                        <p class="font-semibold">Only run this when intentionally recomputing results.</p>
+                        <p>For seeded seniors, results are sourced from the validated notebook export when <code class="font-mono bg-moderate-100 dark:bg-moderate-700/20 px-0.5 rounded">ENABLE_NOTEBOOK_OVERRIDES=true</code> is set.</p>
+                        <p>If notebook overrides are disabled, scores will be recomputed by the live model.</p>
+                    </div>
+                    <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Jobs are queued and processed in the background. You can safely close this tab.</p>
+                    <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">
+                        <button @click="showConfirm = false" class="btn">Cancel</button>
+                        <button @click="start()" class="btn btn-primary">
+                            <x-heroicon-o-arrow-path class="w-3.5 h-3.5" />
+                            Confirm &amp; Run Batch
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

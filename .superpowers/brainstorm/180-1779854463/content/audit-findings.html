@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgeSense UI/UX Audit</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; padding: 2rem; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem; }
+  .sub { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+
+  .tier { margin-bottom: 2rem; }
+  .tier-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .tier-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.25rem 0.75rem; border-radius: 999px; }
+  .t1 .tier-badge { background: #fee2e2; color: #b91c1c; }
+  .t2 .tier-badge { background: #ffedd5; color: #c2410c; }
+  .t3 .tier-badge { background: #fef3c7; color: #92400e; }
+  .t4 .tier-badge { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .tier-title { font-size: 1rem; font-weight: 600; color: #1e293b; }
+
+  .issues { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.875rem; }
+  .issue { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; border-left: 4px solid; }
+  .t1 .issue { border-left-color: #ef4444; }
+  .t2 .issue { border-left-color: #f97316; }
+  .t3 .issue { border-left-color: #eab308; }
+  .t4 .issue { border-left-color: #22c55e; }
+
+  .issue-title { font-size: 0.875rem; font-weight: 600; color: #1e293b; margin-bottom: 0.375rem; }
+  .issue-desc { font-size: 0.8rem; color: #475569; line-height: 1.5; margin-bottom: 0.5rem; }
+  .issue-files { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
+  .file-tag { font-size: 0.7rem; font-family: monospace; background: #f1f5f9; color: #475569; padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid #e2e8f0; }
+  .positive-tag { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+
+  .strengths { background: white; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1.25rem; margin-bottom: 2rem; }
+  .strengths h2 { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #15803d; margin-bottom: 0.75rem; }
+  .strength-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .strength-item { font-size: 0.8rem; background: #f0fdf4; color: #166534; padding: 0.25rem 0.75rem; border-radius: 999px; border: 1px solid #bbf7d0; }
+
+  .summary-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .summary-stat { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.875rem 1.25rem; text-align: center; min-width: 100px; }
+  .summary-stat .num { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+  .summary-stat .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-top: 0.25rem; }
+  .red .num { color: #ef4444; }
+  .orange .num { color: #f97316; }
+  .yellow .num { color: #eab308; }
+  .green .num { color: #22c55e; }
+
+  .note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.875rem 1rem; font-size: 0.8rem; color: #1d4ed8; margin-top: 1.5rem; line-height: 1.5; }
+  .note strong { color: #1e3a8a; }
+</style>
+</head>
+<body>
+
+<h1>AgeSense · UI/UX Audit Findings</h1>
+<p class="sub">Full codebase review: layouts, Blade views, Livewire components, CSS system, forms, tables, charts, reports · 38 files inspected</p>
+
+<div class="strengths">
+  <h2>✓ What's already working well</h2>
+  <div class="strength-list">
+    <span class="strength-item">Consistent design token system (forest/paper/ink palette)</span>
+    <span class="strength-item">Good component library: card, kpi, badge, btn, form-input</span>
+    <span class="strength-item">Dark mode support throughout</span>
+    <span class="strength-item">Multi-step QoL survey with progress indicator</span>
+    <span class="strength-item">Bulk upload with drag-drop and column reference</span>
+    <span class="strength-item">Risk badge + composite risk bar in table</span>
+    <span class="strength-item">Collapsible recommendations by category</span>
+    <span class="strength-item">Livewire polling for ML status</span>
+    <span class="strength-item">Role-based nav visibility</span>
+    <span class="strength-item">Sidebar collapse/expand with tooltips</span>
+  </div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-stat red"><div class="num">5</div><div class="lbl">Critical</div></div>
+  <div class="summary-stat orange"><div class="num">6</div><div class="lbl">High priority</div></div>
+  <div class="summary-stat yellow"><div class="num">7</div><div class="lbl">Medium priority</div></div>
+  <div class="summary-stat green"><div class="num">4</div><div class="lbl">Low / polish</div></div>
+</div>
+
+<!-- TIER 1 -->
+<div class="tier t1">
+  <div class="tier-header">
+    <span class="tier-badge">Tier 1 — Critical</span>
+    <span class="tier-title">Breaks usability, accessibility, or design consistency</span>
+  </div>
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-title">⚠ Profile form uses a completely different design system</div>
+      <div class="issue-desc">The senior registration form uses raw Tailwind colors (teal-600, slate-200, purple-600) instead of the project's forest/paper/ink palette. A CTA button uses <code>bg-purple-600</code>. Error states use <code>bg-red-50</code> instead of the alert pattern. Creates jarring visual inconsistency for the most-used data entry form.</div>
+      <div class="issue-files">
+        <span class="file-tag">profile-survey.blade.php</span>
+        <span class="file-tag">vs qol-survey-form.blade.php</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">⚠ Flash messages appear as tiny inline badges in the topbar</div>
+      <div class="issue-desc">Success/warning/error session flash messages are rendered as small <code>.badge</code> elements inside the topbar header. They're easy to miss, not accessible (no <code>role="alert"</code>), and visually wrong — a success message looks identical to a data badge. No auto-dismiss, no icon, no positioning.</div>
+      <div class="issue-files">
+        <span class="file-tag">layouts/app.blade.php:286</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">⚠ Delete modal uses inline CSS that bypasses dark mode</div>
+      <div class="issue-desc">The "Delete QoL Survey" confirmation dialog uses <code>style="background:#ffffff !important"</code> and hardcoded hex colors. Also uses <code>onmouseover</code> event handlers for hover states. Breaks in dark mode, bypasses the design system, and looks different from every other modal in the app.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/show.blade.php:449–480</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">⚠ <code>page-subtitle</code> is set on all pages but never rendered</div>
+      <div class="issue-desc">Every page sets <code>@section('page-subtitle', '...')</code> but <code>app.blade.php</code> only renders <code>@yield('page-title')</code> — the subtitle yield is completely missing. This means all page context subtitles (e.g. "275 seniors · Pagsanjan") are invisible. Dead code on every page.</div>
+      <div class="issue-files">
+        <span class="file-tag">layouts/app.blade.php:262</span>
+        <span class="file-tag">all 20+ page views</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">⚠ Modal dialogs lack ARIA roles and focus management</div>
+      <div class="issue-desc">Archive, bulk-archive, and delete modals have no <code>role="dialog"</code>, <code>aria-modal="true"</code>, or <code>aria-labelledby</code>. Focus doesn't trap inside the dialog. Screen readers won't announce these as dialogs, and keyboard users can tab behind them. Multiple modals are defined per table row — generates duplicate DOM elements for large tables.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/index.blade.php:253</span>
+        <span class="file-tag">seniors/show.blade.php:444</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TIER 2 -->
+<div class="tier t2">
+  <div class="tier-header">
+    <span class="tier-badge">Tier 2 — High Priority</span>
+    <span class="tier-title">Significant usability, accessibility, or government-readiness gaps</span>
+  </div>
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-title">No breadcrumb navigation</div>
+      <div class="issue-desc">Users have no breadcrumb trail to understand hierarchy (e.g. Home → Senior Records → Juan Dela Cruz → QoL Survey). Critical for OSCA staff navigating between senior profile → survey → results → recommendations. GOV.UK and USWDS both require breadcrumbs for multi-level pages.</div>
+      <div class="issue-files">
+        <span class="file-tag">all show/edit/create pages</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Charts have no accessible fallbacks</div>
+      <div class="issue-desc">All Chart.js canvases lack <code>aria-label</code>, <code>role="img"</code>, or a text summary below. The doughnut charts have <code>legend: false</code> — legend data only in inline HTML below, not announced to screen readers. The radar chart (Domain Scores) has no textual equivalent at all.</div>
+      <div class="issue-files">
+        <span class="file-tag">main-dashboard.blade.php</span>
+        <span class="file-tag">surveys/qol/results.blade.php</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">No reusable page header component</div>
+      <div class="issue-desc">Each page has its own ad-hoc "back button + action buttons" bar with inconsistent spacing, no standard breadcrumb slot, and no uniform subtitle pattern. The seniors/show page action bar, the QoL back button, and the risk report header are all formatted differently.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/show.blade.php:10</span>
+        <span class="file-tag">recommendations/show.blade.php:6</span>
+        <span class="file-tag">qol-survey-form.blade.php:11</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Emoji icons in recommendations (not accessible)</div>
+      <div class="issue-desc">Category icons (🏥 💰 🤝 🧠 🏨 👁) are used in the recommendations sidebar. Emoji rendering varies across operating systems, can be announced by screen readers in unexpected ways, and looks inconsistent next to the Heroicon SVG icons used everywhere else.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/show.blade.php:503</span>
+        <span class="file-tag">recommendations/show.blade.php:13</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Report pages lack formal government print layout</div>
+      <div class="issue-desc">Risk and barangay reports have no print-specific CSS, no official header (LGU seal placeholder, system name, date generated), no "Prepared by" footer, and no print button. The PDF template uses teal (#0d9488) instead of the system's forest palette. Reports must look official when printed for LGU/OSCA use.</div>
+      <div class="issue-files">
+        <span class="file-tag">reports/risk.blade.php</span>
+        <span class="file-tag">reports/barangay.blade.php</span>
+        <span class="file-tag">seniors/pdf.blade.php</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Senior profile page: 9-column table is too dense</div>
+      <div class="issue-desc">The seniors table has: checkbox + OSCA ID + Name + Barangay + Age + Cluster + Risk + Composite Risk Bar + Actions = 9 columns. On 1280px screens this is crowded. "Composite Risk" and "Risk" columns are partially redundant — the bar already encodes the level. Actions column has 4 visible buttons per row.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/index.blade.php:143</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TIER 3 -->
+<div class="tier t3">
+  <div class="tier-header">
+    <span class="tier-badge">Tier 3 — Medium Priority</span>
+    <span class="tier-title">Consistency, polish, and senior-friendliness improvements</span>
+  </div>
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-title">No skip-to-main-content link</div>
+      <div class="issue-desc">Keyboard/screen-reader users must tab through the entire sidebar navigation (15+ items) on every page load to reach main content. A hidden "Skip to main content" link at the top is a basic WCAG 2.1 requirement.</div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Form required fields inconsistently marked</div>
+      <div class="issue-desc">Profile survey uses <code>*</code> asterisks on some fields but not all required ones. No "* Required" legend at the top of forms. QoL survey form doesn't mark required fields at all. Error messages use mixed styles (red-500 in profile-survey, moderate-700 in QoL form).</div>
+      <div class="issue-files">
+        <span class="file-tag">profile-survey.blade.php</span>
+        <span class="file-tag">qol-survey-form.blade.php</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">No reusable empty state or loading state components</div>
+      <div class="issue-desc">Each page defines its own empty state ad hoc. The seniors table empty state, recommendation empty state, and QoL survey empty state all use different markup, copy, and styling. No consistent loading skeleton or spinner pattern across pages.</div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">ML status page uses raw dot instead of .status-dot component</div>
+      <div class="issue-desc">The mode banner uses a raw <code>&lt;div class="w-3 h-3 rounded-full"&gt;</code> instead of the established <code>.status-dot</code> component defined in app.css. Minor inconsistency but avoidable.</div>
+      <div class="issue-files">
+        <span class="file-tag">ml/status.blade.php:13</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">No mobile navigation (no hamburger menu)</div>
+      <div class="issue-desc">The layout is sidebar-only. On mobile/tablet, the sidebar is always present (just collapsed to icon width). There's no hamburger menu or slide-over drawer for small screens. The topbar search is hidden on mobile (<code>hidden md:block</code>).</div>
+      <div class="issue-files">
+        <span class="file-tag">layouts/app.blade.php</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Topbar date text is too small for OSCA staff</div>
+      <div class="issue-desc">The date display in the topbar is <code>text-[11px]</code> — very small. For OSCA staff who may have varying visual acuity, 11px is below the WCAG recommended minimum for informational text. Several eyebrow labels are also 10.5px.</div>
+      <div class="issue-files">
+        <span class="file-tag">layouts/app.blade.php:293</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Risk wording: "critical_flag" still exposed in senior profile</div>
+      <div class="issue-desc">The <code>$ml->critical_flag</code> variable is checked in <code>seniors/show.blade.php</code> and renders a "⚠ Critical" badge. Per project memory, "CRITICAL" was removed as an official level — this badge should be removed or remapped. Also "Re-run Assessment" language on the button implies clinical action.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/show.blade.php:204</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TIER 4 -->
+<div class="tier t4">
+  <div class="tier-header">
+    <span class="tier-badge">Tier 4 — Polish / Low Priority</span>
+    <span class="tier-title">Nice-to-have improvements once the above are resolved</span>
+  </div>
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-title">PDF template uses wrong color palette</div>
+      <div class="issue-desc">The printed PDF report uses teal (#0d9488) for its header border and organization name, while the rest of the app uses forest green (#1a3a31 / #2f6552). Should match the system palette for brand consistency in official printed documents.</div>
+      <div class="issue-files">
+        <span class="file-tag">seniors/pdf.blade.php:11</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Inactive notification bell is still keyboard-focusable</div>
+      <div class="issue-desc">The bell icon button has <code>disabled</code> and <code>cursor-not-allowed</code> but is still rendered in the DOM and in the tab order. Should add <code>tabindex="-1"</code> or <code>aria-disabled="true"</code> with a tooltip explaining it's coming soon.</div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Help page has a typo: "OSCA AgeS ense"</div>
+      <div class="issue-desc">Line 34 of help/index.blade.php reads "OSCA AgeS ense system" — a space was inserted in the brand name.</div>
+      <div class="issue-files">
+        <span class="file-tag">help/index.blade.php:34</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-title">Recommendation priority numbers ("P1", "P2") need a legend</div>
+      <div class="issue-desc">Priority numbers appear in orange/blue/gray squares but there's no legend explaining what P1–P5 means. First-time OSCA staff won't know if P1 is highest or lowest priority without context.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="note">
+  <strong>Next step:</strong> Based on these findings, I'll propose 2–3 implementation approaches with different scope/effort trade-offs. The goal is to agree on an approach before writing any code. Let me know if any of these findings look different from your perspective, or if I missed anything.
+</div>
+
+</body>
+</html>
