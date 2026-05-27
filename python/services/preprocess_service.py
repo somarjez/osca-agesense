@@ -893,21 +893,22 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             "psych_happiness", "psych_peace", "psych_lonely_r", "psych_confidence",
             "func_independence", "func_autonomy", "func_control",
         ]),
-        # env_score and func_score mirror osca5.ipynb ENVIRONMENT_RAW / FUNCTIONAL_RAW
-        # exactly (including non-Likert weighted scores) so that the rule-based fallback
-        # component (45% of composite) uses the same domain averages as the notebook baseline.
-        # The scale mixing is intentional — it matches the notebook training pipeline.
         "env_score": _domain_avg(enc, [
+            # Mirrors notebook ENVIRONMENT_RAW exactly (cell 16).
+            # Includes non-Likert features so the rule-based fallback
+            # (45% of domain risk blend) matches the notebook baseline.
             "env_income_limit_r", "env_fin_household", "env_fin_medical", "env_fin_personal",
             "env_safe_home", "env_safe_neighborhood", "env_home_comfort", "env_service_access",
             "income_enc",
-            "soc_social_support", "soc_close_friend", "soc_participation", "soc_opportunity", "soc_respect",
+            "soc_social_support", "soc_close_friend", "soc_participation",
+            "soc_opportunity", "soc_respect",
             "living_with_count", "community_service_count",
             "sec5_real_asset_score", "sec5_movable_asset_score", "sec5_income_source_score",
             "sec5_eco_stability", "sec4_household_risk",
             "sec3_community_score",
         ]),
         "func_score": _domain_avg(enc, [
+            # Mirrors notebook FUNCTIONAL_RAW exactly (cell 16).
             "func_independence", "func_autonomy", "func_control",
             "phy_mobility_outside", "phy_mobility_indoor",
             "soc_participation", "soc_opportunity",
