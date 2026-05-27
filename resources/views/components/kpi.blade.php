@@ -14,8 +14,9 @@ $ruleClass = match($accent) {
     'info'     => 'bg-info-500',
     default    => 'bg-forest-600',
 };
+$accentClass = 'kpi--' . $accent;
 @endphp
-<div class="kpi">
+<div class="kpi {{ $accentClass }}">
     <div class="kpi-rule {{ $ruleClass }}"></div>
     <div class="kpi-label">{{ $label }}</div>
     <div class="kpi-value {{ $valueColor }}">{{ $value }}</div>

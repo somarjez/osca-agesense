@@ -10,7 +10,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans:    ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'],
+        sans:    ['"Plus Jakarta Sans"', '"Inter Tight"', 'system-ui', 'sans-serif'],
         serif:   ['"Source Serif 4"', '"Source Serif Pro"', 'Georgia', 'serif'],
         display: ['"Source Serif 4"', 'Georgia', 'serif'],
         mono:    ['"JetBrains Mono"', '"IBM Plex Mono"', 'ui-monospace', 'monospace'],

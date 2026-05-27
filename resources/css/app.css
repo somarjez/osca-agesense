@@ -5,7 +5,7 @@
 /* ── Base ─────────────────────────────────────────────────────────────── */
 @layer base {
   html {
-    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter Tight', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'ss01', 'cv11';
@@ -198,6 +198,24 @@
     justify-content: center;
   }
 
+  /* Sidebar icon button — compact icon-only action (collapse, theme toggle, logout) */
+  .sidebar-icon-btn {
+    @apply w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-150 focus:outline-none;
+    color: #4a7060;
+  }
+  .sidebar-icon-btn:hover {
+    color: #d4ede4;
+    background-color: rgba(63, 128, 104, 0.25);
+  }
+
+  /* KPI gradient accent modifiers — subtle top-left wash of accent colour */
+  .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.07) 0%, #ffffff 55%); }
+  .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.08) 0%, #ffffff 55%); }
+  .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.08) 0%, #ffffff 55%); }
+  .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.08) 0%, #ffffff 55%); }
+  .kpi--low      { background: linear-gradient(155deg, rgba(74,138,104,0.07) 0%, #ffffff 55%); }
+  .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.08) 0%, #ffffff 55%); }
+
   /* Search input in topbar */
   .topbar-search {
     @apply flex items-center gap-2.5 bg-paper-2 dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530]
@@ -313,6 +331,32 @@
   color: #7fbfa5;
 }
 .dark .framework-tag::before { background-color: #5fa088; }
+
+/* ── Always-dark sidebar overrides ───────────────────────────────────── */
+/* Sidebar background is always dark regardless of light/dark mode toggle. */
+/* aside .nav-link (specificity 0,1,1) beats .nav-link (0,1,0) in light mode. */
+/* .dark aside .nav-link (specificity 0,2,1) beats .dark .nav-link (0,2,0) in dark mode. */
+aside .eyebrow { color: #4a7060; }
+
+aside .nav-link          { color: #87b09a; }
+aside .nav-link:hover    { background-color: rgba(63, 128, 104, 0.2); color: #d4ede4; }
+aside .nav-link-active   { background-color: rgba(47, 101, 82, 0.45); color: #e8f3ef; }
+aside .nav-link-active:hover { background-color: rgba(47, 101, 82, 0.6); }
+
+/* Mirror for dark mode so .dark .nav-link doesn't win */
+.dark aside .eyebrow     { color: #4a7060; }
+.dark aside .nav-link          { color: #87b09a; }
+.dark aside .nav-link:hover    { background-color: rgba(63, 128, 104, 0.2); color: #d4ede4; }
+.dark aside .nav-link-active   { background-color: rgba(47, 101, 82, 0.45); color: #e8f3ef; }
+.dark aside .nav-link-active:hover { background-color: rgba(47, 101, 82, 0.6); }
+
+/* Dark mode KPI accent gradients */
+.dark .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.18) 0%, #1a201d 55%); }
+.dark .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.18) 0%, #1a201d 55%); }
+.dark .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.18) 0%, #1a201d 55%); }
+.dark .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.18) 0%, #1a201d 55%); }
+.dark .kpi--low      { background: linear-gradient(155deg, rgba(74,138,104,0.16) 0%, #1a201d 55%); }
+.dark .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.17) 0%, #1a201d 55%); }
 
 .dark .nav-link          { color: #8a9087; }
 .dark .nav-link:hover    { background-color: rgba(47,101,82,0.18); color: #e4e1d8; }
