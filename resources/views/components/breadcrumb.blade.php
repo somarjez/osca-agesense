@@ -5,7 +5,7 @@
         @foreach ($links as $i => $link)
             @if ($i < count($links) - 1)
                 <li>
-                    <a href="{{ $link['href'] }}"
+                    <a href="{{ $link['href'] ?? '#' }}"
                        class="text-ink-400 hover:text-ink-700 dark:text-ink-500 dark:hover:text-ink-300 transition-colors">
                         {{ $link['label'] }}
                     </a>
