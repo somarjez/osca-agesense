@@ -412,7 +412,7 @@ def _db_cache_lookup(senior_id: int) -> Optional[Dict[str, Any]]:
                        ic_score, env_score, func_score, qol_score,
                        prediction_source, model_version
                 FROM ml_results
-                WHERE senior_citizen_id = %s
+                WHERE senior_citizen_id = %s AND is_stale = 0
                 ORDER BY id DESC
                 LIMIT 1
                 """,
