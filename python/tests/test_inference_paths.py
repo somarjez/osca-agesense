@@ -99,21 +99,20 @@ check("ml_risk_features.json is list", isinstance(ml_features, list), True)
 
 print()
 
-print("=== Wellbeing propagation in _db_cache_lookup ===")
+print("=== Python DB cache removed ===")
 import inspect
 import inference_service as _inf_svc   # module ref (already in sys.modules)
-src = inspect.getsource(_inf_svc._db_cache_lookup)
-check("wellbeing_score in _db_cache_lookup return dict",
-      "wellbeing_score" in src, True)
 
-# Confirm Edit B: notebook-cache early-return uses _db_cached.get("wellbeing_score")
+# Confirm that _db_cache_lookup, _db_cache_write, _db_connect are gone
+check("_db_cache_lookup removed", hasattr(_inf_svc, "_db_cache_lookup"), False)
+check("_db_cache_write removed",  hasattr(_inf_svc, "_db_cache_write"),  False)
+check("_db_connect removed",      hasattr(_inf_svc, "_db_connect"),      False)
+
+# Confirm no _db_cached references remain in infer()
 infer_src = inspect.getsource(_inf_svc.infer)
-check("notebook-cache path uses _db_cached wellbeing",
-      '_db_cached.get("wellbeing_score") is not None' in infer_src, True)
-
-# Confirm Edit C: normal path overrides from DB cache
-check("normal path overrides wellbeing from DB cache",
-      'if _db_cached and _db_cached.get("wellbeing_score") is not None' in infer_src, True)
+check("_db_cached absent from infer()", "_db_cached" in infer_src, False)
+check("prediction_source is live_model or notebook_cache only",
+      "db_cache_hit" not in infer_src, True)
 print()
 
 print("=== ENABLE_DETERMINISTIC_CLUSTER flag ===")
