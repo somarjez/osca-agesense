@@ -241,13 +241,26 @@ def build_reference_row(row: Dict[str, Any]) -> Dict[str, float]:
 # ── Live pipeline ──────────────────────────────────────────────────────────────
 
 def build_live_row(csv_row: Dict[str, Any]) -> Dict[str, float]:
-    """Call preprocess_service.preprocess() on one CSV row, return feature dict."""
-    # Pass CSV row directly — _as_list() in preprocess_service handles
-    # comma strings and Python lists identically.
+    """Call preprocess_service.preprocess() on one CSV row, return feature dict.
+
+    Converts the flat CSV row to the nested format Laravel sends:
+    QoL survey columns are wrapped under a 'qol_responses' key, matching
+    the format preprocess_service.preprocess() expects.
+    """
     payload = dict(csv_row)
     # Rename fields the service expects under different keys
     if "education" in payload and "educational_attainment" not in payload:
         payload["educational_attainment"] = payload["education"]
+
+    # Build qol_responses nested dict — Laravel sends QoL fields here.
+    # Without this, preprocess_service defaults all 30 QoL features to 3.
+    qol_responses = {}
+    for col in _ps.QOL_FEATURE_COLS:
+        if col in payload:
+            val = payload[col]
+            if val is not None and str(val).strip() not in ("", "nan"):
+                qol_responses[col] = val
+    payload["qol_responses"] = qol_responses
 
     result = _ps.preprocess(payload)
     if result.get("status") != "success":
