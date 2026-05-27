@@ -10,11 +10,11 @@
 
     <div class="card">
         <div class="card-body flex items-center gap-4">
-            <div class="w-3 h-3 rounded-full flex-shrink-0
-                @if ($mode === 'http') bg-low-500
-                @elseif ($mode === 'local_python') bg-high-500
-                @else bg-critical-500
-                @endif"></div>
+            <span class="flex-shrink-0 status-dot
+                @if ($mode === 'http') status-dot-ok
+                @elseif ($mode === 'local_python') status-dot-warn
+                @else status-dot-err
+                @endif"></span>
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
                     <p class="font-semibold text-ink-900">
@@ -67,8 +67,8 @@
         <div class="card">
             <div class="card-body flex items-center gap-4">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
-                    {{ $ok ? 'bg-low-50' : 'bg-critical-50' }}">
-                    <div class="w-2.5 h-2.5 rounded-full {{ $ok ? 'bg-low-500' : 'bg-critical-500' }}"></div>
+                    {{ $ok ? 'bg-low-50' : 'bg-high-50' }}">
+                    <span class="status-dot {{ $ok ? 'status-dot-ok' : 'status-dot-err' }}"></span>
                 </div>
                 <div class="min-w-0">
                     <p class="font-semibold text-sm text-ink-800">{{ $meta['label'] }}</p>

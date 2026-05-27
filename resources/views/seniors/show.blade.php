@@ -6,6 +6,17 @@
 @php $ml = $senior->latestMlResult; @endphp
 <div class="space-y-6">
 
+    <x-breadcrumb :links="[
+        ['label' => 'Dashboard', 'href' => route('dashboard')],
+        ['label' => 'Senior Records', 'href' => route('seniors.index')],
+        ['label' => $senior->full_name],
+    ]" />
+    <x-page-header
+        eyebrow="Senior Profile"
+        :title="$senior->full_name"
+        :subtitle="'OSCA ID: ' . $senior->osca_id . ' · ' . $senior->barangay"
+    />
+
     {{-- Top action bar --}}
     <div class="flex items-center gap-3 flex-wrap">
         <a href="{{ route('seniors.index') }}" class="btn btn-ghost gap-1.5 pl-1.5">
@@ -153,6 +164,12 @@
     </div>
     @endif
 
+    @if ($ml && $ml->is_stale && !$pendingAnalysis)
+    <x-alert type="warning" title="Results may be outdated">
+        This senior's profile or survey data was changed after the last analysis. Re-run the assessment to get accurate scores.
+    </x-alert>
+    @endif
+
     @if ($ml && !$pendingAnalysis)
     <div class="card">
         <div class="card-body">
@@ -201,9 +218,6 @@
                             {{ $ml->prediction_source_label }}
                         </span>
                         <span class="text-[10px] text-ink-400 font-mono">{{ $ml->model_version }}</span>
-                        @if ($ml->critical_flag)
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded text-high-700 bg-high-50 border border-high-200">⚠ Critical</span>
-                        @endif
                     </div>
                 </div>
 
@@ -443,36 +457,38 @@
                                             @csrf @method('DELETE')
                                         </form>
                                         <div x-show="open" x-cloak
+                                             role="dialog"
+                                             aria-modal="true"
+                                             aria-labelledby="delete-survey-title"
                                              class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
                                              @keydown.escape.window="open = false">
-                                            <div class="!bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
-                                                 style="background:#ffffff !important; color:#1e293b;"
+                                            <div class="bg-white dark:bg-ink-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-paper-rule dark:border-ink-700"
                                                  @click.outside="open = false">
                                                 <div class="flex items-start gap-3 mb-4">
-                                                    <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fee2e2;">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-high-100 dark:bg-high-700/20">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-high-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
                                                     </div>
                                                     <div>
-                                                        <h3 class="font-semibold" style="color:#1e293b;">Delete QoL Survey?</h3>
-                                                        <p class="text-sm mt-1" style="color:#64748b;">
-                                                            The survey from <strong style="color:#334155;">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
+                                                        <h3 id="delete-survey-title" class="font-semibold text-ink-900 dark:text-ink-100">
+                                                            Delete QoL Survey?
+                                                        </h3>
+                                                        <p class="text-sm mt-1 text-ink-600 dark:text-ink-400">
+                                                            The survey from <strong class="text-ink-800 dark:text-ink-200">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
                                                         </p>
-                                                        <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg" style="color:#dc2626; background:#fef2f2;">
+                                                        <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg text-high-700 bg-high-50 dark:bg-high-700/20 dark:text-high-100">
                                                             This cannot be undone.
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div class="flex gap-3 justify-end pt-3 mt-1" style="border-top:1px solid #e2e8f0;">
+                                                <div class="flex gap-3 justify-end pt-3 mt-1 border-t border-paper-rule dark:border-ink-700">
                                                     <button @click="open = false"
-                                                            class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-                                                            style="color:#475569; background:#f1f5f9; border:1px solid #cbd5e1;"
-                                                            onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                                            class="btn btn-ghost">
                                                         Cancel
                                                     </button>
                                                     <button @click="$refs.deleteForm.submit()"
-                                                            class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                                                            style="background:#dc2626; color:#ffffff; border:1px solid #dc2626;"
-                                                            onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                                            class="btn bg-high-500 hover:bg-high-700 text-white border-transparent">
                                                         Delete Survey
                                                     </button>
                                                 </div>

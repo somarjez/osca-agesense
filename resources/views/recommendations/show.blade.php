@@ -4,6 +4,17 @@
 
 @section('content')
 <div class="space-y-5">
+    <x-breadcrumb :links="[
+        ['label' => 'Dashboard', 'href' => route('dashboard')],
+        ['label' => 'Senior Records', 'href' => route('seniors.index')],
+        ['label' => $senior->full_name, 'href' => route('seniors.show', $senior)],
+        ['label' => 'Recommendations'],
+    ]" />
+    <x-page-header
+        eyebrow="Recommendations"
+        :title="$senior->full_name"
+        :subtitle="$senior->barangay . ' · ' . $recommendations->count() . ' recommendation' . ($recommendations->count() !== 1 ? 's' : '')"
+    />
     <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
         <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to profile
     </a>
@@ -104,14 +115,18 @@
         </div>
     </div>
     @empty
-    <div class="card p-12 text-center">
-        <x-heroicon-o-light-bulb class="w-10 h-10 text-ink-300 mx-auto mb-3" />
-        <p class="font-serif text-base text-ink-500 font-medium">No recommendations yet.</p>
-        <p class="text-[12.5px] text-ink-400 mt-1">Complete a QoL survey to generate tailored recommendations.</p>
-        <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary mt-4 inline-flex">
-            <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Take QoL Survey
-        </a>
-    </div>
+    <x-card>
+        <x-empty-state
+            icon="document"
+            title="No recommendations yet"
+            description="Complete a QoL survey and run the ML assessment to generate tailored recommendations.">
+            <x-slot name="action">
+                <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary inline-flex gap-1.5">
+                    <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Take QoL Survey
+                </a>
+            </x-slot>
+        </x-empty-state>
+    </x-card>
     @endforelse
 </div>
 @endsection

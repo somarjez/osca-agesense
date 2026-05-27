@@ -5,6 +5,15 @@
 @section('content')
 <div class="space-y-6" x-data="seniorIndex()">
 
+    <x-breadcrumb :links="[
+        ['label' => 'Dashboard', 'href' => route('dashboard')],
+        ['label' => 'Senior Records'],
+    ]" />
+    <x-page-header
+        title="Senior Citizen Records"
+        :subtitle="number_format($stats['total']) . ' active seniors · Pagsanjan, Laguna'"
+    />
+
     {{-- Stats strip --}}
     <div class="grid grid-cols-2 gap-4">
         {{-- Total Active KPI --}}
@@ -226,7 +235,7 @@
                         @endif
                     </td>
                     <td class="td">
-                        <div class="flex items-center justify-end gap-1" x-data="{ archiveOpen: false }">
+                        <div class="flex items-center justify-end gap-1">
                             <a href="{{ route('seniors.show', $senior) }}"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="View profile">
@@ -242,44 +251,10 @@
                                title="New QoL survey">
                                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> QoL
                             </a>
-                            <button @click="archiveOpen = true"
-                                    class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
+                            <button class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
                                     title="Archive record">
                                 <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
                             </button>
-                            <form x-ref="archiveForm" method="POST" action="{{ route('seniors.destroy', $senior) }}" class="hidden">
-                                @csrf @method('DELETE')
-                            </form>
-                            <div x-show="archiveOpen" x-cloak
-                                 class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                                 @keydown.escape.window="archiveOpen = false"
-                                 @keydown.enter.window="if(archiveOpen) $refs.archiveForm.submit()">
-                                <div class="card max-w-sm w-full shadow-2xl"
-                                     @click.outside="archiveOpen = false">
-                                    <div class="card-head">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-8 h-8 rounded-lg bg-high-50 grid place-items-center flex-shrink-0">
-                                                <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
-                                            </div>
-                                            <div class="card-title">Archive record?</div>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <p class="text-[13px] text-ink-700">
-                                            <span class="font-semibold text-ink-900">{{ $senior->full_name }}</span>
-                                            will be moved to Archives. Their data is preserved and can be restored at any time.
-                                        </p>
-                                        <div class="flex gap-2 justify-end mt-5">
-                                            <button @click="archiveOpen = false" class="btn">Cancel</button>
-                                            <button @click="$refs.archiveForm.submit()"
-                                                    class="btn btn-danger">
-                                                <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
-                                                Archive
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </td>
                 </tr>
@@ -331,6 +306,9 @@
 
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
     <div x-show="bulkArchiveOpen" x-cloak
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="bulk-archive-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @keydown.escape.window="bulkArchiveOpen = false">
         <div class="card max-w-sm w-full shadow-2xl" @click.outside="bulkArchiveOpen = false">
@@ -339,7 +317,7 @@
                     <div class="w-8 h-8 rounded-lg bg-high-50 grid place-items-center flex-shrink-0">
                         <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
                     </div>
-                    <div class="card-title">Archive selected records?</div>
+                    <div class="card-title" id="bulk-archive-title">Archive selected records?</div>
                 </div>
             </div>
             <div class="card-body">
@@ -366,6 +344,9 @@
 
     {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
     <div x-show="uploadOpen" x-cloak
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="bulk-upload-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @click.self="closeUpload()"
          @keydown.escape.window="if(uploadOpen) closeUpload()">
@@ -378,7 +359,7 @@
                         <x-heroicon-o-arrow-up-tray class="w-4 h-4 text-forest-700" />
                     </div>
                     <div>
-                        <div class="card-title">Bulk Upload Seniors</div>
+                        <div class="card-title" id="bulk-upload-title">Bulk Upload Seniors</div>
                         <div class="card-sub">Import multiple senior citizen records from a CSV or Excel file.</div>
                     </div>
                 </div>

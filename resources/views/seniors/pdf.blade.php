@@ -8,8 +8,8 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .page { padding: 32px 36px; }
 
 /* Header */
-.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 18px; }
-.org-name { font-size: 13px; font-weight: bold; color: #0d9488; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2d6a4f; padding-bottom: 12px; margin-bottom: 18px; }
+.org-name { font-size: 13px; font-weight: bold; color: #2d6a4f; }
 .org-sub  { font-size: 10px; color: #64748b; margin-top: 2px; }
 .report-label { text-align: right; }
 .report-label .title { font-size: 15px; font-weight: bold; color: #1e293b; }

@@ -17,9 +17,14 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     @livewireStyles
+    @stack('styles')
     <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="h-full overflow-hidden bg-paper dark:bg-[#131917]">
+<a href="#main-content"
+   class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-forest-700 focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg">
+    Skip to content
+</a>
 <div class="flex h-screen overflow-hidden">
 
     {{-- ── Sidebar ── --}}
@@ -282,13 +287,6 @@
 
             {{-- Right: utilities --}}
             <div class="flex items-center gap-1.5 flex-shrink-0 ml-auto">
-                {{-- Flash messages --}}
-                @foreach (['success'=>'low','warning'=>'moderate','info'=>'info','error'=>'critical'] as $type => $variant)
-                    @if (session($type))
-                    <div class="badge badge-{{ $variant }} mr-1">{{ session($type) }}</div>
-                    @endif
-                @endforeach
-
                 {{-- Date --}}
                 <span class="text-[11px] text-ink-400 dark:text-[#4a5550] tnum whitespace-nowrap hidden lg:block px-1">{{ now()->format('D, M j') }}</span>
 
@@ -340,7 +338,7 @@
         </header>
 
         {{-- Page content --}}
-        <main class="flex-1 overflow-y-auto min-h-0 px-7 py-7 pb-10 bg-paper dark:bg-[#131917]">
+        <main id="main-content" class="flex-1 overflow-y-auto min-h-0 px-7 py-7 pb-10 bg-paper dark:bg-[#131917]">
             @yield('content')
         </main>
     </div>
@@ -348,5 +346,6 @@
 
 @livewireScripts
 @stack('scripts')
+<x-toast />
 </body>
 </html>

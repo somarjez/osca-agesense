@@ -1,28 +1,28 @@
 """
 generate_cluster_centroids.py
 ==============================
-Computes cluster centroids in the N-dimensional scaled feature space
-(N = len(feature_list.json)) from the 283 seeded seniors stored in the DB.
-Run once after initial setup or after any model retrain.
+Computes cluster centroids in the 31-dimensional scaled feature space
+(N = len(feature_list.json)) using the notebook's ORIGINAL cluster
+assignments stored in ml_results.cluster_named_id as ground truth.
 
-Usage (from project root):
+WHY NOT RE-RUN UMAP:
+  Single-point UMAP transform() is non-deterministic across devices and
+  library versions. Re-deriving cluster assignments via UMAP introduces
+  drift from what the notebook computed during training fit. Using the DB
+  ground truth keeps centroids stable and reproducible.
+
+Run once after initial setup or after any model retrain:
     python/venv/Scripts/python.exe python/scripts/generate_cluster_centroids.py
 
 Requirements:
   - DB running with seeded seniors (prediction_source = 'notebook_cache' in ml_results)
-  - python/models/ directory with scaler.pkl, umap_nd.pkl, kmeans.pkl,
-    feature_list.json, cluster_mapping.json
+  - python/models/: scaler.pkl, feature_list.json, cluster_mapping.json
 
 Output: python/models/cluster_centroids_scaled.json
 """
 
 import os
 import sys
-
-# Must be set before numba / umap are imported
-os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
-os.environ.setdefault("NUMBA_NUM_THREADS", "1")
-
 import json
 import pickle
 import warnings
@@ -42,7 +42,7 @@ import pandas as pd
 import pymysql
 import pymysql.cursors
 
-# ── Resolve MODEL_DIR (same logic as inference_service) ───────────────────────
+# ── Resolve MODEL_DIR ─────────────────────────────────────────────────────────
 def _read_dotenv(name: str):
     for candidate in [os.path.join(BASE_DIR, ".env"),
                       os.path.join(BASE_DIR, "..", ".env")]:
@@ -67,7 +67,7 @@ else:
 
 print(f"MODEL_DIR: {MODEL_DIR}")
 
-# ── Load live models ───────────────────────────────────────────────────────────
+# ── Load scaler only (no UMAP needed) ─────────────────────────────────────────
 def _load_pkl(name: str):
     path = os.path.join(MODEL_DIR, name)
     if not os.path.exists(path):
@@ -75,24 +75,15 @@ def _load_pkl(name: str):
     with open(path, "rb") as f:
         return pickle.load(f)
 
-scaler    = _load_pkl("scaler.pkl")
-umap_model = _load_pkl("umap_nd.pkl") or _load_pkl("umap_reducer.pkl")
-kmeans    = _load_pkl("kmeans.pkl") or _load_pkl("kmeans_k3.pkl")
+scaler = _load_pkl("scaler.pkl")
+assert scaler is not None, "ERROR: scaler.pkl not found"
 
-fl_path   = os.path.join(MODEL_DIR, "feature_list.json")
-cm_path   = os.path.join(MODEL_DIR, "cluster_mapping.json")
-
+fl_path = os.path.join(MODEL_DIR, "feature_list.json")
 with open(fl_path, encoding="utf-8") as f:
     feature_names: list = json.load(f)      # 31 UMAP-input feature names
 
-with open(cm_path, encoding="utf-8") as f:
-    _cm_raw = json.load(f)
-cluster_map = {int(k): int(v) for k, v in _cm_raw.items()}
-
-assert scaler is not None,    "ERROR: scaler.pkl not found"
-assert umap_model is not None, "ERROR: umap_nd.pkl / umap_reducer.pkl not found"
-assert kmeans is not None,    "ERROR: kmeans.pkl not found"
-print(f"Models loaded. Feature list: {len(feature_names)} features.")
+print(f"Scaler loaded ({len(list(scaler.feature_names_in_))} features). "
+      f"Feature list: {len(feature_names)} features.")
 
 # ── DB connection ──────────────────────────────────────────────────────────────
 def _db_connect():
@@ -118,10 +109,9 @@ def _db_connect():
         cursorclass = pymysql.cursors.DictCursor,
     )
 
-# ── Import preprocess_service (direct function call, no HTTP) ─────────────────
 from preprocess_service import preprocess
 
-# ── Query seeded seniors from DB ───────────────────────────────────────────────
+# ── Query seeded seniors — use DB cluster_named_id as ground truth ─────────────
 QUERY = """
     SELECT
         sc.id, sc.first_name, sc.last_name, sc.barangay, sc.date_of_birth,
@@ -163,9 +153,9 @@ with conn.cursor() as cur:
     cur.execute(QUERY)
     rows = cur.fetchall()
 conn.close()
-print(f"Loaded {len(rows)} seeded seniors from DB (prediction_source = notebook_cache).")
+print(f"Loaded {len(rows)} seeded seniors (prediction_source = notebook_cache).")
 
-# ── Build raw payloads and run preprocess ──────────────────────────────────────
+# ── Build scaled feature vectors ───────────────────────────────────────────────
 def _parse_json_col(val):
     if val is None:
         return []
@@ -178,20 +168,23 @@ def _parse_json_col(val):
 
 def _compute_age(dob) -> int:
     if dob is None:
-        return 70  # fallback
+        return 70
     if isinstance(dob, str):
         dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-all_scaled: list = []       # will hold 31D vectors
-all_db_named: list = []     # ground-truth cluster_named_id from ml_results
-skipped = 0
-
 scaler_input_names = list(scaler.feature_names_in_)
 scaler_feat_idx    = {f: i for i, f in enumerate(scaler_input_names)}
 
+# cluster_vectors[named_id] = list of 31D scaled vectors
+# Uses DB cluster_named_id as ground truth — NOT re-derived from live UMAP
+cluster_vectors: dict = defaultdict(list)
+skipped = 0
+
 for row in rows:
+    db_named_id = int(row["cluster_named_id"] or 1)
+
     qol_responses = {
         "qol_enjoy_life":        row["a1_enjoy_life"],
         "qol_life_satisfaction": row["a2_life_satisfaction"],
@@ -262,8 +255,7 @@ for row in rows:
         result = preprocess(raw)
         feature_map = result.get("feature_map") or {}
 
-        # Build the 31D UMAP-input vector: scale the 39-feature scaler input
-        # then select the feature_list.json subset.
+        # Scale the 39-feature scaler input, then select 31-feature subset
         scaler_row  = [float(feature_map.get(f, 0.0)) for f in scaler_input_names]
         full_scaled = scaler.transform(
             pd.DataFrame([scaler_row], columns=scaler_input_names)
@@ -272,54 +264,70 @@ for row in rows:
             float(full_scaled[scaler_feat_idx[f]]) if f in scaler_feat_idx else 0.0
             for f in feature_names
         ]
-        all_scaled.append(scaled_31)
-        all_db_named.append(int(row["cluster_named_id"] or 1))
+
+        # Use DB cluster as ground truth — no UMAP involved
+        cluster_vectors[db_named_id].append(scaled_31)
+
     except Exception as exc:
-        print(f"  WARN: skipped senior id={row['id']} ({row['first_name']} {row['last_name']}): {exc}")
+        print(f"  WARN: skipped id={row['id']} ({row['first_name']} {row['last_name']}): {exc}")
         skipped += 1
 
-print(f"Preprocessed {len(all_scaled)} seniors ({skipped} skipped).")
+total_processed = sum(len(v) for v in cluster_vectors.values())
+print(f"Preprocessed {total_processed} seniors ({skipped} skipped).")
 
-# ── Run live UMAP + KMeans on the full batch ──────────────────────────────────
-print("Running live UMAP transform on full batch...")
-batch_np = np.array(all_scaled, dtype=np.float64)   # shape (N, 31)
-umap_model.transform_seed = 42
-if not getattr(umap_model, "_rp_forest", None):
-    umap_model.transform_queue_size = 0.0
-reduced = umap_model.transform(batch_np)             # shape (N, 10)
-raw_ids = kmeans.predict(reduced)                    # shape (N,)
-live_named = [cluster_map.get(int(r), int(r) + 1) for r in raw_ids]
-
-# Print agreement between live pipeline and DB ground truth
-matches = sum(l == d for l, d in zip(live_named, all_db_named))
-print(f"Live pipeline vs DB cluster agreement: {matches}/{len(live_named)}")
-
-# ── Compute centroids (mean of 31D scaled vectors, grouped by live cluster) ──
-cluster_vectors = defaultdict(list)
-for vec, named_id in zip(all_scaled, live_named):
-    cluster_vectors[named_id].append(vec)
-
+# ── Compute centroids (mean per cluster) ──────────────────────────────────────
 centroids = {}
-for named_id in sorted(cluster_vectors):
-    arr     = np.array(cluster_vectors[named_id], dtype=np.float64)
+for named_id in sorted(cluster_vectors.keys()):
+    arr      = np.array(cluster_vectors[named_id], dtype=np.float64)
     centroid = arr.mean(axis=0).tolist()
     centroids[str(named_id)] = centroid
     print(f"Cluster {named_id}: {len(cluster_vectors[named_id])} seniors, "
-          f"centroid shape ({len(centroid)},)")
+          f"centroid dims={len(centroid)}")
 
-# ── Write JSON ─────────────────────────────────────────────────────────────────
-from datetime import datetime as _dt
+# ── Also compute and print model artifact hashes for the manifest ─────────────
+import hashlib
+
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+artifact_hashes = {}
+for fname in ["scaler.pkl", "gbr_model.pkl", "rfr_model.pkl", "kmeans.pkl",
+              "umap_nd.pkl", "feature_list.json", "cluster_mapping.json"]:
+    fpath = os.path.join(MODEL_DIR, fname)
+    if os.path.exists(fpath):
+        artifact_hashes[fname] = _sha256(fpath)
+
+# ── Write cluster_centroids_scaled.json ───────────────────────────────────────
 output = {
-    "generated_at":  _dt.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
-    "model_dir":     MODEL_DIR,
-    "feature_names": feature_names,
-    "n_features":    len(feature_names),
-    "n_clusters":    len(centroids),
-    "centroids":     centroids,
+    "generated_at":       datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    "method":             "db_ground_truth",   # NOT live UMAP — uses notebook cluster IDs
+    "model_dir":          MODEL_DIR,
+    "feature_names":      feature_names,
+    "n_features":         len(feature_names),
+    "n_clusters":         len(centroids),
+    "n_seniors_used":     total_processed,
+    "centroids":          centroids,
 }
-
 out_path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
 with open(out_path, "w", encoding="utf-8") as f:
     json.dump(output, f, indent=2)
+print(f"\nWritten: {out_path}")
 
-print(f"Written: {out_path}")
+# ── Write model_manifest.json ──────────────────────────────────────────────────
+manifest = {
+    "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    "model_dir":    MODEL_DIR,
+    "sha256":       artifact_hashes,
+}
+manifest_path = os.path.join(MODEL_DIR, "model_manifest.json")
+with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(manifest, f, indent=2)
+print(f"Written: {manifest_path}")
+print("\nModel artifact SHA-256 hashes:")
+for fname, h in artifact_hashes.items():
+    print(f"  {fname}: {h[:16]}...")
+print("\nDone. Copy python/models/ to any other device to get identical results.")
