@@ -29,17 +29,16 @@
 
     {{-- ── Sidebar ── --}}
     <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
-           class="flex-shrink-0 flex flex-col bg-[#0c1610] border-r border-[#1c2e22] transition-[width] duration-200 overflow-hidden shadow-[1px_0_0_rgba(0,0,0,0.25)]"
-           style="background: linear-gradient(180deg, #0e1a13 0%, #0b1410 100%)">
+           class="flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
 
         {{-- Brand block --}}
-        <div class="flex-shrink-0 border-b border-[#1c2e22] px-3 py-3.5">
+        <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
             {{-- Expanded --}}
             <div x-show="sidebarOpen" x-cloak class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-xl bg-forest-600/80 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 ring-1 ring-white/10 shadow-md">A</div>
+                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
                 <div class="min-w-0 flex-1">
-                    <div class="font-serif text-[15.5px] font-semibold tracking-tightish leading-none text-forest-50 whitespace-nowrap">AgeSense</div>
-                    <div class="text-[10px] tracking-[0.1em] text-forest-600 font-medium whitespace-nowrap mt-0.5 uppercase">OSCA · Pagsanjan</div>
+                    <div class="font-serif text-[15.5px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
+                    <div class="text-[10px] tracking-[0.1em] text-ink-400 dark:text-[#4a5550] font-medium whitespace-nowrap mt-0.5 uppercase">OSCA · Pagsanjan</div>
                 </div>
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn flex-shrink-0"
@@ -49,7 +48,7 @@
             </div>
             {{-- Collapsed --}}
             <div x-show="!sidebarOpen" class="flex flex-col items-center gap-2">
-                <div class="w-8 h-8 rounded-xl bg-forest-600/80 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 ring-1 ring-white/10 shadow-md">A</div>
+                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn"
                         title="Expand sidebar">
@@ -101,7 +100,7 @@
             {{-- ── Analytics ── --}}
             <div x-show="sidebarOpen" x-cloak
                  class="eyebrow px-3 pt-5 pb-2">Analytics</div>
-            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-[#1c2e22] mx-1"></div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.cluster') }}"
                class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
@@ -143,7 +142,7 @@
             @hasanyrole('admin|encoder')
             <div x-show="sidebarOpen" x-cloak
                  class="eyebrow px-3 pt-5 pb-2">Assessment</div>
-            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-[#1c2e22] mx-1"></div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
                class="nav-link {{ request()->routeIs('ml.status') ? 'nav-link-active' : '' }}"
@@ -165,7 +164,7 @@
             @role('admin')
             <div x-show="sidebarOpen" x-cloak
                  class="eyebrow px-3 pt-5 pb-2">Administration</div>
-            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-[#1c2e22] mx-1"></div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('activity-log.index') }}"
                class="nav-link {{ request()->routeIs('activity-log*') ? 'nav-link-active' : '' }}"
@@ -192,7 +191,7 @@
             {{-- Archives ── --}}
             <div x-show="sidebarOpen" x-cloak
                  class="eyebrow px-3 pt-5 pb-2">Archives</div>
-            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-[#1c2e22] mx-1"></div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('seniors.archives') }}"
                class="nav-link {{ request()->routeIs('seniors.archives*') ? 'nav-link-active' : '' }}"
@@ -206,7 +205,7 @@
             {{-- Help --}}
             <div x-show="sidebarOpen" x-cloak
                  class="eyebrow px-3 pt-5 pb-2">Help</div>
-            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-[#1c2e22] mx-1"></div>
+            <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('help') }}"
                class="nav-link {{ request()->routeIs('help') ? 'nav-link-active' : '' }}"
@@ -218,18 +217,18 @@
         </nav>
 
         {{-- Sidebar Footer — user profile --}}
-        <div class="border-t border-[#1c2e22] flex-shrink-0 px-3 py-3">
+        <div class="border-t border-paper-rule dark:border-[#2b3530] flex-shrink-0 px-3 py-3">
             <div class="flex items-center gap-2.5" :class="sidebarOpen ? '' : 'flex-col gap-1.5 items-center'">
 
                 {{-- Avatar --}}
-                <div class="w-8 h-8 rounded-xl bg-forest-700/70 text-forest-100 grid place-items-center font-semibold text-[12px] flex-shrink-0 ring-1 ring-white/10">
+                <div class="w-8 h-8 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[12px] flex-shrink-0">
                     {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
                 </div>
 
                 {{-- Name/role (expanded only) --}}
                 <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
-                    <div class="text-[12.5px] font-semibold text-forest-50 truncate leading-tight">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
-                    <div class="text-[10.5px] text-forest-600 leading-tight">
+                    <div class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate leading-tight">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                    <div class="text-[10.5px] text-ink-500 dark:text-[#6b7570] leading-tight">
                         @php
                             $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
                             $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
