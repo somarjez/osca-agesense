@@ -909,6 +909,8 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
         ]),
         "func_score": _domain_avg(enc, [
             # Mirrors notebook FUNCTIONAL_RAW exactly (cell 16).
+            # Includes non-Likert section scores so the rule-based fallback matches
+            # the notebook baseline (same rationale as env_score above).
             "func_independence", "func_autonomy", "func_control",
             "phy_mobility_outside", "phy_mobility_indoor",
             "soc_participation", "soc_opportunity",
