@@ -13,10 +13,23 @@ call to look up the senior in a static CSV cache. This approach:
   lookup) and batch analysis (CSV cache hit)
 - Is not a real ML deployment — it bypasses the trained models entirely
 
+**Confirmed symptoms (live model with `ENABLE_NOTEBOOK_OVERRIDES=false`):**
+- Risk scores drift — 42 seniors incorrectly classified LOW instead of MODERATE/HIGH
+- Cluster assignments drift — seniors assigned to wrong WHO Healthy Ageing profiles
+- Recommendation content and counts change — domain risk scores drive different rules,
+  wrong urgency levels are set, and the total recommendation count diverges from the
+  validated 4,666
+
+All three symptoms share the same root cause: multiselect fields arrive as Python
+lists but the preprocessing pipeline treats them as comma strings, causing every
+asset/income/community score to silently evaluate to `0.0`. This corrupts the 51-feature
+vector fed to GBR/RFR models *and* the scaled feature vector fed to UMAP/KMeans
+clustering, producing cascading drift across risk, cluster, and recommendations.
+
 **Goal:** Make the live preprocessing pipeline reproduce the notebook's feature
 values exactly, so the GBR/RFR models produce scores consistent with the notebook
 baseline for any senior — existing or new — on any device. `ENABLE_NOTEBOOK_OVERRIDES`
-is permanently disabled.
+is permanently disabled and the system is deployment-ready.
 
 ---
 
@@ -144,8 +157,13 @@ for _f in [
     raw[_f] = _normalise_multiselect(raw.get(_f, ""))
 ```
 
-After this, all downstream code — `score_multiselect`, derived flags, count features
-— operates on plain strings exactly as in the notebook.
+After this, **all** downstream code operates on plain strings exactly as in the notebook:
+- `score_multiselect` → correct asset / income / community scores
+- Derived flags (`has_pension`, `is_association_member`, `lives_alone`) → correct
+- Count features (`living_with_count`, `community_service_count`) → correct
+- `raw_context` dict (built from `raw` after normalisation) → `disease_severity_score`
+  and `social_emotional_score` receive correct strings → correct domain risk scores →
+  correct recommendation rules → correct recommendation counts
 
 **Fix 2 — `who_domain_scores.env_score` and `func_score`**
 
@@ -235,6 +253,9 @@ To ensure consistent results across all devices:
 | Audit script: all 51 features | `max_delta < 0.001` |
 | Composite risk match (283 seniors) | ≥ 280 / 283 |
 | Risk level match (283 seniors) | ≥ 280 / 283 |
+| Cluster assignment match (283 seniors) | ≥ 280 / 283 |
 | Distribution after batch re-run | HIGH ≈ 54 ± 3, MOD ≈ 191 ± 3, LOW ≈ 38 ± 3 |
-| Recommendation count | Unchanged (4,666) |
+| Cluster distribution after batch re-run | High Functioning ≈ 75, Moderate/Mixed ≈ 132, Low Functioning ≈ 76 |
+| Recommendation count after batch re-run | 4,666 (exact) |
+| Individual re-run matches batch for same senior | Yes (no divergence) |
 | All PHP tests | 29 / 29 pass |
