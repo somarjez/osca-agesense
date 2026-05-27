@@ -164,6 +164,12 @@
     </div>
     @endif
 
+    @if ($ml && $ml->is_stale && !$pendingAnalysis)
+    <x-alert type="warning" title="Results may be outdated">
+        This senior's profile or survey data was changed after the last analysis. Re-run the assessment to get accurate scores.
+    </x-alert>
+    @endif
+
     @if ($ml && !$pendingAnalysis)
     <div class="card">
         <div class="card-body">

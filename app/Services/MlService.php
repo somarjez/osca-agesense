@@ -888,6 +888,7 @@ class MlService
             if ($existing
                 && $existing->prediction_source === 'notebook_cache'
                 && $existing->model_version     === self::MODEL_VERSION
+                && !$existing->is_stale
             ) {
                 return $existing->load('recommendations');
             }
