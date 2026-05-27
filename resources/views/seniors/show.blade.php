@@ -482,7 +482,7 @@
                                                         Cancel
                                                     </button>
                                                     <button @click="$refs.deleteForm.submit()"
-                                                            class="btn bg-high-600 hover:bg-high-700 text-white border-transparent">
+                                                            class="btn bg-high-500 hover:bg-high-700 text-white border-transparent">
                                                         Delete Survey
                                                     </button>
                                                 </div>
