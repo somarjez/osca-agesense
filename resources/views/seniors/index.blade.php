@@ -306,6 +306,9 @@
 
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
     <div x-show="bulkArchiveOpen" x-cloak
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="bulk-archive-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @keydown.escape.window="bulkArchiveOpen = false">
         <div class="card max-w-sm w-full shadow-2xl" @click.outside="bulkArchiveOpen = false">
@@ -314,7 +317,7 @@
                     <div class="w-8 h-8 rounded-lg bg-high-50 grid place-items-center flex-shrink-0">
                         <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
                     </div>
-                    <div class="card-title">Archive selected records?</div>
+                    <div class="card-title" id="bulk-archive-title">Archive selected records?</div>
                 </div>
             </div>
             <div class="card-body">
@@ -341,6 +344,9 @@
 
     {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
     <div x-show="uploadOpen" x-cloak
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="bulk-upload-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          @click.self="closeUpload()"
          @keydown.escape.window="if(uploadOpen) closeUpload()">
@@ -353,7 +359,7 @@
                         <x-heroicon-o-arrow-up-tray class="w-4 h-4 text-forest-700" />
                     </div>
                     <div>
-                        <div class="card-title">Bulk Upload Seniors</div>
+                        <div class="card-title" id="bulk-upload-title">Bulk Upload Seniors</div>
                         <div class="card-sub">Import multiple senior citizen records from a CSV or Excel file.</div>
                     </div>
                 </div>
