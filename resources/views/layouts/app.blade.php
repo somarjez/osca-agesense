@@ -13,7 +13,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     @livewireStyles
@@ -29,30 +29,30 @@
 
     {{-- ── Sidebar ── --}}
     <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
-           class="flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden shadow-sm">
+           class="flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
 
         {{-- Brand block --}}
         <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
             {{-- Expanded --}}
             <div x-show="sidebarOpen" x-cloak class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
                 <div class="min-w-0 flex-1">
                     <div class="font-serif text-[15.5px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
-                    <div class="text-[10px] tracking-[0.09em] text-ink-400 dark:text-[#4a5550] font-medium whitespace-nowrap mt-0.5">OSCA · Pagsanjan, Laguna</div>
+                    <div class="text-[10px] tracking-[0.1em] text-ink-400 dark:text-[#4a5550] font-medium whitespace-nowrap mt-0.5 uppercase">OSCA · Pagsanjan</div>
                 </div>
                 <button @click="toggleSidebar()"
-                        class="btn btn-ghost p-1 flex-shrink-0"
+                        class="sidebar-icon-btn flex-shrink-0"
                         title="Collapse sidebar">
-                    <x-heroicon-o-chevron-left class="w-4 h-4" />
+                    <x-heroicon-o-chevron-left class="w-3.5 h-3.5" />
                 </button>
             </div>
             {{-- Collapsed --}}
             <div x-show="!sidebarOpen" class="flex flex-col items-center gap-2">
-                <div class="w-8 h-8 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
                 <button @click="toggleSidebar()"
-                        class="btn btn-ghost p-1"
+                        class="sidebar-icon-btn"
                         title="Expand sidebar">
-                    <x-heroicon-o-bars-3 class="w-4 h-4" />
+                    <x-heroicon-o-bars-3 class="w-3.5 h-3.5" />
                 </button>
             </div>
         </div>
@@ -221,14 +221,14 @@
             <div class="flex items-center gap-2.5" :class="sidebarOpen ? '' : 'flex-col gap-1.5 items-center'">
 
                 {{-- Avatar --}}
-                <div class="w-8 h-8 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[12px] flex-shrink-0 border border-forest-200 dark:border-forest-800/40">
+                <div class="w-8 h-8 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[12px] flex-shrink-0">
                     {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
                 </div>
 
                 {{-- Name/role (expanded only) --}}
                 <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
                     <div class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate leading-tight">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
-                    <div class="text-[10.5px] text-ink-400 dark:text-[#4a5550] leading-tight">
+                    <div class="text-[10.5px] text-ink-500 dark:text-[#6b7570] leading-tight">
                         @php
                             $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
                             $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
@@ -239,17 +239,17 @@
 
                 {{-- Dark mode toggle --}}
                 <button @click="toggleDark()"
-                        class="btn btn-ghost p-1.5 flex-shrink-0"
+                        class="sidebar-icon-btn flex-shrink-0"
                         :title="dark ? 'Light mode' : 'Dark mode'">
-                    <x-heroicon-o-sun  class="w-4 h-4" x-show="dark"  x-cloak />
-                    <x-heroicon-o-moon class="w-4 h-4" x-show="!dark" />
+                    <x-heroicon-o-sun  class="w-3.5 h-3.5" x-show="dark"  x-cloak />
+                    <x-heroicon-o-moon class="w-3.5 h-3.5" x-show="!dark" />
                 </button>
 
                 {{-- Logout --}}
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="btn btn-ghost p-1.5 flex-shrink-0" title="Sign out">
-                        <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4" />
+                    <button type="submit" class="sidebar-icon-btn flex-shrink-0" title="Sign out">
+                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" />
                     </button>
                 </form>
             </div>
@@ -260,11 +260,11 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-[52px]">
+        <header class="bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-14 shadow-[0_1px_0_rgba(20,30,25,0.05)]">
 
             {{-- Left: Page title (fixed width so search stays centered) --}}
             <div class="flex items-center gap-2.5 min-w-0 w-52 flex-shrink-0">
-                <h1 class="font-serif text-[17px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
+                <h1 class="font-serif text-[18px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
             </div>
 
             {{-- Center: Search bar — navigates to seniors.index with ?search= --}}

@@ -5,7 +5,7 @@
 /* ── Base ─────────────────────────────────────────────────────────────── */
 @layer base {
   html {
-    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter Tight', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'ss01', 'cv11';
@@ -177,10 +177,10 @@
 
   /* Sidebar nav link */
   .nav-link {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-ink-500 font-medium transition-all duration-150 relative;
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-ink-700 font-medium transition-all duration-150 relative;
   }
   .nav-link:hover {
-    @apply bg-forest-100/60 text-ink-900;
+    @apply bg-forest-50 text-forest-900;
   }
   .nav-link-active {
     @apply bg-forest-800 text-paper font-semibold shadow-sm;
@@ -197,6 +197,21 @@
     padding-right: 0 !important;
     justify-content: center;
   }
+
+  /* Sidebar icon button — compact icon-only action (collapse, theme toggle, logout) */
+  .sidebar-icon-btn {
+    @apply w-7 h-7 flex items-center justify-center rounded-lg text-ink-500
+           hover:text-ink-900 hover:bg-paper-2
+           transition-all duration-150 focus:outline-none;
+  }
+
+  /* KPI gradient accent modifiers — subtle top-left wash of accent colour */
+  .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.07) 0%, #ffffff 55%); }
+  .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.08) 0%, #ffffff 55%); }
+  .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.08) 0%, #ffffff 55%); }
+  .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.08) 0%, #ffffff 55%); }
+  .kpi--low      { background: linear-gradient(155deg, rgba(74,138,104,0.07) 0%, #ffffff 55%); }
+  .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.08) 0%, #ffffff 55%); }
 
   /* Search input in topbar */
   .topbar-search {
@@ -314,10 +329,21 @@
 }
 .dark .framework-tag::before { background-color: #5fa088; }
 
-.dark .nav-link          { color: #8a9087; }
+/* Dark mode KPI accent gradients */
+.dark .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.18) 0%, #1a201d 55%); }
+.dark .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.18) 0%, #1a201d 55%); }
+.dark .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.18) 0%, #1a201d 55%); }
+.dark .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.18) 0%, #1a201d 55%); }
+.dark .kpi--low      { background: linear-gradient(155deg, rgba(74,138,104,0.16) 0%, #1a201d 55%); }
+.dark .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.17) 0%, #1a201d 55%); }
+
+.dark .nav-link          { color: #9aada5; }
 .dark .nav-link:hover    { background-color: rgba(47,101,82,0.18); color: #e4e1d8; }
 .dark .nav-link-active   { background-color: #2f6552; color: #e4e1d8; }
 .dark .nav-link-active:hover { background-color: #3a7a65; }
+
+.dark .sidebar-icon-btn       { color: #6b7570; }
+.dark .sidebar-icon-btn:hover { color: #d4ede4; background-color: rgba(47,101,82,0.22); }
 
 .dark .status-dot-ok   { background-color: #4a8a68; box-shadow: 0 0 0 2px rgba(74,138,104,0.2); }
 .dark .status-dot-warn { background-color: #e0621a; box-shadow: 0 0 0 2px rgba(224,98,26,0.2); }
