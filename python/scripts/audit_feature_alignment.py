@@ -16,7 +16,6 @@ import os
 import sys
 import csv
 import json
-import pickle
 import warnings
 import numpy as np
 import pandas as pd
@@ -288,9 +287,10 @@ def main():
     # Load notebook predictions for reference composite / risk_level
     nb_preds = {}
     if os.path.exists(PREDICTIONS_CSV):
-        for row in csv.DictReader(open(PREDICTIONS_CSV, encoding="utf-8-sig")):
-            key = (row["first_name"].strip().lower(), row["last_name"].strip().lower())
-            nb_preds[key] = row
+        with open(PREDICTIONS_CSV, encoding="utf-8-sig") as _pred_f:
+            for row in csv.DictReader(_pred_f):
+                key = (row["first_name"].strip().lower(), row["last_name"].strip().lower())
+                nb_preds[key] = row
 
     COMPARE_COLS = ML_FEATURES + ["env_score", "func_score", "ic_score", "rule_composite"]
 
@@ -348,18 +348,6 @@ def main():
     env_delta  = delta["env_score"].mean()
     func_delta = delta["func_score"].mean()
 
-    # Risk level comparison via notebook predictions CSV
-    rl_match, rl_total = 0, 0
-    for (fn, ln), ref_r in zip(names, ref_rows):
-        key = (fn.strip().lower(), ln.strip().lower())
-        nb  = nb_preds.get(key)
-        if nb:
-            rl_total += 1
-            # The notebook risk level is HIGH/MODERATE/LOW/CRITICAL
-            # Map CRITICAL → HIGH for 3-level system
-            nb_level = nb.get("risk_level", "").upper().replace("CRITICAL", "HIGH")
-            # We can't compute live risk_level here without running inference,
-            # so we track env_score delta as a proxy for drift
     print("\n" + "="*60)
     print("FEATURE ALIGNMENT AUDIT RESULTS")
     print("="*60)
