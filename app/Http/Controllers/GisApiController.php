@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Facility;
+use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class GisApiController extends Controller
@@ -134,7 +136,7 @@ class GisApiController extends Controller
             ->whereNotNull('longitude')
             ->orderBy('type')
             ->orderBy('name')
-            ->get(['name', 'type', 'barangay', 'latitude', 'longitude', 'source'])
+            ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source'])
             ->map(function (Facility $facility) {
                 return [
                     'type' => 'Feature',
@@ -143,6 +145,7 @@ class GisApiController extends Controller
                         'coordinates' => [(float) $facility->longitude, (float) $facility->latitude],
                     ],
                     'properties' => [
+                        'facility_id' => $facility->id,
                         'name' => $facility->name,
                         'type' => $facility->type,
                         'barangay' => $facility->barangay,
@@ -187,7 +190,14 @@ class GisApiController extends Controller
             'origin_lng' => ['required', 'numeric', 'between:-180,180'],
             'destination_lat' => ['required', 'numeric', 'between:-90,90'],
             'destination_lng' => ['required', 'numeric', 'between:-180,180'],
+            'senior_id' => ['nullable', 'integer', 'exists:senior_citizens,id'],
+            'facility_id' => ['nullable', 'integer', 'exists:facilities,id'],
         ]);
+
+        $cachedRoute = $this->cachedRouteDistance($validated);
+        if ($cachedRoute) {
+            return response()->json($cachedRoute);
+        }
 
         $apiKey = env('OPENROUTESERVICE_API_KEY');
 
@@ -197,25 +207,49 @@ class GisApiController extends Controller
             ], 503);
         }
 
-        $response = Http::withHeaders([
+        try {
+            $verify = $this->openRouteServiceVerifyOption();
+        } catch (\Throwable $exception) {
+            Log::warning('GIS OpenRouteService SSL configuration error: ' . $exception->getMessage());
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 503);
+        }
+
+        $http = Http::withHeaders([
             'Authorization' => $apiKey,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        ])
-            ->connectTimeout(5)
-            ->timeout(12)
-            ->post('https://api.openrouteservice.org/v2/directions/driving-car/json', [
+        ])->withOptions(['verify' => $verify])->connectTimeout(5)->timeout(12);
+
+        try {
+            $response = $http->post('https://api.openrouteservice.org/v2/directions/driving-car/json', [
                 'coordinates' => [
                     [(float) $validated['origin_lng'], (float) $validated['origin_lat']],
                     [(float) $validated['destination_lng'], (float) $validated['destination_lat']],
                 ],
                 'instructions' => false,
             ]);
+        } catch (\Throwable $exception) {
+            Log::warning('GIS OpenRouteService connection error: ' . $exception->getMessage());
+
+            return response()->json([
+                'message' => $this->openRouteServiceFailureMessage($exception),
+            ], 502);
+        }
 
         if (!$response->successful()) {
+            $orsMessage = $this->openRouteServiceErrorMessage($response->json());
+            Log::warning('GIS OpenRouteService route request failed.', [
+                'status' => $response->status(),
+                'message' => $orsMessage,
+            ]);
+
             return response()->json([
                 'message' => 'OpenRouteService route request failed.',
                 'status' => $response->status(),
+                'error' => $orsMessage,
             ], 502);
         }
 
@@ -227,11 +261,111 @@ class GisApiController extends Controller
             ], 502);
         }
 
-        return response()->json([
+        $route = [
             'provider' => 'openrouteservice',
             'distance' => round((float) $summary['distance'], 2),
             'duration' => isset($summary['duration']) ? round((float) $summary['duration'], 2) : null,
-        ]);
+        ];
+
+        $this->storeRouteDistance($validated, $route);
+
+        return response()->json($route);
+    }
+
+    private function cachedRouteDistance(array $validated): ?array
+    {
+        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+            return null;
+        }
+
+        $route = SeniorFacilityRouteDistance::query()
+            ->where('senior_citizen_id', $validated['senior_id'])
+            ->where('facility_id', $validated['facility_id'])
+            ->first();
+
+        if (!$route) {
+            return null;
+        }
+
+        return [
+            'provider' => $route->provider ?: 'cached',
+            'distance' => (float) $route->route_distance_m,
+            'duration' => $route->route_duration_s !== null ? (float) $route->route_duration_s : null,
+            'cached' => true,
+        ];
+    }
+
+    private function storeRouteDistance(array $validated, array $route): void
+    {
+        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+            return;
+        }
+
+        SeniorFacilityRouteDistance::query()->updateOrCreate(
+            [
+                'senior_citizen_id' => $validated['senior_id'],
+                'facility_id' => $validated['facility_id'],
+            ],
+            [
+                'origin_latitude' => round((float) $validated['origin_lat'], 7),
+                'origin_longitude' => round((float) $validated['origin_lng'], 7),
+                'destination_latitude' => round((float) $validated['destination_lat'], 7),
+                'destination_longitude' => round((float) $validated['destination_lng'], 7),
+                'route_distance_m' => round((float) $route['distance'], 2),
+                'route_duration_s' => isset($route['duration']) ? round((float) $route['duration'], 2) : null,
+                'provider' => $route['provider'] ?? 'openrouteservice',
+                'calculated_at' => now(),
+            ]
+        );
+    }
+
+    private function openRouteServiceVerifyOption(): bool|string
+    {
+        $caBundle = trim((string) env('OPENROUTESERVICE_CA_BUNDLE', ''));
+        if ($caBundle !== '') {
+            if (!is_file($caBundle) || !is_readable($caBundle)) {
+                throw new \RuntimeException("OPENROUTESERVICE_CA_BUNDLE is set but the file does not exist or is not readable: {$caBundle}");
+            }
+
+            return $caBundle;
+        }
+
+        if (filter_var(env('OPENROUTESERVICE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) === false) {
+            Log::warning('OPENROUTESERVICE_VERIFY_SSL=false is enabled for GIS OpenRouteService requests. Use this only for local development.');
+            return false;
+        }
+
+        return true;
+    }
+
+    private function openRouteServiceErrorMessage(mixed $payload): string
+    {
+        if (is_array($payload)) {
+            $message = $payload['error']['message']
+                ?? $payload['message']
+                ?? $payload['error']
+                ?? null;
+
+            if (is_string($message) && trim($message) !== '') {
+                return mb_strimwidth($message, 0, 180, '...');
+            }
+        }
+
+        return 'No error message returned.';
+    }
+
+    private function openRouteServiceFailureMessage(\Throwable $exception): string
+    {
+        $message = $exception->getMessage();
+        if (str_contains($message, 'cURL error 60')) {
+            return 'OpenRouteService SSL certificate verification failed. Set OPENROUTESERVICE_CA_BUNDLE to a readable cacert.pem file.';
+        }
+
+        if (str_contains($message, 'cURL error')) {
+            return 'OpenRouteService connection failed: ' . mb_strimwidth($message, 0, 180, '...');
+        }
+
+        return 'OpenRouteService route request could not be completed.';
     }
 
     private function geoJsonResponse(array $features, string $source, string $note, array $meta = []): JsonResponse

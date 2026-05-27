@@ -1600,6 +1600,37 @@
             .slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
     }
 
+    function routeCandidatesForFeature(feature) {
+        const seniorPoint = featureLatLng(feature);
+        const facilities = latestFacilityGeoJson?.features || [];
+
+        if (!seniorPoint || !facilities.length) {
+            return [];
+        }
+
+        return routeCandidateFacilities(facilities
+            .map((facility) => {
+                const facilityPoint = facilityLatLng(facility);
+                if (!facilityPoint) return null;
+
+                return {
+                    facility,
+                    facilityPoint,
+                    straightDistance: seniorPoint.distanceTo(facilityPoint),
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.straightDistance - b.straightDistance));
+    }
+
+    function serviceBaseLabel(feature) {
+        const type = feature?.properties?.type || 'Service';
+        const label = feature?.properties?.name || type;
+        const barangay = feature?.properties?.barangay ? `, ${feature.properties.barangay}` : '';
+
+        return `${label} (${type}${barangay})`;
+    }
+
     function serviceListHtml(services) {
         const itemsSource = Array.isArray(services) ? services : null;
         const text = itemsSource ? '' : String(services || '').trim();
@@ -1615,6 +1646,22 @@
         const items = serviceItems
             .slice(0, ROUTE_SERVICE_RESULT_LIMIT)
             .map((service) => `<li class="pl-1 leading-snug">${escapeHtml(service)}</li>`)
+            .join('');
+
+        return `<ul class="mt-1 ml-4 list-disc space-y-1">${items}</ul>`;
+    }
+
+    function routeLoadingListHtml(candidates) {
+        if (!candidates.length) {
+            return escapeHtml('No mapped senior services available');
+        }
+
+        const items = candidates
+            .slice(0, ROUTE_SERVICE_RESULT_LIMIT)
+            .map((candidate, index) => {
+                const label = escapeHtml(serviceBaseLabel(candidate.facility));
+                return `<li class="pl-1 leading-snug" data-gis-route-item="${index}">${label} - calculating route...</li>`;
+            })
             .join('');
 
         return `<ul class="mt-1 ml-4 list-disc space-y-1">${items}</ul>`;
@@ -1673,7 +1720,7 @@
         };
     }
 
-    async function roadRouteDistance(origin, destination) {
+    async function roadRouteDistance(origin, destination, meta = {}) {
         // Route distance/time uses the GIS API proxy for OpenRouteService first,
         // then falls back to public OSRM if the configured key/service is unavailable.
         const routeOrigin = routeCoordinate(origin);
@@ -1683,7 +1730,7 @@
             return routeDistanceCache.get(cacheKey);
         }
 
-        const request = openRouteServiceDistance(routeOrigin, routeDestination)
+        const request = openRouteServiceDistance(routeOrigin, routeDestination, meta)
             .catch(() => osrmRouteDistance(routeOrigin, routeDestination));
 
         routeDistanceCache.set(cacheKey, request);
@@ -1691,7 +1738,7 @@
         return request;
     }
 
-    async function openRouteServiceDistance(origin, destination) {
+    async function openRouteServiceDistance(origin, destination, meta = {}) {
         if (!latestRouteDistanceUrl) {
             throw new Error('OpenRouteService proxy is unavailable');
         }
@@ -1702,6 +1749,9 @@
             destination_lat: destination.lat,
             destination_lng: destination.lng,
         });
+
+        if (meta.seniorId) params.set('senior_id', meta.seniorId);
+        if (meta.facilityId) params.set('facility_id', meta.facilityId);
 
         const response = await fetch(`${latestRouteDistanceUrl}?${params.toString()}`, {
             headers: {
@@ -1751,25 +1801,12 @@
 
     async function roadNetworkServicesForFeature(feature) {
         const seniorPoint = featureLatLng(feature);
-        const facilities = latestFacilityGeoJson?.features || [];
 
-        if (!seniorPoint || !facilities.length) {
+        if (!seniorPoint || !(latestFacilityGeoJson?.features || []).length) {
             return nearestServicesForFeature(feature);
         }
 
-        const candidates = routeCandidateFacilities(facilities
-            .map((facility) => {
-                const facilityPoint = facilityLatLng(facility);
-                if (!facilityPoint) return null;
-
-                return {
-                    facility,
-                    facilityPoint,
-                    straightDistance: seniorPoint.distanceTo(facilityPoint),
-                };
-            })
-            .filter(Boolean)
-            .sort((a, b) => a.straightDistance - b.straightDistance));
+        const candidates = routeCandidatesForFeature(feature);
 
         if (!candidates.length) {
             return nearestServicesForFeature(feature);
@@ -1777,7 +1814,10 @@
 
         const routed = (await Promise.all(candidates.map(async (candidate) => {
             try {
-                const route = await roadRouteDistance(seniorPoint, candidate.facilityPoint);
+                const route = await roadRouteDistance(seniorPoint, candidate.facilityPoint, {
+                    seniorId: feature?.properties?.senior_id,
+                    facilityId: candidate.facility?.properties?.facility_id,
+                });
 
                 return {
                     ...candidate,
@@ -2069,24 +2109,82 @@
         layer._gisRouteRequestId = requestId;
 
         const elementId = routeServicesElementId(feature);
+        const seniorPoint = featureLatLng(feature);
+        const candidates = routeCandidatesForFeature(feature);
         const element = document.getElementById(elementId);
         if (element) {
-            element.textContent = 'Calculating road-network distance...';
+            element.innerHTML = routeLoadingListHtml(candidates);
         }
 
-        const services = await roadNetworkServicesForFeature(feature);
+        if (!seniorPoint || !candidates.length) {
+            const fallbackServices = nearestServicesForFeature(feature);
+            const currentElement = document.getElementById(elementId);
+            if (currentElement) {
+                currentElement.innerHTML = serviceListHtml(fallbackServices);
+            }
+            return;
+        }
+
+        const routed = [];
+
+        await Promise.all(candidates.map(async (candidate, index) => {
+            let item = null;
+
+            try {
+                const route = await roadRouteDistance(seniorPoint, candidate.facilityPoint, {
+                    seniorId: feature?.properties?.senior_id,
+                    facilityId: candidate.facility?.properties?.facility_id,
+                });
+                item = {
+                    ...candidate,
+                    routeDistance: route.distance,
+                    routeDuration: route.duration,
+                };
+            } catch (error) {
+                item = null;
+            }
+
+            if (layer._gisRouteRequestId !== requestId || layer.isPopupOpen?.() === false) {
+                return;
+            }
+
+            const currentElement = document.getElementById(elementId);
+            const routeItem = currentElement?.querySelector(`[data-gis-route-item="${index}"]`);
+
+            if (item && routeItem) {
+                routeItem.textContent = serviceLabel(item.facility, item.routeDistance, {
+                    route: true,
+                    duration: item.routeDuration,
+                });
+            } else if (routeItem) {
+                routeItem.textContent = `${serviceBaseLabel(candidate.facility)} - route unavailable`;
+            }
+
+            if (item) {
+                routed.push(item);
+            }
+        }));
 
         if (layer._gisRouteRequestId !== requestId || layer.isPopupOpen?.() === false) {
             return;
         }
 
         const currentElement = document.getElementById(elementId);
-        if (currentElement) {
-            currentElement.innerHTML = serviceListHtml(services);
+        if (!currentElement) {
             return;
         }
 
-        popup.setContent(popupHtml(feature, services));
+        if (!routed.length) {
+            currentElement.innerHTML = serviceListHtml('Road route unavailable for mapped services');
+            return;
+        }
+
+        currentElement.innerHTML = serviceListHtml(routed
+            .sort((a, b) => a.routeDistance - b.routeDistance)
+            .map((item) => serviceLabel(item.facility, item.routeDistance, {
+                route: true,
+                duration: item.routeDuration,
+            })));
     }
 
     function popupHtml(featureOrProperties, routedServices = null) {
@@ -2102,7 +2200,9 @@
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
-        const services = serviceListHtml(routedServices ?? 'Calculating road-network distance...');
+        const services = routedServices
+            ? serviceListHtml(routedServices)
+            : routeLoadingListHtml(routeCandidatesForFeature(feature));
         const servicesElementId = escapeHtml(routeServicesElementId(feature));
 
         if (p.is_generalized_senior_point) {
@@ -2236,7 +2336,7 @@
 
         if (!map.getPane('gis-mask-pane')) {
             map.createPane('gis-mask-pane');
-            map.getPane('gis-mask-pane').style.zIndex = 385;
+            map.getPane('gis-mask-pane').style.zIndex = 590;
         }
 
         if (!map.getPane('gis-risk-pane')) {

@@ -41,4 +41,9 @@ class Facility extends Model
     {
         return $this->hasMany(SeniorAccessibilityMetric::class, 'nearest_market_id');
     }
+
+    public function seniorRouteDistances(): HasMany
+    {
+        return $this->hasMany(SeniorFacilityRouteDistance::class);
+    }
 }
