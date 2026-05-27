@@ -128,10 +128,17 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 MODEL_DIR = _resolve_model_dir()
-ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", False)
+ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", True)
 # Default True: nearest-centroid in scaled space is deterministic across devices.
 # Set ENABLE_DETERMINISTIC_CLUSTER=false in .env only for debugging UMAP behaviour.
 ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", True)
+
+if not ENABLE_NOTEBOOK_OVERRIDES:
+    logger.warning(
+        "ENABLE_NOTEBOOK_OVERRIDES=false — live GBR/RFR model active. "
+        "Results may deviate from the validated notebook baseline. "
+        "Set ENABLE_NOTEBOOK_OVERRIDES=true (or remove the env var) to restore validated predictions."
+    )
 
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
