@@ -1,5 +1,7 @@
 <div class="space-y-7" wire:poll.60s>
 
+    <x-page-header title="Dashboard" subtitle="OSCA senior citizen overview · Pagsanjan, Laguna" />
+
     {{-- ── KPIs ── --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <x-kpi label="Total Seniors"   :value="number_format($stats['total'])"    accent="forest"   sub="Active records · all barangays" />
@@ -84,7 +86,18 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         <x-card title="Risk Distribution" sub="Composite risk strata">
-            <div wire:ignore class="relative h-44"><canvas id="riskChart"></canvas></div>
+            <div wire:ignore class="relative h-44"><canvas id="riskChart" aria-label="Risk distribution: high, moderate, and low risk senior counts" role="img"></canvas></div>
+            <div class="sr-only">
+                <table>
+                    <caption>Risk distribution data</caption>
+                    <thead><tr><th scope="col">Risk Level</th><th scope="col">Count</th></tr></thead>
+                    <tbody>
+                        <tr><td>High Risk</td><td>{{ $riskDistribution['data'][0] ?? 0 }}</td></tr>
+                        <tr><td>Moderate Risk</td><td>{{ $riskDistribution['data'][1] ?? 0 }}</td></tr>
+                        <tr><td>Low Risk</td><td>{{ $riskDistribution['data'][2] ?? 0 }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
             <div class="mt-4 grid grid-cols-2 gap-1.5">
                 @foreach ($riskDistribution['labels'] as $i => $label)
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700">
@@ -97,7 +110,7 @@
         </x-card>
 
         <x-card title="Health Groups" sub="3 groups · based on capacity & environment">
-            <div wire:ignore class="relative h-44"><canvas id="clusterChart"></canvas></div>
+            <div wire:ignore class="relative h-44"><canvas id="clusterChart" aria-label="Cluster distribution: senior count per cluster group" role="img"></canvas></div>
             <div class="mt-4 space-y-1.5">
                 @foreach ($clusterDistribution['labels'] as $i => $label)
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700">
@@ -110,14 +123,14 @@
         </x-card>
 
         <x-card title="Domain Scores" sub="Average score across filtered seniors">
-            <div wire:ignore class="relative h-56"><canvas id="domainChart"></canvas></div>
+            <div wire:ignore class="relative h-56"><canvas id="domainChart" aria-label="Domain scores: QoL scores across health, economic, social, functional, and mental health domains" role="img"></canvas></div>
         </x-card>
     </div>
 
     {{-- ── Age + Barangay row ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <x-card title="Age Group Distribution" sub="60-69 · 70-79 · 80+">
-            <div wire:ignore class="relative h-48"><canvas id="ageChart"></canvas></div>
+            <div wire:ignore class="relative h-48"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
         </x-card>
 
         <x-card title="Barangay Breakdown" sub="Total seniors · high-risk count">
@@ -179,7 +192,9 @@
                         @endif
                     </a>
                 @empty
-                    <div class="px-5 py-10 text-center text-sm text-ink-400">No senior records found.</div>
+                    <div class="px-5 py-6">
+                        <x-empty-state icon="users" title="No seniors registered" description="Add senior citizens to begin tracking." />
+                    </div>
                 @endforelse
             </div>
         </x-card>
@@ -204,8 +219,8 @@
                         </div>
                     </div>
                 @empty
-                    <div class="px-5 py-10 text-center text-sm text-ink-400">
-                        No urgent pending actions.
+                    <div class="px-5 py-6">
+                        <x-empty-state icon="chart" title="No analysis data yet" description="Complete QoL surveys to see risk and cluster distributions." />
                     </div>
                 @endforelse
             </div>

@@ -30,7 +30,7 @@
         <div class="card-head">
             <div>
                 <div class="card-title">Getting Started</div>
-                <div class="card-sub">Overview of the OSCA AgeS ense system</div>
+                <div class="card-sub">Overview of the OSCA AgeSense system</div>
             </div>
         </div>
         <div class="card-body prose prose-sm max-w-none text-ink-700 space-y-4">

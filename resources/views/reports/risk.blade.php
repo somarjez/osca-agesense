@@ -2,8 +2,33 @@
 @extends('layouts.app')
 @section('page-title', 'Risk Reports')
 
+@push('styles')
+<style>
+@media print {
+    aside, header, nav, form, .btn, [aria-label="Dismiss notification"] { display: none !important; }
+    body, html { overflow: visible !important; height: auto !important; }
+    #main-content { overflow: visible !important; padding: 0 !important; }
+    main { overflow: visible !important; }
+    .print-header { display: block !important; border-bottom: 2px solid #2d6a4f; padding-bottom: 12px; margin-bottom: 24px; }
+    .print-header h1 { font-size: 18px; font-weight: 700; color: #1a3c2b; }
+    .print-header p  { font-size: 11px; color: #4a6856; margin-top: 4px; }
+    @page { margin: 20mm; }
+    .card, .kpi { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+}
+</style>
+@endpush
+
 @section('content')
 <div class="space-y-5">
+
+    {{-- Print-only formal header (hidden on screen via CSS, shown in print) --}}
+    <div class="print-header hidden">
+        <h1>OSCA Risk Report — Pagsanjan, Laguna</h1>
+        <p>Generated: {{ now()->format('F j, Y') }} · OSCA AgeSense System</p>
+    </div>
+
+    <x-page-header title="Risk Report" subtitle="Senior citizen risk level distribution and domain breakdown" />
 
     {{-- ── Filter Bar ── --}}
     <div class="card">
