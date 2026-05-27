@@ -67,7 +67,7 @@
         <div class="card">
             <div class="card-body flex items-center gap-4">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
-                    {{ $ok ? 'bg-low-50' : 'bg-critical-50' }}">
+                    {{ $ok ? 'bg-low-50' : 'bg-high-50' }}">
                     <span class="status-dot {{ $ok ? 'status-dot-ok' : 'status-dot-err' }}"></span>
                 </div>
                 <div class="min-w-0">
