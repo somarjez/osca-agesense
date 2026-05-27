@@ -450,7 +450,7 @@
                                     @endif
                                     <div x-data="{ open: false }">
                                         <button @click="open = true"
-                                                class="text-[11px] px-2 py-0.5 rounded-md font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors">
+                                                class="btn btn-ghost text-[11px] px-2 py-0.5 text-critical-700 hover:bg-critical-50 hover:text-critical-900">
                                             Delete
                                         </button>
                                         <form x-ref="deleteForm" method="POST" action="{{ route('surveys.qol.destroy', $survey) }}" class="hidden">
@@ -460,37 +460,34 @@
                                              role="dialog"
                                              aria-modal="true"
                                              aria-labelledby="delete-survey-title"
-                                             class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+                                             class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
                                              @keydown.escape.window="open = false">
-                                            <div class="bg-white dark:bg-ink-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-paper-rule dark:border-ink-700"
+                                            <div class="card max-w-sm w-full shadow-2xl"
                                                  @click.outside="open = false">
-                                                <div class="flex items-start gap-3 mb-4">
-                                                    <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-high-100 dark:bg-high-700/20">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-high-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
+                                                <div class="card-head">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <div class="w-8 h-8 rounded-lg bg-critical-50 dark:bg-critical-50/10 grid place-items-center flex-shrink-0">
+                                                            <x-heroicon-o-trash class="w-4 h-4 text-critical-700" />
+                                                        </div>
+                                                        <h3 id="delete-survey-title" class="card-title">Delete QoL Survey?</h3>
                                                     </div>
-                                                    <div>
-                                                        <h3 id="delete-survey-title" class="font-semibold text-ink-900 dark:text-ink-100">
-                                                            Delete QoL Survey?
-                                                        </h3>
-                                                        <p class="text-sm mt-1 text-ink-600 dark:text-ink-400">
-                                                            The survey from <strong class="text-ink-800 dark:text-ink-200">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
-                                                        </p>
-                                                        <p class="text-xs font-semibold mt-2 px-3 py-1.5 rounded-lg text-high-700 bg-high-50 dark:bg-high-700/20 dark:text-high-100">
-                                                            This cannot be undone.
-                                                        </p>
-                                                    </div>
+                                                    <button @click="open = false" class="btn btn-ghost p-1.5" aria-label="Close">
+                                                        <x-heroicon-o-x-mark class="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                                <div class="flex gap-3 justify-end pt-3 mt-1 border-t border-paper-rule dark:border-ink-700">
-                                                    <button @click="open = false"
-                                                            class="btn btn-ghost">
-                                                        Cancel
-                                                    </button>
-                                                    <button @click="$refs.deleteForm.submit()"
-                                                            class="btn bg-high-500 hover:bg-high-700 text-white border-transparent">
-                                                        Delete Survey
-                                                    </button>
+                                                <div class="card-body space-y-3">
+                                                    <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
+                                                        The survey from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its ML results will be permanently deleted.
+                                                    </p>
+                                                    <p class="text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
+                                                        This cannot be undone.
+                                                    </p>
+                                                    <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">
+                                                        <button @click="open = false" class="btn">Cancel</button>
+                                                        <button @click="$refs.deleteForm.submit()" class="btn btn-danger">
+                                                            <x-heroicon-o-trash class="w-3.5 h-3.5" /> Delete Survey
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

@@ -13,18 +13,19 @@
             </a>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ route('users.store') }}" class="space-y-5">
+            <form method="POST" action="{{ route('users.store') }}" class="space-y-5"
+                  x-data="{ submitting: false }" @submit="submitting = true">
                 @csrf
 
                 <div>
                     <label class="eyebrow block mb-1.5" for="name">Full Name</label>
                     <input id="name" type="text" name="name"
                            value="{{ old('name') }}"
-                           class="form-input w-full @error('name') border-red-400 @enderror"
+                           class="form-input w-full @error('name') border-critical-400 @enderror"
                            placeholder="e.g. Maria Santos"
                            required autofocus>
                     @error('name')
-                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -32,18 +33,18 @@
                     <label class="eyebrow block mb-1.5" for="email">Email Address</label>
                     <input id="email" type="email" name="email"
                            value="{{ old('email') }}"
-                           class="form-input w-full @error('email') border-red-400 @enderror"
+                           class="form-input w-full @error('email') border-critical-400 @enderror"
                            placeholder="e.g. maria@osca.local"
                            required>
                     @error('email')
-                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
                     <label class="eyebrow block mb-1.5" for="role">Role</label>
                     <select id="role" name="role"
-                            class="form-select w-full @error('role') border-red-400 @enderror"
+                            class="form-select w-full @error('role') border-critical-400 @enderror"
                             required>
                         <option value="" disabled {{ old('role') ? '' : 'selected' }}>Select a role…</option>
                         @foreach ($roles as $role)
@@ -53,18 +54,18 @@
                         @endforeach
                     </select>
                     @error('role')
-                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div class="border-t border-paper-rule dark:border-[#2b3530] pt-5">
                     <label class="eyebrow block mb-1.5" for="password">Password</label>
                     <input id="password" type="password" name="password"
-                           class="form-input w-full @error('password') border-red-400 @enderror"
+                           class="form-input w-full @error('password') border-critical-400 @enderror"
                            placeholder="Minimum 8 characters"
                            required>
                     @error('password')
-                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -78,9 +79,20 @@
 
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <a href="{{ route('users.index') }}" class="btn btn-ghost">Cancel</a>
-                    <button type="submit" class="btn btn-primary">
-                        <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
-                        Create Account
+                    <button type="submit" :disabled="submitting"
+                            class="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+                        <template x-if="!submitting">
+                            <span class="inline-flex items-center gap-1.5">
+                                <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
+                                Create Account
+                            </span>
+                        </template>
+                        <template x-if="submitting">
+                            <span class="inline-flex items-center gap-1.5">
+                                <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                Creating…
+                            </span>
+                        </template>
                     </button>
                 </div>
             </form>

@@ -314,7 +314,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 {{-- ML Risk Analysis --}}
 @if($ml)
 <div class="section">
-    <div class="section-title">ML Risk Analysis &nbsp;·&nbsp; Run: {{ $ml->processed_at?->format('M j, Y H:i') }}</div>
+    <div class="section-title">Health Risk Indicator Summary &nbsp;·&nbsp; Assessed: {{ $ml->processed_at?->format('M j, Y H:i') }}</div>
     <table class="score-table">
         <thead>
             <tr>
@@ -389,7 +389,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 
 {{-- Footer --}}
 <div class="footer">
-    <span>OSCA Senior Citizen Profile — Confidential</span>
+    <span>OSCA Senior Citizen Profile — Confidential &nbsp;·&nbsp; Risk indicators are decision-support outputs, not clinical diagnoses.</span>
     <span>{{ $senior->osca_id }} &nbsp;·&nbsp; {{ now()->format('Y-m-d') }}</span>
 </div>
 
