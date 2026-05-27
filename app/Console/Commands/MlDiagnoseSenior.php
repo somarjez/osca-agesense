@@ -86,7 +86,11 @@ class MlDiagnoseSenior extends Command
             return null;
         }
 
-        fwrite($pipes[0], $input);
+        if (fwrite($pipes[0], $input) === false) {
+            fclose($pipes[0]);
+            proc_terminate($proc);
+            return null;
+        }
         fclose($pipes[0]);
 
         $start = time();
@@ -126,8 +130,18 @@ class MlDiagnoseSenior extends Command
         if (!$handle) return null;
 
         $headers = fgetcsv($handle);
+        if (!is_array($headers)) {
+            fclose($handle);
+            return null;
+        }
+
         $firstNameIdx = array_search('first_name', $headers);
         $lastNameIdx  = array_search('last_name',  $headers);
+
+        if ($firstNameIdx === false || $lastNameIdx === false) {
+            fclose($handle);
+            return null;
+        }
 
         $targetFirst = strtolower(trim($senior->first_name));
         $targetLast  = strtolower(trim($senior->last_name));
