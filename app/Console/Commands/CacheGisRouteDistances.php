@@ -103,6 +103,7 @@ class CacheGisRouteDistances extends Command
                 break;
             }
 
+
             $seniorId = $seniorFeature['properties']['senior_id'] ?? null;
             $origin = $this->featurePoint($seniorFeature);
 
