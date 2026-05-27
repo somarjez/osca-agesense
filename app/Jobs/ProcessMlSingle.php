@@ -31,6 +31,6 @@ class ProcessMlSingle implements ShouldQueue
             return;
         }
 
-        $ml->runPipeline($senior, $survey);
+        $ml->runPipeline($senior, $survey, force: true);
     }
 }
