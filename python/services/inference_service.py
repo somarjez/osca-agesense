@@ -1564,115 +1564,6 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         except (TypeError, ValueError):
             pass
 
-    # DB cache hit: reuse stored ML result for this senior, skipping UMAP entirely.
-    # This ensures identical results across all devices for seniors already processed.
-    # Exception: if the caller already injected _precomputed_named_id (e.g. fix_cluster_distribution.py
-    # after auto-calibration), trust that value — the DB still holds the pre-calibration named_id
-    # and would overwrite the corrected one if we let it through.
-    _db_cached = None
-    if senior_id and "_precomputed_named_id" not in preprocessed:
-        _db_cached = _db_cache_lookup(senior_id)
-
-    # Notebook-cache protection: if the DB already has a notebook_cache result
-    # (prediction_source = 'notebook_cache', model_version = 1.1.0), do NOT
-    # re-score — return it directly.  This prevents a re-analysis run from
-    # overwriting validated notebook results with live model scores.
-    # ml:repair-notebook-cache bypasses this by not going through infer() for
-    # seniors that need repair; it forces a fresh CSV match instead.
-    if (
-        ENABLE_NOTEBOOK_OVERRIDES
-        and _db_cached
-        and _db_cached.get("_prediction_source") == "notebook_cache"
-        and "_precomputed_named_id" not in preprocessed
-    ):
-        # Build a minimal but complete result from the DB cache so the caller
-        # gets a properly-shaped payload with prediction_source = notebook_cache.
-        named_id      = max(1, min(3, int(_db_cached["cluster_id"])))
-        cluster_profs = _load_cluster_profiles()
-        cluster_prof  = cluster_profs[named_id]
-        raw_cluster   = _db_cached["_raw_cluster_id"]
-        ic_r   = _db_cached["ml_ic_risk"]
-        env_r  = _db_cached["ml_env_risk"]
-        func_r = _db_cached["ml_func_risk"]
-        comp   = _db_cached["composite_risk"]
-        lvl    = (_db_cached["risk_level"] or "MODERATE").upper()
-        if lvl == "CRITICAL":
-            lvl = "HIGH"
-        section_scores = preprocessed.get("section_scores", {}) or {}
-        who_scores     = preprocessed.get("who_domain_scores", {}) or {}
-        rule_scores    = preprocessed.get("rule_scores", {}) or {}
-        feature_map    = preprocessed.get("feature_map", {}) or {}
-        raw_context    = preprocessed.get("raw_context", {}) or {}
-        pf             = _priority_flag(comp)
-        recs = _build_recommendations(named_id, lvl, feature_map, section_scores, raw_context, pf)
-        # Try to attach notebook recommendations if available
-        nb_recs = _resolve_notebook_recommendations(preprocessed.get("identity", {}) or {})
-        if nb_recs:
-            recs = nb_recs
-        return {
-            "status": "success",
-            "cluster": {
-                "raw_id": raw_cluster, "named_id": named_id,
-                "name": cluster_prof["name"],
-                "ic": cluster_prof["ic"], "env": cluster_prof["env"], "func": cluster_prof["func"],
-                "description": cluster_prof["description"],
-            },
-            "risk_scores": {
-                "ic_risk": round(ic_r, 4), "env_risk": round(env_r, 4),
-                "func_risk": round(func_r, 4), "composite_risk": round(comp, 4),
-                "wellbeing_score": round(
-                    float(
-                        _db_cached.get("wellbeing_score")
-                        if _db_cached.get("wellbeing_score") is not None
-                        else section_scores.get("overall_wellbeing", 0.5)
-                    ),
-                    4
-                ),
-            },
-            "risk_levels": {
-                "ic": _get_risk_level(ic_r), "env": _get_risk_level(env_r),
-                "func": _get_risk_level(func_r), "overall": lvl,
-            },
-            "priority_flag": pf,
-            "domain_risks": {
-                "risk_medical":    round(float(rule_scores.get("risk_medical",    0.0)), 4),
-                "risk_financial":  round(float(rule_scores.get("risk_financial",  0.0)), 4),
-                "risk_social":     round(float(rule_scores.get("risk_social",     0.0)), 4),
-                "risk_functional": round(float(rule_scores.get("risk_functional", 0.0)), 4),
-                "risk_housing":    round(float(rule_scores.get("risk_housing",    0.0)), 4),
-                "risk_hc_access":  round(float(rule_scores.get("risk_hc_access",  0.0)), 4),
-                "risk_sensory":    round(float(rule_scores.get("risk_sensory",    0.0)), 4),
-                "rule_composite":  round(float(rule_scores.get("rule_composite",  comp)), 4),
-            },
-            "who_scores": {
-                "ic_score":   round(float(_db_cached.get("ic_score",   3.0)), 4),
-                "env_score":  round(float(_db_cached.get("env_score",  3.0)), 4),
-                "func_score": round(float(_db_cached.get("func_score", 3.0)), 4),
-                "qol_score":  round(float(_db_cached.get("qol_score",  3.0)), 4),
-            },
-            "recommendations": recs,
-            "section_scores": section_scores,
-            "model_metadata": {
-                "model_version": MODEL_VERSION,
-                "model_dir": MODEL_DIR,
-                "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
-                "notebook_override_applied": True,
-                "db_cache_hit": True,
-                "prediction_source": "notebook_cache",
-                "is_cached_prediction": True,
-            },
-            "warnings": ["notebook_cache result returned from DB (re-scoring skipped)."],
-        }
-
-    if _db_cached:
-        preprocessed = dict(preprocessed)
-        preprocessed["_precomputed_raw_cluster_id"] = _db_cached["_raw_cluster_id"]
-        # Inject named_id directly from DB so we bypass _load_cluster_mapping() lru_cache.
-        # The lru_cache may hold a stale mapping from before fix_cluster_distribution.py ran,
-        # which would silently flip the cluster label for any senior viewed after the fix.
-        preprocessed["_precomputed_named_id"] = _db_cached["cluster_id"]
-        warnings_list.append("Cluster and risk scores loaded from shared DB cache (UMAP skipped).")
-
     scaled_features = preprocessed.get("scaled_features", []) or []
     reduced_features = preprocessed.get("reduced_features", []) or []
     section_scores = preprocessed.get("section_scores", {}) or {}
@@ -1890,9 +1781,6 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     composite_risk = _clip01(rule_composite_val * 0.45 + ml_composite * 0.55)
 
     wellbeing_score = float(section_scores.get("overall_wellbeing", 0.5))
-    # DB-cache override: pin wellbeing to the first-run value so it never drifts.
-    if _db_cached and _db_cached.get("wellbeing_score") is not None:
-        wellbeing_score = float(_db_cached["wellbeing_score"])
 
     # 3. Risk levels
     ic_level = _get_risk_level(ic_risk_raw)
@@ -1932,29 +1820,6 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         ic_level = _get_risk_level(ic_risk_raw)
         env_level = _get_risk_level(env_risk_raw)
         func_level = _get_risk_level(func_risk_raw)
-    elif _db_cached:
-        # DB cache: apply stored risk scores so all devices agree on this senior's values.
-        # Same "only override if > 0" guard as notebook_override above.
-        _ov_ic   = _safe_float(_db_cached.get("ml_ic_risk"),   0.0)
-        _ov_env  = _safe_float(_db_cached.get("ml_env_risk"),  0.0)
-        _ov_func = _safe_float(_db_cached.get("ml_func_risk"), 0.0)
-        _ov_comp = _safe_float(_db_cached.get("composite_risk"), 0.0)
-        if _ov_ic > 0:
-            ic_risk_raw = _clip01(_ov_ic)
-        if _ov_env > 0:
-            env_risk_raw = _clip01(_ov_env)
-        if _ov_func > 0:
-            func_risk_raw = _clip01(_ov_func)
-        if _ov_comp > 0:
-            composite_risk = _clip01(_ov_comp)
-        _db_level = (_db_cached.get("risk_level") or overall_level or "").upper()
-        if _db_level == "CRITICAL":
-            _db_level = "HIGH"
-        overall_level = _db_level or overall_level
-        ic_level   = _get_risk_level(ic_risk_raw)
-        env_level  = _get_risk_level(env_risk_raw)
-        func_level = _get_risk_level(func_risk_raw)
-
     # 4. Recommendations — compute priority_flag first so urgency assignment is correct
     computed_priority_flag = _priority_flag(composite_risk)
     recs = _build_recommendations(
@@ -2017,21 +1882,12 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "model_dir": MODEL_DIR,
             "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
             "notebook_override_applied": bool(notebook_override),
-            "db_cache_hit": bool(_db_cached),
             # prediction_source is the canonical label persisted to ml_results.prediction_source
-            "prediction_source": (
-                "notebook_cache" if notebook_override
-                else ("live_model" if not _db_cached else "live_model")
-            ),
+            "prediction_source": "notebook_cache" if notebook_override else "live_model",
             "is_cached_prediction": bool(notebook_override),
         },
         "warnings": warnings_list,
     }
-
-    # Write-back: if this was a fresh UMAP run (no DB cache hit, no notebook override),
-    # persist the result so every other device gets a consistent answer next time.
-    if senior_id and not _db_cached and not notebook_override:
-        _db_cache_write(senior_id, result)
 
     return result
 
