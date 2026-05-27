@@ -251,8 +251,7 @@
                                title="New QoL survey">
                                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> QoL
                             </a>
-                            <button @click="archiveOpen = true"
-                                    class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
+                            <button class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
                                     title="Archive record">
                                 <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
                             </button>
