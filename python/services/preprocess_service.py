@@ -894,9 +894,9 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             "func_independence", "func_autonomy", "func_control",
         ]),
         # env_score and func_score mirror osca5.ipynb ENVIRONMENT_RAW / FUNCTIONAL_RAW
-        # exactly (including non-Likert weighted scores) so that the GBR/RFR models receive
-        # the same feature values they were trained on.  The scale mixing is intentional —
-        # it matches the notebook training pipeline.
+        # exactly (including non-Likert weighted scores) so that the rule-based fallback
+        # component (45% of composite) uses the same domain averages as the notebook baseline.
+        # The scale mixing is intentional — it matches the notebook training pipeline.
         "env_score": _domain_avg(enc, [
             "env_income_limit_r", "env_fin_household", "env_fin_medical", "env_fin_personal",
             "env_safe_home", "env_safe_neighborhood", "env_home_comfort", "env_service_access",

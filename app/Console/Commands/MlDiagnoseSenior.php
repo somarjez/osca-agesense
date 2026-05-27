@@ -36,7 +36,7 @@ class MlDiagnoseSenior extends Command
         // 1. Run live model (forced ENABLE_NOTEBOOK_OVERRIDES=false)
         $liveResult = $this->runLiveModel($ml, $senior, $survey);
         if ($liveResult === null) {
-            $this->error("Live model subprocess failed. Check storage/app/ml_err_*.txt for details.");
+            $this->error("Live model subprocess failed. See error output above.");
             return self::FAILURE;
         }
 
@@ -89,6 +89,9 @@ class MlDiagnoseSenior extends Command
         if (fwrite($pipes[0], $input) === false) {
             fclose($pipes[0]);
             proc_terminate($proc);
+            proc_close($proc);
+            @unlink($outFile);
+            @unlink($errFile);
             return null;
         }
         fclose($pipes[0]);
@@ -97,6 +100,9 @@ class MlDiagnoseSenior extends Command
         while (proc_get_status($proc)['running']) {
             if (time() - $start > 120) {
                 proc_terminate($proc);
+                proc_close($proc);
+                @unlink($outFile);
+                @unlink($errFile);
                 $this->error("Python subprocess timed out.");
                 return null;
             }
