@@ -37,19 +37,21 @@ def load_env(base_dir: str) -> dict:
         os.path.join(os.path.dirname(base_dir), ".env"),
     ]:
         if os.path.exists(candidate):
-            for line in open(candidate, encoding="utf-8"):
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, _, v = line.partition("=")
-                    env[k.strip()] = v.strip().strip('"').strip("'")
+            with open(candidate, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        env[k.strip()] = v.strip().strip('"').strip("'")
             break
     return env
 
 
 def load_model_metrics(models_dir: str) -> dict:
     """
-    Read cluster_eval_metrics.json, regression_baseline.json, and
-    model_manifest.json from models_dir.
+    Read cluster_eval_metrics.json and regression_baseline.json from models_dir.
+    model_version, baseline_locked_on, and baseline_senior_count are sourced from
+    regression_baseline.json._meta (not from a separate model_manifest.json).
 
     Returns a dict with keys:
         silhouette (float), davies_bouldin (float), calinski_harabasz (float),

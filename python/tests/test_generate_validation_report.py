@@ -120,7 +120,7 @@ class TestRenderEvidenceTable(unittest.TestCase):
         self.assertIn("0 failures", self.table)
 
     def test_contains_urgent_count(self):
-        self.assertIn("5", self.table)
+        self.assertIn("**5 seniors**", self.table)
 
     def test_contains_baseline_date(self):
         self.assertIn("2026-05-28", self.table)
@@ -132,8 +132,8 @@ class TestRenderEvidenceTable(unittest.TestCase):
             "Expected at least 10 pipe-separated rows in the evidence table")
 
     def test_no_placeholder_text(self):
-        """Table must not contain 'TBD', 'TODO', 'unknown', or bare 'None'."""
-        for placeholder in ["TBD", "TODO", "unknown", " None "]:
+        """Table must not contain 'TBD', 'TODO', 'unknown', 'None', or 'nan'."""
+        for placeholder in ["TBD", "TODO", "unknown", "None", "nan"]:
             self.assertNotIn(placeholder, self.table,
                 f"Table contains placeholder text: '{placeholder}'")
 
