@@ -188,7 +188,7 @@ def render_evidence_table(metrics: dict, distribution: dict) -> str:
         f"| — LOW risk | {low_n} seniors ({low_pct:.1f}%) | `validate_clusters.py` |",
         f"| — MODERATE risk | {mod_n} seniors ({mod_pct:.1f}%) | `validate_clusters.py` |",
         f"| — HIGH risk | {high_n} seniors ({high_pct:.1f}%) | `validate_clusters.py` |",
-        f"| — HIGH risk, urgent flag (composite ≥ {_URGENT_THRESHOLD}) | **{urgent} seniors** | `final_comparison_report.py` |",
+        f"| — HIGH risk, urgent flag (composite >= {_URGENT_THRESHOLD}) | **{urgent} seniors** | `final_comparison_report.py` |",
         "| **Cluster distribution (live model)** | | |",
         f"| — C1 High Functioning | {c1_n} seniors | `validate_clusters.py` |",
         f"| — C2 Moderate / Mixed Needs | {c2_n} seniors | `validate_clusters.py` |",
