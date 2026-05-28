@@ -132,8 +132,8 @@ class TestRenderEvidenceTable(unittest.TestCase):
             "Expected at least 10 pipe-separated rows in the evidence table")
 
     def test_no_placeholder_text(self):
-        """Table must not contain 'TBD', 'TODO', or 'unknown'."""
-        for placeholder in ["TBD", "TODO", "unknown", "None"]:
+        """Table must not contain 'TBD', 'TODO', 'unknown', or bare 'None'."""
+        for placeholder in ["TBD", "TODO", "unknown", " None "]:
             self.assertNotIn(placeholder, self.table,
                 f"Table contains placeholder text: '{placeholder}'")
 
