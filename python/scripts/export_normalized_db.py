@@ -134,47 +134,187 @@ def main() -> None:
         print("[ERROR] pymysql not installed. Run: python\\venv\\Scripts\\pip.exe install pymysql")
         sys.exit(1)
 
-    env_path = os.path.join(BASE_DIR, ".env")
-    env = _read_env(env_path)
+    # ── Load .env ──────────────────────────────────────────────────────────────
+    env: dict = {}
+    for cand in [os.path.join(BASE_DIR, ".env"), os.path.join(NOTEBOOK_DIR, ".env")]:
+        if os.path.exists(cand):
+            env = _read_env(cand)
+            break
+    if not env:
+        print(f"[ERROR] .env not found. Tried:\n  {BASE_DIR}\\.env\n  {NOTEBOOK_DIR}\\.env")
+        sys.exit(1)
 
-    conn = pymysql.connect(
-        host=env.get("DB_HOST", "127.0.0.1"),
-        port=int(env.get("DB_PORT", 3306)),
-        user=env.get("DB_USER", "root"),
-        password=env.get("DB_PASSWORD", ""),
-        database=env.get("DB_NAME", "osca"),
-        cursorclass=pymysql.cursors.DictCursor,
-    )
-
+    # ── Connect ────────────────────────────────────────────────────────────────
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM seniors ORDER BY id")
-            rows = cur.fetchall()
-    finally:
-        conn.close()
+        conn = pymysql.connect(
+            host=env.get("DB_HOST", "127.0.0.1"),
+            port=int(env.get("DB_PORT", 3306)),
+            user=env.get("DB_USERNAME", "root"),
+            password=env.get("DB_PASSWORD", ""),
+            database=env.get("DB_DATABASE", "osca_db"),
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+    except Exception as exc:
+        print(f"[ERROR] DB connection failed: {exc}")
+        print(f"  Check: DB_HOST={env.get('DB_HOST')}  DB_PORT={env.get('DB_PORT')}"
+              f"  DB_DATABASE={env.get('DB_DATABASE')}  DB_USERNAME={env.get('DB_USERNAME')}")
+        sys.exit(1)
 
-    print(f"[INFO] Fetched {len(rows)} seniors from DB")
+    # ── Query — latest QoL row per senior via MAX(id) subquery ─────────────────
+    # DB column → CSV feature-name alias mapping (matches QolSurvey.toFeatureArray)
+    QOL_DB_MAP = [
+        ("a1_enjoy_life",           "qol_enjoy_life"),
+        ("a2_life_satisfaction",    "qol_life_satisfaction"),
+        ("a3_future_outlook",       "qol_future_outlook"),
+        ("a4_meaningfulness",       "qol_meaningfulness"),
+        ("b1_physical_energy",      "phy_energy"),
+        ("b2_pain_discomfort",      "phy_pain_r"),
+        ("b3_health_self_care",     "phy_health_limit_r"),
+        ("b4_health_outside",       "phy_mobility_outside"),
+        ("b5_mobility",             "phy_mobility_indoor"),
+        ("c1_happiness",            "psych_happiness"),
+        ("c2_calm_peace",           "psych_peace"),
+        ("c3_loneliness",           "psych_lonely_r"),
+        ("c4_confidence",           "psych_confidence"),
+        ("d1_independence",         "func_independence"),
+        ("d2_time_control",         "func_autonomy"),
+        ("d3_life_control",         "func_control"),
+        ("d4_income_limits",        "env_income_limit_r"),
+        ("e1_social_support",       "soc_social_support"),
+        ("e2_close_person",         "soc_close_friend"),
+        ("e4_participation",        "soc_participation"),
+        ("e3_community_opportunities", "soc_opportunity"),
+        ("e5_respect",              "soc_respect"),
+        ("f1_home_safety",          "env_safe_home"),
+        ("f2_neighborhood_safety",  "env_safe_neighborhood"),
+        ("f3_service_access",       "env_service_access"),
+        ("f4_home_comfort",         "env_home_comfort"),
+        ("g2_medical_afford",       "env_fin_medical"),
+        ("g1_household_expenses",   "env_fin_household"),
+        ("g3_personal_wants",       "env_fin_personal"),
+        ("h1_belief_comfort",       "spi_belief_comfort"),
+        ("h2_belief_practice",      "spi_belief_practice"),
+    ]
+    qol_select = ",\n            ".join(
+        f"qs.{db_col} AS {feat_name}" for db_col, feat_name in QOL_DB_MAP
+    )
+    sql = f"""
+        SELECT
+            sc.id               AS senior_id,
+            sc.first_name,
+            sc.last_name,
+            sc.middle_name,
+            sc.date_of_birth,
+            qs.survey_date,
+            TIMESTAMPDIFF(YEAR, sc.date_of_birth, CURDATE()) AS age,
+            sc.barangay,
+            sc.gender,
+            sc.marital_status,
+            sc.educational_attainment,
+            sc.monthly_income_range,
+            sc.medical_concern,
+            sc.income_source,
+            sc.real_assets,
+            sc.movable_assets,
+            sc.living_with,
+            sc.community_service,
+            sc.household_condition,
+            sc.specialization,
+            sc.social_emotional_concern,
+            sc.problems_needs,
+            sc.dental_concern,
+            sc.optical_concern,
+            sc.hearing_concern,
+            sc.has_medical_checkup,
+            sc.checkup_schedule,
+            sc.healthcare_difficulty,
+            {qol_select}
+        FROM senior_citizens sc
+        LEFT JOIN (
+            SELECT qs2.*
+            FROM qol_surveys qs2
+            INNER JOIN (
+                SELECT senior_citizen_id, MAX(id) AS max_id
+                FROM qol_surveys
+                WHERE deleted_at IS NULL
+                GROUP BY senior_citizen_id
+            ) latest ON qs2.id = latest.max_id
+        ) qs ON qs.senior_citizen_id = sc.id
+        WHERE sc.deleted_at IS NULL
+        ORDER BY sc.last_name, sc.first_name
+    """
 
-    with open(OUT_CSV, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        rows = cur.fetchall()
+    conn.close()
+
+    print(f"Fetched {len(rows)} seniors from DB.")
+    if len(rows) == 0:
+        print("[ERROR] No seniors returned — check DB connection and that seeder has run.")
+        sys.exit(1)
+
+    # ── Write CSV ──────────────────────────────────────────────────────────────
+    no_qol_seniors: list = []
+
+    with open(OUT_CSV, "w", newline="", encoding="utf-8-sig") as fh:
+        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS)
         writer.writeheader()
+
         for row in rows:
-            out: dict = {}
-            for col in CSV_COLUMNS:
+            has_qol = row.get("qol_enjoy_life") is not None
+            if not has_qol:
+                name = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip()
+                no_qol_seniors.append(f"  {name} (id={row.get('senior_id')})")
+
+            # Build output row — DB column names → CSV column names
+            out: dict = {
+                "timestamp":             fmt_timestamp(row.get("survey_date")),
+                "first_name":            row.get("first_name", "") or "",
+                "last_name":             row.get("last_name", "") or "",
+                "middle_name":           row.get("middle_name", "") or "",
+                "dob":                   fmt_date(row.get("date_of_birth")),
+                "age":                   row.get("age", "") if row.get("age") is not None else "",
+                "barangay":              row.get("barangay", "") or "",
+                "sex":                   row.get("gender", "") or "",
+                "civil_status":          row.get("marital_status", "") or "",
+                "education":             row.get("educational_attainment", "") or "",
+                "monthly_income_range":  row.get("monthly_income_range", "") or "",
+                "has_medical_checkup":   fmt_bool(row.get("has_medical_checkup")),
+                "checkup_schedule":      row.get("checkup_schedule", "") or "",
+                "dental_concern":        json_to_csv_str(row.get("dental_concern")),
+                "optical_concern":       json_to_csv_str(row.get("optical_concern")),
+                "hearing_concern":       json_to_csv_str(row.get("hearing_concern")),
+                "healthcare_difficulty": json_to_csv_str(row.get("healthcare_difficulty")),
+                "housing_concern":       "",
+            }
+
+            # JSON multiselect fields → comma-delimited strings
+            for field in JSON_FIELDS:
+                out[field] = json_to_csv_str(row.get(field))
+
+            # QoL numeric columns — blank string if NULL (senior has no survey row)
+            for col in QOL_COLS:
                 val = row.get(col)
-                if col == "timestamp":
-                    out[col] = fmt_timestamp(val)
-                elif col in ("dob",):
-                    out[col] = fmt_date(val)
-                elif col in JSON_FIELDS:
-                    out[col] = json_to_csv_str(val)
-                elif col in ("has_medical_checkup",):
-                    out[col] = fmt_bool(val)
-                else:
-                    out[col] = "" if val is None else str(val)
+                out[col] = "" if val is None else val
+
             writer.writerow(out)
 
-    print(f"[INFO] Wrote {OUT_CSV}")
+    # ── Summary ────────────────────────────────────────────────────────────────
+    print(f"\n{'='*60}")
+    print(f"Export complete -> {OUT_CSV}")
+    print(f"  Total seniors exported:   {len(rows)}")
+    print(f"  With QoL data:            {len(rows) - len(no_qol_seniors)}")
+    print(f"  Missing QoL (blanks):     {len(no_qol_seniors)}")
+    if no_qol_seniors:
+        for s in no_qol_seniors:
+            print(s)
+    print(f"{'='*60}")
+    print("\nNext steps:")
+    print("  1. Open osca5.ipynb in Jupyter")
+    print('  2. Change: df_raw = pd.read_csv("osca.csv")')
+    print('         to: df_raw = pd.read_csv("osca_normalized.csv")')
+    print("  3. Kernel -> Restart & Run All")
 
 
 if __name__ == "__main__":
