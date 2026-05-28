@@ -362,13 +362,14 @@ Run these steps in order on every device before a demo or defense. Do not skip s
         git pull origin main
 
 [ ] 2. Transfer the python/models artifact bundle (if not already present):
-        - Copy osca_models_v1.1.0.zip from the main laptop via USB
-        - Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+        - Copy osca_models_v1.1.1.zip from the main laptop via USB
+        - Expand-Archive -Path osca_models_v1.1.1.zip -DestinationPath . -Force
         - Or copy the python/models/ folder directly
 
 [ ] 3. Check .env settings:
         - ML_MODELS_PATH=python/models
         - ENABLE_NOTEBOOK_OVERRIDES=true
+        - ENABLE_DETERMINISTIC_CLUSTER=true
         - DB_HOST, DB_USERNAME, DB_PASSWORD are correct
 
 [ ] 4. Run setup.bat (or confirm all dependencies are installed):
