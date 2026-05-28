@@ -16,18 +16,14 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-try:
-    import pymysql
-    import pymysql.cursors
-except ImportError:
-    print("[ERROR] pymysql not installed. Run: python\\venv\\Scripts\\pip.exe install pymysql")
-    sys.exit(1)
-
 # ── Paths ──────────────────────────────────────────────────────────────────────
-# Script is at: python/scripts/export_normalized_db.py
-# BASE_DIR  = repo root (osca-system/osca-system)
-# NOTEBOOK_DIR = parent dir where osca.csv and osca5.ipynb live
-BASE_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# __file__ = .../osca-system/osca-system/python/scripts/export_normalized_db.py
+# Three dirname calls:
+#   dirname(__file__)             → python/scripts/
+#   dirname(dirname(__file__))    → python/
+#   dirname * 3                   → repo root (osca-system/osca-system)  ← BASE_DIR
+#   dirname(BASE_DIR)             → osca-system/                          ← NOTEBOOK_DIR (where osca.csv lives)
+BASE_DIR     = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NOTEBOOK_DIR = os.path.dirname(BASE_DIR)
 OUT_CSV      = os.path.join(NOTEBOOK_DIR, "osca_normalized.csv")
 
@@ -128,3 +124,58 @@ def fmt_bool(value: Any) -> str:
         return "Yes" if int(value) else "No"
     except (TypeError, ValueError):
         return "No"
+
+
+def main() -> None:
+    try:
+        import pymysql
+        import pymysql.cursors
+    except ImportError:
+        print("[ERROR] pymysql not installed. Run: python\\venv\\Scripts\\pip.exe install pymysql")
+        sys.exit(1)
+
+    env_path = os.path.join(BASE_DIR, ".env")
+    env = _read_env(env_path)
+
+    conn = pymysql.connect(
+        host=env.get("DB_HOST", "127.0.0.1"),
+        port=int(env.get("DB_PORT", 3306)),
+        user=env.get("DB_USER", "root"),
+        password=env.get("DB_PASSWORD", ""),
+        database=env.get("DB_NAME", "osca"),
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM seniors ORDER BY id")
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    print(f"[INFO] Fetched {len(rows)} seniors from DB")
+
+    with open(OUT_CSV, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            out: dict = {}
+            for col in CSV_COLUMNS:
+                val = row.get(col)
+                if col == "timestamp":
+                    out[col] = fmt_timestamp(val)
+                elif col in ("dob",):
+                    out[col] = fmt_date(val)
+                elif col in JSON_FIELDS:
+                    out[col] = json_to_csv_str(val)
+                elif col in ("has_medical_checkup",):
+                    out[col] = fmt_bool(val)
+                else:
+                    out[col] = "" if val is None else str(val)
+            writer.writerow(out)
+
+    print(f"[INFO] Wrote {OUT_CSV}")
+
+
+if __name__ == "__main__":
+    main()

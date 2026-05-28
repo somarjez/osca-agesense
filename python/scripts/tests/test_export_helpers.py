@@ -1,6 +1,6 @@
 """
 Unit tests for export_normalized_db helper functions.
-Run: python\venv\Scripts\python.exe -m pytest python\scripts\tests\test_export_helpers.py -v
+Run: python\\venv\\Scripts\\python.exe -m pytest python\\scripts\\tests\\test_export_helpers.py -v
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -48,6 +48,10 @@ def test_date_none_returns_empty():
     from export_normalized_db import fmt_date
     assert fmt_date(None) == ""
 
+def test_date_from_datetime_strips_time():
+    from export_normalized_db import fmt_date
+    assert fmt_date(datetime(1950, 5, 24, 10, 30)) == "5/24/1950"
+
 # ── fmt_timestamp ─────────────────────────────────────────────────────────────
 def test_datetime_formats_as_m_d_Y_H_MM():
     from export_normalized_db import fmt_timestamp
@@ -77,3 +81,7 @@ def test_none_returns_no():
 def test_true_bool_returns_yes():
     from export_normalized_db import fmt_bool
     assert fmt_bool(True) == "Yes"
+
+def test_false_bool_returns_no():
+    from export_normalized_db import fmt_bool
+    assert fmt_bool(False) == "No"
