@@ -141,7 +141,7 @@ def main() -> None:
             env = _read_env(cand)
             break
     if not env:
-        print(f"[ERROR] .env not found. Tried:\n  {BASE_DIR}\\.env\n  {NOTEBOOK_DIR}\\.env")
+        print(f"[ERROR] .env file not found or contains no valid key=value pairs. Tried:\n  {BASE_DIR}\\.env\n  {NOTEBOOK_DIR}\\.env")
         sys.exit(1)
 
     # ── Connect ────────────────────────────────────────────────────────────────
@@ -244,10 +244,12 @@ def main() -> None:
         ORDER BY sc.last_name, sc.first_name
     """
 
-    with conn.cursor() as cur:
-        cur.execute(sql)
-        rows = cur.fetchall()
-    conn.close()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
 
     print(f"Fetched {len(rows)} seniors from DB.")
     if len(rows) == 0:
@@ -262,7 +264,7 @@ def main() -> None:
         writer.writeheader()
 
         for row in rows:
-            has_qol = row.get("qol_enjoy_life") is not None
+            has_qol = row.get("survey_date") is not None
             if not has_qol:
                 name = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip()
                 no_qol_seniors.append(f"  {name} (id={row.get('senior_id')})")
