@@ -484,30 +484,24 @@ def _disease_severity_score(concern_value: Any, dw: Optional[Dict[str, float]] =
 def _social_emotional_score(concern_value: Any, sw: Optional[Dict[str, float]] = None) -> float:
     if concern_value is None:
         return 0.0
-    items = _as_list(concern_value)
-    if not items:
+    # Match notebook: join all items to full text, scan ALL keywords (not just one per comma-split item)
+    text = _as_text(concern_value).lower().strip()
+    if not text:
         return 0.0
     weights = sw if sw is not None else SOCIAL_EMOTIONAL_WEIGHTS
-    matched: List[float] = []
-    for item in items:
-        text = item.strip().lower()
-        if text in SOCIAL_EMOTIONAL_HEALTHY or text in HEALTHY_FLAGS:
-            continue
-        for kw, w in weights.items():
-            if kw in text:
-                matched.append(w)
-                break
-        else:
-            matched.append(0.30)
-
-    if not matched:
+    if text in SOCIAL_EMOTIONAL_HEALTHY or text in HEALTHY_FLAGS:
         return 0.0
-
-    matched.sort(reverse=True)
+    matched_weights = [
+        w for kw, w in weights.items()
+        if kw in text
+    ]
+    if not matched_weights:
+        return 0.30  # mild default for unrecognized social concerns
+    matched_weights.sort(reverse=True)
     score = 0.0
-    for idx, w in enumerate(matched):
+    for idx, w in enumerate(matched_weights):
         score += w * (0.4 ** idx)
-    return min(score, 1.0)
+    return round(min(score, 1.0), 4)
 
 
 def _health_concern_count(raw: Dict[str, Any]) -> int:
