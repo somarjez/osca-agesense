@@ -143,7 +143,7 @@ if not ENABLE_NOTEBOOK_OVERRIDES:
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
 # when model .pkl files are retrained; bump major for schema-breaking changes.
-MODEL_VERSION = "1.1.0"
+MODEL_VERSION = "1.1.1"
 
 # Expected artifact dimensions (must match the notebook training run).
 # These constants let startup validation catch mismatched bundles early.
