@@ -4,7 +4,7 @@ compare_notebook_vs_live.py
 Compares every senior's notebook_cache result against their live_model result.
 
 This is the definitive post-migration check: after running
-  generate_cluster_centroids.py + ml:run-batch --force
+  generate_cluster_centroids.py + ml:batch-analyze --force
 the live model results should match the notebook's cluster assignments
 and risk levels.
 
@@ -118,7 +118,7 @@ print(f"\nNotebook cache seniors: {len(nb_rows)}")
 print(f"Live model seniors:     {len(lv_rows)}")
 print(f"Matched (both):         {len(matched_ids)}")
 if nb_only:
-    print(f"In notebook only:       {len(nb_only)}  (no live result yet — run ml:run-batch --force)")
+    print(f"In notebook only:       {len(nb_only)}  (no live result yet — run ml:batch-analyze --force)")
 if lv_only:
     print(f"In live only:           {len(lv_only)}  (new seniors added after study)")
 
@@ -190,7 +190,7 @@ if n == 0:
     print("    4. Rebuild centroids:       python\\venv\\Scripts\\python.exe python\\scripts\\generate_cluster_centroids.py")
     print("    5. Set ENABLE_NOTEBOOK_OVERRIDES=false in .env")
     print("    6. Restart Flask services:  python\\start_services.ps1")
-    print("    7. Recompute all:           php artisan ml:run-batch --force")
+    print("    7. Recompute all:           php artisan ml:batch-analyze --force")
     print("    8. Re-run this script.")
     print(f"\n{DIVIDER}\n")
     import sys; sys.exit(0)
