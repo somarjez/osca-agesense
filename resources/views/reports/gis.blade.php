@@ -1591,7 +1591,7 @@
         const source = relevant.length ? relevant : features;
 
         // Candidate ranking favors senior-needed services first, then nearby
-        // facilities. The final displayed order is still based on OSRM route distance.
+        // facilities. The final displayed order is based on road-route distance.
         return source
             .sort((a, b) =>
                 seniorFacilityPriority(a.facility) - seniorFacilityPriority(b.facility)
@@ -1896,6 +1896,12 @@
                     className: 'gis-boundary-tooltip',
                 });
                 layer.bindPopup(barangayDensityTooltip(name, stats.get(normalizeBarangayName(name))));
+                layer.on('click', (event) => {
+                    if (event?.originalEvent) {
+                        window.L.DomEvent.stopPropagation(event.originalEvent);
+                    }
+                    layer.openPopup(event.latlng);
+                });
             },
         });
     }
@@ -2098,6 +2104,12 @@
 
     function attachSeniorPopup(layer, feature) {
         layer.bindPopup(popupHtml(feature));
+        layer.on('click', (event) => {
+            if (event?.originalEvent) {
+                window.L.DomEvent.stopPropagation(event.originalEvent);
+            }
+            layer.openPopup();
+        });
         layer.on('popupopen', () => updateRoadNetworkServices(layer, feature));
     }
 
@@ -2314,8 +2326,65 @@
                         className: 'gis-boundary-tooltip',
                     });
                 }
+
+                if (typeof options.popup === 'function') {
+                    layer.bindPopup(options.popup(feature));
+                    layer.on('click', (event) => {
+                        if (event?.originalEvent) {
+                            window.L.DomEvent.stopPropagation(event.originalEvent);
+                        }
+                        layer.openPopup(event.latlng);
+                    });
+                }
             },
         });
+    }
+
+    function barangayFeatureAtLatLng(latlng) {
+        if (!latlng || !hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
+            return null;
+        }
+
+        const point = [Number(latlng.lng), Number(latlng.lat)];
+        if (!point.every(Number.isFinite)) {
+            return null;
+        }
+
+        return (latestBarangayBoundaryGeoJson.features || []).find((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+
+            if (geometry?.type === 'Polygon') {
+                return pointInPolygonCoordinates(point, coordinates);
+            }
+
+            if (geometry?.type === 'MultiPolygon') {
+                return Array.isArray(coordinates) &&
+                    coordinates.some((polygon) => pointInPolygonCoordinates(point, polygon));
+            }
+
+            return false;
+        }) || null;
+    }
+
+    function openBarangayPopupAt(map, latlng) {
+        const feature = barangayFeatureAtLatLng(latlng);
+        if (!feature) {
+            return false;
+        }
+
+        const name = barangayNameFromBoundary(feature);
+        const stats = barangayStats(filteredFeatures(latestSeniorGeoJson?.features || []));
+
+        window.L.popup({
+            maxWidth: 320,
+            autoPan: true,
+        })
+            .setLatLng(latlng)
+            .setContent(barangayDensityTooltip(name, stats.get(normalizeBarangayName(name))))
+            .openOn(map);
+
+        return true;
     }
 
     function ensureMapPanes(map) {
@@ -2714,11 +2783,16 @@
         layers.barangayBoundaries.clearLayers();
         layers.municipalMask.clearLayers();
         const selected = normalizeBarangayName(selectedBarangay());
+        const boundaryStats = barangayStats(filteredFeatures(latestSeniorGeoJson?.features || []));
 
         if (hasBoundaryFeatures(barangayGeoJson)) {
             layers.barangayBoundaries.addLayer(buildBoundaryLayer(barangayGeoJson, {
                 pane: 'gis-barangay-pane',
                 tooltip: true,
+                popup(feature) {
+                    const name = barangayNameFromBoundary(feature);
+                    return barangayDensityTooltip(name, boundaryStats.get(normalizeBarangayName(name)));
+                },
                 style(feature) {
                     const name = barangayNameFromBoundary(feature);
                     const isSelected = selected !== 'all' && normalizeBarangayName(name) === selected;
@@ -3178,6 +3252,9 @@
         }).addTo(map);
 
         map.on('zoomend moveend', () => refreshHeatmapLayersForZoom(map));
+        map.on('click', (event) => {
+            openBarangayPopupAt(map, event.latlng);
+        });
 
         focusMapOnPagsanjan(map);
         attachResizeObserver(map, el);

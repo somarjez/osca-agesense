@@ -13,9 +13,11 @@ class CacheGisRouteDistances extends Command
     protected $signature = 'gis:cache-route-distances
         {--seniors= : Maximum number of senior GIS records to process}
         {--facilities=5 : Number of nearby senior-relevant facilities to cache per senior}
+        {--max-requests=1500 : Maximum OpenRouteService requests to send in this run}
+        {--stop-after-rate-limits=1 : Stop the run after this many rate-limit/API-limit errors}
         {--dry-run : Count route pairs that need OpenRouteService without sending requests}
         {--force : Recalculate and overwrite existing cached route distances}
-        {--sleep-ms=1600 : Milliseconds to sleep after each OpenRouteService request}';
+        {--sleep-ms=2500 : Milliseconds to sleep after each OpenRouteService request}';
 
     protected $description = 'Precompute GIS road-network route distances for senior popup accessibility services.';
 
@@ -43,6 +45,11 @@ class CacheGisRouteDistances extends Command
         $facilityFeatures = $facilityGeoJson['features'] ?? [];
         $seniorLimit = $this->option('seniors') ? (int) $this->option('seniors') : null;
         $facilityLimit = max(1, (int) $this->option('facilities'));
+        $maxRequestsOption = $this->option('max-requests');
+        $maxRequests = $maxRequestsOption === null || $maxRequestsOption === ''
+            ? null
+            : max(0, (int) $maxRequestsOption);
+        $stopAfterRateLimits = max(0, (int) $this->option('stop-after-rate-limits'));
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
         $sleepMs = max(0, (int) $this->option('sleep-ms'));
@@ -69,6 +76,7 @@ class CacheGisRouteDistances extends Command
         $cachedRoutes = 0;
         $failed = 0;
         $rateLimitOrApiErrors = 0;
+        $hitRequestCap = false;
 
         $this->info($dryRun
             ? 'Dry run: counting route pairs only. No OpenRouteService requests will be sent.'
@@ -76,13 +84,25 @@ class CacheGisRouteDistances extends Command
 
         if ($force) {
             $this->warn('Force mode enabled: existing cached route distances will be recalculated.');
+        } else {
+            $this->line('Existing cached route pairs will be skipped. New seniors/routes only will be requested.');
         }
 
         if (!$dryRun) {
             $this->line("Throttle delay: {$sleepMs} ms after each OpenRouteService request.");
+            if ($maxRequests !== null) {
+                $this->line("Request cap: this run will stop after {$maxRequests} OpenRouteService request(s).");
+            }
+            if ($stopAfterRateLimits > 0) {
+                $this->line("Rate-limit guard: this run will stop after {$stopAfterRateLimits} rate-limit/API-limit error(s).");
+            }
         }
 
         foreach ($seniorFeatures as $seniorFeature) {
+            if ($hitRequestCap) {
+                break;
+            }
+
             $seniorId = $seniorFeature['properties']['senior_id'] ?? null;
             $origin = $this->featurePoint($seniorFeature);
 
@@ -116,6 +136,11 @@ class CacheGisRouteDistances extends Command
                     continue;
                 }
 
+                if ($maxRequests !== null && $orsRequestsSent >= $maxRequests) {
+                    $hitRequestCap = true;
+                    break;
+                }
+
                 try {
                     $orsRequestsSent++;
                     $route = $this->openRouteServiceRoute($apiKey, $origin, $destination, $orsVerify);
@@ -140,6 +165,12 @@ class CacheGisRouteDistances extends Command
                     $failed++;
                     if ($this->isRateLimitOrApiError($exception)) {
                         $rateLimitOrApiErrors++;
+                    }
+                    if ($this->isOpenRouteServiceLimitError($exception)
+                        && $stopAfterRateLimits > 0
+                        && $rateLimitOrApiErrors >= $stopAfterRateLimits
+                    ) {
+                        $hitRequestCap = true;
                     }
                     $this->warn($this->failureMessage($exception));
                 } finally {
@@ -168,6 +199,9 @@ class CacheGisRouteDistances extends Command
                 : max(0, $totalPairsChecked - $skippedCached - $skippedInvalid);
             $this->info("Dry run complete. Route pairs needing ORS requests: {$routesNeedingRequests}.");
         } else {
+            if ($hitRequestCap) {
+                $this->warn('Stopped early because a request guard was reached. Run the command again later to continue caching missing routes.');
+            }
             $this->info('Route-distance cache command complete.');
         }
 
@@ -337,5 +371,11 @@ class CacheGisRouteDistances extends Command
         return $code === 429
             || ($code >= 400 && $code <= 599)
             || str_contains($exception->getMessage(), 'OpenRouteService failed');
+    }
+
+    private function isOpenRouteServiceLimitError(\Throwable $exception): bool
+    {
+        return (int) $exception->getCode() === 429
+            || str_contains(strtolower($exception->getMessage()), 'rate limit');
     }
 }
