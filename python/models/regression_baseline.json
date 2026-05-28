@@ -1703,6 +1703,6 @@
     "locked_on": "2026-05-28",
     "model_version": "1.1.1",
     "senior_count": 283,
-    "note": "v1.1.1 pre-migration snapshot. Re-lock after ml:run-batch --force + fix_cluster_distribution.py"
+    "note": "v1.1.1 pre-migration snapshot. Re-lock after ml:batch-analyze --force"
   }
 }

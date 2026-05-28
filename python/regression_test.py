@@ -76,7 +76,7 @@ if UPDATE_MODE:
             "locked_on": datetime.date.today().isoformat(),
             "model_version": "1.1.1",
             "senior_count": len(current),
-            "note": "v1.1.1 pre-migration snapshot. Re-lock after ml:run-batch --force + fix_cluster_distribution.py",
+            "note": "v1.1.1 post-migration baseline. Re-lock only after intentional model retrain.",
         }}, f, indent=2)
     print(f"[OK] Baseline updated: {len(current)} seniors -> {BASELINE_PATH}")
     sys.exit(0)
