@@ -1,6 +1,7 @@
 # Sensitive data — never commit
 *.sql
 osca.csv
+osca_normalized.csv
 python/models/predictions/senior_predictions.csv
 python/models/predictions/senior_recommendations_flat.csv
 
