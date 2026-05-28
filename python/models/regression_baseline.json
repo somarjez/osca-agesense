@@ -4,12 +4,12 @@
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4605,
-      "wellbeing": 0.6673
+      "wellbeing": 0.6348
     },
     "edna|abarquez": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3642,
+      "composite_risk": 0.3637,
       "wellbeing": 0.6405
     },
     "isabel|abarquez": {
@@ -21,13 +21,13 @@
     "erna|ablasa": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5196,
-      "wellbeing": 0.5096
+      "composite_risk": 0.5223,
+      "wellbeing": 0.4946
     },
     "luciana|ablir": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.315,
+      "composite_risk": 0.3184,
       "wellbeing": 0.6591
     },
     "jessie|akala": {
@@ -39,20 +39,20 @@
     "florida|alam": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2998,
-      "wellbeing": 0.7937
+      "composite_risk": 0.2997,
+      "wellbeing": 0.7787
     },
     "solita|alias": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2207,
-      "wellbeing": 0.8121
+      "composite_risk": 0.2183,
+      "wellbeing": 0.7971
     },
     "merlita|alipar": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3535,
-      "wellbeing": 0.7303
+      "wellbeing": 0.7153
     },
     "linda|aliparo": {
       "risk_level": "MODERATE",
@@ -64,25 +64,25 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5011,
-      "wellbeing": 0.5692
+      "wellbeing": 0.5542
     },
     "leticia|almarez": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2708,
-      "wellbeing": 0.8767
+      "composite_risk": 0.2706,
+      "wellbeing": 0.8442
     },
     "annie|almonte": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4162,
-      "wellbeing": 0.7111
+      "wellbeing": 0.6962
     },
     "eupemia|almonte": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4073,
-      "wellbeing": 0.758
+      "wellbeing": 0.743
     },
     "sonia|almonte": {
       "risk_level": "MODERATE",
@@ -105,14 +105,14 @@
     "veda|amalosa": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4887,
+      "composite_risk": 0.4888,
       "wellbeing": 0.638
     },
     "rosa|amante": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3686,
-      "wellbeing": 0.6877
+      "wellbeing": 0.6727
     },
     "jeany|ambrocio": {
       "risk_level": "LOW",
@@ -129,19 +129,19 @@
     "ofelia|amonelo": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3757,
+      "composite_risk": 0.3755,
       "wellbeing": 0.665
     },
     "albino|antolin": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3707,
+      "composite_risk": 0.3723,
       "wellbeing": 0.7797
     },
     "edita|antolin": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.402,
+      "composite_risk": 0.4039,
       "wellbeing": 0.7786
     },
     "florelle|aquino": {
@@ -153,19 +153,19 @@
     "nescita|aquino": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.245,
-      "wellbeing": 0.7459
+      "composite_risk": 0.2453,
+      "wellbeing": 0.7309
     },
     "edwin|arroyo": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4214,
+      "composite_risk": 0.4225,
       "wellbeing": 0.7444
     },
     "dina|aycotso": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4735,
+      "composite_risk": 0.4736,
       "wellbeing": 0.6527
     },
     "nilda|babaan": {
@@ -177,20 +177,20 @@
     "danilo|baraga": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3522,
-      "wellbeing": 0.6677
+      "composite_risk": 0.3565,
+      "wellbeing": 0.6527
     },
     "rosty|barcelona": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5273,
+      "composite_risk": 0.5277,
       "wellbeing": 0.572
     },
     "nida|barquin": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.272,
-      "wellbeing": 0.7699
+      "wellbeing": 0.7549
     },
     "edna|barrera": {
       "risk_level": "MODERATE",
@@ -201,14 +201,14 @@
     "jose|barrera": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3464,
-      "wellbeing": 0.6702
+      "composite_risk": 0.3485,
+      "wellbeing": 0.6552
     },
     "aurora|basa": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5443,
-      "wellbeing": 0.5706
+      "composite_risk": 0.5438,
+      "wellbeing": 0.5381
     },
     "norlito|basa": {
       "risk_level": "HIGH",
@@ -219,60 +219,60 @@
     "juan|battaler": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6126,
-      "wellbeing": 0.4196
+      "composite_risk": 0.6131,
+      "wellbeing": 0.4046
     },
     "erma|beatriz": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.372,
-      "wellbeing": 0.6776
+      "wellbeing": 0.6626
     },
     "violeta|beauriza": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3282,
-      "wellbeing": 0.7379
+      "wellbeing": 0.7229
     },
     "benito|bermudez": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.397,
-      "wellbeing": 0.749
+      "wellbeing": 0.734
     },
     "florencia|bermudez": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3292,
+      "composite_risk": 0.3291,
       "wellbeing": 0.7403
     },
     "florina|bermudez": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3028,
-      "wellbeing": 0.7949
+      "wellbeing": 0.7799
     },
     "erlinda|blacer": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3607,
+      "composite_risk": 0.362,
       "wellbeing": 0.6513
     },
     "merlyn|bolante": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.387,
-      "wellbeing": 0.7019
+      "wellbeing": 0.6869
     },
     "celia|bombay": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.6238,
-      "wellbeing": 0.5394
+      "wellbeing": 0.5244
     },
     "elena|bombay": {
       "risk_level": "MODERATE",
-      "cluster": 1,
+      "cluster": 2,
       "composite_risk": 0.3446,
       "wellbeing": 0.7064
     },
@@ -303,7 +303,7 @@
     "rosslina|buluran": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3786,
+      "composite_risk": 0.3787,
       "wellbeing": 0.6402
     },
     "armando|bunsol": {
@@ -315,14 +315,14 @@
     "hermigilda|buntigaw": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3642,
-      "wellbeing": 0.7276
+      "composite_risk": 0.3621,
+      "wellbeing": 0.7126
     },
     "anicia|cabantog": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.37,
-      "wellbeing": 0.7098
+      "composite_risk": 0.3702,
+      "wellbeing": 0.6948
     },
     "merly|cabantog": {
       "risk_level": "MODERATE",
@@ -339,50 +339,50 @@
     "edilina|cabela": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.266,
-      "wellbeing": 0.7399
+      "composite_risk": 0.2691,
+      "wellbeing": 0.7074
     },
     "emelda|cabela": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3071,
-      "wellbeing": 0.7752
+      "wellbeing": 0.7602
     },
     "luz|cabrega": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2878,
-      "wellbeing": 0.7188
+      "wellbeing": 0.7038
     },
     "adora|cabreza": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4072,
-      "wellbeing": 0.704
+      "wellbeing": 0.689
     },
     "mario|cabreza": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4102,
-      "wellbeing": 0.7062
+      "wellbeing": 0.6912
     },
     "teresita|cabreza": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4604,
-      "wellbeing": 0.6964
+      "wellbeing": 0.6814
     },
     "asuncio|calabit": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4407,
-      "wellbeing": 0.6491
+      "wellbeing": 0.6341
     },
     "asuncion|calabit": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4456,
-      "wellbeing": 0.7133
+      "composite_risk": 0.4435,
+      "wellbeing": 0.6983
     },
     "bienivido|calabit": {
       "risk_level": "MODERATE",
@@ -393,20 +393,20 @@
     "irene|calabit": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3572,
+      "composite_risk": 0.3581,
       "wellbeing": 0.7061
     },
     "juanito|calinagan": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5222,
-      "wellbeing": 0.6502
+      "wellbeing": 0.6352
     },
     "pasencia|calinagan": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3778,
-      "wellbeing": 0.732
+      "wellbeing": 0.717
     },
     "merlinda|calma": {
       "risk_level": "MODERATE",
@@ -416,21 +416,21 @@
     },
     "analisa|campillo": {
       "risk_level": "MODERATE",
-      "cluster": 3,
-      "composite_risk": 0.4076,
+      "cluster": 2,
+      "composite_risk": 0.4069,
       "wellbeing": 0.5886
     },
     "evangeline|capili": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3629,
+      "composite_risk": 0.363,
       "wellbeing": 0.7227
     },
     "yolanda|catindig": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4727,
-      "wellbeing": 0.6957
+      "composite_risk": 0.4733,
+      "wellbeing": 0.6807
     },
     "amelia|catulay": {
       "risk_level": "MODERATE",
@@ -441,14 +441,14 @@
     "fabriola|cayanan": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3589,
-      "wellbeing": 0.6712
+      "composite_risk": 0.3583,
+      "wellbeing": 0.6562
     },
     "dorotea|cejo": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6587,
-      "wellbeing": 0.5224
+      "composite_risk": 0.6588,
+      "wellbeing": 0.5074
     },
     "celestine|chabis": {
       "risk_level": "LOW",
@@ -460,43 +460,43 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.6101,
-      "wellbeing": 0.5635
+      "wellbeing": 0.5485
     },
     "nida|conde": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3146,
+      "composite_risk": 0.318,
       "wellbeing": 0.7511
     },
     "fainna|coronel": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4427,
+      "composite_risk": 0.4426,
       "wellbeing": 0.6454
     },
     "virginia|cristal": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6502,
-      "wellbeing": 0.4836
+      "composite_risk": 0.6483,
+      "wellbeing": 0.4686
     },
     "lusbiminda|cristobal": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.32,
-      "wellbeing": 0.8065
+      "wellbeing": 0.7915
     },
     "rodolfo|cristobal": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.1783,
-      "wellbeing": 0.8016
+      "wellbeing": 0.7866
     },
     "lusila|cruz": {
       "risk_level": "MODERATE",
-      "cluster": 1,
-      "composite_risk": 0.4039,
-      "wellbeing": 0.723
+      "cluster": 2,
+      "composite_risk": 0.4055,
+      "wellbeing": 0.6905
     },
     "victorina|custodio": {
       "risk_level": "MODERATE",
@@ -508,13 +508,13 @@
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3372,
-      "wellbeing": 0.7874
+      "wellbeing": 0.7724
     },
     "celia|dalapen": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5051,
-      "wellbeing": 0.6237
+      "wellbeing": 0.6087
     },
     "erlinda|dasmari\u00f1as": {
       "risk_level": "HIGH",
@@ -525,38 +525,38 @@
     "yolanda|dasmarinas": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.376,
-      "wellbeing": 0.8169
+      "composite_risk": 0.3765,
+      "wellbeing": 0.8019
     },
     "leandra|dava": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3313,
-      "wellbeing": 0.7033
+      "wellbeing": 0.6708
     },
     "vergilio|dava": {
       "risk_level": "MODERATE",
-      "cluster": 3,
+      "cluster": 2,
       "composite_risk": 0.4156,
-      "wellbeing": 0.7202
+      "wellbeing": 0.6877
     },
     "lilian|davac": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5302,
-      "wellbeing": 0.6425
+      "wellbeing": 0.6275
     },
     "merle|davac": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3127,
+      "composite_risk": 0.3126,
       "wellbeing": 0.7914
     },
     "teresita|david": {
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3428,
-      "wellbeing": 0.7354
+      "wellbeing": 0.7204
     },
     "dany|de belen": {
       "risk_level": "MODERATE",
@@ -566,21 +566,21 @@
     },
     "emilie|de belen": {
       "risk_level": "MODERATE",
-      "cluster": 3,
-      "composite_risk": 0.4478,
+      "cluster": 2,
+      "composite_risk": 0.4484,
       "wellbeing": 0.657
     },
     "maria|de leon": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4539,
-      "wellbeing": 0.62
+      "composite_risk": 0.4532,
+      "wellbeing": 0.605
     },
     "noxiano|de rama": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.234,
-      "wellbeing": 0.7737
+      "wellbeing": 0.7587
     },
     "eufrencinia|dela cruz": {
       "risk_level": "MODERATE",
@@ -591,7 +591,7 @@
     "eulogio|dela cruz": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3846,
+      "composite_risk": 0.3843,
       "wellbeing": 0.6221
     },
     "rodolfo|dela cruz": {
@@ -604,19 +604,19 @@
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2241,
-      "wellbeing": 0.7589
+      "wellbeing": 0.7439
     },
     "norma|delos reyes": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4783,
+      "composite_risk": 0.4754,
       "wellbeing": 0.6994
     },
     "rosario|delos reyes": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5037,
-      "wellbeing": 0.6659
+      "wellbeing": 0.6509
     },
     "marites|denido": {
       "risk_level": "LOW",
@@ -628,24 +628,24 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.622,
-      "wellbeing": 0.6007
+      "wellbeing": 0.5857
     },
     "joel|eliab": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4486,
-      "wellbeing": 0.666
+      "wellbeing": 0.651
     },
     "necita|enriquez": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.222,
-      "wellbeing": 0.855
+      "wellbeing": 0.84
     },
     "fe|escote": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3296,
+      "composite_risk": 0.3295,
       "wellbeing": 0.7425
     },
     "doris|evio": {
@@ -657,8 +657,8 @@
     "lamberto|fabricio": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.4469,
-      "wellbeing": 0.7011
+      "composite_risk": 0.4495,
+      "wellbeing": 0.6861
     },
     "dalmacio|fernandez": {
       "risk_level": "HIGH",
@@ -676,49 +676,49 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5297,
-      "wellbeing": 0.6686
+      "wellbeing": 0.6536
     },
     "dario|flores": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3567,
-      "wellbeing": 0.7222
+      "composite_risk": 0.3568,
+      "wellbeing": 0.7072
     },
     "galleo|flores": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4885,
-      "wellbeing": 0.5973
+      "composite_risk": 0.4898,
+      "wellbeing": 0.5823
     },
     "lilia|flores": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3044,
-      "wellbeing": 0.7824
+      "composite_risk": 0.3073,
+      "wellbeing": 0.7674
     },
     "elvira|forvis": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6235,
-      "wellbeing": 0.4673
+      "composite_risk": 0.6239,
+      "wellbeing": 0.4523
     },
     "rolito|francia": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4629,
-      "wellbeing": 0.7211
+      "composite_risk": 0.463,
+      "wellbeing": 0.7061
     },
     "teodora|francia": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4489,
-      "wellbeing": 0.6778
+      "composite_risk": 0.4488,
+      "wellbeing": 0.6628
     },
     "ligaya|furio": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4274,
-      "wellbeing": 0.738
+      "composite_risk": 0.4273,
+      "wellbeing": 0.723
     },
     "betty|gabating": {
       "risk_level": "MODERATE",
@@ -728,38 +728,38 @@
     },
     "amelita|gaceta": {
       "risk_level": "HIGH",
-      "cluster": 3,
-      "composite_risk": 0.5087,
-      "wellbeing": 0.5954
+      "cluster": 2,
+      "composite_risk": 0.5108,
+      "wellbeing": 0.5629
     },
     "aida|galicio": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3538,
+      "composite_risk": 0.3552,
       "wellbeing": 0.583
     },
     "cenon|gancioco": {
       "risk_level": "MODERATE",
-      "cluster": 1,
-      "composite_risk": 0.3759,
+      "cluster": 2,
+      "composite_risk": 0.3791,
       "wellbeing": 0.7327
     },
     "herminia|garcia": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3112,
-      "wellbeing": 0.7389
+      "composite_risk": 0.3133,
+      "wellbeing": 0.7239
     },
     "marlon|garcia": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4259,
+      "composite_risk": 0.426,
       "wellbeing": 0.6223
     },
     "merlinda|garcia": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4161,
+      "composite_risk": 0.417,
       "wellbeing": 0.626
     },
     "ela\u00f1or|gimena": {
@@ -771,14 +771,14 @@
     "emma|goma": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6527,
-      "wellbeing": 0.5626
+      "composite_risk": 0.6555,
+      "wellbeing": 0.5476
     },
     "erlinda|gomez": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4819,
-      "wellbeing": 0.5198
+      "wellbeing": 0.5048
     },
     "cepriana|gregorio": {
       "risk_level": "HIGH",
@@ -789,14 +789,14 @@
     "amor|guab": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4233,
-      "wellbeing": 0.691
+      "composite_risk": 0.422,
+      "wellbeing": 0.676
     },
     "dolores|guav": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5993,
-      "wellbeing": 0.4594
+      "wellbeing": 0.4444
     },
     "elma|hari\u00f1o": {
       "risk_level": "MODERATE",
@@ -807,8 +807,8 @@
     "gloria|hermano": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3401,
-      "wellbeing": 0.7449
+      "composite_risk": 0.337,
+      "wellbeing": 0.7299
     },
     "yunita|hilario": {
       "risk_level": "MODERATE",
@@ -819,20 +819,20 @@
     "carmen|javier": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4572,
+      "composite_risk": 0.4557,
       "wellbeing": 0.6957
     },
     "diana|javier": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3889,
-      "wellbeing": 0.7083
+      "composite_risk": 0.389,
+      "wellbeing": 0.6933
     },
     "teresita|javier": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.393,
-      "wellbeing": 0.7669
+      "wellbeing": 0.7519
     },
     "vilma|javier": {
       "risk_level": "MODERATE",
@@ -844,49 +844,49 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5711,
-      "wellbeing": 0.5986
+      "wellbeing": 0.5661
     },
     "nimpe|javillanar": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4482,
+      "composite_risk": 0.4483,
       "wellbeing": 0.7039
     },
     "conchita|javiniar": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2856,
-      "wellbeing": 0.8192
+      "wellbeing": 0.8042
     },
     "amelia|kuyugan": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4686,
-      "wellbeing": 0.6295
+      "composite_risk": 0.4701,
+      "wellbeing": 0.6145
     },
     "danilo|labiaga": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4041,
-      "wellbeing": 0.6829
+      "wellbeing": 0.6679
     },
     "mario|lacostales": {
       "risk_level": "HIGH",
-      "cluster": 2,
+      "cluster": 3,
       "composite_risk": 0.5031,
       "wellbeing": 0.5899
     },
     "nelly|lamboson": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3344,
-      "wellbeing": 0.7278
+      "composite_risk": 0.3343,
+      "wellbeing": 0.7128
     },
     "guadalupe|largueza": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5693,
-      "wellbeing": 0.6321
+      "wellbeing": 0.6171
     },
     "victoria|lavandero": {
       "risk_level": "LOW",
@@ -897,20 +897,20 @@
     "rosario|leysa": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4518,
-      "wellbeing": 0.622
+      "composite_risk": 0.4499,
+      "wellbeing": 0.607
     },
     "angelita|liwag": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4191,
-      "wellbeing": 0.7573
+      "wellbeing": 0.7248
     },
     "arceo|liwag": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4227,
-      "wellbeing": 0.5126
+      "composite_risk": 0.4243,
+      "wellbeing": 0.4976
     },
     "crsitina|liwag": {
       "risk_level": "LOW",
@@ -922,17 +922,17 @@
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4025,
-      "wellbeing": 0.7577
+      "wellbeing": 0.7427
     },
     "normita|lopez": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2199,
+      "composite_risk": 0.2195,
       "wellbeing": 0.7821
     },
     "belenett|lorena": {
       "risk_level": "MODERATE",
-      "cluster": 1,
+      "cluster": 2,
       "composite_risk": 0.4231,
       "wellbeing": 0.6983
     },
@@ -945,8 +945,8 @@
     "ben|lubugin": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4168,
-      "wellbeing": 0.7053
+      "composite_risk": 0.4164,
+      "wellbeing": 0.6903
     },
     "leny|lubugin": {
       "risk_level": "MODERATE",
@@ -964,7 +964,7 @@
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3236,
-      "wellbeing": 0.6868
+      "wellbeing": 0.6718
     },
     "salvador|luminaryo": {
       "risk_level": "MODERATE",
@@ -975,25 +975,25 @@
     "marites|macalagay": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3444,
+      "composite_risk": 0.3443,
       "wellbeing": 0.6252
     },
     "amor|macaroyi": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2959,
-      "wellbeing": 0.7951
+      "composite_risk": 0.2957,
+      "wellbeing": 0.7626
     },
     "diosdada|macinas": {
       "risk_level": "MODERATE",
-      "cluster": 2,
+      "cluster": 1,
       "composite_risk": 0.3975,
       "wellbeing": 0.683
     },
     "domingo|macinas": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4444,
+      "composite_risk": 0.4475,
       "wellbeing": 0.6589
     },
     "edgar|madriaga": {
@@ -1005,13 +1005,13 @@
     "helen|madriaga": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3011,
+      "composite_risk": 0.3054,
       "wellbeing": 0.8578
     },
     "arecenio|malunso": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.53,
+      "composite_risk": 0.5277,
       "wellbeing": 0.6251
     },
     "estelita|martillan": {
@@ -1023,14 +1023,14 @@
     "jeni|mata": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3873,
-      "wellbeing": 0.6306
+      "composite_risk": 0.3846,
+      "wellbeing": 0.6156
     },
     "mercelina|maurin": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2888,
-      "wellbeing": 0.7461
+      "wellbeing": 0.7311
     },
     "hernando|mayani": {
       "risk_level": "MODERATE",
@@ -1042,18 +1042,18 @@
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4168,
-      "wellbeing": 0.674
+      "wellbeing": 0.6415
     },
     "erlinda|mejilla": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.592,
-      "wellbeing": 0.4923
+      "composite_risk": 0.5901,
+      "wellbeing": 0.4773
     },
     "salume|mendoza": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3331,
+      "composite_risk": 0.3364,
       "wellbeing": 0.7358
     },
     "mirla|merginio": {
@@ -1065,32 +1065,32 @@
     "vicente|merginio": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5164,
+      "composite_risk": 0.5172,
       "wellbeing": 0.5525
     },
     "antonia|mondez": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5869,
-      "wellbeing": 0.4367
+      "wellbeing": 0.4042
     },
     "anita|monponbanua": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2192,
-      "wellbeing": 0.779
+      "wellbeing": 0.764
     },
     "leonilo|monponbanua": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3997,
-      "wellbeing": 0.7508
+      "composite_risk": 0.3958,
+      "wellbeing": 0.7358
     },
     "aurelia|monreal": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3807,
-      "wellbeing": 0.6834
+      "wellbeing": 0.6684
     },
     "lilia|monta\u00f1ez": {
       "risk_level": "MODERATE",
@@ -1102,13 +1102,13 @@
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3768,
-      "wellbeing": 0.7543
+      "wellbeing": 0.7218
     },
     "jessy|montellano": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4415,
-      "wellbeing": 0.6904
+      "wellbeing": 0.6754
     },
     "susana|morillo": {
       "risk_level": "MODERATE",
@@ -1132,13 +1132,13 @@
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4838,
-      "wellbeing": 0.6397
+      "wellbeing": 0.6072
     },
     "fe|napod": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.366,
-      "wellbeing": 0.6782
+      "wellbeing": 0.6632
     },
     "maria teresa|navarro": {
       "risk_level": "MODERATE",
@@ -1149,12 +1149,12 @@
     "celia|nilo": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3792,
-      "wellbeing": 0.7275
+      "composite_risk": 0.382,
+      "wellbeing": 0.7125
     },
     "fe|obial": {
       "risk_level": "MODERATE",
-      "cluster": 2,
+      "cluster": 1,
       "composite_risk": 0.3399,
       "wellbeing": 0.6285
     },
@@ -1162,7 +1162,7 @@
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3336,
-      "wellbeing": 0.7176
+      "wellbeing": 0.7026
     },
     "florencio|obina": {
       "risk_level": "LOW",
@@ -1174,25 +1174,25 @@
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4141,
-      "wellbeing": 0.7357
+      "wellbeing": 0.7207
     },
     "teresita|oliveros": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.522,
+      "composite_risk": 0.5219,
       "wellbeing": 0.6184
     },
     "alejandro|ope\u00f1a": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.448,
-      "wellbeing": 0.6564
+      "wellbeing": 0.6414
     },
     "victoria|openia": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4916,
-      "wellbeing": 0.7115
+      "wellbeing": 0.6965
     },
     "alicia|oquendo": {
       "risk_level": "LOW",
@@ -1203,19 +1203,19 @@
     "roberto|oracoy": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4288,
+      "composite_risk": 0.4267,
       "wellbeing": 0.5851
     },
     "lorna|oralfo": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4703,
-      "wellbeing": 0.6621
+      "composite_risk": 0.4704,
+      "wellbeing": 0.6471
     },
     "melchor|orolfo": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6566,
+      "composite_risk": 0.6556,
       "wellbeing": 0.5072
     },
     "romulo|pabricio": {
@@ -1227,7 +1227,7 @@
     "edgardo|pabroada": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4112,
+      "composite_risk": 0.4099,
       "wellbeing": 0.5792
     },
     "edgard|pacana": {
@@ -1246,25 +1246,25 @@
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5456,
-      "wellbeing": 0.6131
+      "wellbeing": 0.5981
     },
     "fe|pagtananan": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3188,
-      "wellbeing": 0.741
+      "composite_risk": 0.3186,
+      "wellbeing": 0.7085
     },
     "marilou|pagtananan": {
       "risk_level": "HIGH",
       "cluster": 2,
-      "composite_risk": 0.5435,
+      "composite_risk": 0.5436,
       "wellbeing": 0.5881
     },
     "teresita|pantoja": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4638,
-      "wellbeing": 0.7356
+      "composite_risk": 0.4699,
+      "wellbeing": 0.7031
     },
     "buena fe|pasahol": {
       "risk_level": "MODERATE",
@@ -1275,8 +1275,8 @@
     "candida|pasahol": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4869,
-      "wellbeing": 0.6353
+      "composite_risk": 0.4871,
+      "wellbeing": 0.6203
     },
     "perfecto|pasahol": {
       "risk_level": "HIGH",
@@ -1287,7 +1287,7 @@
     "concita|pasion": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3687,
+      "composite_risk": 0.3686,
       "wellbeing": 0.7791
     },
     "ruben|pasion": {
@@ -1300,7 +1300,7 @@
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3923,
-      "wellbeing": 0.7026
+      "wellbeing": 0.6876
     },
     "lindinia|perez": {
       "risk_level": "MODERATE",
@@ -1311,8 +1311,8 @@
     "miguel|perez": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2066,
-      "wellbeing": 0.7919
+      "composite_risk": 0.2067,
+      "wellbeing": 0.777
     },
     "soledad|periabras": {
       "risk_level": "MODERATE",
@@ -1329,8 +1329,8 @@
     "loreta|ponce": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5323,
-      "wellbeing": 0.5593
+      "composite_risk": 0.5316,
+      "wellbeing": 0.5443
     },
     "magdalena|ponce": {
       "risk_level": "MODERATE",
@@ -1347,67 +1347,67 @@
     "romeo|ponce": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4261,
+      "composite_risk": 0.4267,
       "wellbeing": 0.6919
     },
     "conrado|pulgo": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.265,
-      "wellbeing": 0.7013
+      "composite_risk": 0.2636,
+      "wellbeing": 0.6863
     },
     "teresita|quesmundo": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3857,
-      "wellbeing": 0.6349
+      "wellbeing": 0.6199
     },
     "aida|rama": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5247,
-      "wellbeing": 0.6669
+      "wellbeing": 0.6519
     },
     "emilio|ramirez": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4596,
-      "wellbeing": 0.5459
+      "wellbeing": 0.5309
     },
     "gloria|ramirez": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4308,
-      "wellbeing": 0.6927
+      "composite_risk": 0.4306,
+      "wellbeing": 0.6777
     },
     "luzvominda|ramos": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3374,
-      "wellbeing": 0.6517
+      "wellbeing": 0.6192
     },
     "lyn|ramos": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5975,
+      "composite_risk": 0.5988,
       "wellbeing": 0.5617
     },
     "maria corazon|ramos": {
       "risk_level": "LOW",
       "cluster": 1,
-      "composite_risk": 0.2297,
-      "wellbeing": 0.743
+      "composite_risk": 0.2296,
+      "wellbeing": 0.728
     },
     "ronel|raudeza": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.673,
-      "wellbeing": 0.5293
+      "composite_risk": 0.6699,
+      "wellbeing": 0.5143
     },
     "evelyn|reamon": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4402,
+      "composite_risk": 0.4413,
       "wellbeing": 0.6188
     },
     "melda|rectin": {
@@ -1419,7 +1419,7 @@
     "loreta|reluya": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3252,
+      "composite_risk": 0.3263,
       "wellbeing": 0.6202
     },
     "lydia|rempillo": {
@@ -1455,19 +1455,19 @@
     "rolando|rodriguez": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4448,
+      "composite_risk": 0.4459,
       "wellbeing": 0.586
     },
     "raul|roldan": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.6738,
-      "wellbeing": 0.5096
+      "composite_risk": 0.6722,
+      "wellbeing": 0.4946
     },
     "rodolfo|romansanta": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4023,
+      "composite_risk": 0.4024,
       "wellbeing": 0.6781
     },
     "milagros|rosales": {
@@ -1480,43 +1480,43 @@
       "risk_level": "MODERATE",
       "cluster": 1,
       "composite_risk": 0.3809,
-      "wellbeing": 0.689
+      "wellbeing": 0.6565
     },
     "melinda|rosende": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4044,
-      "wellbeing": 0.6505
+      "composite_risk": 0.4043,
+      "wellbeing": 0.6355
     },
     "miguel|sacopla": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3687,
-      "wellbeing": 0.6878
+      "composite_risk": 0.3688,
+      "wellbeing": 0.6728
     },
     "cristina|salazar": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5956,
-      "wellbeing": 0.5341
+      "composite_risk": 0.5955,
+      "wellbeing": 0.5191
     },
     "gloria|salazar": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5301,
-      "wellbeing": 0.6233
+      "wellbeing": 0.5908
     },
     "amor|samonte": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3176,
-      "wellbeing": 0.6863
+      "wellbeing": 0.6713
     },
     "nancy|samonte": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2296,
-      "wellbeing": 0.8775
+      "wellbeing": 0.8625
     },
     "maria teresa|samson": {
       "risk_level": "MODERATE",
@@ -1527,8 +1527,8 @@
     "anita|san gaspar": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4815,
-      "wellbeing": 0.6231
+      "composite_risk": 0.4814,
+      "wellbeing": 0.6081
     },
     "jesusa|sandoval": {
       "risk_level": "MODERATE",
@@ -1539,7 +1539,7 @@
     "eroa|soledad": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4118,
+      "composite_risk": 0.4098,
       "wellbeing": 0.6246
     },
     "rosa|sorro": {
@@ -1552,31 +1552,31 @@
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4991,
-      "wellbeing": 0.5898
+      "wellbeing": 0.5748
     },
     "mercy|suiza": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3884,
-      "wellbeing": 0.7098
+      "wellbeing": 0.6948
     },
     "corazon|tai\u00f1o": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4667,
-      "wellbeing": 0.6948
+      "wellbeing": 0.6623
     },
     "elena|tai\u00f1o": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4825,
-      "wellbeing": 0.6701
+      "wellbeing": 0.6376
     },
     "francisco|tai\u00f1o": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5031,
-      "wellbeing": 0.6287
+      "composite_risk": 0.5066,
+      "wellbeing": 0.6137
     },
     "vergie|tanghian": {
       "risk_level": "MODERATE",
@@ -1587,74 +1587,74 @@
     "adel|tawan": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4635,
+      "composite_risk": 0.4601,
       "wellbeing": 0.6489
     },
     "teresita|tolentino": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.5433,
-      "wellbeing": 0.6111
+      "wellbeing": 0.5961
     },
     "josephine|toriano": {
       "risk_level": "LOW",
       "cluster": 2,
-      "composite_risk": 0.2841,
+      "composite_risk": 0.2847,
       "wellbeing": 0.7491
     },
     "paz|torres": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.644,
-      "wellbeing": 0.6087
+      "composite_risk": 0.6439,
+      "wellbeing": 0.5937
     },
     "epifania|trinidad": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.4266,
-      "wellbeing": 0.7407
+      "composite_risk": 0.4267,
+      "wellbeing": 0.7257
     },
     "charles|tuico": {
       "risk_level": "HIGH",
       "cluster": 3,
-      "composite_risk": 0.5899,
+      "composite_risk": 0.5894,
       "wellbeing": 0.5971
     },
     "emiliana|velo": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.6218,
-      "wellbeing": 0.5429
+      "wellbeing": 0.5279
     },
     "olivia|victoria": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3872,
+      "composite_risk": 0.384,
       "wellbeing": 0.7097
     },
     "erberto|villamer": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3148,
+      "composite_risk": 0.3189,
       "wellbeing": 0.8134
     },
     "dominador|villamor": {
       "risk_level": "MODERATE",
       "cluster": 3,
-      "composite_risk": 0.4768,
-      "wellbeing": 0.584
+      "composite_risk": 0.4798,
+      "wellbeing": 0.5647
     },
     "benjamin|villanueva": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3546,
-      "wellbeing": 0.8082
+      "composite_risk": 0.3545,
+      "wellbeing": 0.7932
     },
     "emelita|villanueva": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2302,
-      "wellbeing": 0.8732
+      "wellbeing": 0.8582
     },
     "eleda|villar": {
       "risk_level": "LOW",
@@ -1665,13 +1665,13 @@
     "madilene|villarino": {
       "risk_level": "MODERATE",
       "cluster": 1,
-      "composite_risk": 0.3249,
+      "composite_risk": 0.3222,
       "wellbeing": 0.7934
     },
     "romeo|villarino": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3113,
+      "composite_risk": 0.3089,
       "wellbeing": 0.6883
     },
     "aida|waferina": {
@@ -1689,7 +1689,7 @@
     "nancy|yaneza": {
       "risk_level": "MODERATE",
       "cluster": 2,
-      "composite_risk": 0.3941,
+      "composite_risk": 0.3935,
       "wellbeing": 0.7164
     },
     "nadie|zaguirre": {
@@ -1700,9 +1700,9 @@
     }
   },
   "_meta": {
-    "locked_on": "2026-05-20",
-    "model_version": "1.1.0",
+    "locked_on": "2026-05-28",
+    "model_version": "1.1.1",
     "senior_count": 283,
-    "note": "HIGH threshold >= 0.45, out-of-sample GBR/RFR predictions"
+    "note": "v1.1.1 pre-migration snapshot. Re-lock after ml:run-batch --force + fix_cluster_distribution.py"
   }
 }

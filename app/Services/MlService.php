@@ -16,7 +16,7 @@ class MlService
 {
     // Bump patch when thresholds change, minor when .pkl files retrained,
     // major for schema-breaking changes. Must match inference_service.py MODEL_VERSION.
-    public const MODEL_VERSION = '1.1.0';
+    public const MODEL_VERSION = '1.1.1';
 
     // Risk thresholds — must stay in sync with inference_service.py RISK_THRESHOLDS.
     private const HIGH_THRESHOLD     = 0.50;
