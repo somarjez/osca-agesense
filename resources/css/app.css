@@ -362,6 +362,62 @@
 .dark .status-dot-warn { background-color: #e0621a; box-shadow: 0 0 0 2px rgba(224,98,26,0.2); }
 .dark .status-dot-err  { background-color: #b94a3a; box-shadow: 0 0 0 2px rgba(185,74,58,0.2); }
 
+/* Risk-level badges — light tokens (bg-*-50 / text-*-700) don't adapt, so the
+   LOW / MODERATE / HIGH flags showed as pale pills on dark cards. Mirror the
+   cluster-badge palette: dark tinted fill, bright accent text, mid-tone border. */
+.dark .badge-critical { background-color: #2e1413; color: #ef8d80; border-color: #5a2422; }
+.dark .badge-high     { background-color: #2a1a0a; color: #e8a36a; border-color: #4a2e14; }
+.dark .badge-moderate { background-color: #2a2410; color: #d8b446; border-color: #554718; }
+.dark .badge-low      { background-color: #0d2b1a; color: #6dd89e; border-color: #1a5530; }
+.dark .badge-info     { background-color: #0d1e2b; color: #6dacd8; border-color: #1a3a55; }
+
+/* Semantic accent palette — the neutral ink/slate ramp is remapped above, but
+   the forest / risk / info / rose accents were not, so tinted callouts kept a
+   light background and accent text/borders lost contrast on dark surfaces. */
+
+/* Tinted backgrounds → dark tints of the same hue */
+.dark .bg-forest-50    { background-color: #15241d; }
+.dark .bg-forest-100   { background-color: #1b2e25; }
+.dark .bg-low-50       { background-color: #0e2218; }
+.dark .bg-moderate-50  { background-color: #2a2410; }
+.dark .bg-moderate-100 { background-color: #332c14; }
+.dark .bg-high-50      { background-color: #2a1a0a; }
+.dark .bg-high-100     { background-color: #341f0c; }
+.dark .bg-critical-50  { background-color: #2a1414; }
+.dark .bg-info-50      { background-color: #0d1e2b; }
+.dark .bg-info-100     { background-color: #112736; }
+.dark .bg-rose-50      { background-color: #2a1418; }
+.dark .bg-blue-50      { background-color: #0d1e2b; }
+
+/* Accent text → lighter shades so it reads on dark fills (the *-700 risk/info
+   shades are already remapped near the KPI section; these fill the gaps) */
+.dark .text-forest-600   { color: #6cab8e; }
+.dark .text-forest-700   { color: #7cbda3; }
+.dark .text-forest-800   { color: #8ccdb3; }
+.dark .text-forest-900   { color: #9bd9c1; }
+.dark .text-critical-700 { color: #ef8d80; }
+.dark .text-critical-900 { color: #f4a89d; }
+.dark .text-high-600     { color: #dd9a5e; }
+.dark .text-high-800     { color: #e8b07a; }
+.dark .text-high-900     { color: #eebd8c; }
+.dark .text-info-600     { color: #5fa0c8; }
+.dark .text-info-800     { color: #7fb4d4; }
+.dark .text-rose-600     { color: #e08a8f; }
+.dark .text-rose-700     { color: #e89aa0; }
+
+/* Accent borders → dark tints so outlines stay visible without glowing */
+.dark .border-forest-200   { border-color: #234a37; }
+.dark .border-forest-300   { border-color: #2c5a44; }
+.dark .border-rose-200     { border-color: #4a2227; }
+.dark .border-high-100     { border-color: #3a2410; }
+.dark .border-high-200     { border-color: #4a2e14; }
+.dark .border-info-100     { border-color: #103048; }
+.dark .border-info-200     { border-color: #143a58; }
+.dark .border-critical-100 { border-color: #3a1c1c; }
+.dark .border-critical-200 { border-color: #4a2222; }
+.dark .border-moderate-100 { border-color: #3a3014; }
+.dark .border-low-100      { border-color: #1a4530; }
+
 /* ── Utilities ────────────────────────────────────────────────────────── */
 @layer utilities {
   .bg-slate-25 { background: #f8fafc; }
