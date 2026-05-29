@@ -208,8 +208,8 @@ One row per ML pipeline execution. A senior may have many results over time (one
 | `id` | `bigint unsigned` | PK |
 | `senior_citizen_id` | `bigint unsigned` | FK → `senior_citizens.id` |
 | `qol_survey_id` | `bigint unsigned` | FK → `qol_surveys.id` (nullable) |
-| `cluster_id` | `tinyint` | Raw KMeans cluster ID (0, 1, 2) |
-| `cluster_named_id` | `tinyint` | Human-friendly cluster ID (1, 2, 3) |
+| `cluster_id` | `tinyint` | Raw KMeans cluster ID (0, 1, 2, 3) |
+| `cluster_named_id` | `tinyint` | Human-friendly cluster ID (1, 2, 3, 4) |
 | `cluster_name` | `varchar(100)` | e.g. "High Functioning" |
 | `ic_risk` | `decimal(5,4)` | Intrinsic Capacity risk score (0–1) |
 | `ic_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH |

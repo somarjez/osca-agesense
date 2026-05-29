@@ -134,7 +134,7 @@ dummy_vector = [3.0] * 31
 dummy_names  = [f"feat_{i}" for i in range(31)]
 result = _deterministic_cluster_assign(dummy_vector, dummy_names)
 check("returns valid cluster ID when centroids file exists",
-      result in [1, 2, 3], True)
+      result in [1, 2, 3, 4], True)
 print()
 
 print("=" * 50)

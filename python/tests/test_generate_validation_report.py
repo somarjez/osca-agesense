@@ -50,17 +50,17 @@ class TestLoadModelMetrics(unittest.TestCase):
         self.assertIsInstance(metrics["baseline_senior_count"], int)
 
     def test_known_silhouette_value(self):
-        """Silhouette reads 0.412 from the committed cluster_eval_metrics.json."""
+        """Silhouette reads the K=4 value from the committed cluster_eval_metrics.json."""
         metrics = load_model_metrics(MODELS_DIR)
-        self.assertAlmostEqual(metrics["silhouette"], 0.412, places=3)
+        self.assertAlmostEqual(metrics["silhouette"], 0.4487, places=3)
 
     def test_known_davies_bouldin_value(self):
         metrics = load_model_metrics(MODELS_DIR)
-        self.assertAlmostEqual(metrics["davies_bouldin"], 1.198, places=3)
+        self.assertAlmostEqual(metrics["davies_bouldin"], 0.8038, places=3)
 
     def test_known_calinski_harabasz_value(self):
         metrics = load_model_metrics(MODELS_DIR)
-        self.assertAlmostEqual(metrics["calinski_harabasz"], 84.3, places=1)
+        self.assertAlmostEqual(metrics["calinski_harabasz"], 415.0, places=1)
 
     def test_model_version_is_string(self):
         metrics = load_model_metrics(MODELS_DIR)

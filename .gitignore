@@ -28,6 +28,7 @@ database/backups/*.zip
 .env
 .env.backup
 .env.production
+.env.testing
 auth.json
 Homestead.json
 Homestead.yaml

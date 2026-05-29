@@ -121,9 +121,9 @@ def _http_post(url: str, payload: dict) -> dict:
 
 
 # ── Step 1: Load ground truth ──────────────────────────────────────────────────
-baseline_path = os.path.join(MODEL_DIR, "regression_baseline.json")
+baseline_path = os.path.join(MODEL_DIR, "regression_baseline_k4.json")
 if not os.path.exists(baseline_path):
-    print("[ERROR] regression_baseline.json not found. Run sync_models_k4.py first.")
+    print("[ERROR] regression_baseline_k4.json not found. Run sync_models_k4.py first.")
     sys.exit(1)
 
 with open(baseline_path, encoding="utf-8") as f:
