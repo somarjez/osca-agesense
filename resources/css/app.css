@@ -125,6 +125,11 @@
     @apply inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-r-transparent animate-spin align-[-2px];
   }
 
+  /* Icon normalization — call sites mix w-3.5/w-4 heroicons inside buttons.
+     Pin a single optical size so every button icon matches without editing
+     each view. (.btn-spinner is a <span>, so it is unaffected.) */
+  .btn > svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+
   /* Section header (legacy) */
   .section-header {
     @apply px-5 py-4 text-paper bg-forest-800 font-serif font-semibold text-base tracking-tightish;
