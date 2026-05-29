@@ -422,6 +422,7 @@
    drivers, status bars, callouts). bg-paper is the light body tint used for
    recessed inner panels; remap it plus the bar-track and accent text shades. */
 .dark .bg-paper      { background-color: #151d19; }
+.dark .bg-paper-2    { background-color: #202a26; }
 .dark .bg-paper-rule { background-color: #2b3530; }
 .dark .text-red-600,     .dark .text-red-700                                { color: #ef8d80; }
 .dark .text-emerald-600, .dark .text-emerald-700,
