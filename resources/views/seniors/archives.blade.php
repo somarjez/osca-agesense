@@ -63,6 +63,7 @@
     </div>
 
     <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead>
                 <tr>
@@ -150,6 +151,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         @if ($seniors->hasPages())
         <div class="border-t border-paper-rule px-5 py-3">
@@ -167,6 +169,7 @@
             </div>
             <span class="badge badge-neutral">{{ $archivedSurveys->total() }} total</span>
         </div>
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead>
                 <tr>
@@ -227,6 +230,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         @if ($archivedSurveys->hasPages())
         <div class="border-t border-paper-rule px-5 py-3">

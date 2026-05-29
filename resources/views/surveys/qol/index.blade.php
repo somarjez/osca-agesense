@@ -41,6 +41,7 @@
     </form>
 
     <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead>
                 <tr>
@@ -120,6 +121,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         @if ($surveys->hasPages())
         <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-3">
             {{ $surveys->links() }}
