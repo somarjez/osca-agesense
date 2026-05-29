@@ -116,6 +116,14 @@
     @apply bg-critical-500 text-white border-critical-500
            hover:bg-critical-700 hover:border-critical-700 hover:text-white;
   }
+  .btn-secondary {
+    @apply bg-paper-2 text-ink-800 border-paper-rule
+           hover:bg-paper-rule/60 hover:border-ink-300 hover:text-ink-900;
+  }
+  /* Inline spinner for button loading states (pairs with wire:loading / JS submit guard) */
+  .btn-spinner {
+    @apply inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-r-transparent animate-spin align-[-2px];
+  }
 
   /* Section header (legacy) */
   .section-header {
@@ -297,6 +305,8 @@
 .dark .btn-ghost:hover { background-color: rgba(47,101,82,0.15); color: #e4e1d8; }
 .dark .btn-danger  { background-color: #7a2020; border-color: #7a2020; color: #e4d4d4; }
 .dark .btn-danger:hover { background-color: #963030; border-color: #963030; }
+.dark .btn-secondary { background-color: #202a26; border-color: #2b3530; color: #cdd2cd; }
+.dark .btn-secondary:hover { background-color: #2a3530; border-color: #3d4d46; color: #e4e1d8; }
 
 .dark .form-input,
 .dark .form-select { background-color: #1a201d; border-color: #2b3530; color: #e4e1d8; }
@@ -367,5 +377,35 @@
   @media print {
     .no-print { display: none !important; }
     .print-break { page-break-before: always; }
+  }
+}
+
+/* ── Accessibility: visible keyboard focus + reduced motion ──────────────── */
+/* Keyboard-only focus ring for any interactive element that doesn't define its
+   own focus style. Mouse clicks don't trigger :focus-visible, so this stays
+   clean for pointer users while guaranteeing a visible ring for keyboard nav. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid theme('colors.forest.600');
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.dark a:focus-visible,
+.dark button:focus-visible,
+.dark [role="button"]:focus-visible,
+.dark summary:focus-visible,
+.dark [tabindex]:focus-visible {
+  outline-color: #5fa088;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

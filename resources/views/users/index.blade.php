@@ -78,32 +78,12 @@
                                     @csrf @method('DELETE')
                                 </form>
                                 {{-- Delete confirmation modal --}}
-                                <div x-show="deleteOpen" x-cloak
-                                     class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                                     @keydown.escape.window="deleteOpen = false"
-                                     @keydown.enter.window="if(deleteOpen) $refs.deleteForm.submit()">
-                                    <div class="card max-w-sm w-full shadow-2xl" @click.outside="deleteOpen = false">
-                                        <div class="card-head">
-                                            <div class="flex items-center gap-2.5">
-                                                <div class="w-8 h-8 rounded-lg bg-critical-50 grid place-items-center flex-shrink-0">
-                                                    <x-heroicon-o-trash class="w-4 h-4 text-critical-700" />
-                                                </div>
-                                                <div class="card-title">Delete account?</div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            <p class="text-[13px] text-ink-700">
-                                                The account for <span class="font-semibold text-ink-900">{{ $user->name }}</span> will be permanently deleted. This cannot be undone.
-                                            </p>
-                                            <div class="flex gap-2 justify-end mt-5">
-                                                <button @click="deleteOpen = false" class="btn">Cancel</button>
-                                                <button @click="$refs.deleteForm.submit()" class="btn btn-danger">
-                                                    <x-heroicon-o-trash class="w-3.5 h-3.5" /> Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <x-confirm-modal show="deleteOpen"
+                                                 title="Delete account?"
+                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm-label="Delete account">
+                                    The account for <span class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $user->name }}</span> will be permanently deleted. This cannot be undone.
+                                </x-confirm-modal>
                                 @endif
                             </div>
                         </td>
