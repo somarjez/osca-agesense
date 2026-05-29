@@ -251,11 +251,18 @@
                     <x-heroicon-o-moon class="w-3.5 h-3.5" x-show="!dark" aria-hidden="true" />
                 </button>
 
-                {{-- Logout --}}
-                <form method="POST" action="{{ route('logout') }}">
+                {{-- Logout — icon-only button: swap the icon for a same-size spinner on
+                     submit (data-no-loading opts out of the global text-swap guard, which
+                     would otherwise cram "Signing out…" into this 28px button). --}}
+                <form method="POST" action="{{ route('logout') }}" x-data="{ out: false }" @submit="out = true">
                     @csrf
-                    <button type="submit" class="sidebar-icon-btn flex-shrink-0" aria-label="Sign out" title="Sign out" data-loading="Signing out…">
-                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" aria-hidden="true" />
+                    <button type="submit" data-no-loading
+                            class="sidebar-icon-btn flex-shrink-0"
+                            :class="{ 'opacity-70 pointer-events-none': out }"
+                            :aria-busy="out"
+                            aria-label="Sign out" title="Sign out">
+                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" x-show="!out" aria-hidden="true" />
+                        <span x-show="out" x-cloak class="btn-spinner w-3.5 h-3.5" aria-hidden="true"></span>
                     </button>
                 </form>
             </div>

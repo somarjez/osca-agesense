@@ -9,17 +9,31 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
+    <style>
+        /* Single calm entrance (this layout has no JS); honors reduced-motion. */
+        @keyframes ageReveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .reveal   { animation: ageReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .reveal-2 { animation-delay: 0.07s; }
+        .reveal-3 { animation-delay: 0.14s; }
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-2, .reveal-3 { animation: none; }
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-paper text-ink-900">
 <div class="min-h-screen grid lg:grid-cols-2">
 
     {{-- ── Editorial left panel ── --}}
     <aside class="hidden lg:flex flex-col justify-between bg-forest-900 text-forest-100 p-12 relative overflow-hidden">
-        <div class="absolute inset-0 opacity-[0.06]" style="background-image: radial-gradient(circle at 20% 30%, white 1px, transparent 1px); background-size: 24px 24px;"></div>
+        {{-- Layered depth: dot grid + soft glow + base vignette --}}
+        <div class="absolute inset-0 opacity-[0.06]" style="background-image: radial-gradient(circle at 20% 25%, white 1px, transparent 1px); background-size: 26px 26px;"></div>
+        <div class="absolute -top-32 -right-24 w-[26rem] h-[26rem] rounded-full bg-forest-700/40 blur-3xl"></div>
+        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent"></div>
 
-        <div class="relative">
+        {{-- Brand --}}
+        <div class="relative reveal">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-md bg-forest-700 grid place-items-center font-serif text-lg font-semibold">A</div>
+                <div class="w-10 h-10 rounded-xl bg-forest-700 grid place-items-center font-serif text-lg font-semibold shadow-lg shadow-black/20">A</div>
                 <div>
                     <div class="font-serif text-xl font-semibold tracking-snug text-paper">AgeSense</div>
                     <div class="text-[11px] uppercase tracking-[0.12em] text-forest-300 font-medium mt-0.5">OSCA · Pagsanjan, Laguna</div>
@@ -27,42 +41,59 @@
             </div>
         </div>
 
-        <div class="relative max-w-md">
-            <div class="text-[11px] uppercase tracking-[0.14em] text-forest-300 font-semibold mb-4">UN Decade of Healthy Ageing · 2021–2030</div>
-            <h2 class="font-serif text-[40px] leading-[1.05] font-semibold tracking-snug text-paper">
+        {{-- Headline + WHO framework --}}
+        <div class="relative max-w-md reveal reveal-2">
+            <div class="text-[10.5px] uppercase tracking-[0.14em] text-forest-300 font-semibold mb-4">UN Decade of Healthy Ageing · 2021–2030</div>
+            <h2 class="font-serif text-[40px] leading-[1.05] font-semibold tracking-snug text-paper text-balance">
                 Profiling and analytics for the seniors of our barangays.
             </h2>
             <p class="mt-5 text-forest-200 text-[14.5px] leading-relaxed max-w-sm">
-                AgeSense applies the WHO Healthy Ageing framework — Intrinsic Capacity, Environment, and Functional Ability — to identify and prioritize the seniors who need our care most.
+                Built on the WHO Healthy Ageing framework, AgeSense finds and prioritises the seniors who need care most.
             </p>
+
+            <div class="mt-7 border-t border-forest-700/70 pt-6 space-y-3">
+                <div class="text-[10.5px] uppercase tracking-[0.13em] text-forest-300 font-semibold">Three assessed domains</div>
+                @foreach ([
+                    ['Intrinsic Capacity', 'physical and mental reserve'],
+                    ['Environment', 'home, finances, and community'],
+                    ['Functional Ability', 'independence in daily living'],
+                ] as [$domain, $desc])
+                <div class="flex items-baseline gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full bg-forest-400 flex-shrink-0 translate-y-[-2px]"></span>
+                    <span class="text-paper text-[13.5px] font-medium">{{ $domain }}</span>
+                    <span class="text-forest-300 text-[12px] ml-auto whitespace-nowrap">{{ $desc }}</span>
+                </div>
+                @endforeach
+            </div>
         </div>
 
-        <div class="relative grid grid-cols-3 gap-6 max-w-md text-sm border-t border-forest-700 pt-6">
-            <div>
-                <div class="font-serif text-2xl font-semibold text-paper tnum">3</div>
-                <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">WHO Domains</div>
+        {{-- Stat band --}}
+        <div class="relative reveal reveal-3 grid grid-cols-3 max-w-md border-t border-forest-700 pt-6">
+            <div class="pr-4">
+                <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">3</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">WHO Domains</div>
             </div>
-            <div>
-                <div class="font-serif text-2xl font-semibold text-paper tnum">K=4</div>
-                <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Health Groups</div>
+            <div class="px-4 border-l border-forest-700">
+                <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">K=4</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">Health Groups</div>
             </div>
-            <div>
-                <div class="font-serif text-2xl font-semibold text-paper tnum">16</div>
-                <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Barangays</div>
+            <div class="pl-4 border-l border-forest-700">
+                <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">16</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">Barangays</div>
             </div>
         </div>
     </aside>
 
     {{-- ── Form ── --}}
     <main class="flex items-center justify-center px-6 py-12">
-        <div class="w-full max-w-sm">
+        <div class="w-full max-w-sm reveal reveal-2">
             <div class="lg:hidden mb-8 flex items-center gap-3">
-                <div class="w-9 h-9 rounded-md bg-forest-800 text-forest-100 grid place-items-center font-serif text-lg font-semibold">A</div>
+                <div class="w-10 h-10 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif text-lg font-semibold">A</div>
                 <div class="font-serif text-xl font-semibold">AgeSense</div>
             </div>
 
-            <div class="eyebrow">Sign in</div>
-            <h1 class="font-serif text-[32px] font-semibold tracking-snug mt-2">Welcome back.</h1>
+            <div class="eyebrow text-forest-700">Sign in</div>
+            <h1 class="font-serif text-[34px] font-semibold tracking-snug mt-2 text-balance">Welcome back.</h1>
             <p class="text-ink-500 text-[13.5px] mt-2">Access the OSCA analytics workspace for Pagsanjan.</p>
 
             @if ($errors->any())
@@ -76,13 +107,13 @@
 
             {{-- No Alpine on this layout (only app.css is loaded), so the button state is
                  handled with plain JS below — never x-data / template, which render blank. --}}
-            <form method="POST" action="{{ route('login') }}" id="login-form" class="mt-7 space-y-4">
+            <form method="POST" action="{{ route('login') }}" id="login-form" class="mt-8 space-y-5">
                 @csrf
                 <div>
                     <label for="email" class="eyebrow block mb-1.5">Email</label>
                     <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
                         autocomplete="username" inputmode="email"
-                        class="form-input" placeholder="you@osca.local" />
+                        class="form-input py-3 text-[14px]" placeholder="you@osca.local" />
                 </div>
 
                 <div>
@@ -92,7 +123,7 @@
                     </div>
                     <div class="relative">
                         <input id="password" name="password" type="password" required autocomplete="current-password"
-                               class="form-input pr-10" />
+                               class="form-input py-3 text-[14px] pr-11" />
                         <button type="button" id="toggle-pw"
                                 onclick="togglePassword()"
                                 aria-label="Show password"
@@ -116,9 +147,12 @@
                 </label>
 
                 <button type="submit" id="login-btn"
-                        class="btn btn-primary w-full justify-center py-2.5 text-[14px]">
+                        class="btn btn-primary w-full justify-center gap-2 py-3 text-[14px] shadow-sm">
                     <span id="login-spinner" class="btn-spinner hidden" aria-hidden="true"></span>
                     <span id="login-btn-label">Sign in to AgeSense</span>
+                    <svg id="login-arrow" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+                    </svg>
                 </button>
             </form>
             <script>
@@ -140,14 +174,16 @@
                         var btn     = document.getElementById('login-btn');
                         var label   = document.getElementById('login-btn-label');
                         var spinner = document.getElementById('login-spinner');
+                        var arrow   = document.getElementById('login-arrow');
                         if (btn)     btn.disabled = true;
                         if (spinner) spinner.classList.remove('hidden');
+                        if (arrow)   arrow.classList.add('hidden');
                         if (label)   label.textContent = 'Signing in…';
                     });
                 })();
             </script>
 
-            <p class="text-[11px] text-ink-400 mt-10">
+            <p class="text-[11px] text-ink-400 mt-10 leading-relaxed">
                 AgeSense · WHO Healthy Ageing framework · OSCA Pagsanjan, Laguna
             </p>
         </div>
