@@ -167,3 +167,18 @@ document.addEventListener('submit', function (e) {
         }
     })
 }, true)
+
+// ── Force light theme when printing ───────────────────────────────────────────
+// Dark backgrounds waste ink, and most browsers drop background colors on print,
+// which leaves light-on-dark text invisible. Drop the `dark` class before the
+// print snapshot is taken, then restore the user's saved preference afterward.
+window.addEventListener('beforeprint', function () {
+    document.documentElement.classList.remove('dark')
+})
+window.addEventListener('afterprint', function () {
+    try {
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark')
+        }
+    } catch (e) { /* localStorage unavailable — nothing to restore */ }
+})
