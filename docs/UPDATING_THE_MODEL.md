@@ -286,7 +286,7 @@ This:
 1. Drops all tables
 2. Re-runs all migrations
 3. Re-imports senior data from `osca.csv`
-4. Runs the full ML pipeline for each senior — if `python/models/predictions/senior_predictions.csv` is present and `ENABLE_NOTEBOOK_OVERRIDES=true`, results are read from the CSV (fast, deterministic); otherwise live ML inference runs (takes 10–20 minutes for 275 seniors)
+4. Runs the full ML pipeline for each senior — if `python/models/predictions/senior_predictions.csv` is present and `ENABLE_NOTEBOOK_OVERRIDES=true`, results are read from the CSV (fast, deterministic); otherwise live ML inference runs (takes 10–20 minutes for 283 seniors)
 5. Saves results (cluster, risk level, composite score, recommendations) to the database
 
 Expected output at the end: `ML success: 283, fallback: 0, errors: 0`

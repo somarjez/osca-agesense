@@ -39,6 +39,11 @@ If you are a teammate contributing code, also read:
 | Create a branch, commit, and open a PR | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) |
 | Know what has been built and what is planned | [ROADMAP.md](ROADMAP.md) |
 | Understand every feature in the system | [SYSTEM_FUNCTIONALITY.md](SYSTEM_FUNCTIONALITY.md) |
+| Explain why results are identical across devices | [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md) |
+| Make defensible claims about the model in the defense | [model-validation-defensible-statements.md](model-validation-defensible-statements.md) |
+| Give the LGU a plain-language validation summary | [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md) |
+| Understand a specific schema migration | [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) |
+| Find the product/design context for AI design tooling | [`../PRODUCT.md`](../PRODUCT.md), [`../DESIGN.md`](../DESIGN.md) |
 
 ---
 
@@ -85,6 +90,24 @@ Phase-by-phase development plan. Shows which features are done, in progress, and
 ### [SYSTEM_FUNCTIONALITY.md](SYSTEM_FUNCTIONALITY.md)
 
 Comprehensive functional reference for every feature in the system: profiling, surveys, ML analysis, reports, recommendations, admin tools, roles and permissions, and security notes. Intended for thesis panelists, evaluators, and future maintainers.
+
+### [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md)
+
+How AgeSense guarantees identical output on every device: age frozen to survey date, fully version-pinned Python dependencies, a SHA-256 model manifest startup check, and the `validate_system.py` harness. Read this when results drift between machines.
+
+### [model-validation-defensible-statements.md](model-validation-defensible-statements.md)
+
+Citable, defensible statements about the model's validity for the current v2.0.0 / K=4 build (cluster quality metrics, what the model does and does not claim). Use during the defense.
+
+### [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md)
+
+A plain-language summary of validation results for the LGU and non-technical evaluators.
+
+### [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+
+Notes on schema migrations and how to apply them when moving between versions.
+
+> **Root context files:** [`../PRODUCT.md`](../PRODUCT.md) and [`../DESIGN.md`](../DESIGN.md) live at the project root. They capture the product strategy (users, purpose, principles) and the forest/ink visual design system for AI design tooling and new contributors.
 
 ---
 

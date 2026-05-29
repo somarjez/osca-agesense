@@ -42,7 +42,7 @@ PHASE 1 — CORE SYSTEM
 Senior citizen profile (6-step form)    ████ ░░░░ ░░░░ ░░░░
 QoL survey instrument (32 items)        ████ ████ ░░░░ ░░░░
 ML preprocessing pipeline              ░░░░ ████ ████ ░░░░
-K-Means clustering (K=3) + UMAP        ░░░░ ████ ████ ░░░░
+K-Means clustering (K=4) + UMAP        ░░░░ ████ ████ ░░░░
 Risk scoring ensemble (GBR + RFR)       ░░░░ ░░░░ ████ ████
 Recommendation generation engine        ░░░░ ░░░░ ████ ████
 Dashboard + analytics charts            ░░░░ ░░░░ ████ ████
@@ -111,7 +111,7 @@ All primary workflows are implemented and tested:
 | Senior citizen profile management (6-step form) | ✅ Done | Create, edit, archive, restore, force delete |
 | WHO-aligned QoL survey (32 items, 8 domains) | ✅ Done | Draft save, submission, per-domain scoring |
 | ML preprocessing pipeline | ✅ Done | 35+ features, 6 section scores, UMAP reduction |
-| K-Means clustering (K=3) | ✅ Done | UMAP 10-D input, cluster_metadata.json override |
+| K-Means clustering (K=4) | ✅ Done | UMAP 10-D input, cluster_metadata.json override (updated from K=3) |
 | Risk scoring ensemble (GBR + RFR) | ✅ Done | 45% rule + 35% GBR + 20% RFR |
 | Prescriptive recommendation engine | ✅ Done | 5 domains, 22+ disease-specific action sets |
 | Interactive dashboard | ✅ Done | Real-time KPIs, charts, filters, 60s poll |

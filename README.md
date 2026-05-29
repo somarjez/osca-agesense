@@ -30,11 +30,14 @@ AgeSense profiles senior citizens using demographic, socioeconomic, and health s
 - **Cluster** each senior into one of four health-functioning groups (K-Means, K=4) via UMAP dimensionality reduction
 - **Score** domain-specific risk across Intrinsic Capacity (IC), Environment (ENV), and Functional Ability (FUNC) using an ensemble of Gradient Boosting and Random Forest regressors
 - **Classify** overall risk as HIGH / MODERATE / LOW with urgency flagging (≥ 0.70 composite = urgent)
+- **Explain** each assessment with per-senior XAI "Risk Drivers" (the section- and feature-level factors raising or lowering risk), plus population-level "Model Insights" (global feature importance per domain) on the Health Groups page
 - **Generate** prescriptive, prioritised recommendations per senior driven by model output and profile data
-- **Report** cluster analytics, risk breakdowns by barangay, and exportable CSV/PDF outputs
+- **Report** cluster analytics, risk breakdowns by barangay, and exportable CSV / print-friendly outputs
 - **Map** senior distribution and facility accessibility context via an interactive Leaflet GIS view at `/reports/gis`
 
-A three-tier fallback (Flask HTTP → local Python subprocess → PHP heuristic) keeps the system operational even when Python services are unavailable.
+The interface ships a full light/dark theme (remembered per device), accessible modals (used for in-place user editing), and keyboard-friendly focus states. A three-tier fallback (Flask HTTP → local Python subprocess → PHP heuristic) keeps the system operational even when Python services are unavailable.
+
+> **Framing:** AgeSense is **decision support, not clinical diagnosis.** Risk levels are graded indicators to help OSCA staff prioritise, not medical verdicts.
 
 ---
 
@@ -418,12 +421,13 @@ Senior Profile + QoL Survey
          │
          ▼
   inference_service.py  (port 5002)
-  ├─ KMeans clustering  →  kmeans.pkl  →  Group 1 / 2 / 3
+  ├─ KMeans clustering  →  kmeans.pkl  →  Group 1 / 2 / 3 / 4
   ├─ Risk ensemble (GBR + RFR) for IC / ENV / FUNC risks
   ├─ Composite risk = rule_based×0.45 + ML_ensemble×0.55
-  ├─ Risk level: HIGH (≥0.50) / MODERATE (≥0.30) / LOW (<0.30)
+  ├─ Risk level: HIGH / MODERATE / LOW (3-level; CRITICAL retired)
   ├─ Urgency flag: urgent (≥0.70) / priority_action / planned_monitoring / maintenance
-  └─ Prescriptive recommendations (health, financial, social, functional, hc_access)
+  ├─ XAI risk drivers (importance × signed deviation from cluster mean)
+  └─ Prescriptive recommendations (health, financial, social, functional, healthcare_access)
          │
          ▼
   MlResult + Recommendation rows saved to database
@@ -435,11 +439,14 @@ When running **Batch Analysis**, UMAP and KMeans run once across the entire batc
 
 ### Cluster groups
 
-| Group | Name | Risk Level | Description |
+| Group | Name | Colour | Description |
 |---|---|---|---|
-| 1 | High Functioning | LOW | Independent, financially stable, socially engaged |
-| 2 | Moderate / Mixed Needs | MODERATE | Some domains need targeted support |
-| 3 | Low Functioning / Multi-domain Risk | HIGH | Multi-domain vulnerabilities, immediate intervention needed |
+| 1 | High Functioning / Well-Supported | Green | Independent, financially stable, socially engaged; preventive monitoring only |
+| 2 | Stable Ageing / Moderate Support | Blue | Some domains stable, others beginning to decline; periodic monitoring |
+| 3 | Environmentally & Financially Vulnerable | Amber | Capacity preserved but environmental/financial stressors; livelihood + social protection |
+| 4 | Low Functioning / Multi-Domain Priority | Red | Multi-domain vulnerability; priority case management and intervention |
+
+> Group identity uses a fixed K=4 palette (green / blue / amber / red). Risk level (LOW / MODERATE / HIGH) is computed per senior and is distinct from group membership.
 
 ### Risk ensemble weights
 
@@ -863,11 +870,22 @@ The seeder also accepts the file one level above the project root as a fallback,
 
 ## Additional Documentation
 
+See [`docs/README.md`](docs/README.md) for the full, categorised documentation index. Key documents:
+
 | Document | Description |
 |---|---|
-| [docs/UPDATING_THE_MODEL.md](docs/UPDATING_THE_MODEL.md) | **How to update the ML model** — full workflow for training machine and other machines, checklist, common mistakes |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | First-time deployment guide: requirements, PHP extensions, environment config, production checklist |
-| [docs/ML_PIPELINE.md](docs/ML_PIPELINE.md) | Full ML architecture: feature engineering, clustering, risk ensemble, fallback strategy |
-| [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) | Branching, commit format, PR process, do's and don'ts for collaborators |
-| [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Database schema reference: all tables, columns, relationships |
 | [docs/SYSTEM_FUNCTIONALITY.md](docs/SYSTEM_FUNCTIONALITY.md) | Complete system reference: all modules, data schema, capabilities, limitations |
+| [docs/ML_PIPELINE.md](docs/ML_PIPELINE.md) | Full ML architecture: feature engineering, K=4 clustering, risk ensemble, XAI, fallback strategy |
+| [docs/ML_DEPLOYMENT.md](docs/ML_DEPLOYMENT.md) | Deploying the Python ML services and model artifacts |
+| [docs/UPDATING_THE_MODEL.md](docs/UPDATING_THE_MODEL.md) | **How to update the ML model** — workflow for training and other machines, checklist, common mistakes |
+| [docs/REPRODUCIBILITY_AND_CONSISTENCY.md](docs/REPRODUCIBILITY_AND_CONSISTENCY.md) | How identical results are guaranteed across devices (age freeze, pinned deps, manifest check) |
+| [docs/model-validation-defensible-statements.md](docs/model-validation-defensible-statements.md) | Defensible, citable statements about model validity (v2.0.0 / K=4) |
+| [docs/VALIDATION_SUMMARY_LGU.md](docs/VALIDATION_SUMMARY_LGU.md) | Plain-language validation summary for the LGU / defense |
+| [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Database schema reference: all tables, columns, relationships |
+| [docs/DATABASE_SHARING.md](docs/DATABASE_SHARING.md) · [docs/DATABASE_SHARING_AND_TEAM_SETUP.md](docs/DATABASE_SHARING_AND_TEAM_SETUP.md) | Sharing one MySQL DB across devices; team/multi-device setup |
+| [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) | Schema migration notes |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | First-time deployment: requirements, PHP extensions, environment config, production checklist |
+| [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) | Branching, commit format, PR process, do's and don'ts for collaborators |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Planned and completed work |
+
+Project context for design/AI tooling lives at the repo root: [`PRODUCT.md`](PRODUCT.md) (who/what/why) and [`DESIGN.md`](DESIGN.md) (the forest/ink visual system).
