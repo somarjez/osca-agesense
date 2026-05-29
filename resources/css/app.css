@@ -423,6 +423,20 @@
 .dark .border-moderate-100 { border-color: #3a3014; }
 .dark .border-low-100      { border-color: #1a4530; }
 
+/* Tailwind default semantic colours used directly in the views (XAI risk
+   drivers, status bars, callouts). bg-paper is the light body tint used for
+   recessed inner panels; remap it plus the bar-track and accent text shades. */
+.dark .bg-paper      { background-color: #151d19; }
+.dark .bg-paper-2    { background-color: #202a26; }
+.dark .bg-paper-rule { background-color: #2b3530; }
+.dark .text-red-600,     .dark .text-red-700                                { color: #ef8d80; }
+.dark .text-emerald-600, .dark .text-emerald-700,
+.dark .text-green-600,   .dark .text-green-700                              { color: #6dd89e; }
+.dark .text-amber-600,   .dark .text-amber-700                             { color: #d8b446; }
+.dark .text-orange-600,  .dark .text-orange-700                            { color: #e8a36a; }
+.dark .text-teal-600,    .dark .text-teal-700                              { color: #5bb9ad; }
+.dark .text-blue-600,    .dark .text-blue-700                              { color: #6dacd8; }
+
 /* ── Utilities ────────────────────────────────────────────────────────── */
 @layer utilities {
   .bg-slate-25 { background: #f8fafc; }
