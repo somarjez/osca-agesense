@@ -29,7 +29,7 @@
 
     {{-- ── Sidebar ── --}}
     <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
-           class="flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
+           class="no-print flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
 
         {{-- Brand block --}}
         <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
@@ -266,7 +266,7 @@
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
-        <header class="bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-14 shadow-[0_1px_0_rgba(20,30,25,0.05)]">
+        <header class="no-print bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-14 shadow-[0_1px_0_rgba(20,30,25,0.05)]">
 
             {{-- Left: Page title (fixed width so search stays centered) --}}
             <div class="flex items-center gap-2.5 min-w-0 w-52 flex-shrink-0">
@@ -346,6 +346,20 @@
 
         {{-- Page content --}}
         <main id="main-content" class="flex-1 overflow-y-auto min-h-0 px-7 py-7 pb-10 bg-paper dark:bg-[#131917]">
+            {{-- Document header shown only when printing (hidden on screen) --}}
+            <div class="print-only hidden mb-6" aria-hidden="true">
+                <div class="flex items-end justify-between border-b-2 border-ink-900 pb-2">
+                    <div>
+                        <div class="font-serif text-lg font-semibold text-ink-900">AgeSense</div>
+                        <div class="text-[12px] text-ink-700">Office of Senior Citizens Affairs, Pagsanjan, Laguna · @yield('page-title', 'Report')</div>
+                    </div>
+                    <div class="text-right text-[10px] text-ink-600 leading-snug">
+                        <div>Generated {{ now()->format('F j, Y · g:i A') }}</div>
+                        <div>System-generated decision-support output</div>
+                    </div>
+                </div>
+            </div>
+
             @yield('content')
         </main>
     </div>

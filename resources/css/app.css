@@ -375,8 +375,24 @@
   .scrollbar-thin::-webkit-scrollbar-thumb { background: theme('colors.paper.rule'); border-radius: 2px; }
 
   @media print {
-    .no-print { display: none !important; }
+    .no-print  { display: none !important; }
+    .print-only { display: block !important; }   /* paired with Tailwind `hidden` for on-screen */
     .print-break { page-break-before: always; }
+
+    @page { margin: 1.4cm; }
+
+    /* Release the app's fixed-height, overflow-hidden shell so the full page
+       prints instead of just the on-screen viewport slice. */
+    html, body                  { height: auto !important; overflow: visible !important; background: #fff !important; }
+    body > div.flex             { display: block !important; height: auto !important; overflow: visible !important; }
+    body > div.flex > div       { display: block !important; height: auto !important; overflow: visible !important; }
+    #main-content               { height: auto !important; overflow: visible !important; padding: 0 !important; }
+
+    /* Ink-friendly cards: no shadow, thin border, keep each card on one page. */
+    .card { box-shadow: none !important; border: 1px solid #c9cec9 !important; break-inside: avoid; }
+
+    /* Action controls (buttons, button-styled links) are noise on paper. */
+    .btn { display: none !important; }
   }
 }
 
