@@ -54,7 +54,7 @@ class ClusterAnalysis extends Component
         $domainChart = [
             'labels'   => ['Intrinsic Capacity', 'Environment', 'Functional'],
             'datasets' => $results->groupBy('cluster_named_id')->map(function ($group, $id) {
-                $colors = [1 => '#10b981', 2 => '#f59e0b', 3 => '#f43f5e'];
+                $colors = [1 => '#2ecc71', 2 => '#3498db', 3 => '#f39c12', 4 => '#e74c3c'];
                 return [
                     'label'           => "Cluster {$id}: " . $group->first()->cluster_name,
                     'data'            => [

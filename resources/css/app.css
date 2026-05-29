@@ -66,10 +66,11 @@
   .badge-info     { @apply bg-info-100    text-info-700     border-info-100; }
   .badge-neutral  { @apply bg-paper-2     text-ink-700      border-paper-rule; }
 
-  /* Cluster badges — Group 1 blue, Group 2 amber, Group 3 red */
-  .badge-cluster-1 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #e8eeff; color: #3347b0; border: 1px solid #c5ccf5; }
-  .badge-cluster-2 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fef3e2; color: #9a6a00; border: 1px solid #f5dfa0; }
-  .badge-cluster-3 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fbeeea; color: #8a2a1f; border: 1px solid #f5dfd9; }
+  /* Cluster badges — Group 1 green, Group 2 blue, Group 3 amber, Group 4 red */
+  .badge-cluster-1 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #eafaf1; color: #1a6b3f; border: 1px solid #a8ddb5; }
+  .badge-cluster-2 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #eaf4fb; color: #1a5a8a; border: 1px solid #a8cde5; }
+  .badge-cluster-3 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fef5e7; color: #9a6000; border: 1px solid #f5d9a0; }
+  .badge-cluster-4 { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fdedec; color: #8b1f15; border: 1px solid #f5bab7; }
 
   /* Risk badges (compat with old names) */
   .badge-risk-critical { @apply badge badge-critical; }
@@ -156,6 +157,7 @@
   .cluster-swatch-1 { background: theme('colors.cluster.1'); }
   .cluster-swatch-2 { background: theme('colors.cluster.2'); }
   .cluster-swatch-3 { background: theme('colors.cluster.3'); }
+  .cluster-swatch-4 { background: theme('colors.cluster.4'); }
 
   /* Service status dot */
   .status-dot { @apply w-1.5 h-1.5 rounded-full inline-block; }
@@ -309,9 +311,10 @@
 .dark .topbar-search input::placeholder { color: #4a5550; }
 
 .dark .badge-neutral  { background-color: #202a26; color: #b0b5b2; border-color: #2b3530; }
-.dark .badge-cluster-1 { background: #1a2050; color: #8fa0e8; border-color: #2a3580; }
-.dark .badge-cluster-2 { background: #2a2010; color: #d4a830; border-color: #5a4a10; }
-.dark .badge-cluster-3 { background: #2a1515; color: #e08070; border-color: #5a2020; }
+.dark .badge-cluster-1 { background: #0d2b1a; color: #6dd89e; border-color: #1a5530; }
+.dark .badge-cluster-2 { background: #0d1e2b; color: #6dacd8; border-color: #1a3a55; }
+.dark .badge-cluster-3 { background: #2b1e0d; color: #d4a030; border-color: #553a1a; }
+.dark .badge-cluster-4 { background: #2b0d0d; color: #e08080; border-color: #552020; }
 
 .dark .eyebrow { color: #6b7570; }
 

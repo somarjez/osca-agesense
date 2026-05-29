@@ -119,9 +119,10 @@ class ClusterAnalyticsService
     private function clusterColor(int $clusterId): string
     {
         return match ($clusterId) {
-            1 => '#10b981',
-            2 => '#f59e0b',
-            3 => '#f43f5e',
+            1 => '#2ecc71',
+            2 => '#3498db',
+            3 => '#f39c12',
+            4 => '#e74c3c',
             default => '#94a3b8',
         };
     }

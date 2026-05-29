@@ -169,7 +169,7 @@
         <div class="card-body space-y-5 text-sm text-ink-700">
             <div>
                 <p class="font-semibold text-ink-900 mb-1">What are health groups?</p>
-                <p>Health groups automatically sort seniors into three categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed in the same group. This helps identify which seniors share similar needs so resources can be planned more efficiently.</p>
+                <p>Health groups automatically sort seniors into four categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed in the same group. This helps identify which seniors share similar needs so resources can be planned more efficiently.</p>
             </div>
             <div>
                 <p class="font-semibold text-ink-900 mb-2">What does each group mean?</p>

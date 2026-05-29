@@ -92,6 +92,9 @@ storage/framework/views/
 *.bak
 *.bak_old
 
+# Model sync rollback backups (created by sync_models_k4.py) — local only
+python/models_backup_*/
+
 # IDE / editor
 /.fleet
 /.idea

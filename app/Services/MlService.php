@@ -16,7 +16,7 @@ class MlService
 {
     // Bump patch when thresholds change, minor when .pkl files retrained,
     // major for schema-breaking changes. Must match inference_service.py MODEL_VERSION.
-    public const MODEL_VERSION = '1.1.1';
+    public const MODEL_VERSION = '2.0.0';
 
     // Risk thresholds — must stay in sync with inference_service.py RISK_THRESHOLDS.
     private const HIGH_THRESHOLD     = 0.50;
@@ -332,6 +332,23 @@ class MlService
 
     // ── Private Helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Age used for ML scoring, anchored to the immutable survey date rather than
+     * today's date. This makes age a pure function of stored input
+     * (date_of_birth + survey_date), so the same data yields the same risk score
+     * on any device, at any time — no drift as the calendar advances. Falls back
+     * to the runtime age accessor only when either date is missing.
+     */
+    private function ageAtSurvey(SeniorCitizen $senior, QolSurvey $survey): int
+    {
+        $dob = $senior->date_of_birth;
+        $ref = $survey->survey_date;
+        if ($dob && $ref) {
+            return (int) abs($dob->diffInYears($ref));
+        }
+        return (int) $senior->age;
+    }
+
     private function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
     {
         return [
@@ -339,7 +356,7 @@ class MlService
             'first_name'              => $senior->first_name,
             'last_name'               => $senior->last_name,
             'barangay'                => $senior->barangay,
-            'age'                     => $senior->age,
+            'age'                     => $this->ageAtSurvey($senior, $survey),
             'gender'                  => $senior->gender,
             'marital_status'          => $senior->marital_status,
             'educational_attainment'  => $senior->educational_attainment,
@@ -939,6 +956,7 @@ class MlService
                 'func_score'          => $whoScores['func_score'] ?? null,
                 'qol_score'           => $whoScores['qol_score']  ?? null,
                 'section_scores'      => $sectionScores,
+                'xai_data'            => $inferResult['xai'] ?? null,
                 'raw_output'          => $inferResult,
                 'processed_at'        => now(),
             ]
@@ -965,6 +983,8 @@ class MlService
                 'recommendation_code'       => $rec['recommendation_code']  ?? null,
                 'service_provider'          => $rec['service_provider']     ?? null,
                 'evidence_source'           => $rec['evidence_source']      ?? null,
+                'apa_reference'             => $rec['apa_reference']        ?? null,
+                'source_type'              => $rec['source_type']           ?? null,
                 'eligibility_basis'         => $rec['eligibility_basis']    ?? null,
                 'documents_needed'          => is_array($docsNeeded)
                                                 ? json_encode($docsNeeded)

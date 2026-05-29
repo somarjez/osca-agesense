@@ -63,13 +63,15 @@ QOL_COLS = [
 
 CSV_COLUMNS = [
     "timestamp", "first_name", "last_name", "middle_name",
-    "dob", "age", "barangay", "sex", "civil_status", "education",
+    "dob", "age", "barangay", "gender", "marital_status", "education",
     "monthly_income_range", "income_source", "specialization",
     "real_assets", "movable_assets", "community_service", "living_with",
     "household_condition", "has_medical_checkup", "checkup_schedule",
     "medical_concern", "dental_concern", "optical_concern", "hearing_concern",
     "social_emotional_concern", "problems_needs",
     "healthcare_difficulty", "housing_concern",
+    "household_size", "num_children", "num_working_children",
+    "child_financial_support", "spouse_working",
 ] + QOL_COLS
 
 
@@ -228,6 +230,11 @@ def main() -> None:
             sc.has_medical_checkup,
             sc.checkup_schedule,
             sc.healthcare_difficulty,
+            sc.household_size,
+            sc.num_children,
+            sc.num_working_children,
+            sc.child_financial_support,
+            sc.spouse_working,
             {qol_select}
         FROM senior_citizens sc
         LEFT JOIN (
@@ -278,8 +285,8 @@ def main() -> None:
                 "dob":                   fmt_date(row.get("date_of_birth")),
                 "age":                   row.get("age", "") if row.get("age") is not None else "",
                 "barangay":              row.get("barangay", "") or "",
-                "sex":                   row.get("gender", "") or "",
-                "civil_status":          row.get("marital_status", "") or "",
+                "gender":                row.get("gender", "") or "",
+                "marital_status":        row.get("marital_status", "") or "",
                 "education":             row.get("educational_attainment", "") or "",
                 "monthly_income_range":  row.get("monthly_income_range", "") or "",
                 "has_medical_checkup":   fmt_bool(row.get("has_medical_checkup")),
@@ -289,6 +296,11 @@ def main() -> None:
                 "hearing_concern":       json_to_csv_str(row.get("hearing_concern")),
                 "healthcare_difficulty": json_to_csv_str(row.get("healthcare_difficulty")),
                 "housing_concern":       "",
+                "household_size":        row.get("household_size") if row.get("household_size") is not None else "",
+                "num_children":          row.get("num_children") if row.get("num_children") is not None else "",
+                "num_working_children":  row.get("num_working_children") if row.get("num_working_children") is not None else "",
+                "child_financial_support": str(row.get("child_financial_support") or ""),
+                "spouse_working":        str(row.get("spouse_working") or ""),
             }
 
             # JSON multiselect fields → comma-delimited strings

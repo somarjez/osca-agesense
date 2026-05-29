@@ -15,6 +15,7 @@ class Recommendation extends Model
         'action', 'urgency', 'risk_level',
         // v2 enriched fields (nullable — backward compat with old ML payloads)
         'recommendation_code', 'service_provider', 'evidence_source',
+        'apa_reference', 'source_type',
         'eligibility_basis', 'documents_needed', 'requires_human_validation',
         // workflow fields
         'status', 'notes', 'target_date', 'assigned_to',

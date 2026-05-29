@@ -6,7 +6,7 @@
         @php
         $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
         $metrics = [
-            ['Health Groups',      $evalMetrics['k_chosen'],                                        '3 groups identified',       true],
+            ['Health Groups',      $evalMetrics['k_chosen'],                                        $evalMetrics['k_chosen'] . ' groups identified', true],
             ['Group Separation',   $fmt($evalMetrics['silhouette'], 3),                             'Higher is better · ≥0.30',  $evalMetrics['silhouette'] !== null && $evalMetrics['silhouette'] > 0.3],
             ['Group Distinctness', $fmt($evalMetrics['davies_bouldin'], 3),                         'Lower is better · ≤1.50',   $evalMetrics['davies_bouldin'] !== null && $evalMetrics['davies_bouldin'] < 1.5],
             ['Group Density',      $fmt($evalMetrics['calinski_harabasz'], 1),                      'Higher is better',          true],
@@ -36,7 +36,7 @@
     </div>
 
     {{-- ── Cluster cards ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         @foreach ($clusterSummaries as $clusterId => $summary)
         <div class="card">
             <div class="card-head">

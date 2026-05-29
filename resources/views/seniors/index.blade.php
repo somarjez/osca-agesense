@@ -101,8 +101,9 @@
                 <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
                     <option value="">All Groups</option>
                     <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
-                    <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Moderate</option>
-                    <option value="3" {{ request('cluster')=='3'?'selected':'' }}>Group 3 · Low Functioning</option>
+                    <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Stable / Moderate</option>
+                    <option value="3" {{ request('cluster')=='3'?'selected':'' }}>Group 3 · Env / Financial Vulnerable</option>
+                    <option value="4" {{ request('cluster')=='4'?'selected':'' }}>Group 4 · Multi-Domain Priority</option>
                 </select>
             </div>
             <div class="flex gap-2">
@@ -191,8 +192,9 @@
                         @php
                         $clusterTips = [
                             1 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 1 · High Functioning</strong><br>Generally independent seniors with good physical capacity and strong social support. Lower care needs; focus on maintenance and preventive programs.',
-                            2 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 2 · Moderate</strong><br>Seniors with moderate limitations in at least one domain. May need assistance with some daily activities or show early signs of decline.',
-                            3 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 3 · Low Functioning</strong><br>Seniors with significant impairments across multiple domains. Higher dependency and care needs; priority for targeted interventions.',
+                            2 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 2 · Stable / Moderate</strong><br>Seniors with moderate limitations in at least one domain. Some domains stable, others beginning to decline. May benefit from social activation and periodic health monitoring.',
+                            3 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 3 · Env / Financial Vulnerable</strong><br>Intrinsic capacity relatively preserved but environmental and financial stressors are significant. Priority: livelihood support, housing assistance, and service access.',
+                            4 => '<strong class="text-ink-900 dark:text-[#e4e1d8]">Group 4 · Multi-Domain Priority</strong><br>Lowest alignment across all domains. Multi-domain vulnerability in physical health, environment, and functional independence. Requires immediate coordinated intervention.',
                         ];
                         @endphp
                         <x-tooltip :text="$clusterTips[$ml->cluster_named_id] ?? ''" position="top" width="w-64">

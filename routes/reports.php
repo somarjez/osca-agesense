@@ -11,6 +11,7 @@ Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/risk',                 [ReportController::class, 'risk'])->name('risk');
         Route::get('/barangay',             [ReportController::class, 'barangayIndex'])->name('barangay.index');
         Route::get('/barangay/{brgy}',      [ReportController::class, 'barangay'])->name('barangay');
+        Route::get('/xai/model-insights', [\App\Http\Controllers\XaiController::class, 'modelInsights'])->name('xai.model-insights');
     });
 
     // Admin only: exports and snapshots

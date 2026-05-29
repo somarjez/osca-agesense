@@ -143,16 +143,16 @@ if not ENABLE_NOTEBOOK_OVERRIDES:
 # Semantic version written to every ml_results row so reports can filter by
 # model generation. Bump the patch digit when thresholds change; bump minor
 # when model .pkl files are retrained; bump major for schema-breaking changes.
-MODEL_VERSION = "1.1.1"
+MODEL_VERSION = "2.0.0"
 
 # Expected artifact dimensions (must match the notebook training run).
 # These constants let startup validation catch mismatched bundles early.
 _EXPECTED_SCALER_N_FEATURES  = 39   # scaler.feature_names_in_ length
 _EXPECTED_UMAP_N_COMPONENTS  = 10   # umap_nd.pkl n_components
 _EXPECTED_UMAP_INPUT_N_FEATS = 31   # feature_list.json length (UMAP raw input)
-_EXPECTED_KMEANS_N_CLUSTERS  = 3    # kmeans.pkl n_clusters
+_EXPECTED_KMEANS_N_CLUSTERS  = 4    # kmeans.pkl n_clusters
 _EXPECTED_KMEANS_N_FEATURES  = 10   # kmeans.pkl n_features_in_ (== UMAP output)
-_EXPECTED_CLUSTER_RAW_IDS    = {0, 1, 2}  # all raw KMeans IDs must be in cluster_mapping.json
+_EXPECTED_CLUSTER_RAW_IDS    = {0, 1, 2, 3}  # all raw KMeans IDs must be in cluster_mapping.json
 
 
 def _validate_artifacts_at_startup() -> None:
@@ -376,24 +376,191 @@ URGENT_PRIORITY_THRESHOLD = 0.70
 
 CLUSTER_PROFILES = {
     1: {
-        "name": "High Functioning",
+        "name": "High Functioning / Well-Supported Seniors",
         "ic": "High", "env": "High", "func": "High",
         "risk_level": "LOW",
-        "description": "Independent, financially stable, socially engaged seniors.",
+        "description": (
+            "Strong WHO Healthy Ageing alignment across all domains. "
+            "Independent, financially stable, socially engaged seniors. "
+            "Preventive monitoring and social participation focus."
+        ),
     },
     2: {
-        "name": "Moderate / Mixed Needs",
+        "name": "Stable Ageing / Moderate Support Needs",
         "ic": "Moderate", "env": "Moderate", "func": "Moderate",
         "risk_level": "MODERATE",
-        "description": "Mixed domain performance; some areas need targeted support.",
+        "description": (
+            "Moderate alignment across IC, Environment, and Functional domains. "
+            "Targeted support recommended for identified needs. "
+            "Mixed domain performance with manageable risk."
+        ),
     },
     3: {
-        "name": "Low Functioning / Multi-domain Risk",
+        "name": "Environmentally and Financially Vulnerable Seniors",
+        "ic": "Moderate", "env": "Low", "func": "Moderate",
+        "risk_level": "MODERATE",
+        "description": (
+            "Intrinsic Capacity and functional ability relatively preserved, but "
+            "environmental and financial stressors require targeted intervention. "
+            "Financial, housing, and service-access support focus."
+        ),
+    },
+    4: {
+        "name": "Low Functioning / Multi-Domain Priority Seniors",
         "ic": "Low", "env": "Low", "func": "Low",
         "risk_level": "HIGH",
-        "description": "Multi-domain vulnerabilities requiring immediate intervention.",
+        "description": (
+            "Lowest WHO Healthy Ageing alignment across all domains. "
+            "Multi-domain vulnerabilities requiring immediate and coordinated intervention. "
+            "Comprehensive care coordination and priority escalation."
+        ),
     },
 }
+
+
+# Section grouping for XAI section-level summary
+_XAI_SECTION_GROUPS: Dict[str, List[str]] = {
+    "Physical Health":    ["sec6_phy_score", "sec6_health_score", "phy_energy", "phy_pain_r",
+                           "phy_health_limit_r", "phy_mobility_outside", "phy_mobility_indoor"],
+    "Psychological":      ["sec6_psy_score", "psych_happiness", "psych_peace",
+                           "psych_lonely_r", "psych_confidence"],
+    "Functional Health":  ["sec6_func_score", "func_independence", "func_autonomy", "func_control"],
+    "Economic Stability": ["sec5_eco_stability", "sec5_income_norm", "sec5_real_asset_score",
+                           "sec5_movable_asset_score", "sec5_income_source_score",
+                           "env_fin_medical", "env_fin_household", "env_fin_personal",
+                           "env_income_limit_r", "income_enc", "has_pension"],
+    "Social Connection":  ["soc_social_support", "soc_close_friend", "soc_participation",
+                           "soc_opportunity", "soc_respect"],
+    "Environment":        ["env_safe_home", "env_safe_neighborhood", "env_home_comfort",
+                           "env_service_access"],
+    "Family & Household": ["sec2_family_support", "sec2_family_size_norm", "sec4_lives_alone",
+                           "sec4_household_risk", "sec4_dependency_risk", "living_with_count"],
+    "Human Capital":      ["sec3_education_norm", "sec3_skill_score", "sec3_community_score",
+                           "sec3_hr_score", "education_enc", "checkup_enc",
+                           "community_service_count"],
+    "Age & Demographics": ["sec1_age_risk", "age"],
+}
+
+_FEATURE_TO_SECTION: Dict[str, str] = {
+    feat: section
+    for section, feats in _XAI_SECTION_GROUPS.items()
+    for feat in feats
+}
+
+
+@lru_cache(maxsize=1)
+def _load_cluster_feature_means() -> Optional[Dict[str, Any]]:
+    """Load cluster_feature_means.json (per-cluster feature averages for XAI deviation)."""
+    path = os.path.join(MODEL_DIR, "cluster_feature_means.json")
+    if not os.path.exists(path):
+        logger.warning("cluster_feature_means.json not found — XAI will use 0.5 fallback.")
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _compute_xai(
+    feature_map: Dict[str, Any],
+    named_id: int,
+    ml_risk_feature_names: List[str],
+) -> Dict[str, Any]:
+    """Compute per-domain XAI using feature importance x deviation from cluster mean."""
+    import datetime as _dt
+    means_data = _load_cluster_feature_means()
+    if means_data:
+        cluster_means: Dict[str, float] = means_data.get("cluster_means", {}).get(
+            str(named_id),
+            means_data.get("global_mean", {})
+        )
+        effect_signs_all: Dict[str, Dict[str, int]] = means_data.get("feature_effect_signs", {})
+    else:
+        cluster_means = {f: 0.5 for f in ml_risk_feature_names}
+        effect_signs_all = {}
+
+    def _domain_xai(model_key: str, domain: str) -> Dict[str, Any]:
+        gbr = _load_model(model_key)
+        if gbr is None or not hasattr(gbr, "feature_importances_"):
+            return {"section_drivers": [], "feature_drivers": []}
+        importances = gbr.feature_importances_
+        # Per-feature sign of effect on risk (+1 raises, -1 lowers). Default +1.
+        signs = effect_signs_all.get(domain, {})
+        contribs: List[Dict[str, Any]] = []
+        for i, feat in enumerate(ml_risk_feature_names):
+            if i >= len(importances):
+                continue
+            imp     = float(importances[i])
+            val     = float(feature_map.get(feat, 0.0))
+            mean    = float(cluster_means.get(feat, 0.5))
+            sign    = int(signs.get(feat, 1))
+            # Signed contribution to RISK: positive => raises risk, negative => lowers risk
+            contrib = imp * (val - mean) * sign
+            contribs.append({
+                "feature":     feat,
+                "importance":  round(imp, 5),
+                "value":       round(val, 4),
+                "mean":        round(mean, 4),
+                "raw_contrib": contrib,
+            })
+        total_abs = sum(abs(c["raw_contrib"]) for c in contribs) or 1.0
+        for c in contribs:
+            c["contribution_pct"] = round(abs(c["raw_contrib"]) / total_abs * 100, 2)
+            c["direction"] = "up" if c["raw_contrib"] >= 0 else "down"
+        top_feats = sorted(contribs, key=lambda x: x["contribution_pct"], reverse=True)[:5]
+        feature_drivers = [
+            {"feature": c["feature"], "contribution_pct": c["contribution_pct"],
+             "direction": c["direction"], "value": c["value"],
+             "mean": c["mean"], "importance": c["importance"]}
+            for c in top_feats
+        ]
+        section_totals: Dict[str, float] = {}
+        section_raw: Dict[str, float] = {}
+        for c in contribs:
+            sec = _FEATURE_TO_SECTION.get(c["feature"], "Other")
+            section_totals[sec] = section_totals.get(sec, 0.0) + c["contribution_pct"]
+            section_raw[sec]    = section_raw.get(sec, 0.0)    + c["raw_contrib"]
+        top_sections = sorted(section_totals.items(), key=lambda x: x[1], reverse=True)[:3]
+        section_drivers = [
+            {"section": name, "contribution_pct": round(pct, 2),
+             "direction": "up" if section_raw.get(name, 0) >= 0 else "down"}
+            for name, pct in top_sections
+        ]
+        return {"section_drivers": section_drivers, "feature_drivers": feature_drivers}
+
+    return {
+        "ic":               _domain_xai("gbr_ic_risk.pkl", "ic"),
+        "env":              _domain_xai("gbr_env_risk.pkl", "env"),
+        "func":             _domain_xai("gbr_func_risk.pkl", "func"),
+        "cluster_named_id": named_id,
+        "computed_at":      _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+
+
+@lru_cache(maxsize=1)
+def _build_model_insights() -> Dict[str, Any]:
+    """Global GBR feature importance, cached. Returns top-15 per domain."""
+    import datetime as _dt
+    means_data = _load_cluster_feature_means()
+    risk_features = means_data["risk_features"] if means_data else []
+
+    def _domain_importance(model_key: str) -> List[Dict[str, Any]]:
+        gbr = _load_model(model_key)
+        if gbr is None or not hasattr(gbr, "feature_importances_") or not risk_features:
+            return []
+        pairs = [
+            {"feature": feat, "importance": round(float(imp), 5)}
+            for feat, imp in zip(risk_features, gbr.feature_importances_)
+        ]
+        pairs.sort(key=lambda x: x["importance"], reverse=True)
+        return pairs[:15]
+
+    return {
+        "ic":           _domain_importance("gbr_ic_risk.pkl"),
+        "env":          _domain_importance("gbr_env_risk.pkl"),
+        "func":         _domain_importance("gbr_func_risk.pkl"),
+        "n_seniors":    int(means_data.get("n_seniors", 0)) if means_data else 0,
+        "generated_at": _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+
 
 @lru_cache(maxsize=1)
 def _load_cluster_profiles() -> Dict[int, Dict[str, str]]:
@@ -437,7 +604,7 @@ def _load_cluster_profiles() -> Dict[int, Dict[str, str]]:
             if direct in meta and meta[direct]:
                 merged[cid][direct] = str(meta[direct])
 
-    if not all(i in merged for i in (1, 2, 3)):
+    if not all(i in merged for i in (1, 2, 3, 4)):
         logger.warning("cluster_metadata.json missing required cluster IDs; using hardcoded defaults.")
         return {k: dict(v) for k, v in CLUSTER_PROFILES.items()}
 
@@ -446,140 +613,51 @@ def _load_cluster_profiles() -> Dict[int, Dict[str, str]]:
 
 
 
-DISEASE_ACTIONS = {
-    "coronary heart disease": [
-        "Refer to cardiologist for CHD evaluation and medication review.",
-        "Monitor blood pressure and heart rate weekly.",
-        "Advise low-sodium, low-fat cardiac diet.",
-        "Verify PhilHealth Z-Benefit (heart disease) coverage.",
-    ],
-    "heart disease": [
-        "Refer to cardiologist for cardiac management.",
-        "Monitor blood pressure and heart rate weekly.",
-        "Advise low-sodium diet and light aerobic activity.",
-        "Verify PhilHealth Z-Benefit (heart disease) coverage.",
-    ],
-    "stroke": [
-        "Coordinate with neurologist for stroke follow-up care.",
-        "Enroll in physical/speech therapy rehabilitation program.",
-        "Conduct falls-risk assessment and home hazard evaluation.",
-        "Verify PhilHealth Z-Benefit (stroke) coverage.",
-    ],
-    "cancer": [
-        "Coordinate with oncologist for ongoing treatment / surveillance.",
-        "Refer to PCSO Medical Assistance Program (MAP) or Malasakit Center for hospital bill assistance.",
-        "Assess eligibility for PhilHealth Z-Benefit (cancer) coverage.",
-        "Assess caregiver support needs for treatment schedule.",
-    ],
-    "dementia": [
-        "Refer to geriatric psychiatrist for dementia assessment (MMSE).",
-        "Engage family / caregiver in dementia care education.",
-        "Assess home safety for wandering and fall prevention.",
-        "Link to OSCA memory-care support group.",
-    ],
-    "alzheimer": [
-        "Refer to neurologist / geriatrician for Alzheimer management.",
-        "Provide caregiver education on behavioral management.",
-        "Assess legal capacity (advance directive, guardianship).",
-    ],
-    "parkinson": [
-        "Refer to neurologist for Parkinson disease management.",
-        "Enroll in physical therapy for balance and gait training.",
-        "Evaluate need for mobility aids (walker, cane).",
-    ],
-    "diabetes": [
-        "Monitor fasting blood glucose monthly.",
-        "Advise diabetic diet (low-GI, portion control).",
-        "Inspect feet regularly for diabetic foot complications.",
-        "Ensure HbA1c checked every 3 months.",
-    ],
-    "hypertension": [
-        "Monitor blood pressure at least twice weekly.",
-        "Advise DASH diet (low sodium, high potassium).",
-        "Verify anti-hypertensive medication adherence.",
-        "Alert for signs of hypertensive crisis (BP >180/120).",
-    ],
-    "high blood pressure": [
-        "Monitor blood pressure at least twice weekly.",
-        "Advise low-sodium diet and stress reduction.",
-        "Verify anti-hypertensive medication adherence.",
-    ],
-    "depression": [
-        "Refer to mental health professional for depression screening.",
-        "Encourage social engagement and regular physical activity.",
-        "Connect with OSCA mental health support group.",
-    ],
-    "asthma": [
-        "Ensure maintenance inhaler prescription is active.",
-        "Advise avoidance of asthma triggers (dust, smoke, allergens).",
-        "Provide written asthma action plan for emergencies.",
-    ],
-    "copd": [
-        "Refer to pulmonologist for COPD staging and spirometry.",
-        "Advise smoking cessation and avoidance of pollutants.",
-        "Enroll in pulmonary rehabilitation program.",
-    ],
-    "tuberculosis": [
-        "Ensure enrollment in DOTS program.",
-        "Verify completion of anti-TB medication regimen.",
-        "Notify contacts for TB screening.",
-    ],
-    "arthritis": [
-        "Refer to rheumatologist or orthopedist for joint assessment.",
-        "Recommend low-impact exercise (swimming, walking) for joint mobility.",
-        "Evaluate need for assistive devices to reduce joint stress.",
-    ],
-    "osteoporosis": [
-        "Order bone mineral density (BMD) test.",
-        "Advise calcium and vitamin D supplementation.",
-        "Conduct fall prevention home assessment.",
-    ],
-    "glaucoma": [
-        "Refer to ophthalmologist for IOP monitoring and glaucoma management.",
-        "Ensure adherence to prescribed eye drops.",
-        "Assess home environment for visual safety hazards.",
-    ],
-    "cataract": [
-        "Refer to ophthalmologist for cataract evaluation.",
-        "Discuss PhilHealth surgical benefit for cataract surgery.",
-        "Advise UV-protective eyewear outdoors.",
-    ],
-    "hearing impairment": [
-        "Refer to ENT / audiologist for hearing evaluation.",
-        "Assess eligibility for hearing aid through OSCA or DSWD.",
-        "Advise family on communication strategies for hearing-impaired seniors.",
-    ],
-    "kidney": [
-        "Refer to nephrologist for kidney function evaluation.",
-        "Advise low-protein, low-sodium diet.",
-        "Verify PhilHealth Z-Benefit (hemodialysis) if applicable.",
-    ],
-    "chronic kidney disease": [
-        "Refer to nephrologist for CKD staging and management.",
-        "Monitor blood pressure and fluid intake carefully.",
-        "Verify PhilHealth Z-Benefit (dialysis) coverage.",
-    ],
-    "anemia": [
-        "Check CBC and iron studies; refer to physician for anemia management.",
-        "Advise iron-rich diet (red meat, leafy greens, legumes).",
-        "Assess for underlying cause (GI bleeding, malnutrition).",
-    ],
-    "physical disability": [
-        "Refer to physical/occupational therapist for functional assessment.",
-        "Assess eligibility for OSCA Persons with Disability (PWD) benefits.",
-        "Conduct home modification assessment (ramps, grab bars, wide doorways).",
-    ],
-    "other chronic disease": [
-        "Schedule comprehensive evaluation with a physician to identify and document the specific chronic condition.",
-        "Ensure enrollment in PhilHealth and verify applicable benefit packages for chronic illness management.",
-        "Advise regular follow-up at the barangay health center for monitoring and medication adherence.",
-        "Refer to appropriate specialist based on confirmed diagnosis.",
-    ],
-    "__generic__": [
-        "Schedule comprehensive health assessment at barangay health center.",
-        "Ensure annual physical examination and laboratory workup.",
-        "Review current medications for interactions or adverse effects.",
-    ],
+# ── Disease keyword → rule code mapping ──────────────────────────────────────
+# Replaces the clinical DISEASE_ACTIONS string lists with service-backed
+# recommendation rule codes. Each keyword maps to a primary rule code;
+# a secondary code (value[1]) is optional and fires only for high-cost diseases.
+# Keys are matched as substrings (case-insensitive) against medical_concern text.
+DISEASE_RULE_MAP: Dict[str, Tuple[str, Optional[str]]] = {
+    # Hypertensive
+    "hypertension":             ("HEALTH_HYPERTENSION_PHILPEN",  None),
+    "high blood pressure":      ("HEALTH_HYPERTENSION_PHILPEN",  None),
+    # Endocrine
+    "diabetes":                 ("HEALTH_DIABETES_PHILPEN",      None),
+    "blood sugar":              ("HEALTH_DIABETES_PHILPEN",      None),
+    # Cardiovascular / high-cost → also Malasakit
+    "coronary heart disease":   ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_MALASAKIT_CENTER"),
+    "heart disease":            ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_MALASAKIT_CENTER"),
+    # Neurological
+    "stroke":                   ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_MALASAKIT_CENTER"),
+    "dementia":                 ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ADL_SUPPORT"),
+    "alzheimer":                ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ADL_SUPPORT"),
+    "parkinson":                ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    # Oncology / high-cost
+    "cancer":                   ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_MALASAKIT_CENTER"),
+    # Respiratory
+    "asthma":                   ("HEALTH_YAKAP_CHECKUP",        None),
+    "copd":                     ("HEALTH_YAKAP_CHECKUP",        None),
+    "tuberculosis":             ("HEALTH_YAKAP_CHECKUP",        None),
+    # Musculoskeletal
+    "arthritis":                ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    "osteoporosis":             ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    # Renal / high-cost
+    "kidney":                   ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_PCSO_MAP"),
+    "chronic kidney disease":   ("HEALTH_YAKAP_CHECKUP",        "MEDICAL_PCSO_MAP"),
+    # Sensory
+    "glaucoma":                 ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    "cataract":                 ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    "hearing impairment":       ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    "eye impairment":           ("HEALTH_YAKAP_CHECKUP",        "FUNCTIONAL_ASSISTIVE_DEVICE"),
+    # Haematological
+    "anemia":                   ("HEALTH_YAKAP_CHECKUP",        None),
+    # Disability
+    "physical disability":      ("FUNCTIONAL_ASSISTIVE_DEVICE", "HEALTH_YAKAP_CHECKUP"),
+    # Mental health reported in medical_concern (unusual but possible)
+    "depression":               ("MENTAL_HEALTH_REFERRAL",      None),
+    # Catch-all
+    "other chronic disease":    ("HEALTH_YAKAP_CHECKUP",        None),
 }
 
 NOTEBOOK_PREDICTIONS_CANDIDATES = [
@@ -791,7 +869,7 @@ def _load_notebook_cluster_index() -> Dict[str, Dict[Any, Any]]:
                 continue
 
             payload = {
-                "cluster_id": max(1, min(3, cluster_id)),
+                "cluster_id": max(1, min(4, cluster_id)),
                 "cluster_name": row.get("cluster_name") or _load_cluster_profiles().get(cluster_id, {}).get("name"),
                 "age": _safe_float(row.get("age")),
                 "risk_level": (row.get("risk_level") or "").strip().upper(),
@@ -1154,8 +1232,8 @@ def _health_recs(
 ) -> List[Dict[str, Any]]:
     """
     Return structured health recommendation dicts.
-    Disease-specific clinical actions come from DISEASE_ACTIONS;
-    service referrals use the recommendation_rules library (HLT/SOC codes).
+    Disease matching uses DISEASE_RULE_MAP (keyword → rule code); specialty
+    concern fields (dental, optical, hearing, emotional) use dedicated rule codes.
     """
     recs: List[Dict[str, Any]] = []
     _p = [1]
@@ -1199,48 +1277,52 @@ def _health_recs(
             continue
         text_lower = text_value.lower()
 
+        # Specialty concern fields → dedicated rule codes
         if field_name == "dental":
             _add_rule("HLT-005")
             matched_any = True
             continue
         if field_name == "optical":
-            _add_rule("HLT-006")
+            _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+                "Senior reports optical/vision concern — assess need for eyeglasses "
+                "or eye care referral through the senior citizen assistive device benefit."
+            ))
             matched_any = True
             continue
         if field_name == "hearing":
-            _add_rule("HLT-007")
+            _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+                "Senior reports hearing concern — assess need for hearing aid "
+                "through the senior citizen assistive device benefit."
+            ))
             matched_any = True
             continue
         if field_name == "emotional":
-            _add_rule("SOC-004")
+            _add_rule("MENTAL_HEALTH_REFERRAL", reason=(
+                f"Senior reported emotional concern: '{text_value[:80]}'. "
+                "Psychosocial support or mental health referral recommended "
+                "(decision-support flag, not a clinical diagnosis)."
+            ))
             matched_any = True
             continue
 
-        # Medical: match known diseases from DISEASE_ACTIONS for clinical specifics
-        matched_diseases = [kw for kw in DISEASE_ACTIONS if kw != "__generic__" and kw in text_lower]
-        if matched_diseases:
-            for disease in matched_diseases:
-                if disease not in seen_disease:
-                    seen_disease.add(disease)
-                    for action in DISEASE_ACTIONS[disease]:
-                        recs.append(_build_rec_action(
-                            action, _np(), urgency, risk_level,
-                            service_provider="RHU/BHC, PhilHealth YAKAP/Konsulta",
-                            evidence_source="DOH clinical management guidelines",
-                        ))
-                    matched_any = True
-            # Add YAKAP service referral codes for common chronic conditions
-            if any(k in text_lower for k in ["hypertension", "high blood pressure"]):
-                _add_rule("HLT-002")
-            if "diabetes" in text_lower:
-                _add_rule("HLT-003")
-        else:
-            for action in DISEASE_ACTIONS["__generic__"]:
-                recs.append(_build_rec_action(
-                    action, _np(), urgency, risk_level,
-                    service_provider="RHU/BHC",
-                    evidence_source="DOH primary care services",
-                ))
+        # Medical concern text: match DISEASE_RULE_MAP keywords
+        matched_any_disease = False
+        for keyword, (primary_code, secondary_code) in DISEASE_RULE_MAP.items():
+            if keyword in text_lower and keyword not in seen_disease:
+                seen_disease.add(keyword)
+                _add_rule(primary_code, reason=f"Senior has reported: {keyword}.")
+                if secondary_code:
+                    _add_rule(secondary_code)
+                matched_any_disease = True
+
+        if matched_any_disease:
+            matched_any = True
+        elif text_value:
+            # Non-empty medical concern not matched by any keyword → generic checkup referral
+            _add_rule("HEALTH_YAKAP_CHECKUP", reason=(
+                "Senior has reported a health concern — primary care consultation "
+                "via PhilHealth YAKAP/Konsulta recommended."
+            ))
             matched_any = True
 
     # Mobility difficulty → fall risk / assistive device check
@@ -1248,22 +1330,27 @@ def _health_recs(
         _add_rule("HLT-008")
         matched_any = True
 
-    # No recent check-up or aged 70+ → primary care referral
+    # No recent check-up or aged 70+ → YAKAP primary care referral
     if not has_checkup or age_val >= 70:
-        _add_rule("HLT-001")
+        _add_rule("HEALTH_YAKAP_CHECKUP", reason=(
+            "Senior has no recorded regular check-up or is aged 70+ — "
+            "PhilHealth YAKAP/Konsulta primary-care enrollment recommended."
+            if not has_checkup else
+            "Senior is aged 70+ — annual preventive check-up via YAKAP/Konsulta recommended."
+        ))
         matched_any = True
 
-    # Medicine cost difficulty
+    # Medicine cost difficulty → Malasakit/PCSO MAP
     if env_fin_medical <= 2:
-        _add_rule("HLT-004")
+        _add_rule("MEDICAL_PCSO_MAP", reason=(
+            "Senior reports difficulty affording medicines — "
+            "PCSO MAP / Malasakit Center referral recommended."
+        ))
 
     if not matched_any:
-        recs.append(_build_rec_action(
-            "Senior reports no significant health concerns. Continue preventive monitoring.",
-            _np(), "maintenance", risk_level,
-            domain="health",
-            service_provider="OSCA, RHU/BHC",
-            evidence_source="WHO Healthy Ageing — preventive care",
+        _add_rule("HEALTH_YAKAP_CHECKUP", reason=(
+            "Senior reports no significant health concerns. "
+            "Continue preventive monitoring via PhilHealth YAKAP/Konsulta annual check-up."
         ))
 
     return recs
@@ -1302,37 +1389,43 @@ def _financial_recs(
     func_indep = _safe_float(row.get("func_independence"), 3.0)
 
     if income_band <= 2 or eco_stability < 0.25:
-        _add_rule("FIN-002")   # DSWD AICS crisis assistance
-        _add_rule("FIN-001")   # Social Pension for Indigent Senior Citizens
-        _add_rule("FIN-003")   # Malasakit Center / PCSO MAP
-        _add_rule("FIN-004")   # PhilHealth membership verification
+        _add_rule("FINANCIAL_AICS")            # DSWD AICS crisis assistance
+        _add_rule("FINANCIAL_SOCIAL_PENSION")  # Social Pension for Indigent Senior Citizens
+        _add_rule("MEDICAL_PCSO_MAP")          # PCSO MAP / Malasakit Center
+        _add_rule("FIN-004")                   # PhilHealth membership verification
     elif income_band <= 4 or eco_stability < 0.45:
-        _add_rule("FIN-002")
+        _add_rule("FINANCIAL_AICS")
         _add_rule("FIN-004")
     else:
         _add_rule("FIN-004")
 
     # No pension → social pension referral regardless of income tier
     if _safe_float(row.get("has_pension")) == 0:
-        _add_rule("FIN-001")
+        _add_rule("FINANCIAL_SOCIAL_PENSION")
 
     # Medicine or household cost difficulty
     if env_fin_medical <= 2:
-        _add_rule("FIN-003")
+        _add_rule("MEDICAL_PCSO_MAP", reason=(
+            "Senior reports difficulty affording medicines — "
+            "PCSO MAP / Malasakit Center referral recommended."
+        ))
     if env_fin_household <= 2:
-        _add_rule("FIN-002")
+        _add_rule("FINANCIAL_AICS", reason=(
+            "Senior reports difficulty meeting household expenses — "
+            "DSWD AICS financial assistance referral recommended."
+        ))
 
     # Physical disability → PWD benefits
     if _safe_float(row.get("sec4_has_disability", row.get("has_disability", 0))) == 1:
         _add_rule("FIN-006")
 
-    # Centenarian milestone ages (Expanded Centenarians Act cash gift)
+    # Centenarian and milestone ages (Expanded Centenarians Act, RA 11982)
     if int(age_val) in [80, 85, 90, 95, 100]:
-        _add_rule("FIN-005")
+        _add_rule("BENEFIT_CENTENARIAN")
 
     # Livelihood support — only for mobile, non-frail seniors with income need
     if income_band <= 4 and func_indep >= 3:
-        _add_rule("LVL-001")
+        _add_rule("LIVELIHOOD_SAFE_REFERRAL")
 
     return recs
 
@@ -1364,26 +1457,81 @@ def _social_recs(
     lives_alone = _as_bool(row.get("sec4_lives_alone", row.get("lives_alone", 0)))
     soc_support = _safe_float(row.get("soc_social_support"), 3.0)
     soc_close_friend = _safe_float(row.get("soc_close_friend"), 3.0)
+    soc_participation = _safe_float(row.get("soc_participation"), 3.0)
+    soc_opportunity = _safe_float(row.get("soc_opportunity"), 3.0)
+    soc_respect = _safe_float(row.get("soc_respect"), 3.0)
+    psych_lonely_r = _safe_float(row.get("psych_lonely_r"), 3.0)
     family_support = _safe_float(row.get("sec2_family_support"), 0.5)
     is_member = _as_bool(row.get("is_association_member", 0))
     emotional_text = str(row.get("social_emotional_concern", "") or "").strip().lower()
+    marital_status = str(row.get("marital_status", "") or "").strip()
     skip_tokens = {"none", "nan", "", "n/a"}
 
+    # Lives alone → welfare check-in (SOCIAL_WELFARE_CHECK covers routine follow-up)
     if lives_alone:
-        _add_rule("SOC-001")   # BHW / OSCA welfare check
+        _add_rule("SOCIAL_WELFARE_CHECK")
 
+    # Low social support or no close friend → social engagement / participation
     if soc_support <= 2 or soc_close_friend <= 2:
-        _add_rule("SOC-003")   # OSCA group activities / social engagement
+        _add_rule("SOCIAL_PARTICIPATION", reason=(
+            "Senior has low social support or lacks a close person — "
+            "participation in senior group activities and community programs recommended."
+        ))
 
+    # Low community participation → participation strengthening
+    if soc_participation <= 2:
+        _add_rule("SOC-006", reason=(
+            "Senior shows low community participation indicators — "
+            "active engagement in senior group activities recommended."
+        ))
+    elif soc_participation <= 3 and (soc_opportunity <= 2 or soc_respect <= 2):
+        # Moderate participation but poor community opportunities or respect
+        _add_rule("SOC-006", reason=(
+            "Senior has limited community opportunities or low sense of social respect — "
+            "facilitated participation recommended."
+        ))
+
+    # Loneliness indicator (psych_lonely_r low = more lonely; reversed scale)
+    if psych_lonely_r <= 2:
+        _add_rule("MENTAL_HEALTH_REFERRAL", reason=(
+            "Senior shows loneliness indicators (QoL psychosocial score). "
+            "Possible psychosocial concern — mental health and emotional support referral "
+            "recommended (decision-support flag, not a clinical diagnosis)."
+        ))
+
+    # Low family support → caregiver capacity assessment
     if family_support < 0.3:
-        _add_rule("SOC-005")   # family support / caregiver capacity assessment
+        _add_rule("SOC-005")
 
+    # Widowed or separated → peer support / grief adjustment
+    if marital_status in ("Widowed", "Separated"):
+        _add_rule("SOC-007", reason=(
+            f"Senior is {marital_status.lower()} — elevated social isolation and "
+            "psychosocial adjustment need. Peer support referral recommended."
+        ))
+
+    # Not registered with Senior Citizen Association
     if not is_member:
-        _add_rule("SOC-002")   # Senior Citizen Association registration
+        _add_rule("SOC-002")
 
+    # Explicit emotional concern text with mental health keywords
     if emotional_text and emotional_text not in skip_tokens:
-        if any(k in emotional_text for k in ["depression", "anxiety", "hopeless", "sad", "lonely", "grief"]):
-            _add_rule("SOC-004")   # mental health referral (RHU / NCMH 1553)
+        if any(k in emotional_text for k in [
+            "depression", "anxiety", "hopeless", "sad", "lonely", "grief",
+            "stress", "trauma", "isolation", "withdrawn",
+        ]):
+            _add_rule("MENTAL_HEALTH_REFERRAL", reason=(
+                f"Senior reported emotional concern: '{emotional_text[:80]}'. "
+                "Possible psychosocial concern — mental health referral recommended "
+                "(decision-support flag, not a clinical diagnosis)."
+            ))
+
+    # Lives alone + low social support → reinforce welfare check and social connection
+    if lives_alone and soc_support <= 3:
+        _add_rule("SOCIAL_PARTICIPATION", reason=(
+            "Senior lives alone with low social support — "
+            "social engagement and community involvement strongly recommended."
+        ))
 
     return recs
 
@@ -1412,23 +1560,105 @@ def _functional_recs(
         if rec:
             recs.append(rec)
 
-    age_val = _safe_float(row.get("age"), 70)
-    mob_outside = _safe_float(row.get("phy_mobility_outside"), 3.0)
-    mob_indoor = _safe_float(row.get("phy_mobility_indoor"), 3.0)
-    func_indep = _safe_float(row.get("func_independence"), 3.0)
-    has_checkup = _safe_float(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
+    age_val        = _safe_float(row.get("age"), 70)
+    mob_outside    = _safe_float(row.get("phy_mobility_outside"), 3.0)
+    mob_indoor     = _safe_float(row.get("phy_mobility_indoor"), 3.0)
+    func_indep     = _safe_float(row.get("func_independence"), 3.0)
+    func_autonomy  = _safe_float(row.get("func_autonomy"), 3.0)
+    func_control   = _safe_float(row.get("func_control"), 3.0)
+    phy_energy     = _safe_float(row.get("phy_energy"), 3.0)
+    lives_alone    = _as_bool(row.get("sec4_lives_alone", row.get("lives_alone", 0)))
 
+    # ── section_score composite triggers (preprocess-computed aggregates) ──────
+    func_score      = _safe_float(row.get("sec6_func_score"), 0.5)
+    risk_functional = _safe_float(row.get("risk_functional"), 0.0)
+    dep_risk        = _safe_float(row.get("sec4_dependency_risk"), 0.0)
+    phy_score       = _safe_float(row.get("sec6_phy_score"), 0.5)
+
+    # Low composite functional score → ADL support
+    if func_score < 0.45:
+        _add_rule("FUNCTIONAL_ADL_SUPPORT", reason=(
+            f"Senior's composite functional score ({func_score:.2f}) is below the "
+            "threshold associated with functional independence risk — "
+            "ADL support assessment recommended."
+        ))
+
+    # High functional risk score → ADL support
+    if risk_functional > 0.55:
+        _add_rule("FUNCTIONAL_ADL_SUPPORT", reason=(
+            f"Senior's functional risk indicator ({risk_functional:.2f}) is elevated — "
+            "home-care support or ADL assistance referral recommended."
+        ))
+
+    # High dependency risk → welfare check + ADL support
+    if dep_risk > 0.60:
+        _add_rule("SOCIAL_WELFARE_CHECK", reason=(
+            f"Senior's dependency risk indicator ({dep_risk:.2f}) is high — "
+            "welfare check and caregiver capacity assessment recommended."
+        ))
+        _add_rule("FUNCTIONAL_ADL_SUPPORT", reason=(
+            f"Senior's dependency risk ({dep_risk:.2f}) indicates possible need for "
+            "home-care or ADL assistance — assessment recommended."
+        ))
+
+    # Low physical score → fall/frailty risk (HLT-008)
+    if phy_score < 0.40:
+        _add_rule("HLT-008", reason=(
+            f"Senior's composite physical score ({phy_score:.2f}) is below threshold — "
+            "fall-risk and home-safety assessment recommended."
+        ))
+
+    # ── Item-level triggers ────────────────────────────────────────────────────
+
+    # Severe mobility impairment → fall risk / assistive device check (HLT-008)
     if mob_outside <= 2 or mob_indoor <= 2:
-        _add_rule("HLT-008")   # fall risk / assistive device assessment
+        _add_rule("HLT-008")
 
+    # Moderate mobility + age >= 75 → dedicated fall-risk home assessment (FNC-006)
+    if (mob_outside <= 3 or mob_indoor <= 3) and age_val >= 75:
+        _add_rule("FNC-006", reason=(
+            f"Senior aged {int(age_val)} with moderate mobility limitation — "
+            "fall-risk home assessment recommended."
+        ))
+
+    # Severe functional independence loss → ADL support (WHO Healthy Ageing)
     if func_indep <= 2:
-        _add_rule("FNC-001")   # ADL limitations / home care support
+        _add_rule("FUNCTIONAL_ADL_SUPPORT")
 
+    # Moderate independence loss for 75+ seniors (softer threshold)
+    if func_indep <= 3 and age_val >= 75:
+        _add_rule("FUNCTIONAL_ADL_SUPPORT", reason=(
+            f"Senior aged {int(age_val)} shows functional independence indicators "
+            "warranting home-care support review."
+        ))
+
+    # Loss of autonomy or life-control → ADL + assistive support
+    if func_autonomy <= 2 or func_control <= 2:
+        _add_rule("FUNCTIONAL_ADL_SUPPORT", reason=(
+            "Senior reports low sense of autonomy or daily life-control — "
+            "functional support assessment recommended."
+        ))
+
+    # Lives alone with functional risk → reinforce welfare check
+    if lives_alone and (func_score < 0.50 or risk_functional > 0.40):
+        _add_rule("SOCIAL_WELFARE_CHECK", reason=(
+            "Senior lives alone and shows functional risk indicators — "
+            "welfare check and periodic follow-up recommended."
+        ))
+
+    # Low energy combined with age >= 70 → fall risk flag
+    if phy_energy <= 2 and age_val >= 70:
+        _add_rule("FNC-006", reason=(
+            "Low physical energy combined with age increases fall and frailty risk."
+        ))
+
+    # Assistive device eligibility check for moderate functional or sensory impairment
+    if (mob_outside <= 3 or mob_indoor <= 3 or func_indep <= 3) and age_val >= 70:
+        _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE")
+
+    # Comprehensive geriatric assessment for 80+ (polypharmacy, falls)
     if age_val >= 80:
-        _add_rule("FNC-002")   # comprehensive geriatric assessment / polypharmacy review
-
-    if not has_checkup:
-        _add_rule("HLT-001")   # primary care referral
+        _add_rule("FNC-002")
 
     return recs
 
@@ -1438,7 +1668,7 @@ def _hc_access_recs(
     urgency: str = "planned",
     risk_level: str = "moderate",
 ) -> List[Dict[str, Any]]:
-    """Return structured healthcare-access recommendation dicts (FNC/FIN codes)."""
+    """Return structured healthcare-access recommendation dicts (FNC/FIN/HCA codes)."""
     recs: List[Dict[str, Any]] = []
     _p = [1]
     seen_codes: set = set()
@@ -1463,20 +1693,178 @@ def _hc_access_recs(
     else:
         hc_diff = str(_hc_raw or "").lower()
     service_acc = _safe_float(row.get("env_service_access"), 3.0)
+    age_val = _safe_float(row.get("age"), 70)
+    has_checkup = _safe_float(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
+    medical_text = str(row.get("medical_concern", "") or "").lower()
 
     if "cost" in hc_diff or "expensive" in hc_diff:
-        _add_rule("FIN-003")   # Malasakit / PCSO MAP
-        _add_rule("FIN-004")   # PhilHealth membership check
+        _add_rule("MEDICAL_PCSO_MAP")          # PCSO MAP referral
+        _add_rule("MEDICAL_MALASAKIT_CENTER")  # Malasakit Center one-stop shop
+        _add_rule("FIN-004")                   # PhilHealth membership check
 
     if "transport" in hc_diff or "distance" in hc_diff:
-        _add_rule("FNC-003")   # transport / distance barrier
+        _add_rule("ACCESS_TRANSPORT")          # transport / distance barrier
 
+    # Low service accessibility (strict threshold)
     if service_acc <= 2:
         _add_rule("FNC-005")   # BHW home-based health monitoring
+
+    # Moderate service accessibility for older seniors — still needs BHW support
+    if service_acc <= 3 and age_val >= 75:
+        _add_rule("FNC-005", reason=(
+            f"Senior aged {int(age_val)} has limited health service access — "
+            "BHW home-based monitoring recommended."
+        ))
+
+    # Chronic disease + no regular check-up = priority access gap
+    chronic_keywords = ["hypertension", "diabetes", "high blood", "heart", "stroke", "copd",
+                        "arthritis", "kidney", "cancer", "asthma"]
+    has_chronic = any(kw in medical_text for kw in chronic_keywords)
+    if has_chronic and not has_checkup:
+        _add_rule("HCA-001", reason=(
+            "Senior has chronic condition(s) but no recorded regular check-up — "
+            "healthcare access gap identified. Priority scheduling recommended."
+        ))
+
+    # Transport/distance + no check-up → barangay transport / mobile clinic coordination
+    if ("transport" in hc_diff or "distance" in hc_diff) and not has_checkup:
+        _add_rule("ACCESS_TRANSPORT", reason=(
+            "Senior faces transport/distance barriers to healthcare and has no recorded check-up — "
+            "barangay transport assistance or mobile clinic coordination recommended."
+        ))
 
     housing_concern = str(row.get("housing_concern", "") or "").strip().lower()
     if housing_concern and housing_concern not in {"none", "nan", ""}:
         _add_rule("FNC-004")   # home safety / housing concern
+
+    return recs
+
+
+def _household_safety_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured household safety recommendation dicts (HSF codes)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
+    household_condition = str(row.get("household_condition", "") or "").lower()
+    housing_concern = str(row.get("housing_concern", "") or "").strip().lower()
+    env_safe_home = _safe_float(row.get("env_safe_home"), 3.0)
+    mob_outside = _safe_float(row.get("phy_mobility_outside"), 3.0)
+    mob_indoor = _safe_float(row.get("phy_mobility_indoor"), 3.0)
+    age_val = _safe_float(row.get("age"), 70)
+
+    # Unsafe home safety score
+    if env_safe_home <= 2:
+        _add_rule("HSF-001", reason=(
+            "Senior reports low home safety score — home hazard assessment and "
+            "safety improvement recommended."
+        ))
+
+    # Poor household condition keywords
+    unsafe_keywords = ["poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair"]
+    if any(kw in household_condition for kw in unsafe_keywords):
+        _add_rule("HSF-001", reason=(
+            "Senior's household condition indicates structural concerns — "
+            "safety assessment and referral recommended."
+        ))
+        _add_rule("HSF-002", reason=(
+            "Household condition suggests possible need for home-improvement assistance."
+        ))
+
+    # Housing concern present
+    if housing_concern and housing_concern not in {"none", "nan", ""}:
+        _add_rule("HSF-001", reason=(
+            f"Senior reports housing concern: '{housing_concern[:60]}'. "
+            "Home safety assessment recommended."
+        ))
+
+    # Mobility impairment + any home safety concern → higher fall hazard risk
+    if (mob_outside <= 3 or mob_indoor <= 3) and env_safe_home <= 3 and age_val >= 70:
+        _add_rule("HSF-001", reason=(
+            "Senior has mobility limitation and lower home safety score — "
+            "combined fall-hazard risk warrants priority home assessment."
+        ))
+
+    return recs
+
+
+def _assistive_device_recs(
+    row: Dict[str, Any],
+    urgency: str = "planned",
+    risk_level: str = "moderate",
+) -> List[Dict[str, Any]]:
+    """Return structured assistive device recommendation dicts (FUNCTIONAL_ASSISTIVE_DEVICE / RA 9994)."""
+    recs: List[Dict[str, Any]] = []
+    _p = [1]
+    seen_codes: set = set()
+
+    def _np() -> int:
+        v = _p[0]; _p[0] += 1; return v
+
+    def _add_rule(code: str, reason: str = None) -> None:
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        rec = _build_rec_from_rule(
+            code, reason_override=reason,
+            priority=_np(), urgency=urgency, risk_level=risk_level,
+        )
+        if rec:
+            recs.append(rec)
+
+    mob_outside = _safe_float(row.get("phy_mobility_outside"), 3.0)
+    mob_indoor = _safe_float(row.get("phy_mobility_indoor"), 3.0)
+    hearing_concern = str(row.get("hearing_concern", "") or "").strip().lower()
+    optical_concern = str(row.get("optical_concern", "") or "").strip().lower()
+    func_indep = _safe_float(row.get("func_independence"), 3.0)
+    age_val = _safe_float(row.get("age"), 70)
+    skip_tokens = {"none", "nan", "", "n/a", "no concern", "no concerns"}
+
+    # Mobility aids (cane, walker, wheelchair) — moderate to severe impairment
+    if mob_outside <= 3 or mob_indoor <= 3:
+        _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+            "Senior shows mobility impairment — assess need for cane, walker, "
+            "or wheelchair through the senior citizen assistive device benefit (RA 9994)."
+        ))
+
+    # Hearing aid — hearing concern reported
+    if hearing_concern and hearing_concern not in skip_tokens:
+        _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+            "Senior reports hearing concern — assess need for hearing aid "
+            "through the senior citizen assistive device benefit (RA 9994)."
+        ))
+
+    # Eyeglasses / optical aid — optical concern reported
+    if optical_concern and optical_concern not in skip_tokens:
+        _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+            "Senior reports optical/vision concern — assess need for eyeglasses "
+            "through the senior citizen assistive device benefit (RA 9994)."
+        ))
+
+    # Broad assistive device eligibility for 75+ with any functional limitation
+    if age_val >= 75 and (func_indep <= 3 or mob_outside <= 3 or mob_indoor <= 3):
+        _add_rule("FUNCTIONAL_ASSISTIVE_DEVICE", reason=(
+            f"Senior aged {int(age_val)} with functional limitation — "
+            "assistive device eligibility assessment recommended (RA 9994)."
+        ))
 
     return recs
 
@@ -1531,6 +1919,8 @@ def _build_recommendations(
     all_recs.extend(_social_recs(merged, urgency=urgency, risk_level=risk_level_str))
     all_recs.extend(_functional_recs(merged, urgency=urgency, risk_level=risk_level_str))
     all_recs.extend(_hc_access_recs(merged, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_household_safety_recs(merged, urgency=urgency, risk_level=risk_level_str))
+    all_recs.extend(_assistive_device_recs(merged, urgency=urgency, risk_level=risk_level_str))
 
     # Global cross-domain deduplication: each rule code and each action text
     # should appear at most once regardless of which domain function added it.
@@ -1552,11 +1942,64 @@ def _build_recommendations(
             seen_global_actions.add(action)
         deduped.append(rec)
 
-    # Re-number priorities globally after merging and deduplication
-    for idx, rec in enumerate(deduped, start=1):
+    # ── Category diversity: cap health in the priority slots ───────────────────
+    # Without diversity control, health dominates the top recommendations because
+    # _health_recs fires for almost every senior. We cap health at MAX 2 slots
+    # (3 if urgent/high risk) so that functional, social, financial, and access
+    # recommendations appear in top_recommendations for most seniors.
+    # All recommendations are still returned in all_recommendations (uncapped).
+    is_high_urgency = urgency in ("urgent", "immediate") or overall_level.upper() == "HIGH"
+    max_health_top = 3 if is_high_urgency else 2
+
+    health_q   = [r for r in deduped if r.get("category") == "health"]
+    non_health = [r for r in deduped if r.get("category") != "health"]
+
+    # Round-robin interleave across non-health categories so functional, social,
+    # financial, and access recommendations all surface in the top slots.
+    # Priority order determines which category leads each interleave round.
+    _PRIORITY_CATS = [
+        "functional", "healthcare_access", "social", "financial",
+        "mental_health", "livelihood", "other",
+    ]
+    from collections import defaultdict as _dd
+    _cat_groups: dict = _dd(list)
+    for _r in non_health:
+        _cat_groups[_r.get("category", "other")].append(_r)
+
+    # Sort categories: priority list first, then any remaining alphabetically
+    _ordered_cats = [c for c in _PRIORITY_CATS if c in _cat_groups]
+    _ordered_cats += sorted(c for c in _cat_groups if c not in _PRIORITY_CATS)
+
+    _queues = [list(_cat_groups[c]) for c in _ordered_cats]
+    non_health_interleaved: List[Dict[str, Any]] = []
+    while any(_queues):
+        for _q in _queues:
+            if _q:
+                non_health_interleaved.append(_q.pop(0))
+        _queues = [_q for _q in _queues if _q]
+
+    # Final order: health[:cap] → interleaved non-health → remaining health
+    diverse: List[Dict[str, Any]] = (
+        health_q[:max_health_top]
+        + non_health_interleaved
+        + health_q[max_health_top:]
+    )
+
+    # Add trigger_summary metadata to each recommendation
+    trigger_context = {
+        "cluster_id":    named_id,
+        "risk_level":    overall_level,
+        "urgency":       urgency,
+        "priority_flag": priority_flag or "",
+    }
+    for rec in diverse:
+        rec["trigger_summary"] = dict(trigger_context)
+
+    # Re-number priorities globally after diversity reordering
+    for idx, rec in enumerate(diverse, start=1):
         rec["priority"] = idx
 
-    return deduped
+    return diverse
 
 
 # ── Main inference ────────────────────────────────────────────────────────────
@@ -1589,7 +2032,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         # Direct named cluster injection — bypasses raw->named mapping lookup entirely.
         # Used by fix_cluster_distribution.py after auto-calibrating the mapping.
         raw_cluster_id   = int(preprocessed.get("_precomputed_raw_cluster_id", 0))
-        named_id         = max(1, min(3, int(preprocessed["_precomputed_named_id"])))
+        named_id         = max(1, min(4, int(preprocessed["_precomputed_named_id"])))
         reduced_features = list(preprocessed.get("reduced_features") or [])
         scaled_features  = list(preprocessed.get("scaled_features")  or [])
         cluster_profile  = cluster_profiles[named_id]
@@ -1639,7 +2082,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
 
                     if _det_named_id is not None:
                         # ✅ Centroid path — no UMAP invoked
-                        named_id = max(1, min(3, _det_named_id))
+                        named_id = max(1, min(4, _det_named_id))
                         cluster_profile = cluster_profiles[named_id]
                         raw_cluster_id  = next(
                             (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
@@ -1713,12 +2156,12 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             named_id = cluster_map[raw_cluster_id]
         else:
             named_id = raw_cluster_id + 1
-            if named_id < 1 or named_id > 3:
+            if named_id < 1 or named_id > 4:
                 logger.warning(
-                    "raw_cluster_id=%s produced out-of-range named_id=%s; clamping to [1,3].",
+                    "raw_cluster_id=%s produced out-of-range named_id=%s; clamping to [1,4].",
                     raw_cluster_id, named_id,
                 )
-        named_id = max(1, min(3, int(named_id)))
+        named_id = max(1, min(4, int(named_id)))
         cluster_profile = cluster_profiles[named_id]
 
     notebook_override = None
@@ -1733,7 +2176,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             preprocessed.get("identity", {}) or {}
         )
     if notebook_override:
-        named_id = max(1, min(3, int(notebook_override.get("cluster_id", named_id))))
+        named_id = max(1, min(4, int(notebook_override.get("cluster_id", named_id))))
         cluster_profile = cluster_profiles[named_id]
         raw_cluster_id = next(
             (raw_id for raw_id, mapped_id in (cluster_map or {}).items() if mapped_id == named_id),
@@ -1841,6 +2284,15 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         recs = notebook_recommendations
         warnings_list.append("Recommendations matched to notebook export for known senior record.")
 
+    # XAI — compute after cluster + risk scores are final
+    ml_risk_feats = _load_json("ml_risk_features.json") or []
+    xai_data: Optional[Dict[str, Any]] = None
+    try:
+        if ml_risk_feats:
+            xai_data = _compute_xai(feature_map, named_id, ml_risk_feats)
+    except Exception as _xai_err:
+        logger.warning("XAI computation failed (non-fatal): %s", _xai_err)
+
     result = {
         "status": "success",
         "cluster": {
@@ -1883,6 +2335,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
             "qol_score":  round(float(who_scores.get("qol_score",  3.0)), 4),
         },
         "recommendations": recs,
+        "xai": xai_data,
         "section_scores": section_scores,
         "model_metadata": {
             "model_version": MODEL_VERSION,
@@ -1994,6 +2447,15 @@ def batch_cluster_assign(preprocessed_list: List[Dict[str, Any]]) -> List[str]:
 
 
 # ── Flask API ─────────────────────────────────────────────────────────────────
+@app.route("/model_insights", methods=["GET"])
+def model_insights():
+    try:
+        return jsonify(_build_model_insights())
+    except Exception as e:
+        logger.error("model_insights error: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
