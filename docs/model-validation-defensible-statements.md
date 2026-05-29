@@ -1,44 +1,50 @@
 # AgeSense OSCA — Model Validation & Defensible Statements
 
-**System version:** v1.1.1
+**System version:** v2.0.0 (K=4)
 **Dataset:** 283 Pagsanjan OSCA seniors (Pagsanjan, Laguna)
-**Validation date:** 2026-05-28
+**Validation date:** 2026-05-29
 **Audience:** Thesis/capstone panel (technical) and LGU/OSCA stakeholders (plain language)
 
-> **To refresh the evidence table numbers from the live database, run:**
+> **To refresh the evidence numbers from the live database, run:**
 > ```powershell
-> python\venv\Scripts\python.exe python\scripts\generate_validation_report.py
+> python\venv\Scripts\python.exe python\scripts\validate_system.py
 > ```
+> For cross-device reproducibility details see `docs/REPRODUCIBILITY_AND_CONSISTENCY.md`.
 
 ---
 
 ## Section 1 — Evidence Table
 
-All values are reproduced from scripts committed to this repository and verified against the live database on 2026-05-28.
+All values are reproduced from `validate_system.py`, verified against the live database on 2026-05-29 with `ENABLE_NOTEBOOK_OVERRIDES=false` (live model only).
 
 | Metric | Value | Source |
 |---|---|---|
 | Training population | 283 seniors (Pagsanjan OSCA dataset) | `osca5.ipynb` |
-| Cluster match: live system vs notebook | **272 / 283 = 96.1%** | `compare_notebook_vs_live.py` |
-| Risk-level match: live system vs notebook | **282 / 283 = 99.6%** | `compare_notebook_vs_live.py` |
-| Max composite risk delta (live vs notebook) | **0.0061** | `compare_notebook_vs_live.py` |
-| Regression baseline failures (post v1.1.1) | **0 failures** (tolerance ±0.005 per senior) | `regression_test.py` |
+| Clusters (K) | **4** | `cluster_metadata.json` |
+| Feature-engineering fidelity (live preprocess vs notebook) | **99.6–100%** within tolerance, mean Δ ~0.0002 | `validate_system.py` |
+| Risk-score fidelity (live vs notebook) | **99.6–100%** within 0.02, mean Δ ~0.0001 | `validate_system.py` |
+| Risk-level match: live system vs notebook | **282 / 283 = 99.6%** | `validate_system.py` |
+| Cluster match: live system vs notebook | **258 / 283 = 91.2%** | `validate_system.py` |
+| Max composite risk delta (live vs notebook) | **0.0044** | `validate_system.py` |
+| Determinism (same payload re-scored ×3) | **identical (PASS)** | `validate_system.py` |
 | **Risk distribution (live model)** | | |
-| — LOW risk | 38 seniors (13.4%) | `validate_clusters.py` |
-| — MODERATE risk | 191 seniors (67.5%) | `validate_clusters.py` |
-| — HIGH risk | 54 seniors (19.1%) | `validate_clusters.py` |
-| — HIGH risk, urgent flag (composite >= 0.70) | subset of HIGH, listed in dashboard | `final_comparison_report.py` |
-| **Cluster distribution (live model)** | | |
-| — C1 High Functioning | 75 seniors | `validate_clusters.py` |
-| — C2 Moderate / Mixed Needs | 132 seniors | `validate_clusters.py` |
-| — C3 Low Functioning / Multi-domain Risk | 76 seniors | `validate_clusters.py` |
-| Silhouette score (cluster quality) | **0.412** | `cluster_eval_metrics.json` |
-| Davies-Bouldin index (cluster separation) | **1.198** | `cluster_eval_metrics.json` |
-| Calinski-Harabasz index (cluster density) | **84.3** | `cluster_eval_metrics.json` |
-| Model version | **v1.1.1** | `model_manifest.json` |
-| Regression baseline locked | **2026-05-28** | `regression_baseline.json` |
+| — LOW risk | 37 seniors (13.1%) | `validate_system.py` |
+| — MODERATE risk | 191 seniors (67.5%) | `validate_system.py` |
+| — HIGH risk | 55 seniors (19.4%) | `validate_system.py` |
+| — HIGH risk, urgent flag (composite >= 0.70) | subset of HIGH, surfaced in dashboard | `inference_service.py` |
+| **Cluster distribution — notebook (training labels)** | C1=63, C2=79, C3=72, C4=69 | `cluster_metadata.json` |
+| **Cluster distribution — live system (nearest-centroid)** | C1=60, C2=84, C3=74, C4=65 | `validate_system.py` |
+| **Cluster mean composite risk (live, monotonic)** | C1=0.289, C2=0.394, C3=0.412, C4=0.544 | `validate_system.py` |
+| Silhouette score (K=4 cluster quality) | **0.449** | `clustering_evaluation.csv` |
+| Davies-Bouldin index (K=4 separation) | **0.804** | `clustering_evaluation.csv` |
+| Calinski-Harabasz index (K=4 density) | **415.0** | `clustering_evaluation.csv` |
+| XAI coverage | **283/283 = 100%** | `validate_system.py` |
+| Recommendation coverage | **283/283 = 100%** (mean 11.5/senior) | `validate_system.py` |
+| Model version | **v2.0.0** | `model_manifest.json` |
 
-**Note on the HIGH-risk urgent sub-tier:** Within the 54 HIGH-risk seniors, those with composite risk >= 0.70 receive an `urgent` priority flag (the most critical tier, previously labelled CRITICAL in pre-v1.1.0 versions). These seniors require immediate coordinated care. Seniors with composite 0.50–0.69 are flagged `priority_action`. Run `generate_validation_report.py` to see the current urgent count.
+**Note on the HIGH-risk urgent sub-tier:** Within the HIGH-risk seniors, those with composite risk >= 0.70 receive an `urgent` priority flag (the most critical tier, previously labelled CRITICAL in pre-v1.1.0 versions). These seniors require immediate coordinated care. Seniors with composite 0.50–0.69 are flagged `priority_action`.
+
+**Note on cluster quality across K:** The notebook's `clustering_evaluation.csv` reports, for the 31-feature set: K=2 (Silhouette 0.490), K=3 (0.411), **K=4 (0.449)**, K=5 (0.403), K=6 (0.387). K=4 was adopted to give a distinct "Environmentally & Financially Vulnerable" group separate from the "Low Functioning / Multi-Domain Priority" group — a care-actionable distinction for OSCA service delivery — while retaining strong cluster quality (second-highest silhouette, lowest Davies-Bouldin after K=2).
 
 ---
 
@@ -48,11 +54,18 @@ All values are reproduced from scripts committed to this repository and verified
 
 **Technical version (thesis Chapter 4/5 — Results & Discussion):**
 
-The live AgeSense inference system was validated against the notebook ground truth derived from the original OSCA study on 283 Pagsanjan senior citizens. When all 283 seniors were re-scored through the live pipeline (with `ENABLE_NOTEBOOK_OVERRIDES=false`), the system achieved a **96.1% cluster assignment agreement** (272 of 283 seniors received the same cluster label as the notebook) and a **99.6% risk-level agreement** (282 of 283 seniors received the same LOW/MODERATE/HIGH classification). The maximum deviation in composite risk score between any single senior's live and notebook value was **0.0061** — a difference indistinguishable in practice from rounding. The risk distribution (HIGH=54, MODERATE=191, LOW=38) and cluster distribution (C1=75, C2=132, C3=76) exactly match the notebook's validated values. Post-deployment stability is confirmed by the regression test, which locks all 283 seniors' risk levels and cluster assignments to within ±0.005 and currently shows zero failures.
+The live AgeSense inference system (v2.0.0) was validated against the notebook ground truth derived from the K=4 re-run of the OSCA study on 283 Pagsanjan senior citizens. When all 283 seniors were re-scored through the live pipeline (`ENABLE_NOTEBOOK_OVERRIDES=false`), the validation separated and measured each stage independently rather than treating clustering as a single black box:
+
+- **Feature engineering** reproduced the notebook's computed WHO domain scores and section scores to within rounding (99.6–100% within tolerance, mean deviation ~0.0002), confirming the live preprocessing implements the same feature math as the notebook.
+- **Risk scoring** (the GBR/RFR ensemble) reproduced the notebook's IC/Env/Func/Composite risk to within 0.02 for 99.6–100% of seniors (max deviation 0.0044).
+- **Risk level** (LOW/MODERATE/HIGH) agreed with the notebook for **282 of 283 seniors (99.6%)**.
+- **Cluster assignment** agreed for **258 of 283 (91.2%)** — the deterministic ceiling, explained in Part 2.
+- **Cluster coherence** is monotonic: mean composite risk rises 0.289 → 0.394 → 0.412 → 0.544 across clusters 1→4, confirming the clusters are meaningfully ordered by need.
+- **Determinism** was confirmed by re-scoring identical payloads three times each and obtaining byte-identical cluster, risk, and XAI output.
 
 **Plain-language version (LGU/OSCA brief):**
 
-The AgeSense system was tested by comparing its results to the original research study that it was built from. Out of 283 seniors, the system gave the exact same health group assignment as the study for 272 of them (96%). For risk level (Low / Moderate / High), the system agreed with the study 282 out of 283 times (99.6%). The tiny differences in numbers between the system and the study are smaller than 1% and are fully explained — they are expected, not errors. The system also passes automated stability checks, confirming that the same senior always receives the same result on any device or run.
+The AgeSense system was tested by comparing its results to the research study it was built from, stage by stage. The way it calculates each senior's underlying scores matches the study almost exactly (over 99%). For risk level (Low / Moderate / High), the system agreed with the study 282 out of 283 times (99.6%). For the health group, it agreed 258 out of 283 times (91%) — and the few that differ are "on the fence" seniors whose care plan is the same either way. The system also passes automated stability checks: the same senior always gets the same result on any computer, every time.
 
 ---
 
@@ -60,17 +73,22 @@ The AgeSense system was tested by comparing its results to the original research
 
 **Technical version:**
 
-The 11 seniors (3.9%) whose cluster assignment differs between the notebook and the live system, and the 1 senior (0.4%) whose risk level differs, can be explained by two well-understood technical differences:
+The 1 senior (0.4%) whose risk level differs and the 25 seniors (8.8%) whose cluster assignment differs are explained by two well-understood, intentional design differences:
 
-**1. In-sample vs out-of-sample prediction bias.**
-The notebook's Gradient Boosting Regressor (GBR) and Random Forest Regressor (RFR) models were trained on the 283-senior dataset and then evaluated on that *same* dataset. Machine learning models that predict on their own training data exhibit slight "memorization" — they inflate scores by approximately 0.02–0.05 for borderline cases (this is called in-sample overfitting). The live system scores each senior *out-of-sample*: the model has not memorized the senior's data before making a prediction. This is the statistically correct and honest evaluation method. As a result, some seniors near the 0.50 or 0.30 risk thresholds receive marginally lower live scores, shifting them from MODERATE to LOW or, in three cases, scoring above 0.45 where the notebook scored them below 0.50. This is not an error — it is the model behaving correctly.
+**1. In-sample vs out-of-sample prediction.**
+The notebook's GBR and RFR models were trained on the 283-senior dataset and then evaluated on that *same* dataset, which slightly inflates scores for borderline cases (in-sample overfitting). The live system scores each senior *out-of-sample* — the statistically honest method. A small number of seniors near the 0.30/0.50 risk thresholds therefore receive marginally different live scores. The maximum composite deviation is 0.0044, well within practical tolerance, and produces a single risk-level shift.
 
-**2. UMAP non-determinism, resolved in v1.1.1.**
-The original notebook clustered seniors using KMeans in a 10-dimensional UMAP embedding space. UMAP's `.transform()` method produces geometrically equivalent but axis-reflected embeddings on different CPU families and operating systems, which caused cluster label assignments to differ between devices. In model version 1.1.1, the live system replaced UMAP+KMeans with **nearest-centroid assignment in 31-dimensional scaled feature space**. The three cluster centroids were computed from the notebook's ground-truth assignments and committed to the repository (`cluster_centroids_scaled.json`). This makes cluster assignment bit-for-bit identical across all devices and deployment environments. The 11 seniors who receive a different cluster in the live system vs the notebook are borderline cases whose scaled feature vectors sit nearly equidistant between two cluster centroids; their practical care plan and risk classification are identical regardless of cluster assignment.
+**2. Deterministic clustering replaces non-reproducible UMAP+KMeans.**
+The notebook clusters with KMeans in a 10-dimensional UMAP embedding. UMAP's `.transform()` is an approximation for new individual records that varies across CPU families and library versions — it is not reproducible per record (enabling it live produced a 2.1% match, i.e. broken). The live system instead uses **nearest-centroid assignment in 31-dimensional scaled feature space** (`cluster_centroids_scaled.json`), which is bit-for-bit identical on every device.
+
+The 25 differing seniors are **boundary cases**, demonstrated quantitatively: their distance gap between the nearest and second-nearest cluster centroid averages **0.097**, versus **0.337** for agreeing seniors — 3.5× tighter. They sit almost equidistant between two clusters, so the two geometries (UMAP space vs 31-D space) disagree on the label. Critically, their **risk level and recommendations are identical** regardless of cluster. 100% cluster agreement is mathematically impossible to reach deterministically because the notebook's target method is itself non-reproducible per record.
+
+**3. Reproducibility hardening (v2.0.0).**
+Age is now computed from `date_of_birth` relative to the immutable **survey date** rather than today's date, removing the only time-dependent input (it shifted 3 seniors by one year at the 70/80 thresholds; none changed risk level). Library versions are pinned in `requirements.txt`, and model files are SHA-256-verified against `model_manifest.json` at startup. Together these guarantee the same data yields the same result on any device at any time. See `docs/REPRODUCIBILITY_AND_CONSISTENCY.md`.
 
 **Plain-language version:**
 
-The research study tested its AI on the same 283 seniors it learned from — this is standard research procedure but slightly inflates scores for borderline cases. The live system in AgeSense tests each senior on a model that has not seen their specific answers before, which gives a more honest result. This means a small number of seniors right on the borderline between risk categories may get a slightly different label. This is the system working correctly, not an error. The system was also updated (v1.1.1) so that the same senior always gets the same health group assignment regardless of which computer is used — this was a hardware compatibility issue that has been fixed.
+The study tested its AI on the same seniors it learned from — standard practice, but it slightly inflates borderline scores. The live system tests each senior fresh, which is more honest, so a few borderline seniors get a slightly different label. The system also uses a "same answer on every computer" method for health groups (the study's method gave different answers on different computers, which we fixed). Finally, a senior's age is now locked to the date they were surveyed, so re-running the assessment later never changes their result. These are the system working correctly, not errors.
 
 ---
 
@@ -78,162 +96,85 @@ The research study tested its AI on the same 283 seniors it learned from — thi
 
 **Technical version:**
 
-The three-tier risk classification (LOW / MODERATE / HIGH) and the composite risk thresholds (0.30 and 0.50) are grounded in the **WHO Integrated Care for Older People (ICOPE) framework** (WHO, 2017), which stratifies older persons by their intrinsic capacity (IC), environmental enablers (ENV), and functional ability (FUNC). A composite risk score of 0.50 corresponds to a wellbeing score of approximately 0.50, which in the WHO framework indicates meaningful intrinsic capacity decline requiring active intervention. The 0.30 threshold for LOW risk corresponds to a wellbeing score of approximately 0.70, consistent with maintained intrinsic capacity requiring periodic monitoring rather than intervention. These thresholds were confirmed through the original notebook study and are consistent with published literature on functional risk stratification in community-dwelling older adults.
+The three-tier risk classification (LOW / MODERATE / HIGH) and the composite thresholds (0.30 and 0.50) are grounded in the **WHO Integrated Care for Older People (ICOPE) framework** (WHO, 2017), which stratifies older persons by intrinsic capacity (IC), environmental enablers (ENV), and functional ability (FUNC). A composite risk of 0.50 corresponds to a wellbeing score of approximately 0.50 — meaningful intrinsic-capacity decline requiring active intervention; 0.30 corresponds to wellbeing ~0.70 — maintained capacity requiring periodic monitoring. Within HIGH, composite >= 0.70 receives an `urgent` flag (WHO "severe decline") that drives elevated urgency in recommendations and dashboard priority.
 
-Within the HIGH tier, seniors with composite risk >= 0.70 receive an additional `urgent` priority flag. This sub-tier corresponds to the WHO's "severe decline" category — seniors requiring immediate, coordinated multi-domain care. The `urgent` flag drives elevated urgency in the system's prescriptive recommendations and ensures these seniors are surfaced first in the dashboard priority queue.
-
-The three-cluster structure (C1 High Functioning / C2 Moderate-Mixed Needs / C3 Low Functioning-Multi-domain Risk) reflects a data-driven segmentation of the Pagsanjan OSCA population. K=3 was selected in the original notebook study using the elbow method and silhouette analysis. The cluster quality was evaluated using three standard metrics: Silhouette score (0.412 — acceptable cluster separation for a community health dataset), Davies-Bouldin index (1.198 — reasonable inter-cluster distance), and Calinski-Harabasz index (84.3 — meaningful cluster density). The cluster profiles are semantically validated by `validate_clusters.py`: C1 seniors have the highest average wellbeing (~0.759) and lowest composite risk (~0.306); C3 seniors have the lowest wellbeing (~0.591) and highest risk (~0.534); and no C1 senior is HIGH risk while no C3 senior is LOW risk — confirming that the clustering is not arbitrary.
+The **four-cluster** structure segments the population into care-actionable profiles: C1 High Functioning / Well-Supported, C2 Stable Ageing / Moderate Support, C3 Environmentally & Financially Vulnerable, and C4 Low Functioning / Multi-Domain Priority. K=4 was chosen from the notebook's K-sweep (`clustering_evaluation.csv`): it retains strong cluster quality (Silhouette 0.449, Davies-Bouldin 0.804, Calinski-Harabasz 415.0) while separating the environmentally/financially vulnerable seniors (C3) from the multi-domain low-functioning seniors (C4) — a distinction that maps to different OSCA interventions (livelihood/housing support vs comprehensive case management). Cluster coherence is confirmed by monotonically increasing mean composite risk across C1→C4 (0.289 → 0.394 → 0.412 → 0.544).
 
 **Plain-language version:**
 
-The system classifies seniors into Low, Moderate, or High risk based on World Health Organization standards for healthy ageing. Seniors at the highest risk level are further sorted into "urgent" (the most critical tier) and "priority action" — the dashboard shows these separately so OSCA workers know exactly who to see first. The three health groups (High Functioning, Moderate/Mixed, Low Functioning) were created by the AI itself based on patterns in the 283-senior dataset — they are not manually assigned categories. Independent statistical tests confirm that the three groups are meaningfully different from each other, not just random noise.
+The system sorts seniors into Low, Moderate, or High risk using World Health Organization standards for healthy ageing. The highest-risk seniors are further split into "urgent" and "priority action" so OSCA workers know who to see first. The four health groups were created by the AI from patterns in the data — not assigned by hand — and statistical checks confirm they are genuinely different groups, ordered from most independent (Group 1) to most in need (Group 4).
 
 ---
 
-### Part 4 — Limitations and Honest Caveats
+### Part 4 — Explainability (XAI)
 
 **Technical version:**
 
-The following limitations are acknowledged:
-
-1. **Small training population (N=283).** The model was trained on a single OSCA chapter's dataset (Pagsanjan, Laguna). Generalizability to other OSCA chapters, municipalities, or provinces has not been validated. Risk scores and cluster boundaries may shift when the model is applied to populations with different demographic or socioeconomic profiles.
-
-2. **No prospective validation.** The current validation compares live scores against notebook-computed scores on the same population. No independent holdout set or prospective cohort study has been conducted. The model's ability to predict future health outcomes (hospitalization, functional decline) has not been tested.
-
-3. **Cluster boundary uncertainty for 3.9% of seniors.** Eleven seniors sit near the boundary between two clusters and receive different cluster labels depending on whether the notebook (UMAP space) or the live system (31D scaled space) geometry is used. For these seniors, cluster assignment should be treated as approximate rather than definitive.
-
-4. **Rule-based ensemble component.** Forty-five percent of the composite risk score is derived from explicit domain formulas (the rule-based risk engine), not from learned patterns. The weights in these formulas — for example, medical domain at 28% of composite risk — reflect domain knowledge embedded at design time, not empirical optimization on outcome data.
-
-These limitations do not invalidate the system's utility for its intended purpose — supporting OSCA social workers in prioritizing care for the Pagsanjan senior population — but they establish the appropriate scope of inference from the model's outputs.
+Every scored senior now carries a per-domain explanation (`xai_data`) generated at inference time without SHAP or external libraries. For each domain (IC, Env, Func), the contribution of each feature is computed as
+`importance × (senior_value − cluster_mean) × effect_sign`,
+where `importance` is the GBR's `feature_importances_`, the deviation measures how the senior differs from their cluster peers, and `effect_sign` (precomputed by correlating each feature against GBR predictions across all 283 seniors) ensures the displayed direction means "raises/lowers risk" rather than merely "above/below average" — necessary because feature importances are unsigned and most WHO/QoL features are protective. The top three section-level drivers and top five feature-level drivers per domain are surfaced on the senior profile; global feature importance per domain is served to the cluster report. XAI coverage is 100% of scored seniors and is fully deterministic.
 
 **Plain-language version:**
 
-The system was built using data from 283 seniors in one city. Results may look different if applied to seniors in other cities with different backgrounds. The system has not been tested by following seniors over time to see if its predictions come true. For a small number of seniors near the boundary between health groups, the group assignment should be taken as a guide rather than a certainty. Part of the risk score (45%) uses fixed rules written by the research team, not purely learned patterns — these rules reflect current knowledge about health risks in older adults. These are normal research limitations, not defects in the system.
+For every senior, the system now shows *why* it gave the risk it did — which factors pushed risk up (shown in red) or down (shown in green), at both a summary level (e.g. "Physical Health") and a detailed level (e.g. "Mobility Outside Home"), compared to similar seniors. This makes the AI's reasoning transparent to OSCA workers rather than a black box.
+
+---
+
+### Part 5 — Limitations and Honest Caveats
+
+1. **Small, single-site training population (N=283, Pagsanjan).** Generalizability to other OSCA chapters or municipalities has not been validated.
+2. **No prospective validation.** The model is validated against notebook-computed scores on the same population; its ability to predict future outcomes (hospitalization, functional decline) has not been tested.
+3. **Cluster boundary uncertainty for 8.8% of seniors.** 25 seniors sit near a cluster boundary and receive a different label under the live (31-D) vs notebook (UMAP) geometry; their assignment should be treated as approximate. Their risk level and recommendations are unaffected.
+4. **Rule-based ensemble component.** A portion of the composite risk derives from explicit domain formulas whose weights reflect design-time domain knowledge, not empirical outcome optimization.
+
+These define the appropriate scope: AgeSense is a decision-support tool for the Pagsanjan OSCA chapter, not a clinically validated diagnostic instrument.
+
+**Plain-language version:** The system was built from one city's 283 seniors; results may differ elsewhere. It has not been tested by following seniors over time. For a small number of "on the fence" seniors, the health group is a guide, not a certainty. Part of the score uses fixed expert rules. These are normal research limitations, not defects.
 
 ---
 
 ## Section 3 — Panel Q&A
 
-### Cluster A — Accuracy & Validity
-
----
-
 **Q1. "Why does the live system not exactly match the notebook?"**
+*Technical:* The notebook scored in-sample (trained and evaluated on the same 283), slightly inflating borderline scores; the live system scores out-of-sample, the honest method. Max composite drift is 0.0044, producing one risk-level shift. Feature engineering and risk scores otherwise reproduce to 99.6–100%.
+*Plain:* "The study graded its own answers; the live system grades new answers honestly — tiny borderline differences are expected and explained."
 
-*Technical answer:*
-The notebook computed risk scores in-sample — the GBR and RFR models were trained on all 283 seniors and then predicted on those same 283 seniors. This causes slight score inflation for borderline cases, a well-documented phenomenon in supervised machine learning (training-set overfitting). The live system scores each senior out-of-sample, which is the statistically honest evaluation. The result is that some borderline seniors near the 0.50 or 0.30 thresholds receive marginally lower live scores. This produces 43 seniors who shift from MODERATE to LOW and 3 seniors who shift from MODERATE to HIGH — all of whom have composite risk scores within 0.05 of a classification boundary. The maximum individual score drift is 0.0061, which is below the ±0.005 regression tolerance.
+**Q2. "Your cluster match is 91.2%, not 100% — how do you defend that?"**
+*Technical:* The notebook clusters with UMAP+KMeans, which is non-reproducible per record (single-point UMAP `transform()` varies by device/version — enabling it live gave 2.1%). The live system uses deterministic nearest-centroid in 31-D space. The 25 differing seniors are boundary cases: nearest-vs-second-nearest centroid margin 0.097 vs 0.337 for matches (3.5× tighter). None differ in risk level; their care plans are identical. 100% is unreachable deterministically because the reference method itself is non-deterministic.
+*Plain:* "91% agreement is high. The 9% who differ are on-the-fence seniors — their care plan is the same either way, and our method gives the same answer on every computer."
 
-*Evidence cited:* Composite delta = 0.0061; root-cause analysis in `final_comparison_report.py`
-
-*Plain-language one-liner:* "The study tested its own answers; the live system tests new answers honestly — small differences near the borderlines are expected and explained."
-
----
-
-**Q2. "Your cluster match is 96.1%, not 100% — how do you defend that?"**
-
-*Technical answer:*
-The 11 seniors (3.9%) who receive a different cluster in the live system vs the notebook are borderline cases whose scaled feature vectors are nearly equidistant between two cluster centroids. The live system uses Euclidean distance in 31-dimensional scaled feature space, while the notebook used KMeans in 10-dimensional UMAP space — two geometrically different but mathematically equivalent approaches that produce marginally different boundaries for seniors near cluster edges. Crucially, none of these 11 seniors receive a different risk level classification, and their care plans are identical regardless of cluster assignment. A 96.1% cluster agreement with 99.6% risk-level agreement is a strong validation outcome for a model of this complexity trained on a community health population of 283 seniors.
-
-*Evidence cited:* `compare_notebook_vs_live.py`; cluster boundary analysis in `ML_PIPELINE.md`
-
-*Plain-language one-liner:* "96.1% agreement is high. The 4% who differ are borderline cases — their care plans are the same either way."
-
----
-
-**Q3. "How do you know the model is not just overfitting to the 283 seniors?"**
-
-*Technical answer:*
-Overfitting concern is structurally limited by the ensemble design: 45% of the composite score comes from the rule-based engine, which cannot overfit because it uses explicit domain formulas with no trainable parameters. The remaining 55% comes from learned GBR/RFR models, and these are validated out-of-sample: the 96.1% cluster agreement and 99.6% risk-level agreement demonstrate that the learned feature representations generalize across the training population when scored without memorization. The Silhouette score (0.412), Davies-Bouldin (1.198), and Calinski-Harabasz (84.3) confirm the cluster structure reflects genuine population stratification, not random initialization artifacts. The primary acknowledged limitation is the absence of a fully independent holdout dataset, which is disclosed in the study limitations.
-
-*Evidence cited:* `cluster_eval_metrics.json`; ensemble weights in `ML_PIPELINE.md`
-
-*Plain-language one-liner:* "Part of the score uses fixed rules that can't overfit. The learned part generalizes well. The main limitation is the small dataset size — which we openly acknowledge."
-
----
+**Q3. "How do you know the model isn't just overfitting to the 283 seniors?"**
+*Technical:* Part of the composite comes from a rule-based engine with no trainable parameters (cannot overfit); the learned GBR/RFR portion is validated out-of-sample, reproducing risk to 99.6–100%. Cluster quality metrics (Silhouette 0.449, Davies-Bouldin 0.804, Calinski-Harabasz 415.0) confirm genuine population structure. The acknowledged limitation is the absence of an independent holdout set.
+*Plain:* "Part of the score uses fixed rules that can't overfit; the learned part generalizes well. The main limitation — small dataset — is openly stated."
 
 **Q4. "Can you prove the model is stable across different runs or devices?"**
+*Technical:* Yes. (1) Clustering is pure Euclidean nearest-centroid against committed centroids — no stochastic step. (2) Risk uses tree models, deterministic at inference. (3) Age is anchored to the immutable survey date, removing time dependency. (4) Library versions are pinned in `requirements.txt` and model files are SHA-256-verified against `model_manifest.json` at startup. `validate_system.py` re-scores identical payloads three times and obtains byte-identical output (Determinism: PASS).
+*Plain:* "Yes — same senior, same result, on any computer, every time. We pin the software versions, lock the model files with checksums, and freeze age to the survey date. Automated checks confirm it."
 
-*Technical answer:*
-Yes. Cluster assignment in v1.1.1 is bit-for-bit deterministic: nearest-centroid in 31D scaled space is a pure Euclidean distance computation against three stored, committed centroids — no stochastic algorithms, no UMAP. The `regression_test.py` script locks the composite risk, wellbeing, cluster, and risk level for all 283 seniors to within ±0.005 per senior. The current regression baseline (locked 2026-05-28, model v1.1.1) shows **zero failures** — meaning every senior in the database currently matches the locked scores within tolerance. Any code change that alters a senior's score beyond tolerance causes the regression test to exit with code 1, triggering investigation before any deployment.
+**Q5. "Why is 0.50 the threshold for HIGH risk?"**
+*Technical:* The 0.50 (HIGH) and 0.30 (LOW) thresholds follow the WHO ICOPE framework (2017): composite 0.50 ≈ wellbeing 0.50 (meaningful IC decline requiring intervention); 0.30 ≈ wellbeing 0.70 (maintained capacity, monitoring). They were adopted in the notebook study and yield a distribution (HIGH 19%, MODERATE 68%, LOW 13%) consistent with WHO community-ageing prevalence.
+*Plain:* "The thresholds follow World Health Organization standards — they are not arbitrary."
 
-*Evidence cited:* `regression_baseline.json` (locked_on: 2026-05-28, model_version: 1.1.1); `regression_test.py` exit code 0
-
-*Plain-language one-liner:* "The same senior always gets the same result, on any computer, every time. Automated tests catch any change — currently showing zero failures."
-
----
-
-### Cluster B — Thresholds & Classification
-
----
-
-**Q5. "Why is 0.50 the threshold for HIGH risk? Isn't that arbitrary?"**
-
-*Technical answer:*
-The 0.50 threshold for HIGH risk and 0.30 for LOW risk are grounded in the **WHO Integrated Care for Older People (ICOPE) framework** (WHO, 2017), which stratifies older persons by intrinsic capacity level. A composite risk score of 0.50 corresponds to a wellbeing score of approximately 0.50, which the WHO framework associates with meaningful intrinsic capacity decline requiring active intervention. The 0.30 threshold (wellbeing ~0.70) is consistent with maintained intrinsic capacity requiring periodic monitoring. These thresholds were adopted in the original notebook study and produce a population distribution (HIGH=19%, MODERATE=68%, LOW=13%) consistent with prevalence rates reported in WHO community ageing studies. The thresholds were not chosen to optimize distribution numbers — they were chosen because they represent clinically meaningful boundaries confirmed by existing literature.
-
-*Evidence cited:* WHO ICOPE Guidelines (2017); distribution table in Section 1; `ML_PIPELINE.md` Risk Level Classification section
-
-*Plain-language one-liner:* "The thresholds follow World Health Organization standards for healthy ageing — they are not arbitrary numbers we picked."
-
----
-
-**Q6. "Why three clusters? Why not two or four?"**
-
-*Technical answer:*
-K=3 was selected in the original notebook study using the elbow method and silhouette analysis applied to the 283-senior dataset. The three-cluster structure was additionally validated by semantic interpretability and `validate_clusters.py`: C1 (High Functioning, avg wellbeing ~0.759), C2 (Moderate/Mixed Needs, avg wellbeing ~0.688), and C3 (Low Functioning/Multi-domain Risk, avg wellbeing ~0.591) each represent a meaningfully distinct care profile. Two clusters would collapse the important MODERATE group — the majority of seniors (67.5%) — into either HIGH or LOW, losing care planning granularity. Four clusters would introduce splits that do not correspond to distinct care action thresholds in OSCA's service delivery framework. The Silhouette score of 0.412 confirms acceptable cluster separation for K=3.
-
-*Evidence cited:* `cluster_eval_metrics.json`; cluster profiles in `ML_PIPELINE.md`; `validate_clusters.py` 7-condition semantic check
-
-*Plain-language one-liner:* "Two groups is not enough granularity; four groups creates too much overlap. Three groups match the three care-action levels OSCA workers actually need."
-
----
+**Q6. "Why four clusters? Why not three or five?"**
+*Technical:* The notebook K-sweep (`clustering_evaluation.csv`, 31-feature set) gives Silhouette K=3 0.411, **K=4 0.449**, K=5 0.403 — K=4 has higher silhouette and lower Davies-Bouldin than K=3. More importantly, K=4 separates the **Environmentally & Financially Vulnerable** group (C3) from the **Low Functioning / Multi-Domain Priority** group (C4), which require different OSCA interventions (livelihood/housing vs comprehensive case management). K=3 merged these into one "low functioning" group, losing that care distinction; K=5+ splits do not map to distinct OSCA service tiers.
+*Plain:* "Four groups separate the financially/environmentally vulnerable seniors from the most frail seniors — two groups that need different kinds of help. Three groups blurred them together; five or more added groups that don't match real service decisions."
 
 **Q7. "A senior in C1 (High Functioning) with MODERATE risk — how does that make sense?"**
+*Technical:* Cluster assignment and risk scoring use different model components. Cluster reflects the overall 31-feature functional profile; risk is the domain-weighted GBR/RFR + rule ensemble (medical 28%, financial 18%, etc.). A C1 senior with strong function but a high-severity chronic condition can be pushed to MODERATE by the medical domain weight — correct detection of a specific elevated risk within an otherwise high-functioning profile.
+*Plain:* "Health group and risk score measure different things. A senior can be generally active (Group 1) yet have a serious medical condition that raises their risk."
 
-*Technical answer:*
-Cluster assignment and risk scoring are produced by two different model components operating on partially overlapping but distinct feature spaces. Cluster assignment reflects the senior's overall functional profile across all 31 features (in the centroid space). Risk scoring is an ensemble of GBR+RFR domain models and the rule-based engine, weighted by domain (medical 28%, financial 18%, social 14%, healthcare access 12%, housing 10%, functional 10%, sensory 8%). A C1 senior may have strong functional ability and community engagement — driving cluster assignment to C1 — while also carrying a high-severity chronic condition such as coronary heart disease or dementia. In these cases, the medical domain weight (28%) can push the composite risk into MODERATE territory despite a generally positive functional profile. This is not a contradiction: it reflects the model's correct detection of a specific elevated risk within an otherwise high-functioning profile, and it correctly triggers targeted health recommendations for that condition.
-
-*Evidence cited:* Ensemble design and domain weights in `ML_PIPELINE.md`; `inference_service.py` recommendation engine
-
-*Plain-language one-liner:* "Health group and risk score measure different things. A senior can be generally active and functional (C1) but still have a serious medical condition that raises their risk score."
-
----
-
-### Cluster C — Practical Relevance
-
----
-
-**Q8. "How does this help OSCA workers? What do they actually do with these results?"**
-
-*Technical answer:*
-The system produces **prescriptive recommendations** for each senior organized by five care domains (health, financial, social, functional, healthcare access). These recommendations are generated by domain functions in `inference_service.py` that read the senior's feature map and section scores directly. An OSCA worker viewing a HIGH-risk senior's profile sees a prioritized list of concrete actions: for example, "Refer to Malasakit Center for medical assistance" (triggered when `healthcare_difficulty` contains "cost"), "Coordinate home visit program" (triggered when `sec4_lives_alone = 1`), or disease-specific action sets from a 22-condition `DISEASE_ACTIONS` dictionary covering coronary heart disease, diabetes, hypertension, dementia, stroke, and more. Seniors with the `urgent` flag (composite >= 0.70) appear at the top of the dashboard priority queue. The system reduces from hours to seconds the time needed to produce a prioritized, evidence-based care list for each of the 283+ seniors.
-
-*Evidence cited:* Recommendation engine section in `ML_PIPELINE.md`; `recommendation_rules.py`; `inference_service.py` DISEASE_ACTIONS dict
-
-*Plain-language one-liner:* "For each senior, the system shows a specific action list — which program to refer them to, what to check on a home visit. It helps OSCA workers decide who needs help first and what kind of help."
-
----
+**Q8. "How does this help OSCA workers?"**
+*Technical:* For each senior the system produces prioritized, domain-organized prescriptive recommendations (mean 11.5/senior, 100% coverage) plus a transparent XAI breakdown of why their risk is what it is. `urgent`-flagged seniors surface first in the dashboard. This reduces from hours to seconds the time to produce a prioritized, evidence-based, explainable care list.
+*Plain:* "For each senior the system shows a specific action list and explains its reasoning, so workers know who needs help first and why."
 
 **Q9. "What happens to a newly enrolled senior the model has never seen?"**
+*Technical:* New seniors flow through the identical pipeline: preprocess → StandardScaler → nearest-centroid (committed centroids) → GBR/RFR ensemble → recommendations + XAI. They are classified into the closest of the four established groups and scored fully out-of-sample. Age is taken from their survey date, so their result is reproducible from their submitted data alone.
+*Plain:* "New seniors are scored with the same process as the validated 283 — the system applies what it learned to any new case automatically."
 
-*Technical answer:*
-New seniors (not in the original 283-person dataset) are scored through the same live inference pipeline: preprocess → StandardScaler → nearest-centroid cluster assignment (against the committed centroids in `cluster_centroids_scaled.json`) → GBR/RFR ensemble risk scoring → recommendation generation. The three cluster centroids are fixed from the training population's mean scaled feature vectors, so new seniors are classified into the closest of the three established health groups in the same feature space as the original 283. The GBR/RFR models score new seniors fully out-of-sample. The regression baseline does not cover new seniors (they are flagged "new enrollments — scored fresh" by `regression_test.py`), but the underlying pipeline is identical. Population distribution monitoring for new enrollments is noted as a future enhancement.
-
-*Evidence cited:* Inference pipeline and fallback architecture in `ML_PIPELINE.md`; `local_ml_runner.py` combined mode
-
-*Plain-language one-liner:* "New seniors are scored using the same process as the validated 283. The model applies what it learned to any new case automatically."
-
----
-
-**Q10. "What are the known limitations of this study?"**
-
-*Technical answer:*
-Four limitations are acknowledged: (1) **Single-site training population** — the 283-senior dataset from Pagsanjan OSCA may not generalize to other OSCA chapters with different demographics or socioeconomic conditions; (2) **No prospective validation** — the model's ability to predict future health outcomes (hospitalization, functional decline) has not been tested; (3) **Cluster boundary uncertainty** — 3.9% of seniors sit near cluster boundaries and their assignment is approximate rather than definitive; (4) **Rule-based ensemble component** — 45% of the composite score uses explicit domain formulas whose weights reflect domain knowledge, not empirical optimization on outcome data. These limitations define the appropriate scope: the system is a decision-support tool for the Pagsanjan OSCA chapter, not a clinically validated diagnostic instrument.
-
-*Evidence cited:* General ML literature on small-N training sets; own study documentation; `ML_PIPELINE.md` Three-Tier Fallback Strategy section
-
-*Plain-language one-liner:* "The system was built for one city's seniors. It is a support tool that helps OSCA workers organize care — it does not replace medical diagnosis or professional judgment."
+**Q10. "What are the known limitations?"**
+*Technical:* Single-site N=283 training population; no prospective outcome validation; ~8.8% cluster-boundary uncertainty (risk level unaffected); rule-based component weights reflect domain knowledge rather than outcome optimization. AgeSense is a decision-support tool, not a diagnostic instrument.
+*Plain:* "Built for one city's seniors; not tested over time; a few borderline group labels are guides; part of the score uses expert rules. It supports OSCA workers — it does not replace medical judgment."
 
 ---
 
-*Document version: 1.0.0 | System: AgeSense OSCA v1.1.1 | Generated: 2026-05-28*
+*Document version: 2.0.0 | System: AgeSense OSCA v2.0.0 (K=4) | Updated: 2026-05-29*

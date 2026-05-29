@@ -23,7 +23,7 @@ class ClusterMetrics
             'davies_bouldin'    => null,
             'calinski_harabasz' => null,
             'inertia'           => null,
-            'k_chosen'          => 3,
+            'k_chosen'          => 4,
         ];
 
         if (!file_exists($path)) {

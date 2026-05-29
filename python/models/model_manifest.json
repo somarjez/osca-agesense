@@ -1,11 +1,21 @@
 {
-  "generated_at": "2026-05-28T05:49:06",
-  "model_dir": "C:\\Users\\jramo\\OneDrive\\Desktop\\02. AgeSense\\osca-system\\osca-system\\python/models",
+  "model_version": "2.0.0",
+  "generated_at": "2026-05-28T22:47:23",
   "sha256": {
-    "scaler.pkl": "82bc4c0f74462cac0110ae2298c475d9498eb6509eee7df7e3edb8ffaa055508",
-    "kmeans.pkl": "2bcdd158e2e415b1a5bc2319c5b435062c798ba914b9fca3aa49d36b992bc6c7",
-    "umap_nd.pkl": "92ef17ce0fc9351943554c499145b8cc0bd0d9dc88c55797958ed96f49ae09e9",
-    "feature_list.json": "6edb61e4c339727ea118590546275b5ec5bd9d6771099438a52aa4061953bbbc",
-    "cluster_mapping.json": "5a52b925c166f29d091a7981c85ed861cc5a434f342c9d1868004bbe8d786241"
+    "edu_encoder.pkl": "1f7b032692491122f002b23e29da87a3420c1eff8091aa298be4d4912b47c40d",
+    "gbr_env_risk.pkl": "58c67955b67e5823932f58030af3a632cbc75ba78677dba8bac0866019fdc70b",
+    "gbr_func_risk.pkl": "2e876d52ff72ab6e253eab1c0e5cc5348732edecd25b411e759d5cb9675a8c95",
+    "gbr_ic_risk.pkl": "a389ce780127202b5c6c2dbf99e3e278d38c4288c55955d2609e46399c5ea325",
+    "hdbscan.pkl": "9d0355b22dcd7a5a124cfba2ffc548084e372ac0acf719c9151027a9140d71c3",
+    "income_encoder.pkl": "a88fb349c5d0ce7902a4e2b20402567c9e3c2176c24de6861c77da0ada54de3d",
+    "kmeans.pkl": "c1999278f1b5ccd85904f77d90c21b790336adb3dfeb08d80284c2b50648a2a2",
+    "kmeans_model.pkl": "c1999278f1b5ccd85904f77d90c21b790336adb3dfeb08d80284c2b50648a2a2",
+    "rfr_env_risk.pkl": "305d555e53e73e40e0fa89319cf0236163f903a147d81b67e4f186cafabeb380",
+    "rfr_func_risk.pkl": "b2ddd3aa8bb96c3d9bacd1a201d71aa9339df5dedb95c35469b8734ac2960ea8",
+    "rfr_ic_risk.pkl": "683f5648e2366966c0de004d75c9551b311ad4b8e3b2cb9a6c53181f5b166ecd",
+    "scaler.pkl": "9c253633f6b8385d548941368e8515db758ce7e754c0cbc8ee85aeb8d8707a3a",
+    "umap_2d.pkl": "a0bf250e21e8d14b22643d2c09a1d96711d3946949c69dcb8951da73118c96f3",
+    "umap_nd.pkl": "14cbc1e3c4b93a3d531db0e3d3395bafd29fd6bb43f47c5a087c7cde9738c2f1",
+    "umap_reducer.pkl": "14cbc1e3c4b93a3d531db0e3d3395bafd29fd6bb43f47c5a087c7cde9738c2f1"
   }
 }

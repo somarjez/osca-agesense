@@ -40,13 +40,92 @@ class BulkUploadController extends Controller
         'timestamp',
     ];
 
+    // ── Canonical value maps (CSV/Google Form text → UI option text) ─────────
+
     private const PROBLEMS_NEEDS_MAP = [
-        'Lack of source of income/resources' => 'Lack of income/resources',
-        'Lack of source of income'           => 'Lack of income/resources',
-        'Lack of income'                     => 'Lack of income/resources',
-        'Loss of source of income/resources' => 'Loss of income/resources',
-        'Loss of source of income'           => 'Loss of income/resources',
-        'Loss of income'                     => 'Loss of income/resources',
+        // Income variants
+        'Lack of source of income/resources'     => 'Lack of income/resources',
+        'Lack of source of income'               => 'Lack of income/resources',
+        'Lack of income'                         => 'Lack of income/resources',
+        'Loss of source of income/resources'     => 'Loss of income/resources',
+        'Loss of source of income'               => 'Loss of income/resources',
+        'Loss of income'                         => 'Loss of income/resources',
+        // Casing / wording fixes
+        'Livelihood Opportunities'               => 'Livelihood opportunities',
+        'Health-Related Issues'                  => 'Health Related Issues',
+        'Lack of access to health care services' => 'Lack of access to healthcare services',
+        'High cost of medicine'                  => 'High cost of medicines',
+        'Lack of Social Support'                 => 'Lack of social support',
+        // Spelling / wording fixes
+        'Limited Mobillity/Transportation'       => 'Limited Mobility/Transportation difficulty',
+        'Limited Mobility/Transportation'        => 'Limited Mobility/Transportation difficulty',
+    ];
+
+    private const INCOME_SOURCE_MAP = [
+        'Spouse Salary'  => 'Spouse salary',
+        'Spouse Pension' => 'Spouse pension',
+    ];
+
+    private const MEDICAL_CONCERN_MAP = [
+        'Arthritis/Gout'                                   => 'Arthritis / Gout',
+        'Mental Health Condition (Depression/Anxiety)'     => 'Mental Health Condition (Depression / Anxiety)',
+        'Tuberculosis(TB)'                                 => 'Tuberculosis (TB)',
+        'Chronic Heart Disease'                            => 'Coronary Heart Disease',
+        // Free-text conditions from Google Form → nearest canonical bucket
+        'Heart Enlargement'                                => 'Coronary Heart Disease',
+        'Scoliosis'                                        => 'Physical Disability',
+        'Prostate'                                         => 'Other Chronic Disease',
+        'Cholesterol'                                      => 'Other Chronic Disease',
+        'Anlodipin'                                        => 'Other Chronic Disease',
+        'Lungs'                                            => 'Other Chronic Disease',
+        'Mioma'                                            => 'Other Chronic Disease',
+        'Ulcer'                                            => 'Other Chronic Disease',
+        'Thyroid'                                          => 'Other Chronic Disease',
+        'Nagbabarang Puson'                                => 'Other Chronic Disease',
+        'operated bato sa atay'                            => 'Other Chronic Disease',
+    ];
+
+    private const SOCIAL_EMOTIONAL_CONCERN_MAP = [
+        'Feeling/Lonliness/Isolation'         => 'Feeling/Loneliness/Isolation',
+        'Living in healthy environment'       => 'Living in a healthy environment',
+        'Lack Social Support'                 => 'Lack social support',
+        'Lack liesure/recreational activites' => 'Lack leisure activities',
+        'Lack SC-friendly Environment'        => 'Living in a healthy environment',
+        // Free-text stress entries
+        'Stress'                              => 'Feeling Depressed/Anxiety',
+        'Apo stress'                          => 'Feeling Depressed/Anxiety',
+    ];
+
+    private const HEALTHCARE_DIFFICULTY_MAP = [
+        'High cost of medicine'                     => 'High cost of medicines',
+        'Difficulty in accessing health facilities' => 'Difficulty accessing health facilities',
+        'Long waiting in health centers'            => 'Long waiting time',
+    ];
+
+    private const OPTICAL_CONCERN_MAP = [
+        'Blurred Vision'           => 'Blurred vision',
+        'Healthy eyes'             => 'Healthy Eyes',
+        // Free-text optical conditions from Google Form → nearest canonical bucket
+        'Astigmatism'              => 'Eye impairment',
+        'half-eyed problem'        => 'Eye impairment',
+        'Ploaters'                 => 'Eye impairment',   // floaters
+        'Eye Stroke'               => 'Eye impairment',
+        'Pugita Eye'               => 'Eye impairment',
+        'Malinaw pero malabo mata' => 'Blurred vision',  // Filipino: "clear but blurry eyes"
+        'Maintenance patak'        => 'Needs eye care',  // maintenance eye drops
+        'Affected by diabetes'     => 'Needs eye care',
+    ];
+
+    private const HEARING_CONCERN_MAP = [
+        'Partial Hearing Loss'             => 'Partial hearing loss',
+        'Difficulty hearing converstaions' => 'Difficulty hearing conversations',
+        'Hearing Impairment'               => 'Hearing impairment',  // case fix
+        'Needs hearing aid'                => 'Uses hearing aid',
+    ];
+
+    private const PROBLEMS_NEEDS_EXTRA_MAP = [
+        // Free-text entry preserved as custom "Others" value
+        'Herbal' => 'Others: Herbal',
     ];
 
     // ── Sample CSV download ───────────────────────────────────────────────
@@ -117,6 +196,12 @@ class BulkUploadController extends Controller
         }
 
         $header = array_map('trim', $rows[0]);
+
+        // Strip UTF-8 BOM from first column header (Google Sheets / Excel export artefact)
+        if ($header && str_starts_with($header[0], "\xef\xbb\xbf")) {
+            $header[0] = substr($header[0], 3);
+        }
+
         $missing = array_diff(self::REQUIRED_COLUMNS, $header);
         if ($missing) {
             return back()->withErrors([
@@ -145,7 +230,7 @@ class BulkUploadController extends Controller
                 $firstName = $this->strVal($row['first_name'] ?? null);
                 $lastName  = $this->strVal($row['last_name']  ?? null);
                 $barangay  = $this->strVal($row['barangay']   ?? null);
-                $dob       = $this->parseDate($row['dob']     ?? null);
+                $dob       = $this->parseDate($row['dob'] ?? null, dobMode: true);
 
                 if (!$firstName || !$lastName || !$barangay || !$dob) {
                     $skipped++;
@@ -192,17 +277,17 @@ class BulkUploadController extends Controller
                     'community_service'        => $this->toList($row['community_service'] ?? null),
                     'living_with'              => $this->toList($row['living_with'] ?? null),
                     'household_condition'      => $this->toList($row['household_condition'] ?? null),
-                    'income_source'            => $this->toList($row['income_source'] ?? null),
+                    'income_source'            => $this->normalizeList($this->toList($row['income_source'] ?? null), self::INCOME_SOURCE_MAP),
                     'real_assets'              => $this->toList($row['real_assets'] ?? null),
                     'movable_assets'           => $this->toList($row['movable_assets'] ?? null),
                     'monthly_income_range'     => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
-                    'problems_needs'           => $this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP),
-                    'medical_concern'          => $this->toList($row['medical_concern'] ?? null),
+                    'problems_needs'           => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
+                    'medical_concern'          => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
                     'dental_concern'           => $this->toList($row['dental_concern'] ?? null),
-                    'optical_concern'          => $this->toList($row['optical_concern'] ?? null),
-                    'hearing_concern'          => $this->toList($row['hearing_concern'] ?? null),
-                    'social_emotional_concern' => $this->toList($row['social_emotional_concern'] ?? null),
-                    'healthcare_difficulty'    => $this->toList($row['healthcare_difficulty'] ?? null),
+                    'optical_concern'          => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
+                    'hearing_concern'          => $this->normalizeList($this->toList($row['hearing_concern'] ?? null), self::HEARING_CONCERN_MAP),
+                    'social_emotional_concern' => $this->normalizeList($this->toList($row['social_emotional_concern'] ?? null), self::SOCIAL_EMOTIONAL_CONCERN_MAP),
+                    'healthcare_difficulty'    => $this->normalizeList($this->toList($row['healthcare_difficulty'] ?? null), self::HEALTHCARE_DIFFICULTY_MAP),
                     'has_medical_checkup'      => $this->boolVal($row['has_medical_checkup'] ?? null),
                     'checkup_schedule'         => $this->strVal($row['checkup_schedule'] ?? null),
                     'status'                   => 'active',
@@ -361,14 +446,30 @@ class BulkUploadController extends Controller
         return array_values(array_filter($parts, fn($x) => $x !== ''));
     }
 
-    private function parseDate($value): ?string
+    /**
+     * @param  bool $dobMode  When true, values with a time suffix are treated as Google-Form
+     *                        date-picker output in Philippine locale (d/m/Y). Set to false for
+     *                        Google Form timestamps, which are exported in m/d/Y H:i.
+     */
+    private function parseDate($value, bool $dobMode = false): ?string
     {
         $v = $this->strVal($value);
         if ($v === null) return null;
 
-        $ambiguous = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $v, $m);
-        if ($ambiguous && (int)$m[1] > 12) {
-            try { return Carbon::createFromFormat('d/m/Y', $v)->format('Y-m-d'); } catch (\Throwable) {}
+        // Regex intentionally omits $ so it matches even when a time suffix like " 0:00" is present.
+        $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
+
+        if ($hasSlashDate) {
+            $dateOnly = "{$m[1]}/{$m[2]}/{$m[3]}";
+            $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
+
+            if ((int) $m[1] > 12) {
+                // Day-first unambiguous (day can't be a month): always d/m/Y.
+                try { return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d'); } catch (\Throwable) {}
+            } elseif ($dobMode && $hasTimeSuffix) {
+                // DOB from Google Form date-picker: Philippine locale = d/m/Y.
+                try { return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d'); } catch (\Throwable) {}
+            }
         }
 
         foreach (['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'] as $fmt) {

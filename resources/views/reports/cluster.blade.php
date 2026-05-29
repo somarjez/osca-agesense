@@ -38,12 +38,13 @@
     </div>
 
     {{-- ── Cluster Cards ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         @php
         $clusterColors = [
             1 => ['bg' => 'bg-emerald-50', 'border' => 'border-emerald-200', 'text' => 'text-emerald-700', 'bar' => 'bg-emerald-500'],
-            2 => ['bg' => 'bg-amber-50',   'border' => 'border-amber-200',   'text' => 'text-amber-700',   'bar' => 'bg-amber-500'],
-            3 => ['bg' => 'bg-rose-50',    'border' => 'border-rose-200',    'text' => 'text-rose-700',    'bar' => 'bg-rose-500'],
+            2 => ['bg' => 'bg-blue-50',    'border' => 'border-blue-200',    'text' => 'text-blue-700',    'bar' => 'bg-blue-500'],
+            3 => ['bg' => 'bg-amber-50',   'border' => 'border-amber-200',   'text' => 'text-amber-700',   'bar' => 'bg-amber-500'],
+            4 => ['bg' => 'bg-rose-50',    'border' => 'border-rose-200',    'text' => 'text-rose-700',    'bar' => 'bg-rose-500'],
         ];
         @endphp
 
@@ -137,8 +138,9 @@
                     <tr class="text-xs text-slate-400">
                         <th class="px-5 py-2.5 text-left font-medium">Barangay</th>
                         <th class="px-5 py-2.5 text-center font-medium text-emerald-600">Group 1 – High Functioning</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-amber-600">Group 2 – Moderate / Mixed</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-rose-600">Group 3 – Low Functioning</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-blue-600">Group 2 – Stable / Moderate</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-amber-600">Group 3 – Env / Financial Vulnerable</th>
+                        <th class="px-5 py-2.5 text-center font-medium text-rose-600">Group 4 – Multi-Domain Priority</th>
                         <th class="px-5 py-2.5 text-center font-medium text-slate-500">Total</th>
                     </tr>
                 </thead>
@@ -150,10 +152,10 @@
                     @endphp
                     <tr class="hover:bg-slate-25">
                         <td class="px-5 py-2.5 font-medium text-slate-700">{{ $brgy }}</td>
-                        @foreach ([1,2,3] as $cid)
+                        @foreach ([1,2,3,4] as $cid)
                         <td class="px-5 py-2.5 text-center">
                             @if (isset($byCluster[$cid]))
-                            <span class="font-semibold {{ ['1'=>'text-emerald-700','2'=>'text-amber-700','3'=>'text-rose-700'][$cid] }}">
+                            <span class="font-semibold {{ ['1'=>'text-emerald-700','2'=>'text-blue-700','3'=>'text-amber-700','4'=>'text-rose-700'][$cid] }}">
                                 {{ $byCluster[$cid]->count }}
                             </span>
                             @else
@@ -166,6 +168,62 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    {{-- ── Model Insights (XAI global feature importance) ── --}}
+    <div x-data="{
+        tab: 'ic',
+        insights: null,
+        labels: { ic: 'Physical Capacity (IC)', env: 'Environment', func: 'Daily Functioning' },
+        async load() {
+            try {
+                const r = await fetch('{{ route('reports.xai.model-insights') }}');
+                if (!r.ok) { this.insights = false; return; }
+                this.insights = await r.json();
+            } catch(e) { this.insights = false; }
+        }
+    }" x-init="load()" class="mt-2 bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-paper-rule dark:border-[#2b3530] flex-wrap gap-2">
+            <div>
+                <h3 class="font-semibold text-sm text-ink-900 dark:text-[#e4e1d8]">Model Insights</h3>
+                <p class="text-xs text-ink-500 dark:text-[#4a5550] mt-0.5">Feature importance across <span x-text="insights && insights.n_seniors ? insights.n_seniors : '283'">283</span> seniors · top 15 per domain</p>
+            </div>
+            <div class="flex gap-1">
+                <template x-for="[key, label] in Object.entries(labels)" :key="key">
+                    <button @click="tab = key"
+                        :class="tab === key
+                            ? 'bg-forest-600 text-white'
+                            : 'bg-paper text-ink-600 hover:bg-paper-2 dark:bg-[#131917] dark:text-[#6b7570]'"
+                        class="px-3 py-1 text-[11px] font-semibold rounded-lg transition-colors"
+                        x-text="label">
+                    </button>
+                </template>
+            </div>
+        </div>
+        <div class="px-5 py-4">
+            <template x-if="insights === null">
+                <p class="text-sm text-ink-400 text-center py-8">Loading model insights…</p>
+            </template>
+            <template x-if="insights === false">
+                <p class="text-sm text-ink-400 text-center py-8">Model insights unavailable. Ensure the inference service is running.</p>
+            </template>
+            <template x-if="insights && insights[tab]">
+                <div class="space-y-2">
+                    <template x-for="item in insights[tab]" :key="item.feature">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label"></span>
+                            <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5">
+                                <div class="bg-forest-500 h-2.5 rounded-full transition-all"
+                                     :style="'width: ' + Math.min(100, (item.importance / insights[tab][0].importance) * 100) + '%'">
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-mono text-ink-500 w-12 text-right"
+                                  x-text="(item.importance * 100).toFixed(1) + '%'"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
         </div>
     </div>
 
@@ -198,8 +256,9 @@
                         <tr class="border-b border-paper-rule dark:border-[#2b3530] bg-paper dark:bg-[#131917]">
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Date</th>
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 1 — High Functioning</th>
-                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 2 — Mixed Needs</th>
-                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 3 — Multi-domain Risk</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 2 — Stable / Moderate</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 3 — Env / Financial Vulnerable</th>
+                            <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 4 — Multi-Domain Priority</th>
                             <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Total</th>
                         </tr>
                     </thead>
@@ -213,10 +272,10 @@
                             <td class="px-4 py-2.5 font-medium text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">
                                 {{ \Carbon\Carbon::parse($date)->format('M d, Y') }}
                             </td>
-                            @foreach ([1,2,3] as $cid)
+                            @foreach ([1,2,3,4] as $cid)
                             @php
                                 $c      = $byId[$cid] ?? null;
-                                $colors = [1=>'text-emerald-600',2=>'text-amber-600',3=>'text-rose-600'];
+                                $colors = [1=>'text-emerald-600',2=>'text-blue-600',3=>'text-amber-600',4=>'text-rose-600'];
                             @endphp
                             <td class="px-4 py-2.5">
                                 @if ($c)
@@ -243,9 +302,14 @@
 @push('scripts')
 <script>
 (function () {
-    const clusterLabels  = ['Group 1: High Functioning', 'Group 2: Moderate/Mixed', 'Group 3: Low Functioning'];
-    const clusterColors  = ['rgb(16,185,129)', 'rgb(245,158,11)', 'rgb(244,63,94)'];
-    const clusterBgAlpha = ['rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)', 'rgba(244,63,94,0.2)'];
+    const clusterLabels  = [
+        'Group 1: High Functioning',
+        'Group 2: Stable / Moderate',
+        'Group 3: Env / Financial Vulnerable',
+        'Group 4: Multi-Domain Priority',
+    ];
+    const clusterColors  = ['rgb(46,204,113)', 'rgb(52,152,219)', 'rgb(243,156,18)', 'rgb(231,76,60)'];
+    const clusterBgAlpha = ['rgba(46,204,113,0.2)', 'rgba(52,152,219,0.2)', 'rgba(243,156,18,0.2)', 'rgba(231,76,60,0.2)'];
     const domainByCluster = @json($domainByCluster);
     const qolByCluster    = @json($qolByCluster);
 
@@ -262,7 +326,7 @@
             type: 'bar',
             data: {
                 labels: ['Physical Capacity', 'Environment', 'Daily Functioning'],
-                datasets: [1,2,3].map((cid, i) => ({
+                datasets: [1,2,3,4].map((cid, i) => ({
                     label: clusterLabels[i],
                     data: [
                         domainByCluster[cid]?.ic   ?? 0,
@@ -289,7 +353,7 @@
             type: 'radar',
             data: {
                 labels: ['Physical','Psychological','Social','Financial','Environment','Overall'],
-                datasets: [1,2,3].map((cid, i) => ({
+                datasets: [1,2,3,4].map((cid, i) => ({
                     label: clusterLabels[i],
                     data: [
                         qolByCluster[cid]?.physical        ?? 0,

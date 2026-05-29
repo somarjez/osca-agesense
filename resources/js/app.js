@@ -83,7 +83,7 @@ window.OSCA = {
      * Map cluster named_id to a CSS color token.
      */
     clusterColor(clusterId) {
-        const map = { 1: '#10b981', 2: '#f59e0b', 3: '#f43f5e' }
+        const map = { 1: '#2ecc71', 2: '#3498db', 3: '#f39c12', 4: '#e74c3c' }
         return map[clusterId] ?? '#94a3b8'
     },
 

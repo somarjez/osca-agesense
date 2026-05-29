@@ -86,11 +86,12 @@ export default {
           500: '#527a9b',
           700: '#2c5273',
         },
-        // Cluster accents
+        // Cluster accents (K=4 notebook palette)
         cluster: {
-          1: '#3347b0', // high-functioning — blue
-          2: '#c49020', // moderate — amber
-          3: '#b94a3a', // low-functioning — terracotta
+          1: '#2ecc71', // high-functioning — green
+          2: '#3498db', // stable/moderate — blue
+          3: '#f39c12', // env/financial vulnerable — amber
+          4: '#e74c3c', // low-functioning/priority — red
         },
       },
       boxShadow: {
@@ -103,9 +104,11 @@ export default {
     'badge-cluster-1',
     'badge-cluster-2',
     'badge-cluster-3',
+    'badge-cluster-4',
     'cluster-swatch-1',
     'cluster-swatch-2',
     'cluster-swatch-3',
+    'cluster-swatch-4',
     'status-dot-ok',
     'status-dot-warn',
     'status-dot-err',

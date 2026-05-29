@@ -109,7 +109,7 @@
             </div>
         </x-card>
 
-        <x-card title="Health Groups" sub="3 groups · based on capacity & environment">
+        <x-card title="Health Groups" sub="4 groups · based on capacity & environment">
             <div wire:ignore class="relative h-44"><canvas id="clusterChart" aria-label="Cluster distribution: senior count per cluster group" role="img"></canvas></div>
             <div class="mt-4 space-y-1.5">
                 @foreach ($clusterDistribution['labels'] as $i => $label)

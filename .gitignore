@@ -1,6 +1,7 @@
 # Sensitive data — never commit
 *.sql
 osca.csv
+osca_normalized.csv
 python/models/predictions/senior_predictions.csv
 python/models/predictions/senior_recommendations_flat.csv
 
@@ -90,6 +91,9 @@ storage/framework/views/
 # Backup files created during artifact sync operations — never commit
 *.bak
 *.bak_old
+
+# Model sync rollback backups (created by sync_models_k4.py) — local only
+python/models_backup_*/
 
 # IDE / editor
 /.fleet

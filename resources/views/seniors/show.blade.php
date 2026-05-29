@@ -232,6 +232,99 @@
     </div>
     @endif
 
+    {{-- ── Risk Drivers (XAI) ── --}}
+    @if ($ml && $ml->xai_data)
+    @php
+        $xai = $ml->xai_data;
+        $xaiDomains = [
+            'ic'   => ['label' => 'Physical Capacity',   'risk' => $ml->ic_risk_level],
+            'env'  => ['label' => 'Environment',          'risk' => $ml->env_risk_level],
+            'func' => ['label' => 'Daily Functioning',    'risk' => $ml->func_risk_level],
+        ];
+    @endphp
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Risk Drivers</div>
+                <div class="card-sub">Key factors behind this assessment · <span class="text-red-600 font-semibold">↑ raises risk</span> · <span class="text-emerald-600 font-semibold">↓ lowers risk</span></div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @foreach ($xaiDomains as $domainKey => $domainMeta)
+                @php
+                    $domainXai = $xai[$domainKey] ?? [];
+                    $sectionDrivers = $domainXai['section_drivers'] ?? [];
+                    $featureDrivers = $domainXai['feature_drivers'] ?? [];
+                @endphp
+                <div x-data="{ expanded: false }" class="bg-paper rounded-xl border border-paper-rule p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-ink-500 uppercase tracking-wider">{{ $domainMeta['label'] }}</span>
+                        <x-risk-badge :level="$domainMeta['risk']" />
+                    </div>
+
+                    <div class="space-y-2.5">
+                        @forelse ($sectionDrivers as $driver)
+                        @php
+                            $isUp  = ($driver['direction'] ?? 'up') === 'up';
+                            $pct   = $driver['contribution_pct'] ?? 0;
+                            $arrow = $isUp ? '↑' : '↓';
+                            $barColor  = $isUp ? 'bg-red-400'   : 'bg-emerald-400';
+                            $textColor = $isUp ? 'text-red-700' : 'text-emerald-700';
+                            $barWidth  = min(100, $pct);
+                        @endphp
+                        <div>
+                            <div class="flex items-center justify-between text-[12px] mb-0.5">
+                                <span class="{{ $textColor }} font-semibold">{{ $arrow }} {{ $driver['section'] }}</span>
+                                <span class="text-ink-500 font-mono text-[11px]">{{ number_format($pct, 1) }}%</span>
+                            </div>
+                            <div class="bg-paper-rule rounded-full h-1.5">
+                                <div class="{{ $barColor }} h-1.5 rounded-full transition-all" style="width: {{ $barWidth }}%"></div>
+                            </div>
+                        </div>
+                        @empty
+                        <p class="text-xs text-ink-400">No section data available.</p>
+                        @endforelse
+                    </div>
+
+                    @if (!empty($featureDrivers))
+                    <button @click="expanded = !expanded"
+                            class="mt-3 text-[11px] text-forest-600 hover:text-forest-800 font-semibold flex items-center gap-1 transition-colors">
+                        <span x-text="expanded ? 'Hide feature detail ▲' : 'Show feature detail ▼'">Show feature detail ▼</span>
+                    </button>
+                    <div x-show="expanded" x-cloak class="mt-3 space-y-2 border-t border-paper-rule pt-3">
+                        @foreach ($featureDrivers as $feat)
+                        @php
+                            $isUp  = ($feat['direction'] ?? 'up') === 'up';
+                            $pct   = $feat['contribution_pct'] ?? 0;
+                            $arrow = $isUp ? '↑' : '↓';
+                            $barColor  = $isUp ? 'bg-red-300'   : 'bg-emerald-300';
+                            $textColor = $isUp ? 'text-red-600' : 'text-emerald-600';
+                            $barWidth  = min(100, $pct);
+                            $featLabel = \App\Support\XaiFeatureLabels::label($feat['feature']);
+                        @endphp
+                        <div>
+                            <div class="flex items-center justify-between text-[11px] mb-0.5">
+                                <span class="{{ $textColor }}">{{ $arrow }} {{ $featLabel }}</span>
+                                <span class="text-ink-400 font-mono text-[10px]">{{ number_format($pct, 1) }}%</span>
+                            </div>
+                            <div class="bg-paper-rule rounded-full h-1">
+                                <div class="{{ $barColor }} h-1 rounded-full" style="width: {{ $barWidth }}%"></div>
+                            </div>
+                            <div class="text-[10px] text-ink-400 mt-0.5">
+                                Senior: {{ number_format($feat['value'], 2) }} · Cluster avg: {{ number_format($feat['mean'], 2) }}
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Profile + Recommendations --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 

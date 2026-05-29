@@ -23,11 +23,12 @@ class MlResult extends Model
         'risk_housing', 'risk_hc_access', 'risk_sensory', 'rule_composite',
         // WHO domain scores
         'ic_score', 'env_score', 'func_score', 'qol_score',
-        'section_scores', 'raw_output', 'processed_at', 'scored_at',
+        'section_scores', 'xai_data', 'raw_output', 'processed_at', 'scored_at',
     ];
 
     protected $casts = [
         'section_scores'      => 'array',
+        'xai_data'            => 'array',
         'raw_output'          => 'array',
         'processed_at'        => 'datetime',
         'scored_at'           => 'datetime',
