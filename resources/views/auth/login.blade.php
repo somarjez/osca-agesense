@@ -66,89 +66,85 @@
             <p class="text-ink-500 text-[13.5px] mt-2">Access the OSCA analytics workspace for Pagsanjan.</p>
 
             @if ($errors->any())
-                <div class="mt-6 badge badge-critical w-full justify-start">{{ $errors->first() }}</div>
+                <div class="mt-6 flex items-start gap-2 rounded-xl border border-critical-200 bg-critical-50 px-3.5 py-2.5 text-[13px] text-critical-700" role="alert">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ $errors->first() }}</span>
+                </div>
             @endif
 
-            <form method="POST" action="{{ route('login') }}" class="mt-7 space-y-4"
-                  x-data="{ submitting: false }" @submit="submitting = true">
+            {{-- No Alpine on this layout (only app.css is loaded), so the button state is
+                 handled with plain JS below — never x-data / template, which render blank. --}}
+            <form method="POST" action="{{ route('login') }}" id="login-form" class="mt-7 space-y-4">
                 @csrf
                 <div>
                     <label for="email" class="eyebrow block mb-1.5">Email</label>
                     <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
+                        autocomplete="username" inputmode="email"
                         class="form-input" placeholder="you@osca.local" />
                 </div>
 
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label for="password" class="eyebrow">Password</label>
-                        <span class="text-[11px] text-ink-400">Forgot?</span>
+                        <span class="text-[11px] text-ink-400 cursor-help" title="Ask your OSCA administrator to reset it.">Forgot?</span>
                     </div>
                     <div class="relative">
-                        <input id="password" name="password" type="password" required
+                        <input id="password" name="password" type="password" required autocomplete="current-password"
                                class="form-input pr-10" />
                         <button type="button" id="toggle-pw"
                                 onclick="togglePassword()"
                                 aria-label="Show password"
-                                style="position:absolute; top:50%; right:0.75rem; transform:translateY(-50%);"
-                                class="text-ink-300 hover:text-ink-600 focus:outline-none transition-colors">
+                                class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors">
                             {{-- Eye open (password hidden) --}}
-                            <svg id="pw-icon-show" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg id="pw-icon-show" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                             </svg>
                             {{-- Eye slash (password visible) --}}
-                            <svg id="pw-icon-hide" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg id="pw-icon-hide" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.97 9.97 0 012.18-3.516M6.53 6.53A9.97 9.97 0 0112 5c4.477 0 8.268 2.943 9.542 7a10.02 10.02 0 01-4.293 5.208M15 12a3 3 0 11-4.243-4.243M3 3l18 18"/>
                             </svg>
                         </button>
                     </div>
                 </div>
 
-                <label class="inline-flex items-center gap-2 text-[13px] text-ink-700">
+                <label class="inline-flex items-center gap-2 text-[13px] text-ink-700 select-none">
                     <input type="checkbox" name="remember" class="rounded border-paper-rule text-forest-700 focus:ring-forest-500" />
                     Keep me signed in on this device
                 </label>
 
                 <button type="submit" id="login-btn"
-                        :disabled="submitting"
-                        class="btn btn-primary w-full justify-center py-2.5 text-[14px] disabled:opacity-60 disabled:cursor-not-allowed">
-                    <template x-if="!submitting">
-                        <span>Sign in to AgeSense</span>
-                    </template>
-                    <template x-if="submitting">
-                        <span class="inline-flex items-center gap-2">
-                            <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                            </svg>
-                            Signing in…
-                        </span>
-                    </template>
+                        class="btn btn-primary w-full justify-center py-2.5 text-[14px]">
+                    <span id="login-spinner" class="btn-spinner hidden" aria-hidden="true"></span>
+                    <span id="login-btn-label">Sign in to AgeSense</span>
                 </button>
             </form>
             <script>
                 function togglePassword() {
-                    var input = document.getElementById('password');
-                    var show  = document.getElementById('pw-icon-show');
-                    var hide  = document.getElementById('pw-icon-hide');
-                    var btn   = document.getElementById('toggle-pw');
-                    if (input.type === 'password') {
-                        input.type = 'text';
-                        show.classList.add('hidden');
-                        hide.classList.remove('hidden');
-                        btn.setAttribute('aria-label', 'Hide password');
-                    } else {
-                        input.type = 'password';
-                        show.classList.remove('hidden');
-                        hide.classList.add('hidden');
-                        btn.setAttribute('aria-label', 'Show password');
-                    }
+                    var input  = document.getElementById('password');
+                    var show   = document.getElementById('pw-icon-show');
+                    var hide   = document.getElementById('pw-icon-hide');
+                    var btn    = document.getElementById('toggle-pw');
+                    var hidden = input.type === 'password';
+                    input.type = hidden ? 'text' : 'password';
+                    show.classList.toggle('hidden', hidden);
+                    hide.classList.toggle('hidden', !hidden);
+                    btn.setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
                 }
-                document.querySelector('form').addEventListener('submit', function () {
-                    var btn = document.getElementById('login-btn');
-                    btn.disabled = true;
-                    btn.textContent = 'Signing in…';
-                });
+                (function () {
+                    var form = document.getElementById('login-form');
+                    if (!form) return;
+                    form.addEventListener('submit', function () {
+                        var btn     = document.getElementById('login-btn');
+                        var label   = document.getElementById('login-btn-label');
+                        var spinner = document.getElementById('login-spinner');
+                        if (btn)     btn.disabled = true;
+                        if (spinner) spinner.classList.remove('hidden');
+                        if (label)   label.textContent = 'Signing in…';
+                    });
+                })();
             </script>
 
             <p class="text-[11px] text-ink-400 mt-10">
