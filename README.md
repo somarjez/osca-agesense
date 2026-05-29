@@ -27,7 +27,7 @@
 
 AgeSense profiles senior citizens using demographic, socioeconomic, and health survey data, then runs a machine learning pipeline to:
 
-- **Cluster** each senior into one of three health-functioning groups (K-Means, K=3) via UMAP dimensionality reduction
+- **Cluster** each senior into one of four health-functioning groups (K-Means, K=4) via UMAP dimensionality reduction
 - **Score** domain-specific risk across Intrinsic Capacity (IC), Environment (ENV), and Functional Ability (FUNC) using an ensemble of Gradient Boosting and Random Forest regressors
 - **Classify** overall risk as HIGH / MODERATE / LOW with urgency flagging (≥ 0.70 composite = urgent)
 - **Generate** prescriptive, prioritised recommendations per senior driven by model output and profile data
@@ -431,7 +431,7 @@ Senior Profile + QoL Survey
 
 ### Batch optimisation
 
-When running **Batch Analysis**, UMAP and KMeans run once across the entire batch (not once per senior). Models remain loaded in Flask memory for the duration. For 275 seniors, this reduces total analysis time from ~45 minutes (subprocess mode) to under 60 seconds (HTTP mode).
+When running **Batch Analysis**, UMAP and KMeans run once across the entire batch (not once per senior). Models remain loaded in Flask memory for the duration. For 283 seniors, this reduces total analysis time from ~45 minutes (subprocess mode) to under 60 seconds (HTTP mode).
 
 ### Cluster groups
 
@@ -469,7 +469,7 @@ All trained model files are committed to the repository under `python/models/`. 
 |---|---|
 | `scaler.pkl` | StandardScaler fitted on VIF-retained training features |
 | `umap_nd.pkl` | UMAP reducer — outputs 10-D features for KMeans |
-| `kmeans.pkl` | K-Means model (K=3), trained on UMAP-reduced features |
+| `kmeans.pkl` | K-Means model (K=4), trained on UMAP-reduced features |
 | `edu_encoder.pkl` | Ordinal encoder for educational attainment |
 | `income_encoder.pkl` | Ordinal encoder for monthly income range |
 | `gbr_ic_risk.pkl` | Gradient Boosting — Intrinsic Capacity risk |
@@ -480,7 +480,7 @@ All trained model files are committed to the repository under `python/models/`. 
 | `rfr_func_risk.pkl` | Random Forest — Functional Ability risk |
 | `feature_list.json` | 30 final clustering feature names |
 | `ml_risk_features.json` | Feature names for GBR/RFR risk models |
-| `cluster_mapping.json` | Maps raw KMeans IDs (0,1,2) → named group IDs (1,2,3) |
+| `cluster_mapping.json` | Maps raw KMeans IDs (0,1,2,3) → named group IDs (1,2,3,4) |
 | `cluster_metadata.json` | Cluster names and descriptions |
 | `asset_weights.json` | Scoring weights for assets, income, skills, diseases |
 | `vif_retained_features.json` | VIF-filtered feature subset |

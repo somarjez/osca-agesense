@@ -2,6 +2,10 @@
 Regression test: assert that the 283 seed seniors still match their locked
 baseline scores within tolerance.
 
+DEPRECATED (K=3 era): this locks against the K=3 baseline in
+regression_baseline.json (model v1.1.x). For the current K=4 system use
+python/scripts/validate_system.py. Kept for historical reference.
+
 Run after any code change or re-seeding:
     python\venv\Scripts\python.exe python\regression_test.py
 

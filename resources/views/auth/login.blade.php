@@ -43,8 +43,8 @@
                 <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">WHO Domains</div>
             </div>
             <div>
-                <div class="font-serif text-2xl font-semibold text-paper tnum">K=3</div>
-                <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Senior Profiles</div>
+                <div class="font-serif text-2xl font-semibold text-paper tnum">K=4</div>
+                <div class="text-[11px] uppercase tracking-wider text-forest-300 mt-1">Health Groups</div>
             </div>
             <div>
                 <div class="font-serif text-2xl font-semibold text-paper tnum">16</div>

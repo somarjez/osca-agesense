@@ -58,7 +58,7 @@ The following capabilities are fully implemented and operational in the current 
 | QoL domain score computation (normalized 0–1) | Implemented |
 | QoL survey draft save and edit before submission | Implemented |
 | ML feature engineering (35+ features, 6 section scores, 7 domain risks) | Implemented |
-| K-Means clustering (K=3) with UMAP dimensionality reduction | Implemented |
+| K-Means clustering (K=4) with UMAP dimensionality reduction | Implemented |
 | Domain-specific risk scoring (IC, Environment, Functional) | Implemented |
 | Composite risk score and overall risk level classification | Implemented |
 | Prescriptive recommendation generation (5 domain functions: health, financial, social, functional, hc_access) | Implemented |
@@ -520,7 +520,7 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 
 ### Clustering — `python/services/inference_service.py`
 
-- **Algorithm:** K-Means (K=3), trained on the full OSCA Pagsanjan senior citizen dataset
+- **Algorithm:** K-Means (K=4), trained on the full OSCA Pagsanjan senior citizen dataset
 - **Input:** UMAP-reduced 10-dimensional feature vector (or scaled features if UMAP skipped)
 - **Output:** Cluster assignment with named interpretations:
 
@@ -677,8 +677,8 @@ The following table defines terms as they are used throughout the codebase, data
 | **Reverse-Scored Item** | A survey question where higher raw responses indicate worse outcomes; the item is inverted (`6 − response`) before inclusion in domain calculations | b2, b3, c3, d4 in the QoL survey; defined in `QolSurvey::REVERSE_SCORED` |
 | **Feature Vector** | A numerical representation of a senior's profile and QoL responses used as input to the ML model | Produced by `preprocess_service.py`; includes 35+ features, section scores, domain risks |
 | **K-Means Clustering** | An unsupervised machine learning algorithm that assigns each data point to one of K clusters based on feature similarity | Used to group seniors into 3 health-functioning clusters; executed in `inference_service.py` |
-| **K=3** | The number of clusters chosen for the K-Means model, validated through silhouette analysis | Cluster names: High Functioning, Moderate/Mixed Needs, Low Functioning |
-| **Cluster** | One of three groups (Cluster 1, 2, 3) that a senior is assigned to based on their feature profile | `ml_results.cluster_named_id`; displayed in badges, charts, and reports |
+| **K=4** | The number of clusters chosen for the K-Means model, validated through silhouette analysis | Cluster names: High Functioning / Well-Supported, Stable Ageing / Moderate Support, Environmentally & Financially Vulnerable, Low Functioning / Multi-Domain Priority |
+| **Cluster** | One of four groups (Cluster 1, 2, 3, 4) that a senior is assigned to based on their feature profile | `ml_results.cluster_named_id`; displayed in badges, charts, and reports |
 | **UMAP** | Uniform Manifold Approximation and Projection — a dimensionality reduction algorithm used to project the feature vector to 10 dimensions before clustering | Applied in `preprocess_service.py`; loaded from `umap_reducer.pkl` |
 | **StandardScaler** | A scikit-learn preprocessing tool that normalizes features to zero mean and unit variance | Applied to features before UMAP; loaded from `scaler.pkl` |
 | **VIF (Variance Inflation Factor)** | A measure used during feature selection to remove multicollinear features | Used to produce the final feature list retained in `feature_list.json` |

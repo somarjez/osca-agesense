@@ -57,7 +57,7 @@ def _compute_age(dob, ref=None):
     return ref.year - dob.year - ((ref.month, ref.day) < (dob.month, dob.day))
 
 # Load baseline (cluster labels for 283 seniors)
-baseline_path = os.path.join(MODEL_DIR, "regression_baseline.json")
+baseline_path = os.path.join(MODEL_DIR, "regression_baseline_k4.json")
 baseline = {row["key"]: row for row in json.load(open(baseline_path, encoding="utf-8"))}
 
 # Load 52 ml_risk_features order

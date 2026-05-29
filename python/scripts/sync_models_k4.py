@@ -419,10 +419,10 @@ for row in rows_csv:
         "composite_risk":    float(row["composite_risk"]),
     })
 
-baseline_path = os.path.join(TARGET_DIR, "regression_baseline.json")
+baseline_path = os.path.join(TARGET_DIR, "regression_baseline_k4.json")
 with open(baseline_path, "w", encoding="utf-8") as f:
     json.dump(baseline, f, indent=2)
-print(f"  regression_baseline.json: {len(baseline)} rows [OK]")
+print(f"  regression_baseline_k4.json: {len(baseline)} rows [OK]")
 if len(baseline) != 283:
     print(f"  [WARN] Expected 283 rows, got {len(baseline)}")
 

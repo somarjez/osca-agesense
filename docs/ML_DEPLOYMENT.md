@@ -81,10 +81,10 @@ All files in this table must be present in `python/models/` for the system to wo
 |---|---|---|
 | `scaler.pkl` | StandardScaler | 39 input features, 283 training rows |
 | `umap_nd.pkl` | UMAP reducer | **31** input features → 10 components |
-| `kmeans.pkl` | KMeans | k=3, 10 input features (UMAP output) |
+| `kmeans.pkl` | KMeans | k=4, 10 input features (UMAP output) |
 | `feature_list.json` | UMAP input feature names | **31-element array** (post-VIF subset, NOT 39) |
 | `cluster_mapping.json` | Raw KMeans ID → named cluster ID | `{"0": 3, "1": 1, "2": 2}` exactly |
-| `cluster_metadata.json` | Cluster names and descriptions | 3 clusters |
+| `cluster_metadata.json` | Cluster names and descriptions | 4 clusters |
 | `ml_risk_features.json` | Ensemble input feature names | 51-element array |
 | `gbr_ic_risk.pkl` | GBR for IC risk | 51 input features |
 | `gbr_env_risk.pkl` | GBR for ENV risk | 51 input features |
@@ -237,7 +237,7 @@ The script checks:
 - All required artifact files are present
 - `scaler.pkl` has 39 features (283-senior training run)
 - `umap_nd.pkl` has 31 input features and 10 output components
-- `kmeans.pkl` has k=3 clusters and 10 input features
+- `kmeans.pkl` has k=4 clusters and 10 input features
 - `feature_list.json` lists exactly 31 features
 - `cluster_mapping.json` maps `{0→3, 1→1, 2→2}` correctly
 - All 6 GBR/RFR models accept 51 input features each

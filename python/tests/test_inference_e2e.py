@@ -142,7 +142,7 @@ def run_tests():
 
         checks = [
             ("status=success",          result.get("status") == "success",                     True),
-            ("cluster in [1,2,3]",      cluster.get("named_id") in {1, 2, 3},                 True),
+            ("cluster in [1,2,3,4]",    cluster.get("named_id") in {1, 2, 3, 4},              True),
             ("composite in [0,1]",      0.0 <= scores.get("composite_risk", -1) <= 1.0,        True),
             ("ic_risk in [0,1]",        0.0 <= scores.get("ic_risk", -1) <= 1.0,               True),
             ("env_risk in [0,1]",       0.0 <= scores.get("env_risk", -1) <= 1.0,              True),
@@ -158,11 +158,13 @@ def run_tests():
                 (pflag == "urgent" and any(r.get("urgency") == "urgent" for r in recs))
                 or (pflag != "urgent" and not any(r.get("urgency") == "urgent" for r in recs)),
                 True),
-            # hc_access recommendations: cost/distance in difficulty → hc_access recs must exist
+            # healthcare-access recommendations: cost/distance in difficulty →
+            # healthcare_access recs must exist (category renamed hc_access→healthcare_access in v2)
             ("hc_recs when difficulty",
                 not any(d in " ".join(s["raw"].get("healthcare_difficulty") or []).lower()
                         for d in ["cost", "distance"])
-                or any(r.get("domain") == "hc_access" for r in recs),
+                or any(r.get("category") == "healthcare_access"
+                       or r.get("domain") == "healthcare_access" for r in recs),
                 True),
             # Risk level must match expected
             ("expected_level",          levels.get("overall") == s["expect_level"],            True),

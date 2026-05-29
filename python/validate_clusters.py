@@ -1,6 +1,11 @@
 """
 Cluster validation script — run from project root:
     python\venv\Scripts\python.exe python\validate_clusters.py
+
+DEPRECATED (K=3 era): this diagnostic assumes the original 3-cluster model and
+is superseded by python/scripts/validate_system.py, which validates the current
+K=4 system end-to-end (feature engineering, risk, clustering, XAI, determinism).
+Kept for historical reference; numbers/labels here reflect the K=3 build.
 """
 import os, sys
 
