@@ -124,6 +124,7 @@
     {{-- ── Member table ── --}}
     <x-card title="Cluster Member Records">
         <x-slot name="noPadding">true</x-slot>
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
                 <tr>
@@ -165,6 +166,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         @if ($records->hasPages())
         <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-3">
             {{ $records->links() }}
