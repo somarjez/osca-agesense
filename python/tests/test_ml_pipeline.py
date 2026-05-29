@@ -111,6 +111,13 @@ def _patch_model_dir(new_dir: str):
     inference_service._load_cluster_mapping.cache_clear()
     inference_service._load_notebook_cluster_index.cache_clear()
     inference_service._load_notebook_recommendation_index.cache_clear()
+    # K=4 XAI caches (added in v2.0.0)
+    if hasattr(inference_service, "_load_cluster_feature_means"):
+        inference_service._load_cluster_feature_means.cache_clear()
+    if hasattr(inference_service, "_build_model_insights"):
+        inference_service._build_model_insights.cache_clear()
+    if hasattr(inference_service, "_load_cluster_centroids_scaled"):
+        inference_service._load_cluster_centroids_scaled.cache_clear()
 
 
 def _original_model_dir():
@@ -131,7 +138,7 @@ def test_single_inference():
         result = inference_service.infer(preprocessed)
         _check("status == success",   result.get("status") == "success")
         _check("cluster present",     "cluster" in result)
-        _check("named_id in [1,2,3]", result["cluster"]["named_id"] in (1, 2, 3))
+        _check("named_id in [1,2,3,4]", result["cluster"]["named_id"] in (1, 2, 3, 4))
         _check("risk_scores present", "risk_scores" in result)
         _check("composite_risk in [0,1]",
                0.0 <= result["risk_scores"]["composite_risk"] <= 1.0)
@@ -169,8 +176,8 @@ def test_batch_real_kmeans():
         heuristic_used = any("heuristic cluster assignment used" in w for w in warns)
         _check(f"item {i}: no heuristic fallback", not heuristic_used,
                f"warnings={warns}")
-        _check(f"item {i}: named_id in [1,2,3]",
-               infer_result["cluster"]["named_id"] in (1, 2, 3))
+        _check(f"item {i}: named_id in [1,2,3,4]",
+               infer_result["cluster"]["named_id"] in (1, 2, 3, 4))
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +266,9 @@ def test_cluster_metadata_dynamic():
             "3": {"name": "Cluster 3", "ic_level": "Low",
                   "env_level": "Low", "func_level": "Low",
                   "interpretation": "Low."},
+            "4": {"name": "Cluster 4", "ic_level": "Low",
+                  "env_level": "Low", "func_level": "Low",
+                  "interpretation": "Multi-domain priority."},
         }
         with open(os.path.join(tmp, "cluster_metadata.json"), "w") as f:
             json.dump(custom_meta, f)
