@@ -127,39 +127,15 @@
                                 <form x-ref="deleteForm" method="POST" action="{{ route('seniors.force-delete', $senior->id) }}" class="hidden">
                                     @csrf @method('DELETE')
                                 </form>
-                                <div x-show="open" x-cloak
-                                     role="dialog" aria-modal="true" aria-labelledby="perm-delete-title"
-                                     class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                                     @keydown.escape.window="open = false">
-                                    <div class="card max-w-sm w-full shadow-2xl"
-                                         @click.outside="open = false">
-                                        <div class="card-head">
-                                            <div class="flex items-center gap-2.5">
-                                                <div class="w-8 h-8 rounded-lg bg-critical-50 dark:bg-critical-50/10 grid place-items-center flex-shrink-0">
-                                                    <x-heroicon-o-trash class="w-4 h-4 text-critical-700" />
-                                                </div>
-                                                <h3 id="perm-delete-title" class="card-title">Permanently delete this record?</h3>
-                                            </div>
-                                            <button @click="open = false" class="btn btn-ghost p-1.5" aria-label="Close">
-                                                <x-heroicon-o-x-mark class="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <div class="card-body space-y-3">
-                                            <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
-                                                <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, ML results, and recommendations — will be permanently erased.
-                                            </p>
-                                            <p class="text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
-                                                This action cannot be undone.
-                                            </p>
-                                            <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">
-                                                <button @click="open = false" class="btn">Cancel</button>
-                                                <button @click="$refs.deleteForm.submit()" class="btn btn-danger">
-                                                    <x-heroicon-o-trash class="w-3.5 h-3.5" /> Delete Forever
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <x-confirm-modal show="open"
+                                                 title="Permanently delete this record?"
+                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm-label="Delete forever">
+                                    <p><strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, decision-support outputs, and recommendations — will be permanently erased.</p>
+                                    <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
+                                        This action cannot be undone.
+                                    </p>
+                                </x-confirm-modal>
                             </div>
                         </div>
                     </td>
