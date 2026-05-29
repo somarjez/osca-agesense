@@ -6,57 +6,55 @@
 @section('content')
 <div class="space-y-5">
 
-    {{-- ── Action Bar ── --}}
+    {{-- ── Status messages ── --}}
     @if (session('success'))
-    <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-        <x-heroicon-o-check-circle class="w-4 h-4 flex-shrink-0" />
+    <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-paper-rule dark:border-[#2b3530] bg-white dark:bg-[#1a201d] text-ink-800 dark:text-[#e4e1d8] text-sm">
+        <x-heroicon-o-check-circle class="w-4 h-4 flex-shrink-0 text-low-600 dark:text-[#6dd89e]" />
         {{ session('success') }}
     </div>
     @endif
     @if (session('error'))
-    <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-        <x-heroicon-o-exclamation-circle class="w-4 h-4 flex-shrink-0" />
+    <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-paper-rule dark:border-[#2b3530] bg-white dark:bg-[#1a201d] text-ink-800 dark:text-[#e4e1d8] text-sm">
+        <x-heroicon-o-exclamation-circle class="w-4 h-4 flex-shrink-0 text-critical-600 dark:text-[#ef8d80]" />
         {{ session('error') }}
     </div>
     @endif
 
+    {{-- ── Action Bar ── --}}
     <div class="flex justify-end gap-2">
         <form method="POST" action="{{ route('reports.cluster.snapshot') }}">
             @csrf
-            <button type="submit"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
+            <button type="submit" class="btn btn-secondary" data-loading="Saving"
                     title="Save today's cluster composition for longitudinal tracking">
                 <x-heroicon-o-camera class="w-4 h-4" />
                 Take Snapshot
             </button>
         </form>
-        <a href="{{ route('reports.cluster.export') }}"
-           class="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
+        <a href="{{ route('reports.cluster.export') }}" class="btn">
             <x-heroicon-o-arrow-down-tray class="w-4 h-4" />
             Export CSV
         </a>
     </div>
 
-    {{-- ── Cluster Cards ── --}}
+    {{-- ── Cluster Cards (risk averages per health group) ── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        @php
-        $clusterColors = [
-            1 => ['bg' => 'bg-emerald-50', 'border' => 'border-emerald-200', 'text' => 'text-emerald-700', 'bar' => 'bg-emerald-500'],
-            2 => ['bg' => 'bg-blue-50',    'border' => 'border-blue-200',    'text' => 'text-blue-700',    'bar' => 'bg-blue-500'],
-            3 => ['bg' => 'bg-amber-50',   'border' => 'border-amber-200',   'text' => 'text-amber-700',   'bar' => 'bg-amber-500'],
-            4 => ['bg' => 'bg-rose-50',    'border' => 'border-rose-200',    'text' => 'text-rose-700',    'bar' => 'bg-rose-500'],
-        ];
-        @endphp
+        @php $clusterBar = [1 => '#2ecc71', 2 => '#3498db', 3 => '#f39c12', 4 => '#e74c3c']; @endphp
 
         @foreach ($clusterSummary as $cluster)
-        @php $c = $clusterColors[$cluster->cluster_named_id] ?? $clusterColors[1]; @endphp
-        <div class="{{ $c['bg'] }} border {{ $c['border'] }} rounded-xl p-5">
-            <div class="flex items-start justify-between mb-3">
-                <div>
-                    <span class="text-xs font-bold {{ $c['text'] }} uppercase tracking-wider">Cluster {{ $cluster->cluster_named_id }}</span>
-                    <h3 class="font-display text-lg text-slate-800 mt-0.5">{{ $cluster->cluster_name }}</h3>
+        @php
+            $cid = $cluster->cluster_named_id;
+            $barColor = $clusterBar[$cid] ?? '#3f8068';
+        @endphp
+        <div class="card card-body transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                    <span class="badge badge-cluster-{{ $cid }}">Group {{ $cid }}</span>
+                    <h3 class="font-serif text-[15px] font-semibold text-ink-900 dark:text-[#e4e1d8] mt-2 leading-snug">{{ $cluster->cluster_name }}</h3>
                 </div>
-                <span class="text-2xl font-bold text-slate-800">{{ number_format($cluster->member_count) }}</span>
+                <div class="text-right flex-shrink-0">
+                    <div class="font-serif text-2xl font-semibold tnum text-ink-900 dark:text-[#e4e1d8] leading-none">{{ number_format($cluster->member_count) }}</div>
+                    <div class="text-[10px] uppercase tracking-wider text-ink-400 dark:text-[#6b7570] mt-0.5">members</div>
+                </div>
             </div>
 
             <div class="space-y-2 mt-4">
@@ -66,24 +64,26 @@
                     ['Func Risk', $cluster->avg_func_risk],
                 ] as [$label, $val])
                 <div>
-                    <div class="flex justify-between text-xs mb-0.5">
-                        <span class="text-slate-500">{{ $label }}</span>
-                        <span class="{{ $c['text'] }} font-semibold">{{ number_format($val * 100, 1) }}%</span>
+                    <div class="flex justify-between text-[11.5px] mb-1">
+                        <span class="text-ink-500 dark:text-[#8a9087]">{{ $label }}</span>
+                        <span class="font-mono font-semibold text-ink-800 dark:text-[#c8c4bc] tnum">{{ number_format($val * 100, 1) }}%</span>
                     </div>
-                    <div class="bg-white/60 rounded-full h-1.5">
-                        <div class="{{ $c['bar'] }} h-1.5 rounded-full" style="width: {{ $val * 100 }}%"></div>
+                    <div class="bar">
+                        <div class="bar-fill" style="width: {{ $val * 100 }}%; background: {{ $barColor }}"></div>
                     </div>
                 </div>
                 @endforeach
             </div>
 
-            <div class="mt-3 pt-3 border-t {{ $c['border'] }} flex justify-between text-xs">
-                <span class="text-slate-500">Avg Composite Risk</span>
-                <span class="{{ $c['text'] }} font-bold">{{ number_format($cluster->avg_composite_risk * 100, 1) }}%</span>
-            </div>
-            <div class="flex justify-between text-xs mt-1">
-                <span class="text-slate-500">Avg Wellbeing</span>
-                <span class="{{ $c['text'] }} font-bold">{{ number_format($cluster->avg_wellbeing * 100, 1) }}%</span>
+            <div class="mt-4 pt-3 border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-2 gap-3">
+                <div>
+                    <div class="eyebrow">Composite Risk</div>
+                    <div class="font-mono font-semibold tnum text-base text-ink-900 dark:text-[#e4e1d8] mt-0.5">{{ number_format($cluster->avg_composite_risk * 100, 1) }}%</div>
+                </div>
+                <div>
+                    <div class="eyebrow">Wellbeing</div>
+                    <div class="font-mono font-semibold tnum text-base text-ink-900 dark:text-[#e4e1d8] mt-0.5">{{ number_format($cluster->avg_wellbeing * 100, 1) }}%</div>
+                </div>
             </div>
         </div>
         @endforeach
@@ -91,36 +91,31 @@
 
     {{-- ── WHO Domain Chart per Cluster ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <h3 class="text-sm font-semibold text-slate-700 mb-4">WHO Domain Risk by Cluster</h3>
-            <div class="relative h-56">
-                <canvas id="domainByClusterChart"></canvas>
-            </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title">WHO Domain Risk by Cluster</div></div>
+            <div class="card-body"><div class="relative h-56"><canvas id="domainByClusterChart"></canvas></div></div>
         </div>
-
-        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <h3 class="text-sm font-semibold text-slate-700 mb-4">QoL Domain Scores by Cluster</h3>
-            <div class="relative h-56">
-                <canvas id="qolByClusterChart"></canvas>
-            </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title">QoL Domain Scores by Cluster</div></div>
+            <div class="card-body"><div class="relative h-56"><canvas id="qolByClusterChart"></canvas></div></div>
         </div>
     </div>
 
     {{-- ── Evaluation Metrics ── --}}
     @if ($evalMetrics['silhouette'])
-    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <h3 class="text-sm font-semibold text-slate-700 mb-3">Grouping Quality Indicators</h3>
-        <div class="grid grid-cols-4 gap-4 text-center">
+    <div class="card">
+        <div class="card-head"><div class="card-title">Grouping Quality Indicators</div></div>
+        <div class="card-body grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             @foreach ([
                 ['Group Separation',  $evalMetrics['silhouette'],        'Higher = more distinct groups (0–1)'],
                 ['Group Distinctness',$evalMetrics['davies_bouldin'],    'Lower = better defined groups'],
                 ['Group Density',     $evalMetrics['calinski_harabasz'], 'Higher = tighter groups'],
                 ['Spread Score',      $evalMetrics['inertia'],           'How spread out members are within groups'],
             ] as [$label, $val, $hint])
-            <div class="bg-slate-50 rounded-xl p-3">
-                <p class="text-xs text-slate-500 mb-1">{{ $label }}</p>
-                <p class="text-xl font-bold text-slate-800">{{ $val ? number_format($val, 3) : '—' }}</p>
-                <p class="text-xs text-slate-400 mt-1">{{ $hint }}</p>
+            <div class="rounded-xl p-3 bg-paper-2 dark:bg-[#131917] border border-paper-rule dark:border-[#2b3530]">
+                <p class="text-[11px] text-ink-500 dark:text-[#8a9087] mb-1">{{ $label }}</p>
+                <p class="font-serif text-xl font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $val ? number_format($val, 3) : '—' }}</p>
+                <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-1 leading-snug">{{ $hint }}</p>
             </div>
             @endforeach
         </div>
@@ -128,42 +123,54 @@
     @endif
 
     {{-- ── Barangay × Cluster Breakdown ── --}}
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="bg-slate-50 border-b border-slate-100 px-5 py-3">
-            <h3 class="text-sm font-semibold text-slate-700">Barangay × Cluster Distribution</h3>
-        </div>
+    <div class="card overflow-hidden">
+        <div class="card-head"><div class="card-title">Barangay × Cluster Distribution</div></div>
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="border-b border-slate-100">
-                    <tr class="text-xs text-slate-400">
-                        <th class="px-5 py-2.5 text-left font-medium">Barangay</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-emerald-600">Group 1 – High Functioning</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-blue-600">Group 2 – Stable / Moderate</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-amber-600">Group 3 – Env / Financial Vulnerable</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-rose-600">Group 4 – Multi-Domain Priority</th>
-                        <th class="px-5 py-2.5 text-center font-medium text-slate-500">Total</th>
+            <table class="w-full">
+                <thead>
+                    <tr>
+                        <th class="th">Barangay</th>
+                        @foreach ([
+                            1 => 'Group 1 · High Functioning',
+                            2 => 'Group 2 · Stable / Moderate',
+                            3 => 'Group 3 · Env / Financial Vulnerable',
+                            4 => 'Group 4 · Multi-Domain Priority',
+                        ] as $cid => $gl)
+                        <th class="th text-center">
+                            <span class="inline-flex items-center gap-1.5 justify-center">
+                                <span class="cluster-swatch cluster-swatch-{{ $cid }}"></span>{{ $gl }}
+                            </span>
+                        </th>
+                        @endforeach
+                        <th class="th text-center">Total</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-50">
+                <tbody>
+                    @php
+                    $countCls = [
+                        1 => 'text-[#1a6b3f] dark:text-[#6dd89e]',
+                        2 => 'text-[#1a5a8a] dark:text-[#6dacd8]',
+                        3 => 'text-[#9a6000] dark:text-[#d8b446]',
+                        4 => 'text-[#8b1f15] dark:text-[#ef8d80]',
+                    ];
+                    @endphp
                     @foreach ($barangayCluster as $brgy => $rows)
                     @php
                         $byCluster = $rows->keyBy('cluster_named_id');
                         $total = $rows->sum('count');
                     @endphp
-                    <tr class="hover:bg-slate-25">
-                        <td class="px-5 py-2.5 font-medium text-slate-700">{{ $brgy }}</td>
+                    <tr class="hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
+                        <td class="td font-medium text-ink-800 dark:text-[#c8c4bc]">{{ $brgy }}</td>
                         @foreach ([1,2,3,4] as $cid)
-                        <td class="px-5 py-2.5 text-center">
+                        <td class="td text-center tnum">
                             @if (isset($byCluster[$cid]))
-                            <span class="font-semibold {{ ['1'=>'text-emerald-700','2'=>'text-blue-700','3'=>'text-amber-700','4'=>'text-rose-700'][$cid] }}">
-                                {{ $byCluster[$cid]->count }}
-                            </span>
+                            <span class="font-semibold {{ $countCls[$cid] }}">{{ $byCluster[$cid]->count }}</span>
                             @else
-                            <span class="text-slate-300">0</span>
+                            <span class="text-ink-300 dark:text-[#3a4540]">0</span>
                             @endif
                         </td>
                         @endforeach
-                        <td class="px-5 py-2.5 text-center font-bold text-slate-700">{{ $total }}</td>
+                        <td class="td text-center font-bold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $total }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -183,42 +190,44 @@
                 this.insights = await r.json();
             } catch(e) { this.insights = false; }
         }
-    }" x-init="load()" class="mt-2 bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-paper-rule dark:border-[#2b3530] flex-wrap gap-2">
+    }" x-init="load()" class="card overflow-hidden mt-2">
+        <div class="card-head flex-wrap gap-3">
             <div>
-                <h3 class="font-semibold text-sm text-ink-900 dark:text-[#e4e1d8]">Model Insights</h3>
-                <p class="text-xs text-ink-500 dark:text-[#4a5550] mt-0.5">Feature importance across <span x-text="insights && insights.n_seniors ? insights.n_seniors : '283'">283</span> seniors · top 15 per domain</p>
+                <div class="card-title">Model Insights</div>
+                <div class="card-sub">Feature importance across <span x-text="insights && insights.n_seniors ? insights.n_seniors : '283'">283</span> seniors · top 15 per domain</div>
             </div>
-            <div class="flex gap-1">
+            <div class="segmented" role="tablist" aria-label="Domain">
                 <template x-for="[key, label] in Object.entries(labels)" :key="key">
-                    <button @click="tab = key"
-                        :class="tab === key
-                            ? 'bg-forest-600 text-white'
-                            : 'bg-paper text-ink-600 hover:bg-paper-2 dark:bg-[#131917] dark:text-[#6b7570]'"
-                        class="px-3 py-1 text-[11px] font-semibold rounded-lg transition-colors"
-                        x-text="label">
-                    </button>
+                    <button type="button" @click="tab = key" :class="{ 'on': tab === key }"
+                            :aria-selected="tab === key" x-text="label"></button>
                 </template>
             </div>
         </div>
-        <div class="px-5 py-4">
+        <div class="card-body">
+            {{-- Skeleton while loading --}}
             <template x-if="insights === null">
-                <p class="text-sm text-ink-400 text-center py-8">Loading model insights…</p>
+                <div class="space-y-2.5 py-1" aria-hidden="true">
+                    <template x-for="i in 6" :key="i">
+                        <div class="flex items-center gap-3">
+                            <span class="w-44 h-3 rounded bg-paper-2 dark:bg-[#222a27] flex-shrink-0 animate-pulse"></span>
+                            <span class="flex-1 h-2.5 rounded-full bg-paper-2 dark:bg-[#222a27] animate-pulse"></span>
+                        </div>
+                    </template>
+                </div>
             </template>
             <template x-if="insights === false">
-                <p class="text-sm text-ink-400 text-center py-8">Model insights unavailable. Ensure the inference service is running.</p>
+                <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
             </template>
             <template x-if="insights && insights[tab]">
-                <div class="space-y-2">
+                <div class="space-y-0.5">
                     <template x-for="item in insights[tab]" :key="item.feature">
-                        <div class="flex items-center gap-3">
-                            <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label"></span>
-                            <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5">
-                                <div class="bg-forest-500 h-2.5 rounded-full transition-all"
-                                     :style="'width: ' + Math.min(100, (item.importance / insights[tab][0].importance) * 100) + '%'">
-                                </div>
+                        <div class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
+                            <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
+                            <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-forest-500 h-2.5 rounded-full transition-all duration-500"
+                                     :style="'width: ' + Math.min(100, (item.importance / insights[tab][0].importance) * 100) + '%'"></div>
                             </div>
-                            <span class="text-[11px] font-mono text-ink-500 w-12 text-right"
+                            <span class="text-[11px] font-mono tnum text-ink-500 dark:text-[#8a9087] w-12 text-right"
                                   x-text="(item.importance * 100).toFixed(1) + '%'"></span>
                         </div>
                     </template>
@@ -229,7 +238,7 @@
 
     {{-- ── Interactive Livewire Drill-Down ── --}}
     <div class="mt-2">
-        <h3 class="text-sm font-semibold text-slate-700 mb-3">Interactive Cluster Explorer</h3>
+        <h3 class="font-serif text-[15px] font-semibold text-ink-900 dark:text-[#e4e1d8] mb-3">Interactive Cluster Explorer</h3>
         <livewire:reports.cluster-analysis />
     </div>
 
@@ -385,6 +394,10 @@
     }
 
     document.addEventListener('livewire:navigated', () => setTimeout(initClusterCharts, 0));
+    // Fallback for a direct page load / hard refresh (livewire:navigated only fires
+    // on SPA navigation). upsert() destroys any existing chart, so this is idempotent.
+    if (document.readyState !== 'loading') setTimeout(initClusterCharts, 0);
+    else document.addEventListener('DOMContentLoaded', () => setTimeout(initClusterCharts, 0));
 })();
 </script>
 @endpush
