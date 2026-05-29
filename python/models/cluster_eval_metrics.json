@@ -4,5 +4,5 @@
   "calinski_harabasz": 415.0,
   "inertia": null,
   "k_chosen": 4,
-  "generated_by": "osca5_executed.ipynb (K=4, 31-feature set)"
+  "generated_by": "osca5.ipynb (K=4, 31-feature set); values verified against osca_output/reports/clustering_evaluation.csv"
 }
