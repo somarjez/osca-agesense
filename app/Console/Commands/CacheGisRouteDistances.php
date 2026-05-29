@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\GisApiController;
+use App\Models\SeniorFacilityRouteFailure;
 use App\Models\SeniorFacilityRouteDistance;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
@@ -127,8 +128,16 @@ class CacheGisRouteDistances extends Command
                     ->where('senior_citizen_id', $seniorId)
                     ->where('facility_id', $facilityId)
                     ->exists();
+                $hasCachedFailure = SeniorFacilityRouteFailure::query()
+                    ->where('senior_citizen_id', $seniorId)
+                    ->where('facility_id', $facilityId)
+                    ->where('origin_latitude', round($origin['lat'], 7))
+                    ->where('origin_longitude', round($origin['lng'], 7))
+                    ->where('destination_latitude', round($destination['lat'], 7))
+                    ->where('destination_longitude', round($destination['lng'], 7))
+                    ->exists();
 
-                if ($hasCachedRoute && !$force) {
+                if (($hasCachedRoute || $hasCachedFailure) && !$force) {
                     $skippedCached++;
                     continue;
                 }
@@ -161,6 +170,10 @@ class CacheGisRouteDistances extends Command
                             'calculated_at' => now(),
                         ]
                     );
+                    SeniorFacilityRouteFailure::query()
+                        ->where('senior_citizen_id', $seniorId)
+                        ->where('facility_id', $facilityId)
+                        ->delete();
                     $cachedRoutes++;
                 } catch (\Throwable $exception) {
                     $failed++;
@@ -172,6 +185,9 @@ class CacheGisRouteDistances extends Command
                         && $rateLimitOrApiErrors >= $stopAfterRateLimits
                     ) {
                         $hitRequestCap = true;
+                    }
+                    if ($this->isPermanentRouteFailure($exception)) {
+                        $this->storeRouteFailure($seniorId, $facilityId, $origin, $destination, $exception);
                     }
                     $this->warn($this->failureMessage($exception));
                 } finally {
@@ -295,6 +311,7 @@ class CacheGisRouteDistances extends Command
                     [$origin['lng'], $origin['lat']],
                     [$destination['lng'], $destination['lat']],
                 ],
+                'radiuses' => $this->openRouteServiceRadiuses(),
                 'instructions' => false,
             ]);
 
@@ -333,6 +350,18 @@ class CacheGisRouteDistances extends Command
         }
 
         return true;
+    }
+
+    private function openRouteServiceRadiuses(): array
+    {
+        $configuredRadius = (int) env('OPENROUTESERVICE_SNAP_RADIUS_METERS', -1);
+        if ($configuredRadius === -1) {
+            return [-1, -1];
+        }
+
+        $radius = max(350, min(5000, $configuredRadius));
+
+        return [$radius, $radius];
     }
 
     private function openRouteServiceErrorMessage(mixed $payload): string
@@ -378,5 +407,38 @@ class CacheGisRouteDistances extends Command
     {
         return (int) $exception->getCode() === 429
             || str_contains(strtolower($exception->getMessage()), 'rate limit');
+    }
+
+    private function isPermanentRouteFailure(\Throwable $exception): bool
+    {
+        $code = (int) $exception->getCode();
+
+        return in_array($code, [400, 404], true)
+            && !$this->isOpenRouteServiceLimitError($exception);
+    }
+
+    private function storeRouteFailure(
+        int $seniorId,
+        int $facilityId,
+        array $origin,
+        array $destination,
+        \Throwable $exception
+    ): void {
+        SeniorFacilityRouteFailure::query()->updateOrCreate(
+            [
+                'senior_citizen_id' => $seniorId,
+                'facility_id' => $facilityId,
+            ],
+            [
+                'origin_latitude' => round($origin['lat'], 7),
+                'origin_longitude' => round($origin['lng'], 7),
+                'destination_latitude' => round($destination['lat'], 7),
+                'destination_longitude' => round($destination['lng'], 7),
+                'provider' => 'openrouteservice',
+                'status_code' => (int) $exception->getCode() ?: null,
+                'error_message' => mb_strimwidth($exception->getMessage(), 0, 500, '...'),
+                'failed_at' => now(),
+            ]
+        );
     }
 }

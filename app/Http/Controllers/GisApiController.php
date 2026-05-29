@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Facility;
+use App\Models\SeniorFacilityRouteFailure;
 use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\JsonResponse;
@@ -199,6 +200,11 @@ class GisApiController extends Controller
             return response()->json($cachedRoute);
         }
 
+        $cachedFailure = $this->cachedRouteFailure($validated);
+        if ($cachedFailure) {
+            return response()->json($cachedFailure, 502);
+        }
+
         $apiKey = env('OPENROUTESERVICE_API_KEY');
 
         if (!$apiKey) {
@@ -229,6 +235,7 @@ class GisApiController extends Controller
                     [(float) $validated['origin_lng'], (float) $validated['origin_lat']],
                     [(float) $validated['destination_lng'], (float) $validated['destination_lat']],
                 ],
+                'radiuses' => $this->openRouteServiceRadiuses(),
                 'instructions' => false,
             ]);
         } catch (\Throwable $exception) {
@@ -245,6 +252,7 @@ class GisApiController extends Controller
                 'status' => $response->status(),
                 'message' => $orsMessage,
             ]);
+            $this->storeRouteFailure($validated, $response->status(), $orsMessage);
 
             return response()->json([
                 'message' => 'OpenRouteService route request failed.',
@@ -256,6 +264,8 @@ class GisApiController extends Controller
         $summary = $response->json('routes.0.summary');
 
         if (!is_array($summary) || !isset($summary['distance'])) {
+            $this->storeRouteFailure($validated, 502, 'OpenRouteService returned no usable route.');
+
             return response()->json([
                 'message' => 'OpenRouteService returned no usable route.',
             ], 502);
@@ -272,6 +282,31 @@ class GisApiController extends Controller
         return response()->json($route);
     }
 
+    private function cachedRouteFailure(array $validated): ?array
+    {
+        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+            return null;
+        }
+
+        $failure = SeniorFacilityRouteFailure::query()
+            ->where('senior_citizen_id', $validated['senior_id'])
+            ->where('facility_id', $validated['facility_id'])
+            ->first();
+
+        if (!$failure || !$this->routeCacheCoordinatesMatch($validated, $failure)) {
+            return null;
+        }
+
+        return [
+            'message' => 'OpenRouteService route is unavailable for this senior/service pair.',
+            'provider' => $failure->provider ?: 'openrouteservice',
+            'status' => $failure->status_code,
+            'error' => $failure->error_message,
+            'cached' => true,
+            'unavailable' => true,
+        ];
+    }
+
     private function cachedRouteDistance(array $validated): ?array
     {
         if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
@@ -284,6 +319,10 @@ class GisApiController extends Controller
             ->first();
 
         if (!$route) {
+            return null;
+        }
+
+        if (!$this->routeCacheCoordinatesMatch($validated, $route)) {
             return null;
         }
 
@@ -317,6 +356,57 @@ class GisApiController extends Controller
                 'calculated_at' => now(),
             ]
         );
+
+        SeniorFacilityRouteFailure::query()
+            ->where('senior_citizen_id', $validated['senior_id'])
+            ->where('facility_id', $validated['facility_id'])
+            ->delete();
+    }
+
+    private function storeRouteFailure(array $validated, ?int $statusCode, string $message): void
+    {
+        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+            return;
+        }
+
+        if ($statusCode === 429) {
+            return;
+        }
+
+        SeniorFacilityRouteFailure::query()->updateOrCreate(
+            [
+                'senior_citizen_id' => $validated['senior_id'],
+                'facility_id' => $validated['facility_id'],
+            ],
+            [
+                'origin_latitude' => round((float) $validated['origin_lat'], 7),
+                'origin_longitude' => round((float) $validated['origin_lng'], 7),
+                'destination_latitude' => round((float) $validated['destination_lat'], 7),
+                'destination_longitude' => round((float) $validated['destination_lng'], 7),
+                'provider' => 'openrouteservice',
+                'status_code' => $statusCode,
+                'error_message' => mb_strimwidth($message, 0, 500, '...'),
+                'failed_at' => now(),
+            ]
+        );
+    }
+
+    private function routeCacheCoordinatesMatch(array $validated, object $route): bool
+    {
+        $pairs = [
+            [(float) $validated['origin_lat'], (float) $route->origin_latitude],
+            [(float) $validated['origin_lng'], (float) $route->origin_longitude],
+            [(float) $validated['destination_lat'], (float) $route->destination_latitude],
+            [(float) $validated['destination_lng'], (float) $route->destination_longitude],
+        ];
+
+        foreach ($pairs as [$current, $cached]) {
+            if (abs($current - $cached) > 0.000001) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function openRouteServiceVerifyOption(): bool|string
@@ -336,6 +426,18 @@ class GisApiController extends Controller
         }
 
         return true;
+    }
+
+    private function openRouteServiceRadiuses(): array
+    {
+        $configuredRadius = (int) env('OPENROUTESERVICE_SNAP_RADIUS_METERS', -1);
+        if ($configuredRadius === -1) {
+            return [-1, -1];
+        }
+
+        $radius = max(350, min(5000, $configuredRadius));
+
+        return [$radius, $radius];
     }
 
     private function openRouteServiceErrorMessage(mixed $payload): string
