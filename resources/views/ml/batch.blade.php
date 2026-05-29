@@ -25,6 +25,7 @@
             cacheKey: '',
             batchId: '',
             start() {
+                if (this.running) return;   // guard against double-run (rapid confirm clicks)
                 this.showConfirm = false;
                 this.running = true; this.done = false;
                 this.errMsg = ''; this.resultMsg = '';

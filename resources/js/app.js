@@ -141,3 +141,29 @@ window.OSCA = {
         })
     },
 }
+
+// ── Double-submit guard for plain (non-Livewire) form POSTs ───────────────────
+// Native form submits navigate away, so a slow server lets users double-click
+// archive / restore / delete / export buttons. On submit we disable the submit
+// control(s) and (optionally) swap to a loading label. Livewire forms manage
+// their own state via wire:loading and are skipped. Opt out with data-no-loading.
+document.addEventListener('submit', function (e) {
+    const form = e.target
+    if (!(form instanceof HTMLFormElement)) return
+    if (form.hasAttribute('data-no-loading')) return
+    // Skip Livewire-managed forms (wire:submit / wire:submit.prevent / .live …)
+    const isLivewire = Array.from(form.attributes).some((a) => a.name.startsWith('wire:submit'))
+    if (isLivewire) return
+
+    const controls = form.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])')
+    controls.forEach((btn) => {
+        if (btn.dataset.noLoading !== undefined || btn.disabled) return
+        btn.disabled = true
+        btn.setAttribute('aria-busy', 'true')
+        const label = btn.dataset.loading
+        if (label && btn.tagName === 'BUTTON') {
+            btn.dataset.origHtml = btn.innerHTML
+            btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> ' + label
+        }
+    })
+}, true)

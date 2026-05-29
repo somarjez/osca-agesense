@@ -222,6 +222,11 @@
                 </div>
 
             </div>
+
+            {{-- Decision-support disclaimer (gov-ready wording) --}}
+            <p class="mt-4 pt-3 border-t border-paper-rule dark:border-[#2b3530] text-[11.5px] text-ink-400 dark:text-[#6b7570] leading-relaxed">
+                These are <strong class="font-semibold text-ink-500 dark:text-[#8a958f]">decision-support indicators</strong> showing a possible risk level and profile group — not a clinical diagnosis. Use them alongside professional assessment and OSCA case knowledge.
+            </p>
         </div>
     </div>
     @elseif (!$ml && !$pendingAnalysis)

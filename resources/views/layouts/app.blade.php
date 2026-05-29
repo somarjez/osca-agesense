@@ -42,8 +42,10 @@
                 </div>
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn flex-shrink-0"
+                        type="button"
+                        aria-label="Collapse sidebar"
                         title="Collapse sidebar">
-                    <x-heroicon-o-chevron-left class="w-3.5 h-3.5" />
+                    <x-heroicon-o-chevron-left class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
             </div>
             {{-- Collapsed --}}
@@ -51,8 +53,10 @@
                 <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn"
+                        type="button"
+                        aria-label="Expand sidebar"
                         title="Expand sidebar">
-                    <x-heroicon-o-bars-3 class="w-3.5 h-3.5" />
+                    <x-heroicon-o-bars-3 class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
             </div>
         </div>
@@ -240,16 +244,18 @@
                 {{-- Dark mode toggle --}}
                 <button @click="toggleDark()"
                         class="sidebar-icon-btn flex-shrink-0"
+                        type="button"
+                        :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'"
                         :title="dark ? 'Light mode' : 'Dark mode'">
-                    <x-heroicon-o-sun  class="w-3.5 h-3.5" x-show="dark"  x-cloak />
-                    <x-heroicon-o-moon class="w-3.5 h-3.5" x-show="!dark" />
+                    <x-heroicon-o-sun  class="w-3.5 h-3.5" x-show="dark"  x-cloak aria-hidden="true" />
+                    <x-heroicon-o-moon class="w-3.5 h-3.5" x-show="!dark" aria-hidden="true" />
                 </button>
 
                 {{-- Logout --}}
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="sidebar-icon-btn flex-shrink-0" title="Sign out">
-                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" />
+                    <button type="submit" class="sidebar-icon-btn flex-shrink-0" aria-label="Sign out" title="Sign out" data-loading="Signing out…">
+                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                 </form>
             </div>
@@ -278,6 +284,7 @@
                     <input x-ref="topbarSearch"
                            type="text"
                            name="search"
+                           aria-label="Search seniors by name or OSCA ID"
                            value="{{ request()->routeIs('seniors.*') ? request('search') : '' }}"
                            placeholder="Search seniors by name or OSCA ID…"
                            autocomplete="off" />
