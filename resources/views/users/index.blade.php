@@ -41,8 +41,10 @@
                         };
                         $roleLabel = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'][$role] ?? ucfirst($role);
                         $isSelf = $user->id === auth()->id();
+                        $editBag = "editUser{$user->id}";
+                        $roleOptions = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
                     @endphp
-                    <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors" x-data="{ deleteOpen: false }">
+                    <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors" x-data="{ deleteOpen: false, editOpen: {{ $errors->hasBag($editBag) ? 'true' : 'false' }} }">
                         <td class="td">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-7 h-7 rounded-full bg-forest-200 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-xs flex-shrink-0">
@@ -65,10 +67,69 @@
                         </td>
                         <td class="td text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <a href="{{ route('users.edit', $user) }}"
-                                   class="btn btn-ghost text-[11.5px] px-2.5 py-1.5">
+                                <button type="button" @click="editOpen = true"
+                                        class="btn btn-ghost text-[11.5px] px-2.5 py-1.5">
                                     <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
-                                </a>
+                                </button>
+
+                                {{-- Edit account modal (replaces the standalone edit page) --}}
+                                <x-modal show="editOpen" title="Edit account" max-width="max-w-lg">
+                                    <form method="POST" action="{{ route('users.update', $user) }}" class="space-y-4 text-left">
+                                        @csrf @method('PUT')
+
+                                        <div>
+                                            <label class="eyebrow block mb-1.5">Full Name</label>
+                                            <input type="text" name="name"
+                                                   value="{{ $errors->hasBag($editBag) ? old('name', $user->name) : $user->name }}"
+                                                   class="form-input w-full @error('name', $editBag) border-critical-400 @enderror" required>
+                                            @error('name', $editBag)<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="eyebrow block mb-1.5">Email Address</label>
+                                            <input type="email" name="email"
+                                                   value="{{ $errors->hasBag($editBag) ? old('email', $user->email) : $user->email }}"
+                                                   class="form-input w-full tnum @error('email', $editBag) border-critical-400 @enderror" required>
+                                            @error('email', $editBag)<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="eyebrow block mb-1.5">Role</label>
+                                            <select name="role" class="form-select w-full @error('role', $editBag) border-critical-400 @enderror" required>
+                                                @foreach ($roleOptions as $rk => $rlabel)
+                                                <option value="{{ $rk }}"
+                                                    {{ (($errors->hasBag($editBag) ? old('role', $role) : $role) === $rk) ? 'selected' : '' }}>
+                                                    {{ $rlabel }}
+                                                </option>
+                                                @endforeach
+                                            </select>
+                                            @error('role', $editBag)<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+                                        </div>
+
+                                        <div class="border-t border-paper-rule dark:border-[#2b3530] pt-4">
+                                            <label class="eyebrow block mb-1.5">New Password
+                                                <span class="text-ink-400 dark:text-[#4a5550] normal-case font-normal ml-1">(leave blank to keep current)</span>
+                                            </label>
+                                            <input type="password" name="password" autocomplete="new-password"
+                                                   class="form-input w-full @error('password', $editBag) border-critical-400 @enderror"
+                                                   placeholder="Minimum 8 characters">
+                                            @error('password', $editBag)<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="eyebrow block mb-1.5">Confirm New Password</label>
+                                            <input type="password" name="password_confirmation" autocomplete="new-password"
+                                                   class="form-input w-full" placeholder="Re-enter new password">
+                                        </div>
+
+                                        <div class="flex items-center justify-end gap-3 pt-1">
+                                            <button type="button" class="btn btn-ghost" @click="editOpen = false">Cancel</button>
+                                            <button type="submit" class="btn btn-primary" data-loading="Saving">
+                                                <x-heroicon-o-check class="w-3.5 h-3.5" /> Save changes
+                                            </button>
+                                        </div>
+                                    </form>
+                                </x-modal>
                                 @if (! $isSelf)
                                 <button @click="deleteOpen = true"
                                         class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-critical-700 hover:text-critical-900 hover:bg-critical-50">

@@ -43,16 +43,12 @@ class UserManagementController extends Controller
             ->with('success', "Account for {$user->name} created.");
     }
 
-    public function edit(User $user)
-    {
-        $roles = Role::orderBy('name')->pluck('name');
-        $currentRole = $user->getRoleNames()->first();
-        return view('users.edit', compact('user', 'roles', 'currentRole'));
-    }
-
     public function update(Request $request, User $user)
     {
-        $data = $request->validate([
+        // Editing happens in a per-row modal on the index. Use a user-scoped error
+        // bag so a failed validation re-opens that user's modal with its own errors
+        // instead of leaking messages onto every other row's form.
+        $data = $request->validateWithBag("editUser{$user->id}", [
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
