@@ -29,6 +29,67 @@
         <p class="text-sm text-ink-700 dark:text-[#b0b5b2] mt-1 leading-relaxed">Each senior is visualized as a generalized point within their recorded barangay because available address data only contains barangay information. Points do not represent exact household locations.</p>
     </div>
 
+    @php
+        $geocodeTone = match ($geocodeStatus['status'] ?? 'Pending') {
+            'Completed' => 'text-low-700 bg-low-50 border-low-200',
+            'Needs Update' => 'text-moderate-700 bg-moderate-50 border-moderate-200',
+            default => 'text-high-700 bg-high-50 border-high-200',
+        };
+    @endphp
+    <div class="card card-body">
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    <p class="eyebrow">Bulk Geocode Status</p>
+                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $geocodeTone }}">
+                        {{ $geocodeStatus['status'] }}
+                    </span>
+                </div>
+                @role('admin')
+                <form method="POST" action="{{ route('reports.gis.geocode') }}"
+                      class="shrink-0 sm:ml-auto"
+                      onsubmit="return confirm('Run bulk barangay-level geocoding now? This will not overwrite verified manual/GPS coordinates.');">
+                    @csrf
+                    <button type="submit" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
+                        Run Bulk Geocode
+                    </button>
+                </form>
+                @endrole
+            </div>
+            <div class="border-t border-paper-rule dark:border-[#2b3530]"></div>
+            <p class="text-sm text-ink-700 dark:text-[#b0b5b2] leading-relaxed">
+                Bulk geocoding assigns approximate coordinates inside each senior's barangay so records can be mapped for barangay-level planning. These are not exact home locations.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-4 text-sm">
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Coordinate Mode</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['coordinate_mode'] }}</div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Total Seniors</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['total_seniors']) }}</div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Approximate</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['approximate_coordinates']) }}</div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Verified/Manual</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['verified_coordinates']) }}</div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Missing</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['missing_coordinates']) }}</div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-wide text-ink-400">Last Run</div>
+                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['last_run_at'] ?? 'Not recorded' }}</div>
+            </div>
+        </div>
+    </div>
+
     <div class="card overflow-hidden">
         <div class="card-head">
             <div>

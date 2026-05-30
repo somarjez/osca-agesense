@@ -19,6 +19,8 @@ Route::prefix('reports')->name('reports.')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/risk/export', [ReportController::class, 'exportRisk'])->name('risk.export');
         Route::get('/cluster/export', [ReportController::class, 'exportCluster'])->name('cluster.export');
+        Route::get('/gis/export', [ReportController::class, 'exportGis'])->name('gis.export');
+        Route::post('/gis/geocode', [ReportController::class, 'runGisGeocode'])->name('gis.geocode');
         Route::post('/cluster/snapshot', [ReportController::class, 'snapshotClusters'])->name('cluster.snapshot');
         Route::get('/registry/export', [ReportController::class, 'exportRegistry'])->name('registry.export');
     });

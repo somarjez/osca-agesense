@@ -37,6 +37,16 @@ class Facility extends Model
         return $this->hasMany(SeniorAccessibilityMetric::class, 'nearest_barangay_hall_id');
     }
 
+    public function nearestForHospitalMetrics(): HasMany
+    {
+        return $this->hasMany(SeniorAccessibilityMetric::class, 'nearest_hospital_id');
+    }
+
+    public function nearestForPharmacyMetrics(): HasMany
+    {
+        return $this->hasMany(SeniorAccessibilityMetric::class, 'nearest_pharmacy_id');
+    }
+
     public function nearestForMarketMetrics(): HasMany
     {
         return $this->hasMany(SeniorAccessibilityMetric::class, 'nearest_market_id');

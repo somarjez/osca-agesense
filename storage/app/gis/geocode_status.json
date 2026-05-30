@@ -1,0 +1,10 @@
+{
+    "last_run_at": "2026-05-27T17:01:03+08:00",
+    "checked": 283,
+    "updated": 0,
+    "skipped_verified": 0,
+    "skipped_existing": 283,
+    "skipped_missing_barangay_data": 0,
+    "municipal_fallback": 0,
+    "invalid_barangays": []
+}

@@ -13,6 +13,7 @@ use App\Support\DbHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -26,6 +27,7 @@ class ReportController extends Controller
         $highRiskMapped = SeniorCitizen::active()
             ->whereHas('latestMlResult', fn ($q) => $q->where('overall_risk_level', 'HIGH'))
             ->count();
+        $geocodeStatus = $this->gisGeocodeStatus();
 
         $stats = [
             'mapped_seniors' => $mappedCount,
@@ -34,7 +36,114 @@ class ReportController extends Controller
             'facilities_recorded' => Facility::query()->count(),
         ];
 
-        return view('reports.gis', compact('stats'));
+        return view('reports.gis', compact('stats', 'geocodeStatus'));
+    }
+
+    /**
+     * Admin action to run the privacy-safe barangay-level geocoder.
+     */
+    public function runGisGeocode()
+    {
+        $exitCode = Artisan::call('gis:geocode');
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'Bulk geocode failed. Check the command output in logs or run php artisan gis:geocode manually.');
+        }
+
+        return back()->with('success', 'Bulk geocode completed. Senior map coordinates remain barangay-level approximations only.');
+    }
+
+    private function gisGeocodeStatus(): array
+    {
+        $seniors = SeniorCitizen::active()
+            ->get(['latitude', 'longitude', 'location_source', 'location_accuracy']);
+
+        $total = $seniors->count();
+        $verified = 0;
+        $approximate = 0;
+        $missing = 0;
+
+        foreach ($seniors as $senior) {
+            if (!$this->hasValidGisCoordinates($senior->latitude, $senior->longitude)) {
+                $missing++;
+                continue;
+            }
+
+            if ($this->isVerifiedGisCoordinate($senior->location_source, $senior->location_accuracy)) {
+                $verified++;
+                continue;
+            }
+
+            $approximate++;
+        }
+
+        $lastRunAt = $this->lastGisGeocodeRunAt();
+        $status = 'Pending';
+        if ($total > 0 && $missing === 0) {
+            $status = 'Completed';
+        } elseif ($approximate > 0 || $verified > 0 || $lastRunAt !== null) {
+            $status = 'Needs Update';
+        }
+
+        return [
+            'coordinate_mode' => 'Barangay-level approximate',
+            'total_seniors' => $total,
+            'approximate_coordinates' => $approximate,
+            'verified_coordinates' => $verified,
+            'missing_coordinates' => $missing,
+            'last_run_at' => $lastRunAt,
+            'status' => $status,
+        ];
+    }
+
+    private function lastGisGeocodeRunAt(): ?string
+    {
+        $path = 'gis/geocode_status.json';
+        if (!Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode(Storage::disk('local')->get($path), true);
+        $lastRunAt = $decoded['last_run_at'] ?? null;
+
+        if (!$lastRunAt) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($lastRunAt)->timezone(config('app.timezone'))->format('M j, Y g:i A');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function hasValidGisCoordinates(mixed $latitude, mixed $longitude): bool
+    {
+        if ($latitude === null || $longitude === null || $latitude === '' || $longitude === '') {
+            return false;
+        }
+
+        $lat = filter_var($latitude, FILTER_VALIDATE_FLOAT);
+        $lng = filter_var($longitude, FILTER_VALIDATE_FLOAT);
+
+        return $lat !== false
+            && $lng !== false
+            && $lat >= -90
+            && $lat <= 90
+            && $lng >= -180
+            && $lng <= 180
+            && abs((float) $lat) >= 0.000001
+            && abs((float) $lng) >= 0.000001;
+    }
+
+    private function isVerifiedGisCoordinate(mixed $source, mixed $accuracy): bool
+    {
+        $source = strtolower((string) $source);
+        $accuracy = strtolower((string) $accuracy);
+
+        return in_array($source, ['manual_pin', 'gps_capture'], true)
+            || str_contains($accuracy, 'verified')
+            || str_contains($accuracy, 'manual');
     }
 
     /**
@@ -334,6 +443,90 @@ class ReportController extends Controller
     /**
      * Excel registry export — all active seniors + latest ML result.
      */
+    /**
+     * Privacy-safe GIS accessibility export for authorized OSCA administrators.
+     */
+    public function exportGis(Request $request)
+    {
+        $query = SeniorCitizen::active()
+            ->with(['latestMlResult', 'latestAccessibilityMetric'])
+            ->when($request->filled('barangay') && $request->barangay !== 'all', fn ($q) =>
+                $q->where('barangay', $request->barangay)
+            )
+            ->when($request->filled('risk') && $request->risk !== 'all', fn ($q) =>
+                $q->whereHas('latestMlResult', fn ($ml) =>
+                    $ml->where('overall_risk_level', strtoupper((string) $request->risk))
+                )
+            )
+            ->when($request->filled('cluster') && $request->cluster !== 'all', function ($q) use ($request) {
+                $cluster = (string) $request->cluster;
+                $clusterId = preg_match('/(\d+)/', $cluster, $matches) ? (int) $matches[1] : null;
+
+                $q->whereHas('latestMlResult', function ($ml) use ($cluster, $clusterId) {
+                    $ml->when($clusterId, fn ($sub) => $sub->where('cluster_named_id', $clusterId))
+                        ->when(!$clusterId, fn ($sub) => $sub->where('cluster_name', $cluster));
+                });
+            })
+            ->orderBy('barangay')
+            ->orderBy('osca_id');
+
+        $filename = 'osca_gis_accessibility_' . now()->format('Ymd_His') . '.csv';
+
+        $callback = function () use ($query) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'Anonymized Senior ID',
+                'Barangay',
+                'Latitude',
+                'Longitude',
+                'Location Source',
+                'Location Accuracy',
+                'Nearest Health Center Distance (m)',
+                'Nearest Hospital Distance (m)',
+                'Nearest Market Distance (m)',
+                'Nearest Pharmacy Distance (m)',
+                'Nearest Barangay Hall Distance (m)',
+                'GIS Proximity Score',
+                'Cluster Label',
+                'Risk Indicator',
+            ]);
+
+            $query->chunk(200, function ($seniors) use ($file) {
+                foreach ($seniors as $senior) {
+                    $metric = $senior->latestAccessibilityMetric;
+                    $ml = $senior->latestMlResult;
+                    $score = $metric?->accessibility_score !== null
+                        ? round(((float) $metric->accessibility_score) * 100, 2)
+                        : null;
+
+                    fputcsv($file, [
+                        $senior->osca_id ?: 'SEN-' . str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
+                        $senior->barangay,
+                        $senior->latitude,
+                        $senior->longitude,
+                        $senior->location_source,
+                        $senior->location_accuracy,
+                        $metric?->distance_to_health_center_m,
+                        $metric?->distance_to_hospital_m,
+                        $metric?->distance_to_market_m,
+                        $metric?->distance_to_pharmacy_m,
+                        $metric?->distance_to_barangay_hall_m,
+                        $score,
+                        $ml?->cluster_named_id ? 'Group ' . $ml->cluster_named_id : ($ml?->cluster_name ?? 'Unassigned'),
+                        $ml?->overall_risk_level,
+                    ]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
     public function exportRegistry()
     {
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))

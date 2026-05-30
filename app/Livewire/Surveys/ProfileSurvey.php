@@ -4,6 +4,7 @@ namespace App\Livewire\Surveys;
 
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
 
@@ -47,6 +48,9 @@ class ProfileSurvey extends Component
     public string $ethnicOrigin = '';
 
     public string $bloodType = '';
+    public ?string $latitude = null;
+    public ?string $longitude = null;
+    public bool $locationPinTouched = false;
 
     // ── II. Family Composition ────────────────────────────────────────────────
     public int $numChildren = 0;
@@ -142,6 +146,7 @@ class ProfileSurvey extends Component
         abort_unless(auth()->user()?->hasAnyRole(['admin', 'encoder']), 403);
 
         $this->validateCurrentStep();
+        $this->validateLocationPin();
 
         $data = [
             'first_name' => $this->firstName,
@@ -185,6 +190,23 @@ class ProfileSurvey extends Component
             'consent_method' => $this->consentMethod ?: null,
         ];
 
+        if ($this->hasUsableLocationPin()) {
+            $data['latitude'] = round((float) $this->latitude, 7);
+            $data['longitude'] = round((float) $this->longitude, 7);
+
+            if ($this->locationPinTouched || !$this->senior?->location_source) {
+                $data['location_source'] = 'manual_pin';
+                $data['location_accuracy'] = 'verified/manual';
+                $data['location_verified_at'] = now();
+            }
+        } else {
+            $data['latitude'] = null;
+            $data['longitude'] = null;
+            $data['location_source'] = null;
+            $data['location_accuracy'] = null;
+            $data['location_verified_at'] = null;
+        }
+
         if ($this->senior) {
             $this->senior->update($data);
         } else {
@@ -225,6 +247,14 @@ class ProfileSurvey extends Component
         $this->religion = $s->religion ?? '';
         $this->ethnicOrigin = $s->ethnic_origin ?? '';
         $this->bloodType = $s->blood_type ?? '';
+        if ($this->hasValidCoordinatePair($s->latitude, $s->longitude)) {
+            $this->latitude = (string) $s->latitude;
+            $this->longitude = (string) $s->longitude;
+        } else {
+            $this->latitude = null;
+            $this->longitude = null;
+        }
+        $this->locationPinTouched = false;
         $this->numChildren = $s->num_children;
         $this->numWorkingChildren = $s->num_working_children;
         $this->childFinancialSupport = $s->child_financial_support ?? '';
@@ -264,6 +294,139 @@ class ProfileSurvey extends Component
         }
 
         return $this->checkupSchedule;
+    }
+
+    private function validateLocationPin(): void
+    {
+        $hasLatitude = $this->latitude !== null && $this->latitude !== '';
+        $hasLongitude = $this->longitude !== null && $this->longitude !== '';
+
+        if (!$hasLatitude && !$hasLongitude) {
+            return;
+        }
+
+        $this->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ]);
+
+        if (!$this->hasUsableLocationPin()) {
+            $message = 'Click inside Pagsanjan to set a valid verified location pin.';
+            $this->addError('latitude', $message);
+            $this->addError('longitude', $message);
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'latitude' => $message,
+                'longitude' => $message,
+            ]);
+        }
+
+        if (!$this->pointIsInsidePagsanjan((float) $this->longitude, (float) $this->latitude)) {
+            $message = 'Selected location must be inside the Pagsanjan municipal boundary.';
+            $this->addError('latitude', $message);
+            $this->addError('longitude', $message);
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'latitude' => $message,
+                'longitude' => $message,
+            ]);
+        }
+    }
+
+    private function hasUsableLocationPin(): bool
+    {
+        return $this->hasValidCoordinatePair($this->latitude, $this->longitude);
+    }
+
+    private function hasValidCoordinatePair(mixed $latitude, mixed $longitude): bool
+    {
+        if ($latitude === null || $latitude === '' || $longitude === null || $longitude === '') {
+            return false;
+        }
+
+        $lat = filter_var($latitude, FILTER_VALIDATE_FLOAT);
+        $lng = filter_var($longitude, FILTER_VALIDATE_FLOAT);
+
+        if ($lat === false || $lng === false) {
+            return false;
+        }
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return false;
+        }
+
+        return abs((float) $lat) >= 0.000001 && abs((float) $lng) >= 0.000001;
+    }
+
+    private function pointIsInsidePagsanjan(float $longitude, float $latitude): bool
+    {
+        $path = 'gis/boundaries/pagsanjan_boundary.geojson';
+        if (!Storage::disk('local')->exists($path)) {
+            return true;
+        }
+
+        $geoJson = json_decode(Storage::disk('local')->get($path), true);
+        if (!is_array($geoJson) || !isset($geoJson['features']) || !is_array($geoJson['features'])) {
+            return true;
+        }
+
+        foreach ($geoJson['features'] as $feature) {
+            $geometry = $feature['geometry'] ?? null;
+            $coordinates = $geometry['coordinates'] ?? null;
+
+            if (($geometry['type'] ?? null) === 'Polygon' && $this->pointInPolygon([$longitude, $latitude], $coordinates)) {
+                return true;
+            }
+
+            if (($geometry['type'] ?? null) === 'MultiPolygon' && is_array($coordinates)) {
+                foreach ($coordinates as $polygon) {
+                    if ($this->pointInPolygon([$longitude, $latitude], $polygon)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function pointInPolygon(array $point, mixed $polygonCoordinates): bool
+    {
+        if (!is_array($polygonCoordinates) || !isset($polygonCoordinates[0]) || !is_array($polygonCoordinates[0])) {
+            return false;
+        }
+
+        if (!$this->pointInRing($point, $polygonCoordinates[0])) {
+            return false;
+        }
+
+        foreach (array_slice($polygonCoordinates, 1) as $hole) {
+            if (is_array($hole) && $this->pointInRing($point, $hole)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function pointInRing(array $point, array $ring): bool
+    {
+        $inside = false;
+        $count = count($ring);
+
+        for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
+            $xi = (float) ($ring[$i][0] ?? 0);
+            $yi = (float) ($ring[$i][1] ?? 0);
+            $xj = (float) ($ring[$j][0] ?? 0);
+            $yj = (float) ($ring[$j][1] ?? 0);
+
+            $intersects = (($yi > $point[1]) !== ($yj > $point[1]))
+                && ($point[0] < (($xj - $xi) * ($point[1] - $yi)) / (($yj - $yi) ?: PHP_FLOAT_EPSILON) + $xi);
+
+            if ($intersects) {
+                $inside = !$inside;
+            }
+        }
+
+        return $inside;
     }
 
     private function parseCheckupSchedule(string $raw): array
