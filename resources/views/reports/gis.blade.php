@@ -29,6 +29,7 @@
         <p class="text-sm text-ink-700 dark:text-[#b0b5b2] mt-1 leading-relaxed">Each senior is visualized as a generalized point within their recorded barangay because available address data only contains barangay information. Points do not represent exact household locations.</p>
     </div>
 
+        
     @php
         $geocodeTone = match ($geocodeStatus['status'] ?? 'Pending') {
             'Completed' => 'text-low-700 bg-low-50 border-low-200',
@@ -248,19 +249,21 @@
             label: 'C1',
             name: 'Cluster 1',
             stops: {
-                0.00: '#dbeafe',
-                0.30: '#7dd3fc',
-                0.62: '#0284c7',
-                1.00: '#075985',
+                0.00: '#6ee7b7',
+                0.22: '#22d3ee',
+                0.48: '#3b82f6',
+                0.74: '#1d4ed8',
+                1.00: '#1e3a8a',
             },
         },
         2: {
             label: 'C2',
             name: 'Cluster 2',
             stops: {
-                0.00: '#dcfce7',
-                0.30: '#86efac',
-                0.62: '#16a34a',
+                0.00: '#d9f99d',
+                0.24: '#86efac',
+                0.50: '#22c55e',
+                0.74: '#166534',
                 1.00: '#14532d',
             },
         },
@@ -268,19 +271,21 @@
             label: 'C3',
             name: 'Cluster 3',
             stops: {
-                0.00: '#fef9c3',
-                0.34: '#fde047',
-                0.68: '#f97316',
-                1.00: '#9a3412',
+                0.00: '#fef08a',
+                0.26: '#fbbf24',
+                0.52: '#f97316',
+                0.76: '#dc2626',
+                1.00: '#991b1b',
             },
         },
         4: {
             label: 'C4',
             name: 'Cluster 4',
             stops: {
-                0.00: '#fee2e2',
-                0.34: '#fda4af',
-                0.68: '#ef4444',
+                0.00: '#fef08a',
+                0.24: '#fb923c',
+                0.50: '#ef4444',
+                0.74: '#b91c1c',
                 1.00: '#7f1d1d',
             },
         },
@@ -293,6 +298,8 @@
     ];
     const ACCESSIBILITY_DISTANCE_CAP_METERS = 1500;
     const ROAD_ROUTE_SERVICE_URL = 'https://router.project-osrm.org/route/v1/driving';
+    const TILE_LIGHT_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const TILE_LIGHT_ATTRIBUTION = '&copy; OpenStreetMap contributors';
     const ROUTE_SERVICE_CANDIDATE_LIMIT = 5;
     const ROUTE_SERVICE_RESULT_LIMIT = ROUTE_SERVICE_CANDIDATE_LIMIT;
     const SENIOR_RELEVANT_FACILITY_PRIORITY = [
@@ -1210,7 +1217,7 @@
         }
 
         if (mode === 'cluster-heatmap') {
-            return Math.max(260, Math.min(340, derivedRadius ?? fallbackRadius));
+            return Math.max(420, Math.min(620, derivedRadius ?? fallbackRadius));
         }
 
         return Math.max(160, Math.min(480, derivedRadius ?? fallbackRadius));
@@ -1680,7 +1687,7 @@
         const metersPerPixelY = south.distanceTo(north) / Math.max(height, 1);
         const metersPerPixel = Math.max(0.01, Math.min(metersPerPixelX, metersPerPixelY));
 
-        return Math.max(12, Math.min(96, radiusMeters / metersPerPixel));
+        return Math.max(16, Math.min(220, radiusMeters / metersPerPixel));
     }
 
     function smoothedRasterData(canvas, blurPixels) {
@@ -1772,9 +1779,9 @@
     }
 
     function drawKdeContours(context, densityGrid, width, height, options = {}) {
-        const levels = options.levels ?? [0.12, 0.18, 0.24, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.86, 0.94];
-        const step = 1;
-        const lineWidth = options.lineWidth ?? Math.max(0.6, Math.min(1.0, width / 2200));
+        const levels = options.levels ?? [0.16, 0.27, 0.38, 0.49, 0.60, 0.71, 0.82, 0.93];
+        const step = options.step ?? 1;
+        const baseLineWidth = options.lineWidth ?? Math.max(0.8, Math.min(1.4, 220 / Math.min(width, height)));
         const edgePairs = [
             ['top', 0, 1],
             ['right', 1, 2],
@@ -1784,11 +1791,13 @@
 
         context.save();
         context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
         context.lineCap = 'round';
         context.lineJoin = 'round';
-        context.lineWidth = lineWidth;
 
         levels.forEach((level, levelIndex) => {
+            const levelFrac = levels.length > 1 ? levelIndex / (levels.length - 1) : 0;
+            context.lineWidth = baseLineWidth * (0.70 + levelFrac * 0.60);
             context.beginPath();
 
             for (let y = 0; y < height - step; y += step) {
@@ -1825,10 +1834,10 @@
                 }
             }
 
-            const opacity = 0.15 + (levelIndex * 0.032);
-            context.shadowColor = 'rgba(15,23,42,0.22)';
-            context.shadowBlur = 0.75;
-            context.strokeStyle = `rgba(255,255,255,${Math.min(0.50, opacity)})`;
+            const opacity = 0.30 + levelFrac * 0.45;
+            context.shadowColor = 'rgba(0,0,0,0.55)';
+            context.shadowBlur = 2.0;
+            context.strokeStyle = `rgba(255,255,255,${Math.min(0.75, opacity)})`;
             context.stroke();
         });
 
@@ -1847,9 +1856,9 @@
         const peakRadius = rasterRadiusPixels(bounds, width, height, peakRadiusMeters);
         const pointCoreRadiusMeters = options.point_core_radius_meters ?? Math.max(80, Math.min(130, options.radius_meters * 0.34));
         const pointCoreRadius = rasterRadiusPixels(bounds, width, height, pointCoreRadiusMeters);
-        const smoothingPixels = Math.max(6, Math.min(16, radius * 0.16));
-        const peakSmoothingPixels = Math.max(4, Math.min(10, peakRadius * 0.12));
-        const pointCoreSmoothingPixels = Math.max(3, Math.min(8, pointCoreRadius * 0.10));
+        const smoothingPixels = Math.max(8, Math.min(22, radius * 0.22));
+        const peakSmoothingPixels = Math.max(5, Math.min(14, peakRadius * 0.16));
+        const pointCoreSmoothingPixels = Math.max(4, Math.min(10, pointCoreRadius * 0.12));
         const groupImages = groups.map((group) => {
             const canvas = document.createElement('canvas');
             canvas.width = width;
@@ -1879,11 +1888,13 @@
                 }
 
                 const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-                gradient.addColorStop(0, `rgba(0,0,0,${Math.min(0.72, intensity * 0.66)})`);
-                gradient.addColorStop(0.30, `rgba(0,0,0,${Math.min(0.48, intensity * 0.42)})`);
-                gradient.addColorStop(0.64, `rgba(0,0,0,${Math.min(0.18, intensity * 0.16)})`);
-                gradient.addColorStop(0.88, `rgba(0,0,0,${Math.min(0.04, intensity * 0.035)})`);
-                gradient.addColorStop(1, 'rgba(0,0,0,0)');
+                gradient.addColorStop(0,    `rgba(0,0,0,${Math.min(0.80, intensity * 0.74)})`);
+                gradient.addColorStop(0.14, `rgba(0,0,0,${Math.min(0.68, intensity * 0.62)})`);
+                gradient.addColorStop(0.30, `rgba(0,0,0,${Math.min(0.46, intensity * 0.42)})`);
+                gradient.addColorStop(0.50, `rgba(0,0,0,${Math.min(0.20, intensity * 0.18)})`);
+                gradient.addColorStop(0.70, `rgba(0,0,0,${Math.min(0.07, intensity * 0.06)})`);
+                gradient.addColorStop(0.88, `rgba(0,0,0,${Math.min(0.016, intensity * 0.013)})`);
+                gradient.addColorStop(1,    'rgba(0,0,0,0)');
 
                 context.fillStyle = gradient;
                 context.beginPath();
@@ -1984,7 +1995,8 @@
             let totalDensity = 0;
             let winningDensity = 0;
             let winningAlphaDensity = 0;
-            let contourPeakDensity = 0;
+            let winningBroadDensity = 0;
+            let winningPeakDensity = 0;
             let winningGroup = null;
 
             groupImages.forEach((group) => {
@@ -2003,43 +2015,44 @@
                     const pointCoreScaleMax = Math.max(34, Math.min(colorScaleMax, group.strongestPointCoreDensity * 0.78 || 34));
                     pointCoreDensity = clampUnit(pointCoreAlpha / pointCoreScaleMax);
                 }
+                // localScore uses boosted narrow kernels to extend each cluster's
+                // dominance radius so minority patches win pixels far enough from
+                // their seniors to show the full outer gradient arc.
                 const localScore = Math.max(
                     density,
-                    peakDensity * (options.peakSupportBoost ?? 1.16),
-                    pointCoreDensity * (options.pointCoreBoost ?? 1.42)
-                );
-                contourPeakDensity = Math.max(
-                    contourPeakDensity,
-                    density,
-                    peakDensity * 1.08,
-                    pointCoreDensity * 1.26
+                    peakDensity * (options.peakSupportBoost ?? 2.8),
+                    pointCoreDensity * (options.pointCoreBoost ?? 3.8)
                 );
                 totalDensity += density;
                 if (localScore > winningDensity) {
                     winningDensity = localScore;
                     winningAlphaDensity = Math.max(density, peakDensity * 0.9, pointCoreDensity * 0.96);
                     winningGroup = group;
+                    // Track unbooted densities separately for color and contour use.
+                    winningBroadDensity = density;
+                    winningPeakDensity = peakDensity;
                 }
             });
 
             const alphaIntensity = clampUnit(Math.max(winningAlphaDensity, totalDensity * 0.58));
-            const peakVisible = winningAlphaDensity >= (options.peakMinVisibleDensity ?? 0.09);
-            if (!winningGroup || (winningDensity < minVisibleDensity && !peakVisible) || alphaIntensity < (peakVisible ? options.peakMinVisibleDensity ?? 0.09 : minVisibleDensity)) {
+            const peakVisible = winningAlphaDensity >= (options.peakMinVisibleDensity ?? 0.02);
+            if (!winningGroup || (winningDensity < minVisibleDensity && !peakVisible) || alphaIntensity < (peakVisible ? options.peakMinVisibleDensity ?? 0.02 : minVisibleDensity)) {
                 continue;
             }
 
-            // Contours use the same scalar field that drives the final visible
-            // heatmap: broad KDE density plus local peak/core support. This
-            // gives minority patches their own topographic rings without
-            // changing the winning cluster color for any pixel.
-            contourDensityGrid[pixel] = Math.max(
-                alphaIntensity,
-                clampUnit(winningDensity),
-                clampUnit(contourPeakDensity)
-            );
+            // Contour scalar field: medium-kernel peak density creates local maxima
+            // at each cluster's concentration centers (including minority patches),
+            // while a small broad contribution provides the regional backdrop.
+            // After smoothing this produces topographic rings for both dominant
+            // zones and isolated minority patches inside other clusters.
+            contourDensityGrid[pixel] = clampUnit(Math.max(winningBroadDensity * 0.3, winningPeakDensity));
 
+            // Color uses unbooted broad+peak density so the gradient arc spans
+            // yellow → orange → red (or green → cyan → blue) from edge to center
+            // even for minority patches whose localScore was heavily boosted to win.
+            const colorDensity = clampUnit(Math.max(winningBroadDensity, winningPeakDensity * 0.72));
             const [red, green, blue] = colorForGradientValue(
-                Math.pow(winningDensity, options.dominancePower ?? 0.76),
+                Math.pow(colorDensity, options.dominancePower ?? 0.76),
                 winningGroup.ramp
             );
 
@@ -2059,15 +2072,21 @@
         }
 
         outputContext.putImageData(outputImage, 0, 0);
+
+        // Run marching squares directly on the full-resolution contour density
+        // grid (step=4 skips every 4px for speed while keeping contour shape).
+        // Drawing at native canvas resolution avoids the scale-up blurring that
+        // would make lines invisible when blitting from a small intermediate canvas.
         const contourSourceGrid = smoothScalarGrid(
             contourDensityGrid,
             width,
             height,
-            options.contourSmoothPasses ?? 1
+            options.contourSmoothPasses ?? 4
         );
         drawKdeContours(outputContext, contourSourceGrid, width, height, {
+            step: options.contourStep ?? 4,
             levels: options.contourLevels,
-            lineWidth: options.contourLineWidth,
+            lineWidth: options.contourLineWidth ?? 0.9,
         });
 
         return createSmoothHeatmapImageOverlay(outputCanvas.toDataURL('image/png'), bounds, {
@@ -3304,14 +3323,14 @@
             colorScaleMax,
             adaptiveScale: options.adaptiveScale ?? selectedClusterMode,
             enablePeakSupport: options.enablePeakSupport ?? !selectedClusterMode,
-            minVisibleDensity: options.minVisibleDensity ?? (selectedClusterMode ? 0.10 : 0.16),
-            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.09,
-            peakSupportBoost: options.peakSupportBoost ?? 1.16,
-            pointCoreBoost: options.pointCoreBoost ?? 1.42,
-            outputMaxAlpha: options.outputMaxAlpha ?? (selectedClusterMode ? 170 : 154),
-            outputAlphaBase: options.outputAlphaBase ?? (selectedClusterMode ? 220 : 194),
-            outputAlphaPower: options.outputAlphaPower ?? (selectedClusterMode ? 0.98 : 1.02),
-            dominancePower: options.dominancePower ?? (selectedClusterMode ? 0.72 : 0.78),
+            minVisibleDensity: options.minVisibleDensity ?? (selectedClusterMode ? 0.03 : 0.05),
+            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.02,
+            peakSupportBoost: options.peakSupportBoost ?? 2.8,
+            pointCoreBoost: options.pointCoreBoost ?? 3.8,
+            outputMaxAlpha: options.outputMaxAlpha ?? (selectedClusterMode ? 228 : 218),
+            outputAlphaBase: options.outputAlphaBase ?? (selectedClusterMode ? 255 : 252),
+            outputAlphaPower: options.outputAlphaPower ?? (selectedClusterMode ? 0.28 : 0.32),
+            dominancePower: options.dominancePower ?? (selectedClusterMode ? 0.78 : 0.75),
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
 
@@ -3647,8 +3666,32 @@
         return points.length ? window.L.latLngBounds(points) : null;
     }
 
+    function isDarkMode() {
+        return document.documentElement.classList.contains('dark');
+    }
+
     function maskFillColor() {
-        return document.documentElement.classList.contains('dark') ? '#131917' : '#ffffff';
+        return isDarkMode() ? '#131917' : '#ffffff';
+    }
+
+    function createTileLayer() {
+        return window.L.tileLayer(TILE_LIGHT_URL, {
+            maxZoom: 19,
+            attribution: TILE_LIGHT_ATTRIBUTION,
+            updateWhenIdle: true,
+            keepBuffer: 4,
+        });
+    }
+
+    function applyThemeToMap(map) {
+        const maskPane = map.getPane('gis-mask-pane');
+        if (maskPane) {
+            maskPane.style.backgroundColor = maskFillColor();
+        }
+
+        if (latestMunicipalBoundaryGeoJson || latestBarangayBoundaryGeoJson) {
+            renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
+        }
     }
 
     function buildMunicipalMaskLayer(featureCollection) {
@@ -4054,12 +4097,7 @@
         applyMapBoundaryConstraints(map);
         applyMapZoomConstraints(map);
 
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors',
-            updateWhenIdle: true,
-            keepBuffer: 4,
-        }).addTo(map);
+        createTileLayer().addTo(map);
 
         map.on('zoomend moveend', () => refreshHeatmapLayersForZoom(map));
         map.on('click', (event) => {
@@ -4109,6 +4147,14 @@
         const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
         syncMapSize(map);
     });
+
+    const themeObserver = new MutationObserver(() => {
+        const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+        if (map) {
+            applyThemeToMap(map);
+        }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 })();
 </script>
 @endpush
