@@ -29,7 +29,6 @@
         <p class="text-sm text-ink-700 dark:text-[#b0b5b2] mt-1 leading-relaxed">Each senior is visualized as a generalized point within their recorded barangay because available address data only contains barangay information. Points do not represent exact household locations.</p>
     </div>
 
-        
     @php
         $geocodeTone = match ($geocodeStatus['status'] ?? 'Pending') {
             'Completed' => 'text-low-700 bg-low-50 border-low-200',

@@ -29,6 +29,7 @@ class GisApiController extends Controller
                 'last_name',
                 'name_extension',
                 'barangay',
+                'date_of_birth',
                 'latitude',
                 'longitude',
                 'location_source',
@@ -81,6 +82,9 @@ class GisApiController extends Controller
                     'coordinates' => [$point[1], $point[0]],
                 ],
                 'properties' => [
+                    'anonymized_id' => $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
+                    'age' => $senior->age,
+                    'composite_risk' => $latestResult?->composite_risk,
                     'senior_id' => $senior->id,
                     'senior_name' => $senior->full_name,
                     'osca_id' => $senior->osca_id,
