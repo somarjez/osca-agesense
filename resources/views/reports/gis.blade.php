@@ -226,15 +226,64 @@
         1.00: '#ef4444',
     };
     const CLUSTER_HEATMAP_GRADIENT = {
-        0.15: '#0ea5e9',
-        0.40: '#10b981',
-        0.65: '#f59e0b',
-        1.00: '#f43f5e',
+        0.00: '#dbeafe',
+        0.10: '#93c5fd',
+        0.20: '#38bdf8',
+        0.32: '#22d3ee',
+        0.44: '#34d399',
+        0.56: '#a3e635',
+        0.68: '#fde047',
+        0.80: '#fb923c',
+        0.91: '#ef4444',
+        1.00: '#991b1b',
     };
     const CLUSTER_HEATMAP_COLORS = {
-        'Group 1': '#10b981',
-        'Group 2': '#8b5cf6',
-        'Group 3': '#f43f5e',
+        'Group 1': '#0ea5e9',
+        'Group 2': '#10b981',
+        'Group 3': '#f59e0b',
+        'Group 4': '#ef4444',
+    };
+    const CLUSTER_HEATMAP_RAMPS = {
+        1: {
+            label: 'C1',
+            name: 'Cluster 1',
+            stops: {
+                0.00: '#dbeafe',
+                0.30: '#7dd3fc',
+                0.62: '#0284c7',
+                1.00: '#075985',
+            },
+        },
+        2: {
+            label: 'C2',
+            name: 'Cluster 2',
+            stops: {
+                0.00: '#dcfce7',
+                0.30: '#86efac',
+                0.62: '#16a34a',
+                1.00: '#14532d',
+            },
+        },
+        3: {
+            label: 'C3',
+            name: 'Cluster 3',
+            stops: {
+                0.00: '#fef9c3',
+                0.34: '#fde047',
+                0.68: '#f97316',
+                1.00: '#9a3412',
+            },
+        },
+        4: {
+            label: 'C4',
+            name: 'Cluster 4',
+            stops: {
+                0.00: '#fee2e2',
+                0.34: '#fda4af',
+                0.68: '#ef4444',
+                1.00: '#7f1d1d',
+            },
+        },
     };
     const BARANGAY_COLORS = [
         '#14b8a6', '#f97316', '#8b5cf6', '#22c55e',
@@ -280,15 +329,77 @@
         if (normalized.includes('group 1')) return CLUSTER_HEATMAP_COLORS['Group 1'];
         if (normalized.includes('group 2')) return CLUSTER_HEATMAP_COLORS['Group 2'];
         if (normalized.includes('group 3')) return CLUSTER_HEATMAP_COLORS['Group 3'];
+        if (normalized.includes('group 4')) return CLUSTER_HEATMAP_COLORS['Group 4'];
         return '#64748b';
     }
 
     function clusterLabel(feature) {
-        return String(feature?.properties?.cluster || feature?.properties?.cluster_label || 'Unassigned');
+        return String(feature?.properties?.health_group || feature?.properties?.cluster || feature?.properties?.cluster_label || 'Unassigned');
     }
 
     function clusterColorForLabel(label) {
         return CLUSTER_HEATMAP_COLORS[label] ?? clusterColor(label);
+    }
+
+    function clusterNumber(label, feature = null) {
+        const text = String(label || '').trim();
+        const namedMatch = text.match(/(?:group|cluster|c)\s*([1-4])\b/i);
+        if (namedMatch) {
+            return Number(namedMatch[1]);
+        }
+
+        if (/^[1-4]$/.test(text)) {
+            return Number(text);
+        }
+
+        const props = feature?.properties || {};
+        const namedId = numericValue(props.health_group_id ?? props.cluster_named_id);
+        if (namedId !== null && namedId >= 1 && namedId <= 4) {
+            return namedId;
+        }
+
+        const rawId = numericValue(props.cluster_id);
+        if (rawId !== null && rawId >= 0 && rawId <= 3) {
+            return rawId + 1;
+        }
+
+        if (rawId !== null && rawId >= 1 && rawId <= 4) {
+            return rawId;
+        }
+
+        return null;
+    }
+
+    function clusterRampForLabel(label, feature = null) {
+        return CLUSTER_HEATMAP_RAMPS[clusterNumber(label, feature)] ?? null;
+    }
+
+    function clusterGradientForLabel(label, feature = null) {
+        return clusterRampForLabel(label, feature)?.stops ?? CLUSTER_HEATMAP_GRADIENT;
+    }
+
+    function clusterLegendLabel(label) {
+        const cluster = clusterRampForLabel(label);
+        return cluster ? `${cluster.label} higher intensity within selected cluster` : 'Higher intensity within selected cluster';
+    }
+
+    function featureClusterNumber(feature) {
+        return clusterNumber(clusterLabel(feature), feature);
+    }
+
+    function featureMatchesSelectedCluster(feature, selectedCluster) {
+        if (selectedCluster === 'all') {
+            return true;
+        }
+
+        const props = feature.properties || {};
+        const label = String(props.health_group || props.cluster || props.cluster_label || '');
+        if (label === selectedCluster) {
+            return true;
+        }
+
+        const selectedNumber = clusterNumber(selectedCluster);
+        return selectedNumber !== null && featureClusterNumber(feature) === selectedNumber;
     }
 
     function riskWeight(level) {
@@ -306,6 +417,7 @@
 
     function clusterWeight(cluster) {
         const normalized = (cluster || '').toLowerCase();
+        if (normalized.includes('group 4')) return 1.0;
         if (normalized.includes('group 3')) return 1.0;
         if (normalized.includes('group 2')) return 0.75;
         if (normalized.includes('group 1')) return 0.55;
@@ -327,6 +439,7 @@
 
     function clusterTier(cluster) {
         const normalized = (cluster || '').toLowerCase();
+        if (normalized.includes('group 4')) return 4;
         if (normalized.includes('group 3')) return 3;
         if (normalized.includes('group 2')) return 2;
         if (normalized.includes('group 1')) return 1;
@@ -443,14 +556,31 @@
         };
         const heatmapLabel = heatmapLabels[mode];
         const gradient = 'linear-gradient(90deg,#22c55e 0%,#facc15 48%,#fb923c 76%,#ef4444 100%)';
+        const clusterGradient = gradientCss(CLUSTER_HEATMAP_GRADIENT);
 
         if (heatmapLabel) {
             if (mode === 'cluster-heatmap') {
+                const clusterLegend = Object.values(CLUSTER_HEATMAP_RAMPS).map((ramp) => `
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${ramp.label}
+                    </span>
+                `).join('');
+                const selectedCluster = selectedClusterGroup();
+                const intensityLabel = selectedCluster === 'all'
+                    ? 'Higher local cluster density'
+                    : clusterLegendLabel(selectedCluster);
+
                 legendEl.innerHTML = `
                     <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${CLUSTER_HEATMAP_COLORS['Group 1']};"></span>Group 1</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${CLUSTER_HEATMAP_COLORS['Group 2']};"></span>Group 2</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${CLUSTER_HEATMAP_COLORS['Group 3']};"></span>Group 3</span>
+                    <span class="inline-flex items-center gap-2 min-w-[320px]">
+                        <span>${selectedCluster === 'all' ? 'Lower local cluster density' : 'Lower intensity within selected cluster'}</span>
+                        <span class="h-3 w-40 rounded-full inline-block border border-white/70" style="background:${clusterGradient};"></span>
+                        <span>${intensityLabel}</span>
+                    </span>
+                    ${clusterLegend}
+                    <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
+                        ? 'All Groups view shows one continuous KDE heatmap surface. Each color represents the locally strongest health group contribution. Contour lines represent equal KDE density levels; minority health group patches may appear inside larger dominant areas when local density is present. Markers show the actual senior health group.'
+                        : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                     ${boundaryLegend}
                 `;
@@ -1068,7 +1198,7 @@
     function heatmapRadiusMeters(features, mode) {
         const spacingRadius = nearestNeighborDistanceMeters(features);
         const boundaryRadius = boundaryRadiusMeters();
-        const fallbackRadius = mode === 'density-heatmap' ? 360 : 260;
+        const fallbackRadius = mode === 'density-heatmap' ? 360 : (mode === 'cluster-heatmap' ? 300 : 260);
         const derivedRadius = median([spacingRadius ? spacingRadius * 1.35 : null, boundaryRadius, fallbackRadius]);
 
         if (mode === 'density-heatmap') {
@@ -1080,16 +1210,30 @@
         }
 
         if (mode === 'cluster-heatmap') {
-            return Math.max(110, Math.min(320, derivedRadius ?? fallbackRadius));
+            return Math.max(260, Math.min(340, derivedRadius ?? fallbackRadius));
         }
 
         return Math.max(160, Math.min(480, derivedRadius ?? fallbackRadius));
     }
 
-    function heatmapPixelOptions(map, features, mode) {
-        const meters = heatmapRadiusMeters(features, mode);
+    function heatmapPixelOptions(map, features, mode, options = {}) {
+        const meters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : heatmapRadiusMeters(features, mode);
         const reference = heatmapReferenceLatLng(map, features);
+
         const rawRadius = metersToPixelsAtLatLng(map, reference, meters);
+
+        if (mode === 'cluster-heatmap') {
+            const radius = Math.round(Math.max(10, Math.min(46, rawRadius)));
+
+            return {
+                radius,
+                blur: Math.round(Math.max(8, Math.min(28, radius * 0.58))),
+                radius_meters: Math.round(meters),
+            };
+        }
+
         // Keep the browser KDE surface concentrated: nearby points blend, while
         // isolated records stay light and empty areas remain transparent.
         const radius = Math.round(Math.max(24, Math.min(170, rawRadius)));
@@ -1137,12 +1281,23 @@
     }
 
     function gradientStops(mode) {
-        return Object.entries(heatmapGradient(mode))
+        return gradientStopsFromStops(heatmapGradient(mode));
+    }
+
+    function gradientStopsFromStops(stops) {
+        return Object.entries(stops)
             .map(([stop, color]) => ({
                 stop: Number(stop),
                 color: hexToRgb(color),
             }))
             .sort((a, b) => a.stop - b.stop);
+    }
+
+    function gradientCss(stops) {
+        return `linear-gradient(90deg,${Object.entries(stops)
+            .sort(([a], [b]) => Number(a) - Number(b))
+            .map(([stop, color]) => `${color} ${Math.round(Number(stop) * 100)}%`)
+            .join(',')})`;
     }
 
     function colorForGradientValue(value, stops) {
@@ -1162,6 +1317,15 @@
         const ratio = clampUnit((clamped - lower.stop) / range);
 
         return lower.color.map((channel, index) => Math.round(channel + ((upper.color[index] - channel) * ratio)));
+    }
+
+    function canvasPixelInsideBoundary(map, x, y, boundaryGeoJson) {
+        if (!hasBoundaryFeatures(boundaryGeoJson)) {
+            return true;
+        }
+
+        const latlng = map.containerPointToLatLng([x, y]);
+        return pointInsideBoundary([latlng.lng, latlng.lat], boundaryGeoJson);
     }
 
     function createCanvasKdeLayer(points, options) {
@@ -1277,13 +1441,26 @@
                         continue;
                     }
 
-                    const normalized = clampUnit(alpha / 255);
+                    const colorScaleMax = Math.max(this._options.colorScaleMax || 255, 1);
+                    const normalized = clampUnit(alpha / colorScaleMax);
+                    const minVisibleDensity = this._options.minVisibleDensity ?? 0;
+                    if (normalized < minVisibleDensity) {
+                        continue;
+                    }
+
+                    if (!canvasPixelInsideBoundary(this._map, (index / 4) % width, Math.floor((index / 4) / width), this._options.clipBoundary)) {
+                        continue;
+                    }
+
                     const [red, green, blue] = colorForGradientValue(normalized, this._stops);
 
                     outputImage.data[index] = red;
                     outputImage.data[index + 1] = green;
                     outputImage.data[index + 2] = blue;
-                    outputImage.data[index + 3] = Math.round(Math.min(190, 220 * Math.pow(normalized, 0.94)));
+                    const maxAlpha = Math.max(1, Math.min(255, this._options.outputMaxAlpha || 190));
+                    const alphaBase = Math.max(1, Math.min(255, this._options.outputAlphaBase || 220));
+                    const alphaPower = Number.isFinite(this._options.outputAlphaPower) ? this._options.outputAlphaPower : 0.94;
+                    outputImage.data[index + 3] = Math.round(Math.min(maxAlpha, alphaBase * Math.pow(normalized, alphaPower)));
                 }
 
                 outputContext.clearRect(0, 0, width, height);
@@ -1394,10 +1571,10 @@
                 const width = this._canvas.width;
                 const height = this._canvas.height;
                 const radius = this._options.radius;
-                const dominancePower = this._options.dominancePower || 1.7;
+                const dominancePower = this._options.dominancePower || 2.1;
                 const groupImages = this._groups.map((group) => ({
                     label: group.label,
-                    color: hexToRgb(group.color),
+                    ramp: gradientStopsFromStops(group.stops),
                     data: this._densityForGroup(group, width, height, radius),
                 }));
                 const outputContext = this._canvas.getContext('2d');
@@ -1405,40 +1582,43 @@
 
                 for (let index = 0; index < outputImage.data.length; index += 4) {
                     let dominantAlpha = 0;
+                    let dominantGroup = null;
                     let totalAlpha = 0;
-                    let weightedRed = 0;
-                    let weightedGreen = 0;
-                    let weightedBlue = 0;
-                    let totalColorWeight = 0;
 
                     groupImages.forEach((group) => {
                         const alpha = group.data[index + 3];
                         totalAlpha += alpha;
                         if (alpha > dominantAlpha) {
                             dominantAlpha = alpha;
+                            dominantGroup = group;
                         }
-
-                        const colorWeight = Math.pow(clampUnit(alpha / 255), dominancePower);
-                        weightedRed += group.color[0] * colorWeight;
-                        weightedGreen += group.color[1] * colorWeight;
-                        weightedBlue += group.color[2] * colorWeight;
-                        totalColorWeight += colorWeight;
                     });
 
-                    if (dominantAlpha < 3 || totalColorWeight <= 0) {
+                    const colorScaleMax = Math.max(this._options.colorScaleMax || 255, 1);
+                    const normalized = clampUnit(dominantAlpha / colorScaleMax);
+                    const minVisibleDensity = this._options.minVisibleDensity ?? 0.16;
+                    if (!dominantGroup || normalized < minVisibleDensity) {
                         continue;
                     }
 
-                    const normalized = clampUnit(totalAlpha / 255);
+                    if (!canvasPixelInsideBoundary(this._map, (index / 4) % width, Math.floor((index / 4) / width), this._options.clipBoundary)) {
+                        continue;
+                    }
 
-                    // Health group heatmap: colors are assigned per real group, then
-                    // blended only where group density surfaces meet. The exponent
-                    // keeps each group's core true to its assigned color while making
-                    // shared borders transition smoothly like a real heatmap surface.
-                    outputImage.data[index] = Math.round(weightedRed / totalColorWeight);
-                    outputImage.data[index + 1] = Math.round(weightedGreen / totalColorWeight);
-                    outputImage.data[index + 2] = Math.round(weightedBlue / totalColorWeight);
-                    outputImage.data[index + 3] = Math.round(Math.min(205, 225 * Math.pow(normalized, 0.9)));
+                    const [red, green, blue] = colorForGradientValue(Math.pow(normalized, dominancePower), dominantGroup.ramp);
+                    const opacityIntensity = clampUnit(totalAlpha / colorScaleMax);
+
+                    // K=4 cluster raster: each pixel is colored by the dominant
+                    // nearby real senior cluster surface and clipped to Pagsanjan.
+                    // Weak kernel edges are dropped so barangays without senior
+                    // point influence remain transparent instead of being painted.
+                    outputImage.data[index] = red;
+                    outputImage.data[index + 1] = green;
+                    outputImage.data[index + 2] = blue;
+                    outputImage.data[index + 3] = Math.round(Math.min(
+                        this._options.outputMaxAlpha || 150,
+                        (this._options.outputAlphaBase || 185) * Math.pow(opacityIntensity, this._options.outputAlphaPower || 1.05)
+                    ));
                 }
 
                 outputContext.clearRect(0, 0, width, height);
@@ -1447,6 +1627,454 @@
         });
 
         return new ClusterDistributionLayer();
+    }
+
+    function rasterSizeForBounds(bounds) {
+        if (!bounds?.isValid?.()) {
+            return { width: 512, height: 512 };
+        }
+
+        const center = bounds.getCenter();
+        const west = window.L.latLng(center.lat, bounds.getWest());
+        const east = window.L.latLng(center.lat, bounds.getEast());
+        const south = window.L.latLng(bounds.getSouth(), center.lng);
+        const north = window.L.latLng(bounds.getNorth(), center.lng);
+        const widthMeters = Math.max(1, west.distanceTo(east));
+        const heightMeters = Math.max(1, south.distanceTo(north));
+        const pixelRatio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const maxSide = Math.round(1280 * pixelRatio);
+        const minSide = Math.round(720 * pixelRatio);
+
+        if (widthMeters >= heightMeters) {
+            return {
+                width: maxSide,
+                height: Math.max(minSide, Math.round(maxSide * (heightMeters / widthMeters))),
+            };
+        }
+
+        return {
+            width: Math.max(minSide, Math.round(maxSide * (widthMeters / heightMeters))),
+            height: maxSide,
+        };
+    }
+
+    function latLngToRasterPoint(lat, lng, bounds, width, height) {
+        const west = bounds.getWest();
+        const east = bounds.getEast();
+        const south = bounds.getSouth();
+        const north = bounds.getNorth();
+
+        return {
+            x: ((lng - west) / Math.max(east - west, Number.EPSILON)) * width,
+            y: ((north - lat) / Math.max(north - south, Number.EPSILON)) * height,
+        };
+    }
+
+    function rasterRadiusPixels(bounds, width, height, radiusMeters) {
+        const center = bounds.getCenter();
+        const west = window.L.latLng(center.lat, bounds.getWest());
+        const east = window.L.latLng(center.lat, bounds.getEast());
+        const south = window.L.latLng(bounds.getSouth(), center.lng);
+        const north = window.L.latLng(bounds.getNorth(), center.lng);
+        const metersPerPixelX = west.distanceTo(east) / Math.max(width, 1);
+        const metersPerPixelY = south.distanceTo(north) / Math.max(height, 1);
+        const metersPerPixel = Math.max(0.01, Math.min(metersPerPixelX, metersPerPixelY));
+
+        return Math.max(12, Math.min(96, radiusMeters / metersPerPixel));
+    }
+
+    function smoothedRasterData(canvas, blurPixels) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const blur = Math.max(0, Math.round(blurPixels || 0));
+
+        if (blur <= 0) {
+            return canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        }
+
+        const blurred = document.createElement('canvas');
+        blurred.width = width;
+        blurred.height = height;
+        const context = blurred.getContext('2d');
+
+        context.clearRect(0, 0, width, height);
+        context.filter = `blur(${blur}px)`;
+        context.drawImage(canvas, 0, 0);
+        context.filter = 'none';
+
+        return context.getImageData(0, 0, width, height).data;
+    }
+
+    function smoothScalarGrid(grid, width, height, passes = 1) {
+        let source = grid;
+
+        for (let pass = 0; pass < passes; pass += 1) {
+            const target = new Float32Array(width * height);
+
+            for (let y = 0; y < height; y += 1) {
+                for (let x = 0; x < width; x += 1) {
+                    let total = 0;
+                    let weight = 0;
+
+                    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+                        const sampleY = y + offsetY;
+                        if (sampleY < 0 || sampleY >= height) {
+                            continue;
+                        }
+
+                        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+                            const sampleX = x + offsetX;
+                            if (sampleX < 0 || sampleX >= width) {
+                                continue;
+                            }
+
+                            const sampleWeight = offsetX === 0 && offsetY === 0 ? 4 : (offsetX === 0 || offsetY === 0 ? 2 : 1);
+                            total += source[(sampleY * width) + sampleX] * sampleWeight;
+                            weight += sampleWeight;
+                        }
+                    }
+
+                    target[(y * width) + x] = weight > 0 ? total / weight : source[(y * width) + x];
+                }
+            }
+
+            source = target;
+        }
+
+        return source;
+    }
+
+    function contourEdgePoint(edge, x, y, step, values, level) {
+        const interpolate = (start, end) => {
+            const range = end - start;
+            if (Math.abs(range) < Number.EPSILON) {
+                return 0.5;
+            }
+
+            return Math.max(0, Math.min(1, (level - start) / range));
+        };
+
+        const [topLeft, topRight, bottomRight, bottomLeft] = values;
+
+        if (edge === 'top') {
+            return [x + (interpolate(topLeft, topRight) * step), y];
+        }
+
+        if (edge === 'right') {
+            return [x + step, y + (interpolate(topRight, bottomRight) * step)];
+        }
+
+        if (edge === 'bottom') {
+            return [x + (interpolate(bottomLeft, bottomRight) * step), y + step];
+        }
+
+        return [x, y + (interpolate(topLeft, bottomLeft) * step)];
+    }
+
+    function drawKdeContours(context, densityGrid, width, height, options = {}) {
+        const levels = options.levels ?? [0.12, 0.18, 0.24, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.86, 0.94];
+        const step = 1;
+        const lineWidth = options.lineWidth ?? Math.max(0.6, Math.min(1.0, width / 2200));
+        const edgePairs = [
+            ['top', 0, 1],
+            ['right', 1, 2],
+            ['bottom', 3, 2],
+            ['left', 0, 3],
+        ];
+
+        context.save();
+        context.imageSmoothingEnabled = true;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = lineWidth;
+
+        levels.forEach((level, levelIndex) => {
+            context.beginPath();
+
+            for (let y = 0; y < height - step; y += step) {
+                for (let x = 0; x < width - step; x += step) {
+                    const topLeft = densityGrid[y * width + x];
+                    const topRight = densityGrid[y * width + x + step];
+                    const bottomRight = densityGrid[(y + step) * width + x + step];
+                    const bottomLeft = densityGrid[(y + step) * width + x];
+                    const values = [topLeft, topRight, bottomRight, bottomLeft];
+                    const above = values.filter((value) => value >= level).length;
+
+                    if (above === 0 || above === 4) {
+                        continue;
+                    }
+
+                    const points = [];
+                    edgePairs.forEach(([edge, startIndex, endIndex]) => {
+                        const start = values[startIndex];
+                        const end = values[endIndex];
+                        if ((start < level && end >= level) || (start >= level && end < level)) {
+                            points.push(contourEdgePoint(edge, x, y, step, values, level));
+                        }
+                    });
+
+                    if (points.length === 2) {
+                        context.moveTo(points[0][0], points[0][1]);
+                        context.lineTo(points[1][0], points[1][1]);
+                    } else if (points.length === 4) {
+                        context.moveTo(points[0][0], points[0][1]);
+                        context.lineTo(points[1][0], points[1][1]);
+                        context.moveTo(points[2][0], points[2][1]);
+                        context.lineTo(points[3][0], points[3][1]);
+                    }
+                }
+            }
+
+            const opacity = 0.15 + (levelIndex * 0.032);
+            context.shadowColor = 'rgba(15,23,42,0.22)';
+            context.shadowBlur = 0.75;
+            context.strokeStyle = `rgba(255,255,255,${Math.min(0.50, opacity)})`;
+            context.stroke();
+        });
+
+        context.restore();
+    }
+
+    function createClusterDistributionRasterLayer(groups, options) {
+        const bounds = options.bounds;
+        if (!bounds?.isValid?.()) {
+            return null;
+        }
+
+        const { width, height } = rasterSizeForBounds(bounds);
+        const radius = rasterRadiusPixels(bounds, width, height, options.radius_meters);
+        const peakRadiusMeters = options.peak_radius_meters ?? Math.max(80, Math.min(140, options.radius_meters * 0.38));
+        const peakRadius = rasterRadiusPixels(bounds, width, height, peakRadiusMeters);
+        const pointCoreRadiusMeters = options.point_core_radius_meters ?? Math.max(80, Math.min(130, options.radius_meters * 0.34));
+        const pointCoreRadius = rasterRadiusPixels(bounds, width, height, pointCoreRadiusMeters);
+        const smoothingPixels = Math.max(6, Math.min(16, radius * 0.16));
+        const peakSmoothingPixels = Math.max(4, Math.min(10, peakRadius * 0.12));
+        const pointCoreSmoothingPixels = Math.max(3, Math.min(8, pointCoreRadius * 0.10));
+        const groupImages = groups.map((group) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            context.globalCompositeOperation = 'lighter';
+            const peakCanvas = document.createElement('canvas');
+            peakCanvas.width = width;
+            peakCanvas.height = height;
+            const peakContext = peakCanvas.getContext('2d');
+            peakContext.globalCompositeOperation = 'lighter';
+            const pointCoreCanvas = document.createElement('canvas');
+            pointCoreCanvas.width = width;
+            pointCoreCanvas.height = height;
+            const pointCoreContext = pointCoreCanvas.getContext('2d');
+            pointCoreContext.globalCompositeOperation = 'source-over';
+
+            group.points.forEach(([lat, lng, weight]) => {
+                const point = latLngToRasterPoint(lat, lng, bounds, width, height);
+                if (point.x < -radius || point.y < -radius || point.x > width + radius || point.y > height + radius) {
+                    return;
+                }
+
+                const intensity = clampUnit(Number(weight) || 0);
+                if (intensity <= 0) {
+                    return;
+                }
+
+                const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                gradient.addColorStop(0, `rgba(0,0,0,${Math.min(0.72, intensity * 0.66)})`);
+                gradient.addColorStop(0.30, `rgba(0,0,0,${Math.min(0.48, intensity * 0.42)})`);
+                gradient.addColorStop(0.64, `rgba(0,0,0,${Math.min(0.18, intensity * 0.16)})`);
+                gradient.addColorStop(0.88, `rgba(0,0,0,${Math.min(0.04, intensity * 0.035)})`);
+                gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+                context.fillStyle = gradient;
+                context.beginPath();
+                context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                context.fill();
+
+                if (options.enablePeakSupport !== false) {
+                    const peakGradient = peakContext.createRadialGradient(point.x, point.y, 0, point.x, point.y, peakRadius);
+                    peakGradient.addColorStop(0, `rgba(0,0,0,${Math.min(0.68, intensity * 0.62)})`);
+                    peakGradient.addColorStop(0.34, `rgba(0,0,0,${Math.min(0.34, intensity * 0.30)})`);
+                    peakGradient.addColorStop(0.72, `rgba(0,0,0,${Math.min(0.08, intensity * 0.07)})`);
+                    peakGradient.addColorStop(0.90, `rgba(0,0,0,${Math.min(0.018, intensity * 0.016)})`);
+                    peakGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+                    peakContext.fillStyle = peakGradient;
+                    peakContext.beginPath();
+                    peakContext.arc(point.x, point.y, peakRadius, 0, Math.PI * 2);
+                    peakContext.fill();
+
+                    const coreGradient = pointCoreContext.createRadialGradient(point.x, point.y, 0, point.x, point.y, pointCoreRadius);
+                    coreGradient.addColorStop(0, `rgba(0,0,0,${Math.min(0.74, Math.max(0.58, intensity * 0.70))})`);
+                    coreGradient.addColorStop(0.28, `rgba(0,0,0,${Math.min(0.42, Math.max(0.30, intensity * 0.38))})`);
+                    coreGradient.addColorStop(0.62, `rgba(0,0,0,${Math.min(0.11, Math.max(0.07, intensity * 0.10))})`);
+                    coreGradient.addColorStop(0.88, `rgba(0,0,0,${Math.min(0.025, Math.max(0.012, intensity * 0.020))})`);
+                    coreGradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+                    pointCoreContext.fillStyle = coreGradient;
+                    pointCoreContext.beginPath();
+                    pointCoreContext.arc(point.x, point.y, pointCoreRadius, 0, Math.PI * 2);
+                    pointCoreContext.fill();
+                }
+            });
+
+            const data = smoothedRasterData(canvas, smoothingPixels);
+            const peakData = options.enablePeakSupport === false
+                ? null
+                : smoothedRasterData(peakCanvas, peakSmoothingPixels);
+            const pointCoreData = options.enablePeakSupport === false
+                ? null
+                : smoothedRasterData(pointCoreCanvas, pointCoreSmoothingPixels);
+            let strongestDensity = 0;
+            for (let index = 3; index < data.length; index += 4) {
+                strongestDensity = Math.max(strongestDensity, data[index]);
+            }
+            let strongestPeakDensity = 0;
+            if (peakData) {
+                for (let index = 3; index < peakData.length; index += 4) {
+                    strongestPeakDensity = Math.max(strongestPeakDensity, peakData[index]);
+                }
+            }
+            let strongestPointCoreDensity = 0;
+            if (pointCoreData) {
+                for (let index = 3; index < pointCoreData.length; index += 4) {
+                    strongestPointCoreDensity = Math.max(strongestPointCoreDensity, pointCoreData[index]);
+                }
+            }
+
+            return {
+                label: group.label,
+                ramp: gradientStopsFromStops(group.stops),
+                data,
+                peakData,
+                pointCoreData,
+                strongestDensity,
+                strongestPeakDensity,
+                strongestPointCoreDensity,
+            };
+        });
+
+        const outputCanvas = document.createElement('canvas');
+        outputCanvas.width = width;
+        outputCanvas.height = height;
+        const outputContext = outputCanvas.getContext('2d');
+        const outputImage = outputContext.createImageData(width, height);
+        const contourDensityGrid = new Float32Array(width * height);
+        let strongestDensity = 0;
+        groupImages.forEach((group) => {
+            for (let index = 3; index < group.data.length; index += 4) {
+                strongestDensity = Math.max(strongestDensity, group.data[index]);
+            }
+        });
+        const colorScaleMax = options.adaptiveScale
+            ? Math.max(42, Math.min(options.colorScaleMax || 255, strongestDensity * 0.82 || 42))
+            : Math.max(72, Math.min(options.colorScaleMax || 255, strongestDensity * 1.05 || 72));
+        const minVisibleDensity = options.minVisibleDensity ?? 0.22;
+
+        for (let index = 0; index < outputImage.data.length; index += 4) {
+            const pixel = index / 4;
+            const x = pixel % width;
+            const y = Math.floor(pixel / width);
+            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
+            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
+
+            if (!pointInsideBoundary([lng, lat], options.clipBoundary)) {
+                continue;
+            }
+
+            let totalDensity = 0;
+            let winningDensity = 0;
+            let winningAlphaDensity = 0;
+            let contourPeakDensity = 0;
+            let winningGroup = null;
+
+            groupImages.forEach((group) => {
+                const alpha = group.data[index + 3];
+                const groupScaleMax = Math.max(42, Math.min(colorScaleMax, group.strongestDensity * 0.88 || 42));
+                const density = clampUnit(alpha / groupScaleMax);
+                let peakDensity = 0;
+                if (group.peakData) {
+                    const peakAlpha = group.peakData[index + 3];
+                    const peakScaleMax = Math.max(34, Math.min(colorScaleMax, group.strongestPeakDensity * 0.84 || 34));
+                    peakDensity = clampUnit(peakAlpha / peakScaleMax);
+                }
+                let pointCoreDensity = 0;
+                if (group.pointCoreData) {
+                    const pointCoreAlpha = group.pointCoreData[index + 3];
+                    const pointCoreScaleMax = Math.max(34, Math.min(colorScaleMax, group.strongestPointCoreDensity * 0.78 || 34));
+                    pointCoreDensity = clampUnit(pointCoreAlpha / pointCoreScaleMax);
+                }
+                const localScore = Math.max(
+                    density,
+                    peakDensity * (options.peakSupportBoost ?? 1.16),
+                    pointCoreDensity * (options.pointCoreBoost ?? 1.42)
+                );
+                contourPeakDensity = Math.max(
+                    contourPeakDensity,
+                    density,
+                    peakDensity * 1.08,
+                    pointCoreDensity * 1.26
+                );
+                totalDensity += density;
+                if (localScore > winningDensity) {
+                    winningDensity = localScore;
+                    winningAlphaDensity = Math.max(density, peakDensity * 0.9, pointCoreDensity * 0.96);
+                    winningGroup = group;
+                }
+            });
+
+            const alphaIntensity = clampUnit(Math.max(winningAlphaDensity, totalDensity * 0.58));
+            const peakVisible = winningAlphaDensity >= (options.peakMinVisibleDensity ?? 0.09);
+            if (!winningGroup || (winningDensity < minVisibleDensity && !peakVisible) || alphaIntensity < (peakVisible ? options.peakMinVisibleDensity ?? 0.09 : minVisibleDensity)) {
+                continue;
+            }
+
+            // Contours use the same scalar field that drives the final visible
+            // heatmap: broad KDE density plus local peak/core support. This
+            // gives minority patches their own topographic rings without
+            // changing the winning cluster color for any pixel.
+            contourDensityGrid[pixel] = Math.max(
+                alphaIntensity,
+                clampUnit(winningDensity),
+                clampUnit(contourPeakDensity)
+            );
+
+            const [red, green, blue] = colorForGradientValue(
+                Math.pow(winningDensity, options.dominancePower ?? 0.76),
+                winningGroup.ramp
+            );
+
+            // Geographic raster: the KDE is generated in municipal-coordinate
+            // space, clipped to Pagsanjan, and weak edge influence is discarded.
+            // The final image is a single canvas: per-cluster KDE surfaces are
+            // compared internally, then the locally strongest group writes its
+            // own fixed color. This keeps minority peaks visible without
+            // stacking transparent color overlays into muddy mixed colors.
+            outputImage.data[index] = red;
+            outputImage.data[index + 1] = green;
+            outputImage.data[index + 2] = blue;
+            outputImage.data[index + 3] = Math.round(Math.min(
+                options.outputMaxAlpha ?? 150,
+                (options.outputAlphaBase ?? 188) * Math.pow(alphaIntensity, options.outputAlphaPower ?? 1.08)
+            ));
+        }
+
+        outputContext.putImageData(outputImage, 0, 0);
+        const contourSourceGrid = smoothScalarGrid(
+            contourDensityGrid,
+            width,
+            height,
+            options.contourSmoothPasses ?? 1
+        );
+        drawKdeContours(outputContext, contourSourceGrid, width, height, {
+            levels: options.contourLevels,
+            lineWidth: options.contourLineWidth,
+        });
+
+        return createSmoothHeatmapImageOverlay(outputCanvas.toDataURL('image/png'), bounds, {
+            pane: 'gis-heat-pane',
+            opacity: 1,
+            interactive: false,
+        });
     }
 
     function heatmapGradient(mode) {
@@ -1475,12 +2103,40 @@
         };
     }
 
+    function heatmapColorScaleMax(points, mode) {
+        if (mode === 'cluster-heatmap') {
+            return Math.max(210, Math.min(255, 190 + (Math.log2(points.length + 1) * 8)));
+        }
+
+        return 255;
+    }
+
+    function heatmapRenderOptions(mode) {
+        if (mode === 'cluster-heatmap') {
+            return {
+                outputMaxAlpha: 132,
+                outputAlphaBase: 168,
+                outputAlphaPower: 1.08,
+                minVisibleDensity: 0.22,
+            };
+        }
+
+        return {
+            outputMaxAlpha: 190,
+            outputAlphaBase: 220,
+            outputAlphaPower: 0.94,
+            minVisibleDensity: 0,
+        };
+    }
+
     function buildHeatmapLayer(map, features, mode, options = {}) {
         const points = heatmapPoints(features, mode);
 
         const gradient = options.gradient ?? heatmapGradient(mode);
-        const pixelOptions = heatmapPixelOptions(map, features, mode);
+        const pixelOptions = heatmapPixelOptions(map, features, mode, options);
         const maxIntensity = heatmapNormalization(points, pixelOptions.radius, mode);
+        const colorScaleMax = options.colorScaleMax ?? heatmapColorScaleMax(points, mode);
+        const renderOptions = heatmapRenderOptions(mode);
 
         // KDE-style note: this is a browser-rendered, privacy-safe density surface.
         // The custom canvas layer draws smooth radial kernels around existing senior GIS points;
@@ -1489,6 +2145,7 @@
         return {
             points,
             radiusMeters: pixelOptions.radius_meters,
+            colorScaleMax,
             layer: createCanvasKdeLayer(points, {
                 pane: 'gis-heat-pane',
                 mode,
@@ -1497,6 +2154,12 @@
                 maxZoom: map?.getZoom?.() ?? 17,
                 minOpacity: 0.22,
                 max: maxIntensity,
+                colorScaleMax,
+                outputMaxAlpha: options.outputMaxAlpha ?? renderOptions.outputMaxAlpha,
+                outputAlphaBase: options.outputAlphaBase ?? renderOptions.outputAlphaBase,
+                outputAlphaPower: options.outputAlphaPower ?? renderOptions.outputAlphaPower,
+                minVisibleDensity: options.minVisibleDensity ?? renderOptions.minVisibleDensity,
+                clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
                 gradient,
             }),
         };
@@ -1618,9 +2281,12 @@
         const durationText = options.duration !== null && options.duration !== undefined
             ? `, ~${formatRouteDuration(options.duration)}`
             : '';
+        const providerText = options.provider
+            ? ` via ${String(options.provider).toUpperCase()}`
+            : '';
         const distanceLabel = options.route ? ' route' : '';
         const distanceText = distance !== null
-            ? ` - ${formatServiceDistance(distance)}${distanceLabel}${durationText}`
+            ? ` - ${formatServiceDistance(distance)}${distanceLabel}${durationText}${providerText}`
             : '';
 
         return `${label} (${type}${barangay})${distanceText}`;
@@ -1884,6 +2550,7 @@
                     ...candidate,
                     routeDistance: route.distance,
                     routeDuration: route.duration,
+                    routeProvider: route.provider,
                 };
             } catch (error) {
                 return null;
@@ -1901,6 +2568,7 @@
             .map((item) => serviceLabel(item.facility, item.routeDistance, {
                 route: true,
                 duration: item.routeDuration,
+                provider: item.routeProvider,
             }));
     }
 
@@ -2212,6 +2880,7 @@
                     ...candidate,
                     routeDistance: route.distance,
                     routeDuration: route.duration,
+                    routeProvider: route.provider,
                 };
             } catch (error) {
                 item = null;
@@ -2228,6 +2897,7 @@
                 routeItem.textContent = serviceLabel(item.facility, item.routeDistance, {
                     route: true,
                     duration: item.routeDuration,
+                    provider: item.routeProvider,
                 });
             } else if (routeItem) {
                 routeItem.textContent = `${serviceBaseLabel(candidate.facility)} - route unavailable`;
@@ -2257,6 +2927,7 @@
             .map((item) => serviceLabel(item.facility, item.routeDistance, {
                 route: true,
                 duration: item.routeDuration,
+                provider: item.routeProvider,
             })));
     }
 
@@ -2558,10 +3229,10 @@
             const selectedCluster = selectedClusterGroup();
             return features.filter((feature) => {
                 const props = feature.properties || {};
-                const clusterLabel = String(props.cluster || props.cluster_label || '');
+                const clusterLabel = String(props.health_group || props.cluster || props.cluster_label || '');
 
                 return clusterLabel.toLowerCase() !== 'unassigned'
-                    && (selectedCluster === 'all' || clusterLabel === selectedCluster);
+                    && featureMatchesSelectedCluster(feature, selectedCluster);
             });
         }
 
@@ -2589,43 +3260,122 @@
         return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
     }
 
-    function buildClusterDistributionHeatmapLayer(map, features) {
+    function buildClusterDistributionHeatmapLayer(map, features, options = {}) {
         const clusterGroups = groupFeaturesByCluster(features);
         const clusterFeatures = clusterGroups.flatMap(([, groupFeatures]) => groupFeatures);
-        const pixelOptions = heatmapPixelOptions(map, clusterFeatures, 'cluster-heatmap');
+        const selectedClusterMode = selectedClusterGroup() !== 'all' && clusterGroups.length === 1;
+        const radiusMeters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : heatmapRadiusMeters(clusterFeatures, 'cluster-heatmap');
+        const bounds = primaryBoundaryBounds();
         const groups = clusterGroups
             .map(([label, groupFeatures]) => ({
                 label,
-                color: clusterColorForLabel(label),
+                stops: clusterGradientForLabel(label, groupFeatures[0]),
                 points: heatmapPoints(groupFeatures, 'cluster-heatmap'),
             }))
             .filter((group) => group.points.length > 0);
+        const colorScaleMax = options.colorScaleMax ?? heatmapColorScaleMax(
+            groups.flatMap((group) => group.points),
+            'cluster-heatmap'
+        );
 
         if (!groups.length) {
             return {
                 layer: null,
                 points: { length: 0 },
                 groups: [],
-                radiusMeters: pixelOptions.radius_meters,
+                radiusMeters: Math.round(radiusMeters),
+                colorScaleMax,
             };
         }
 
+        // Renders K=4 health groups as separate real senior-point density
+        // surfaces, then colors each pixel by the dominant nearby cluster.
+        // The layer is clipped to the municipal GeoJSON and ignores weak
+        // kernel edges, preventing color in areas without senior data influence.
+        const heatmapLayer = createClusterDistributionRasterLayer(groups, {
+            bounds,
+            radius_meters: radiusMeters,
+            peak_radius_meters: options.peakRadiusMeters ?? Math.max(80, Math.min(140, radiusMeters * 0.38)),
+            point_core_radius_meters: options.pointCoreRadiusMeters ?? Math.max(80, Math.min(130, radiusMeters * 0.34)),
+            colorScaleMax,
+            adaptiveScale: options.adaptiveScale ?? selectedClusterMode,
+            enablePeakSupport: options.enablePeakSupport ?? !selectedClusterMode,
+            minVisibleDensity: options.minVisibleDensity ?? (selectedClusterMode ? 0.10 : 0.16),
+            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.09,
+            peakSupportBoost: options.peakSupportBoost ?? 1.16,
+            pointCoreBoost: options.pointCoreBoost ?? 1.42,
+            outputMaxAlpha: options.outputMaxAlpha ?? (selectedClusterMode ? 170 : 154),
+            outputAlphaBase: options.outputAlphaBase ?? (selectedClusterMode ? 220 : 194),
+            outputAlphaPower: options.outputAlphaPower ?? (selectedClusterMode ? 0.98 : 1.02),
+            dominancePower: options.dominancePower ?? (selectedClusterMode ? 0.72 : 0.78),
+            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+        });
+
         return {
             points: { length: groups.reduce((total, group) => total + group.points.length, 0) },
-            groups: groups.map((group) => group.label),
-            radiusMeters: pixelOptions.radius_meters,
-            layer: createClusterDistributionKdeLayer(groups, {
-                radius: Math.max(18, Math.round(pixelOptions.radius * 0.78)),
-                radius_meters: pixelOptions.radius_meters,
-                dominancePower: 1.7,
-            }),
+            groups: clusterGroups.map(([label]) => label),
+            radiusMeters: Math.round(radiusMeters),
+            peakRadiusMeters: !selectedClusterMode ? Math.round(options.peakRadiusMeters ?? Math.max(80, Math.min(140, radiusMeters * 0.38))) : null,
+            pointCoreRadiusMeters: !selectedClusterMode ? Math.round(options.pointCoreRadiusMeters ?? Math.max(80, Math.min(130, radiusMeters * 0.34))) : null,
+            colorScaleMax,
+            layer: heatmapLayer,
         };
     }
 
-    function setActiveHeatmapContext(map, mode, features) {
+    function createSmoothHeatmapImageOverlay(dataUrl, bounds, options = {}) {
+        const overlay = window.L.imageOverlay(dataUrl, bounds, {
+            ...options,
+            className: [options.className, 'gis-kde-raster'].filter(Boolean).join(' '),
+        });
+        const smoothImage = () => {
+            const image = overlay.getElement?.();
+            if (!image) {
+                return;
+            }
+
+            image.style.imageRendering = 'auto';
+            image.style.msInterpolationMode = 'bicubic';
+            image.style.willChange = 'transform, opacity';
+        };
+
+        overlay.on('add load', smoothImage);
+
+        return overlay;
+    }
+
+    function buildClusterIdentityHaloLayer(features) {
+        return window.L.geoJSON({
+            type: 'FeatureCollection',
+            features,
+        }, {
+            pointToLayer(feature, latlng) {
+                const color = clusterColorForLabel(clusterLabel(feature));
+
+                return window.L.circleMarker(latlng, {
+                    pane: 'gis-senior-pane',
+                    radius: 3.5,
+                    color: '#ffffff',
+                    weight: 1,
+                    opacity: 0.82,
+                    fillColor: color,
+                    fillOpacity: 0.68,
+                    interactive: true,
+                });
+            },
+            onEachFeature(feature, layer) {
+                attachSeniorPopup(layer, feature);
+            },
+        });
+    }
+
+    function setActiveHeatmapContext(map, mode, features, options = {}) {
         map._gisActiveHeatmap = {
             mode,
             features: [...features],
+            radiusMeters: options.radiusMeters,
+            colorScaleMax: options.colorScaleMax,
         };
     }
 
@@ -2635,31 +3385,33 @@
             return;
         }
 
-        const layers = ensureLayerRegistry(map);
-        layers.heatmap.clearLayers();
-
-        if (context.mode === 'cluster-heatmap' && selectedClusterGroup() === 'all') {
-            const result = buildClusterDistributionHeatmapLayer(map, context.features);
-            if (result.layer && result.points.length) {
-                layers.heatmap.addLayer(result.layer);
-                context.radiusMeters = result.radiusMeters;
-            }
+        if (context.mode === 'cluster-heatmap') {
             return;
         }
 
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode);
+        const layers = ensureLayerRegistry(map);
+        layers.heatmap.clearLayers();
+
+        const refreshOptions = {
+            radiusMeters: context.radiusMeters,
+            colorScaleMax: context.colorScaleMax,
+        };
+
+        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode, refreshOptions);
 
         if (points.length && heatLayer) {
             layers.heatmap.addLayer(heatLayer);
-            context.radiusMeters = radiusMeters;
+            context.radiusMeters = context.radiusMeters ?? radiusMeters;
         }
     }
 
-    function setKdeOverlayContext(map, mode, features) {
+    function setKdeOverlayContext(map, mode, features, options = {}) {
         map._gisKdeOverlayContexts = map._gisKdeOverlayContexts || {};
         map._gisKdeOverlayContexts[mode] = {
             mode,
             features: [...features],
+            radiusMeters: options.radiusMeters,
+            colorScaleMax: options.colorScaleMax,
         };
     }
 
@@ -2672,30 +3424,16 @@
         layerGroup.clearLayers();
 
         if (mode === 'cluster-heatmap') {
-            if (selectedClusterGroup() === 'all') {
-                const result = buildClusterDistributionHeatmapLayer(map, features);
-                if (!result.layer || !result.points.length) return null;
+            const result = buildClusterDistributionHeatmapLayer(map, features);
+            if (!result.layer || !result.points.length) return null;
 
-                layerGroup.addLayer(result.layer);
-                setKdeOverlayContext(map, mode, features);
-
-                return result;
-            }
-
-            const heatmapFeatures = heatmapFeaturesForMode(features, mode);
-            const selectedColor = clusterColorForLabel(selectedClusterGroup());
-            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, heatmapFeatures, mode, {
-                gradient: singleColorGradient(selectedColor),
+            layerGroup.addLayer(result.layer);
+            setKdeOverlayContext(map, mode, features, {
+                radiusMeters: result.radiusMeters,
+                colorScaleMax: result.colorScaleMax,
             });
 
-            if (!points.length || !heatLayer) {
-                return null;
-            }
-
-            layerGroup.addLayer(heatLayer);
-            setKdeOverlayContext(map, mode, heatmapFeatures);
-
-            return { points, radiusMeters, groups: [selectedClusterGroup()] };
+            return result;
         }
 
         const heatmapFeatures = heatmapFeaturesForMode(features, mode);
@@ -2729,22 +3467,22 @@
             const layerGroup = kdeLayerForMode(map, context.mode);
             if (!layerGroup) return;
 
-            layerGroup.clearLayers();
-
-            if (context.mode === 'cluster-heatmap' && selectedClusterGroup() === 'all') {
-                const result = buildClusterDistributionHeatmapLayer(map, context.features);
-                if (result.layer && result.points.length) {
-                    layerGroup.addLayer(result.layer);
-                    context.radiusMeters = result.radiusMeters;
-                }
+            if (context.mode === 'cluster-heatmap') {
                 return;
             }
 
-            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode);
+            layerGroup.clearLayers();
+
+            const refreshOptions = {
+                radiusMeters: context.radiusMeters,
+                colorScaleMax: context.colorScaleMax,
+            };
+
+            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode, refreshOptions);
 
             if (points.length && heatLayer) {
                 layerGroup.addLayer(heatLayer);
-                context.radiusMeters = radiusMeters;
+                context.radiusMeters = context.radiusMeters ?? radiusMeters;
             }
         });
     }
@@ -2795,16 +3533,17 @@
             }
 
             layerGroup.addLayer(result.layer);
-            setActiveHeatmapContext(map, 'cluster-heatmap', features);
+            ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+            setActiveHeatmapContext(map, 'cluster-heatmap', features, {
+                radiusMeters: result.radiusMeters,
+                colorScaleMax: result.colorScaleMax,
+            });
             focusMapOnActiveLayer(map, clusterFeatures);
-            setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s). Each pixel uses the strongest nearby group color, so nearby groups remain distinct.`, 'success');
+            setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s), rendered as a continuous KDE density heatmap (${result.radiusMeters}m radius).`, 'success');
             return;
         }
 
-        const clusterColorValue = CLUSTER_HEATMAP_COLORS[selectedCluster] ?? clusterColor(selectedCluster);
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, clusterFeatures, 'cluster-heatmap', {
-            gradient: singleColorGradient(clusterColorValue),
-        });
+        const result = buildClusterDistributionHeatmapLayer(map, features);
 
         if (!window.L.Layer) {
             focusMapOnActiveLayer(map, features);
@@ -2812,16 +3551,20 @@
             return;
         }
 
-        if (!points.length || !heatLayer) {
+        if (!result.layer || !result.points.length) {
             focusMapOnActiveLayer(map, features);
             setStatus('No senior records had health group cluster values for the selected filters.', 'neutral');
             return;
         }
 
-        ensureLayerRegistry(map).heatmap.addLayer(heatLayer);
-        setActiveHeatmapContext(map, 'cluster-heatmap', clusterFeatures);
+        ensureLayerRegistry(map).heatmap.addLayer(result.layer);
+        ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+        setActiveHeatmapContext(map, 'cluster-heatmap', clusterFeatures, {
+            radiusMeters: result.radiusMeters,
+            colorScaleMax: result.colorScaleMax,
+        });
         focusMapOnActiveLayer(map, clusterFeatures);
-        setStatus(`Health Group Cluster Distribution shows ${points.length} senior GIS point(s) in ${selectedCluster}. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).`, 'success');
+        setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) in ${selectedCluster}, rendered as a clipped geographic KDE raster (${result.radiusMeters}m radius).`, 'success');
     }
 
     function toggleGisLayer(map, mode, features) {

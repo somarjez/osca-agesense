@@ -166,7 +166,7 @@ class CacheGisRouteDistances extends Command
                             'destination_longitude' => round($destination['lng'], 7),
                             'route_distance_m' => round($route['distance'], 2),
                             'route_duration_s' => isset($route['duration']) ? round($route['duration'], 2) : null,
-                            'provider' => 'openrouteservice',
+                            'provider' => $route['provider'] ?? 'openrouteservice',
                             'calculated_at' => now(),
                         ]
                     );
@@ -298,15 +298,45 @@ class CacheGisRouteDistances extends Command
 
     private function openRouteServiceRoute(string $apiKey, array $origin, array $destination, bool|string $verify): array
     {
+        try {
+            return $this->openRouteServiceRouteOnly($apiKey, $origin, $destination, $verify);
+        } catch (\Throwable $exception) {
+            if (!$this->shouldFallbackToOsrm($exception)) {
+                throw $exception;
+            }
+
+            try {
+                $route = $this->osrmRoute($origin, $destination);
+                $this->warn('OpenRouteService unavailable; cached route using OSRM fallback.');
+
+                return $route;
+            } catch (\Throwable $fallbackException) {
+                throw new \RuntimeException(
+                    $exception->getMessage() . ' OSRM fallback also failed: ' . $fallbackException->getMessage(),
+                    (int) $exception->getCode(),
+                    $exception
+                );
+            }
+        }
+    }
+
+    private function openRouteServiceRouteOnly(string $apiKey, array $origin, array $destination, bool|string $verify): array
+    {
+        $baseUrl = rtrim((string) config('services.openrouteservice.base_url', 'https://api.heigit.org'), '/');
+
         $response = Http::withHeaders([
             'Authorization' => $apiKey,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ])
             ->withOptions(['verify' => $verify])
-            ->connectTimeout(5)
-            ->timeout(12)
-            ->post('https://api.openrouteservice.org/v2/directions/driving-car/json', [
+            ->connectTimeout((int) config('services.openrouteservice.connect_timeout', 10))
+            ->timeout((int) config('services.openrouteservice.timeout', 30))
+            ->retry(
+                (int) config('services.openrouteservice.retry_times', 1),
+                (int) config('services.openrouteservice.retry_sleep_ms', 1000)
+            )
+            ->post("{$baseUrl}/v2/directions/driving-car/json", [
                 'coordinates' => [
                     [$origin['lng'], $origin['lat']],
                     [$destination['lng'], $destination['lat']],
@@ -330,7 +360,53 @@ class CacheGisRouteDistances extends Command
         return [
             'distance' => (float) $summary['distance'],
             'duration' => isset($summary['duration']) ? (float) $summary['duration'] : null,
+            'provider' => 'openrouteservice',
         ];
+    }
+
+    private function osrmRoute(array $origin, array $destination): array
+    {
+        $baseUrl = rtrim((string) config('services.osrm.base_url', 'https://router.project-osrm.org'), '/');
+        $coordinates = implode(';', [
+            $origin['lng'] . ',' . $origin['lat'],
+            $destination['lng'] . ',' . $destination['lat'],
+        ]);
+        $verify = $this->openRouteServiceVerifyOption();
+
+        $response = Http::acceptJson()
+            ->withOptions(['verify' => $verify])
+            ->connectTimeout((int) config('services.osrm.connect_timeout', 10))
+            ->timeout((int) config('services.osrm.timeout', 30))
+            ->get("{$baseUrl}/route/v1/driving/{$coordinates}", [
+                'overview' => 'false',
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('OSRM failed with HTTP ' . $response->status() . '.');
+        }
+
+        $route = $response->json('routes.0');
+        if (!is_array($route) || !isset($route['distance'])) {
+            throw new \RuntimeException('OSRM returned no usable route.');
+        }
+
+        return [
+            'distance' => (float) $route['distance'],
+            'duration' => isset($route['duration']) ? (float) $route['duration'] : null,
+            'provider' => 'osrm',
+        ];
+    }
+
+    private function shouldFallbackToOsrm(\Throwable $exception): bool
+    {
+        $code = (int) $exception->getCode();
+        $message = strtolower($exception->getMessage());
+
+        return ($code >= 500 && $code <= 599)
+            || str_contains($message, 'curl error')
+            || str_contains($message, 'operation timed out')
+            || str_contains($message, 'connection')
+            || str_contains($message, 'could not resolve host');
     }
 
     private function openRouteServiceVerifyOption(): bool|string

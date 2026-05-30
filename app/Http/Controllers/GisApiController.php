@@ -95,9 +95,12 @@ class GisApiController extends Controller
                     'cluster_id' => $clusterId,
                     'cluster_label' => $cluster,
                     'cluster' => $cluster,
+                    'health_group_id' => $clusterId,
+                    'health_group' => $cluster,
                     'gis_proximity_score' => $accessibilityScorePercent,
                     'accessibility_score' => $accessibilityScore,
                     'accessibility_status' => $this->accessibilityStatus($accessibilityScorePercent),
+                    'coordinate_mode' => $locationStatus,
                     'location_source' => $locationStatus === 'generalized'
                         ? 'generalized_barangay_point'
                         : ($senior->location_source ?: $locationStatus),
@@ -227,10 +230,18 @@ class GisApiController extends Controller
             'Authorization' => $apiKey,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        ])->withOptions(['verify' => $verify])->connectTimeout(5)->timeout(12);
+        ])
+            ->withOptions(['verify' => $verify])
+            ->connectTimeout((int) config('services.openrouteservice.connect_timeout', 3))
+            ->timeout((int) config('services.openrouteservice.timeout', 5))
+            ->retry(
+                (int) config('services.openrouteservice.retry_times', 0),
+                (int) config('services.openrouteservice.retry_sleep_ms', 500)
+            );
 
         try {
-            $response = $http->post('https://api.openrouteservice.org/v2/directions/driving-car/json', [
+            $baseUrl = rtrim((string) config('services.openrouteservice.base_url', 'https://api.heigit.org'), '/');
+            $response = $http->post("{$baseUrl}/v2/directions/driving-car/json", [
                 'coordinates' => [
                     [(float) $validated['origin_lng'], (float) $validated['origin_lat']],
                     [(float) $validated['destination_lng'], (float) $validated['destination_lat']],
