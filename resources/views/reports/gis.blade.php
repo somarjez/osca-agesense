@@ -3137,7 +3137,9 @@
 
         if (!map.getPane('gis-mask-pane')) {
             map.createPane('gis-mask-pane');
-            map.getPane('gis-mask-pane').style.zIndex = 590;
+            const maskPane = map.getPane('gis-mask-pane');
+            maskPane.style.zIndex = 590;
+            maskPane.style.backgroundColor = maskFillColor();
         }
 
         if (!map.getPane('gis-risk-pane')) {
@@ -3645,6 +3647,10 @@
         return points.length ? window.L.latLngBounds(points) : null;
     }
 
+    function maskFillColor() {
+        return document.documentElement.classList.contains('dark') ? '#131917' : '#ffffff';
+    }
+
     function buildMunicipalMaskLayer(featureCollection) {
         if (!hasBoundaryFeatures(featureCollection)) {
             return null;
@@ -3694,7 +3700,7 @@
         return window.L.polygon([outerRing, ...holes], {
             pane: 'gis-mask-pane',
             stroke: false,
-            fillColor: '#ffffff',
+            fillColor: maskFillColor(),
             fillOpacity: 1.0,
             interactive: false,
             bubblingMouseEvents: false,
