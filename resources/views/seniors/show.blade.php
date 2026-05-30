@@ -181,7 +181,10 @@
                         <div class="eyebrow mb-2">Overall Risk</div>
                         <x-risk-badge :level="$ml->overall_risk_level" />
                         @if ($ml->priority_flag === 'urgent')
-                            <span class="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">⚠ Urgent</span>
+                            <span class="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">
+                                <x-heroicon-s-exclamation-triangle class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                Urgent
+                            </span>
                         @endif
                     </div>
                     <div>
@@ -585,13 +588,13 @@
 
                 @php
                 $categories = [
-                    'health'     => ['label' => 'Health',     'icon' => '🏥'],
-                    'financial'  => ['label' => 'Financial',  'icon' => '💰'],
-                    'social'     => ['label' => 'Social',     'icon' => '🤝'],
-                    'functional' => ['label' => 'Functional', 'icon' => '🧠'],
-                    'hc_access'  => ['label' => 'HC Access',  'icon' => '🏨'],
-                    'sensory'    => ['label' => 'Sensory',    'icon' => '👁'],
-                    'general'    => ['label' => 'General',    'icon' => '📋'],
+                    'health'     => ['label' => 'Health',     'icon' => 'heroicon-o-heart'],
+                    'financial'  => ['label' => 'Financial',  'icon' => 'heroicon-o-banknotes'],
+                    'social'     => ['label' => 'Social',     'icon' => 'heroicon-o-user-group'],
+                    'functional' => ['label' => 'Functional', 'icon' => 'heroicon-o-bolt'],
+                    'hc_access'  => ['label' => 'HC Access',  'icon' => 'heroicon-o-building-office-2'],
+                    'sensory'    => ['label' => 'Sensory',    'icon' => 'heroicon-o-eye'],
+                    'general'    => ['label' => 'General',    'icon' => 'heroicon-o-clipboard-document-list'],
                 ];
                 $grouped = $ml?->recommendations->groupBy('category') ?? collect();
                 @endphp
@@ -599,7 +602,7 @@
                 @forelse ($grouped as $cat => $recs)
                 @php
                     $hasUrgent = $recs->where('urgency', 'urgent')->isNotEmpty();
-                    $catInfo   = $categories[$cat] ?? ['label' => ucfirst($cat), 'icon' => '•'];
+                    $catInfo   = $categories[$cat] ?? ['label' => ucfirst($cat), 'icon' => 'heroicon-o-tag'];
                 @endphp
                 <div x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }"
                      class="border-b border-paper-rule last:border-b-0">
@@ -607,10 +610,13 @@
                     <button @click="open = !open"
                             class="w-full flex items-center justify-between px-5 py-2.5 text-left bg-paper-2 dark:bg-[#1a201d] hover:bg-forest-50/60 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="flex items-center gap-2">
-                            <span class="text-base leading-none">{{ $catInfo['icon'] }}</span>
+                            <x-dynamic-component :component="$catInfo['icon']" class="w-4 h-4 text-ink-500 flex-shrink-0" aria-hidden="true" />
                             <span class="eyebrow">{{ $catInfo['label'] }}</span>
                             @if ($hasUrgent)
-                                <span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">⚠ urgent</span>
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">
+                                    <x-heroicon-s-exclamation-triangle class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                    Urgent
+                                </span>
                             @endif
                         </div>
                         <div class="flex items-center gap-2">
@@ -700,5 +706,8 @@
 
         </div>
     </div>
+
+    <x-doc-footer :control="'OSCA-PSG-' . now()->format('Y') . '-' . str_pad((string) $senior->id, 5, '0', STR_PAD_LEFT)"
+                  signatory="OSCA Officer / Reviewer" />
 </div>
 @endsection

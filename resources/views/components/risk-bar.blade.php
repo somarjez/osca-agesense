@@ -9,6 +9,6 @@ $fill = $value >= 0.50 ? 'bar-fill-high'
 <div class="flex items-center gap-2">
     <div class="bar flex-1"><div class="bar-fill {{ $fill }}" style="width: {{ $pct }}%"></div></div>
     @if ($showNumber)
-        <span class="font-mono text-[11.5px] font-semibold text-ink-900 tnum w-11 text-right">{{ number_format($value, 3) }}</span>
+        <span class="font-mono text-[11.5px] font-semibold text-ink-900 tnum w-10 text-right">{{ $pct }}%</span>
     @endif
 </div>

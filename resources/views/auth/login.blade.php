@@ -20,39 +20,41 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-paper text-ink-900">
-<div class="min-h-screen grid lg:grid-cols-2">
+<body class="min-h-screen bg-paper text-ink-900 flex flex-col">
+<x-gov-band />
+<div class="flex-1 grid lg:grid-cols-2">
 
-    {{-- ── Editorial left panel ── --}}
-    <aside class="hidden lg:flex flex-col justify-between bg-forest-900 text-forest-100 p-12 relative overflow-hidden">
+    {{-- ── Editorial left panel — institutional navy ── --}}
+    <aside class="hidden lg:flex flex-col justify-between bg-navy-900 text-navy-100 p-12 relative overflow-hidden">
         {{-- Layered depth: dot grid + soft glow + base vignette --}}
         <div class="absolute inset-0 opacity-[0.06]" style="background-image: radial-gradient(circle at 20% 25%, white 1px, transparent 1px); background-size: 26px 26px;"></div>
-        <div class="absolute -top-32 -right-24 w-[26rem] h-[26rem] rounded-full bg-forest-700/40 blur-3xl"></div>
-        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent"></div>
+        <div class="absolute -top-32 -right-24 w-[26rem] h-[26rem] rounded-full bg-navy-700/40 blur-3xl"></div>
+        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent"></div>
 
-        {{-- Brand --}}
+        {{-- Brand / masthead --}}
         <div class="relative reveal">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-forest-700 grid place-items-center font-serif text-lg font-semibold shadow-lg shadow-black/20">A</div>
+            <div class="flex items-center gap-3.5">
+                <x-app-logo :size="44" class="shadow-lg shadow-black/25" />
                 <div>
-                    <div class="font-serif text-xl font-semibold tracking-snug text-paper">AgeSense</div>
-                    <div class="text-[11px] uppercase tracking-[0.12em] text-forest-300 font-medium mt-0.5">OSCA · Pagsanjan, Laguna</div>
+                    <div class="font-serif text-xl font-semibold tracking-snug text-paper leading-none">AgeSense</div>
+                    <div class="text-[10px] uppercase tracking-[0.13em] text-navy-300 font-semibold mt-1.5 leading-none">Office of Senior Citizens Affairs</div>
+                    <div class="text-[11px] text-navy-300/90 mt-1 leading-none">Pagsanjan, Laguna</div>
                 </div>
             </div>
         </div>
 
         {{-- Headline + WHO framework --}}
         <div class="relative max-w-md reveal reveal-2">
-            <div class="text-[10.5px] uppercase tracking-[0.14em] text-forest-300 font-semibold mb-4">UN Decade of Healthy Ageing · 2021–2030</div>
+            <div class="text-[10.5px] uppercase tracking-[0.14em] text-navy-300 font-semibold mb-4">UN Decade of Healthy Ageing · 2021–2030</div>
             <h2 class="font-serif text-[40px] leading-[1.05] font-semibold tracking-snug text-paper text-balance">
                 Profiling and analytics for the seniors of our barangays.
             </h2>
-            <p class="mt-5 text-forest-200 text-[14.5px] leading-relaxed max-w-sm">
+            <p class="mt-5 text-navy-200 text-[14.5px] leading-relaxed max-w-sm">
                 Built on the WHO Healthy Ageing framework, AgeSense finds and prioritises the seniors who need care most.
             </p>
 
-            <div class="mt-7 border-t border-forest-700/70 pt-6 space-y-3">
-                <div class="text-[10.5px] uppercase tracking-[0.13em] text-forest-300 font-semibold">Three assessed domains</div>
+            <div class="mt-7 border-t border-navy-700/70 pt-6 space-y-3">
+                <div class="text-[10.5px] uppercase tracking-[0.13em] text-navy-300 font-semibold">Three assessed domains</div>
                 @foreach ([
                     ['Intrinsic Capacity', 'physical and mental reserve'],
                     ['Environment', 'home, finances, and community'],
@@ -61,25 +63,25 @@
                 <div class="flex items-baseline gap-3">
                     <span class="w-1.5 h-1.5 rounded-full bg-forest-400 flex-shrink-0 translate-y-[-2px]"></span>
                     <span class="text-paper text-[13.5px] font-medium">{{ $domain }}</span>
-                    <span class="text-forest-300 text-[12px] ml-auto whitespace-nowrap">{{ $desc }}</span>
+                    <span class="text-navy-300 text-[12px] ml-auto whitespace-nowrap">{{ $desc }}</span>
                 </div>
                 @endforeach
             </div>
         </div>
 
         {{-- Stat band --}}
-        <div class="relative reveal reveal-3 grid grid-cols-3 max-w-md border-t border-forest-700 pt-6">
+        <div class="relative reveal reveal-3 grid grid-cols-3 max-w-md border-t border-navy-700 pt-6">
             <div class="pr-4">
                 <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">3</div>
-                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">WHO Domains</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1.5">WHO Domains</div>
             </div>
-            <div class="px-4 border-l border-forest-700">
+            <div class="px-4 border-l border-navy-700">
                 <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">K=4</div>
-                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">Health Groups</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1.5">Health Groups</div>
             </div>
-            <div class="pl-4 border-l border-forest-700">
+            <div class="pl-4 border-l border-navy-700">
                 <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">16</div>
-                <div class="text-[10.5px] uppercase tracking-wider text-forest-300 mt-1.5">Barangays</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1.5">Barangays</div>
             </div>
         </div>
     </aside>
@@ -88,8 +90,11 @@
     <main class="flex items-center justify-center px-6 py-12">
         <div class="w-full max-w-sm reveal reveal-2">
             <div class="lg:hidden mb-8 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-forest-800 text-forest-100 grid place-items-center font-serif text-lg font-semibold">A</div>
-                <div class="font-serif text-xl font-semibold">AgeSense</div>
+                <x-app-logo :size="40" />
+                <div>
+                    <div class="font-serif text-xl font-semibold leading-none">AgeSense</div>
+                    <div class="masthead-office mt-1.5">OSCA · Pagsanjan, Laguna</div>
+                </div>
             </div>
 
             <div class="eyebrow text-forest-700">Sign in</div>
@@ -147,10 +152,10 @@
                 </label>
 
                 <button type="submit" id="login-btn"
-                        class="btn btn-primary w-full justify-center gap-2 py-3 text-[14px] shadow-sm">
+                        class="btn btn-primary group w-full justify-center gap-2 py-3 text-[14px] shadow-sm">
                     <span id="login-spinner" class="btn-spinner hidden" aria-hidden="true"></span>
                     <span id="login-btn-label">Sign in to AgeSense</span>
-                    <svg id="login-arrow" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <svg id="login-arrow" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-200 ease-out group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
                     </svg>
                 </button>

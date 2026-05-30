@@ -9,6 +9,7 @@ use App\Models\SeniorCitizen;
 use App\Services\ClusterAnalyticsService;
 use App\Support\DbHelper;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class MainDashboard extends Component
@@ -86,6 +87,16 @@ class MainDashboard extends Component
             ))
             ->count();
 
+        // Average Wellbeing Index (0–100) across the filtered latest results.
+        // wellbeing_score is stored 0–1; higher is better (inverse of risk).
+        $wellbeingAvg = MlResult::whereIn('id', $latestIds)
+            ->when($this->selectedBarangay, fn($q) => $q->whereHas('seniorCitizen',
+                fn($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->when($this->selectedRisk, fn($q) => $q->where('overall_risk_level', strtoupper($this->selectedRisk)))
+            ->avg('wellbeing_score');
+        $wellbeingIndex = $wellbeingAvg !== null ? max(0, min(100, (int) round($wellbeingAvg * 100))) : null;
+
         $modelVersion = MlResult::whereIn('id', $latestIds)->value('model_version') ?? '—';
 
         $sourceCounts = MlResult::whereIn('id', $latestIds)
@@ -99,7 +110,7 @@ class MainDashboard extends Component
         $fallbackCount      = $sourceCounts['fallback']        ?? 0;
         $predictionSource   = $notebookCacheCount > 0 ? 'Notebook Export' : 'Live ML Model';
 
-        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs', 'modelVersion', 'predictionSource',
+        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs', 'wellbeingIndex', 'modelVersion', 'predictionSource',
             'notebookCacheCount', 'liveModelCount', 'fallbackCount');
     }
 
@@ -252,6 +263,16 @@ class MainDashboard extends Component
     {
         $this->selectedBarangay = '';
         $this->selectedRisk     = '';
+    }
+
+    /** Click-to-filter from the Risk Distribution chart. Toggles off if re-clicked. */
+    #[On('dashboard-filter-risk')]
+    public function setRiskFilter(string $level = ''): void
+    {
+        $level = strtolower($level);
+        $this->selectedRisk = in_array($level, ['high', 'moderate', 'low'], true)
+            ? ($this->selectedRisk === $level ? '' : $level)
+            : '';
     }
 
     public function updatedSelectedBarangay(): void {}

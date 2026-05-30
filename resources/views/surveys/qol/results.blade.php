@@ -201,9 +201,9 @@
                 labels,
                 datasets: [{
                     data,
-                    backgroundColor: 'rgba(47, 101, 82, 0.15)',
-                    borderColor: '#3f8068',
-                    pointBackgroundColor: '#3f8068',
+                    backgroundColor: 'rgba(58, 111, 196, 0.15)',
+                    borderColor: '#3a6fc4',
+                    pointBackgroundColor: '#3a6fc4',
                     pointRadius: 3,
                     borderWidth: 2,
                 }]

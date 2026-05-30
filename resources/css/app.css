@@ -13,6 +13,12 @@
   body { background: theme('colors.paper.DEFAULT'); color: theme('colors.ink.900'); }
   .font-serif, .font-display { font-family: 'Source Serif 4', Georgia, serif; }
   .tnum { font-variant-numeric: tabular-nums; }
+
+  /* One-time content entrance (kept subtle; collapses under reduced-motion). */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
 }
 
 /* ── Components ───────────────────────────────────────────────────────── */
@@ -105,8 +111,8 @@
            transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-forest-500/25;
   }
   .btn-primary {
-    @apply bg-forest-800 text-paper border-forest-800
-           hover:bg-forest-700 hover:border-forest-700 hover:text-paper;
+    @apply bg-accent-600 text-paper border-accent-600
+           hover:bg-accent-700 hover:border-accent-700 hover:text-paper;
   }
   .btn-ghost {
     @apply bg-transparent border-transparent text-ink-500
@@ -130,10 +136,76 @@
      each view. (.btn-spinner is a <span>, so it is unaffected.) */
   .btn > svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 
-  /* Section header (legacy) */
+  /* Section header (legacy) — institutional navy banner */
   .section-header {
-    @apply px-5 py-4 text-paper bg-forest-800 font-serif font-semibold text-base tracking-tightish;
+    @apply px-5 py-4 text-paper bg-navy-800 font-serif font-semibold text-base tracking-tightish;
   }
+
+  /* ── Government chrome ─────────────────────────────────────────────────── */
+
+  /* Republic-of-the-Philippines band — thin navy strip across the very top of
+     the app shell and login. The strongest "sanctioned government system" cue. */
+  .gov-band {
+    @apply bg-navy-900 text-navy-200 flex items-center gap-3 px-4 sm:px-6 h-7
+           border-b border-navy-700/60 select-none;
+  }
+  .gov-band-title {
+    @apply text-[10px] sm:text-[10.5px] uppercase tracking-[0.18em] font-semibold text-paper/90 whitespace-nowrap;
+  }
+  .gov-band-sub {
+    @apply text-[10px] sm:text-[10.5px] tracking-[0.04em] text-navy-300 whitespace-nowrap truncate;
+  }
+  .gov-band-sep {
+    @apply w-px h-3 bg-navy-700 flex-shrink-0;
+  }
+
+  /* Serif masthead lockup — "Office of Senior Citizens Affairs" authority line. */
+  .masthead-name {
+    @apply font-serif font-semibold tracking-tightish text-navy-800 leading-none;
+  }
+  .masthead-office {
+    @apply text-[9.5px] uppercase tracking-[0.13em] text-navy-500 font-semibold leading-none;
+  }
+
+  /* Official document footer — control no., system-generated note, signatory.
+     Subtle on screen, formal on paper (print rules below keep it visible). */
+  .doc-footer {
+    @apply mt-8 pt-4 border-t border-paper-rule text-[11px] text-ink-400 leading-relaxed;
+  }
+  .doc-footer-control {
+    @apply font-mono text-[11px] text-ink-500 tnum;
+  }
+  .doc-footer-sign {
+    @apply mt-6 pt-1 border-t border-ink-300 inline-block min-w-[12rem] text-[10.5px] uppercase tracking-[0.12em] text-ink-500 font-semibold;
+  }
+
+  /* Page-header underrule — a short navy "ledger rule" that firms up titles. */
+  .page-underrule {
+    @apply mt-3 h-[2px] w-12 rounded-full bg-navy-700;
+  }
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  /* Entrance: content is visible by default; the animation only adds a brief
+     rise. `both` holds the start frame so the pre-animation state matches.
+     Stagger via .rise-1..4. All collapse under prefers-reduced-motion below. */
+  .rise-in { animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .rise-1  { animation-delay: 0.05s; }
+  .rise-2  { animation-delay: 0.11s; }
+  .rise-3  { animation-delay: 0.17s; }
+  .rise-4  { animation-delay: 0.23s; }
+
+  /* Subtle hover lift for interactive surfaces (KPIs, list/chart cards). */
+  .card-lift {
+    transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .card-lift:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
+  .kpi { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
+
+  /* Collapsible priorities rail (dashboard). Width animates on toggle; the
+     inner content keeps a fixed width so it doesn't reflow while collapsing. */
+  .rail-panel { transition: width 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.22s ease; }
+  .rail-reopen { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 
   /* Table */
   .th {
@@ -190,18 +262,18 @@
     @apply bg-white text-ink-900 shadow-sm;
   }
 
-  /* Sidebar nav link */
+  /* Sidebar nav link — navy is the chrome/"where you are" colour. */
   .nav-link {
     @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-ink-700 font-medium transition-all duration-150 relative;
   }
   .nav-link:hover {
-    @apply bg-forest-50 text-forest-900;
+    @apply bg-navy-50 text-navy-700;
   }
   .nav-link-active {
-    @apply bg-forest-800 text-paper font-semibold shadow-sm;
+    @apply bg-navy-800 text-paper font-semibold shadow-sm;
   }
   .nav-link-active:hover {
-    @apply bg-forest-700 text-paper;
+    @apply bg-navy-700 text-paper;
   }
   /* Remove the left-border indicator — active state is now a full fill */
   .nav-link-active::before {
@@ -221,7 +293,7 @@
   }
 
   /* KPI gradient accent modifiers — subtle top-left wash of accent colour */
-  .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.07) 0%, #ffffff 55%); }
+  .kpi--forest   { background: linear-gradient(155deg, rgba(43,77,140,0.07) 0%, #ffffff 55%); }
   .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.08) 0%, #ffffff 55%); }
   .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.08) 0%, #ffffff 55%); }
   .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.08) 0%, #ffffff 55%); }
@@ -304,10 +376,10 @@
 
 .dark .btn         { background-color: #1a201d; border-color: #2b3530; color: #b0b5b2; }
 .dark .btn:hover   { border-color: #3d4d46; color: #e4e1d8; background-color: #202a26; }
-.dark .btn-primary { background-color: #2f6552; border-color: #2f6552; color: #e4e1d8; }
-.dark .btn-primary:hover { background-color: #3a7a65; border-color: #3a7a65; }
+.dark .btn-primary { background-color: #3061bf; border-color: #3061bf; color: #eaf1fb; }
+.dark .btn-primary:hover { background-color: #3f74cf; border-color: #3f74cf; }
 .dark .btn-ghost   { background-color: transparent; border-color: transparent; color: #6b7570; }
-.dark .btn-ghost:hover { background-color: rgba(47,101,82,0.15); color: #e4e1d8; }
+.dark .btn-ghost:hover { background-color: rgba(58,100,172,0.15); color: #e4e1d8; }
 .dark .btn-danger  { background-color: #7a2020; border-color: #7a2020; color: #e4d4d4; }
 .dark .btn-danger:hover { background-color: #963030; border-color: #963030; }
 .dark .btn-secondary { background-color: #202a26; border-color: #2b3530; color: #cdd2cd; }
@@ -341,14 +413,14 @@
 .dark .segmented button.on    { background-color: #2a3530; color: #e4e1d8; }
 
 .dark .framework-tag {
-  background-color: rgba(47,101,82,0.15);
-  border-color: rgba(47,101,82,0.3);
-  color: #7fbfa5;
+  background-color: rgba(58,100,172,0.15);
+  border-color: rgba(58,100,172,0.3);
+  color: #9bb8e2;
 }
-.dark .framework-tag::before { background-color: #5fa088; }
+.dark .framework-tag::before { background-color: #5681c4; }
 
 /* Dark mode KPI accent gradients */
-.dark .kpi--forest   { background: linear-gradient(155deg, rgba(63,128,104,0.18) 0%, #1a201d 55%); }
+.dark .kpi--forest   { background: linear-gradient(155deg, rgba(58,100,172,0.18) 0%, #1a201d 55%); }
 .dark .kpi--critical { background: linear-gradient(155deg, rgba(185,74,58,0.18) 0%, #1a201d 55%); }
 .dark .kpi--high     { background: linear-gradient(155deg, rgba(224,98,26,0.18) 0%, #1a201d 55%); }
 .dark .kpi--moderate { background: linear-gradient(155deg, rgba(193,154,59,0.18) 0%, #1a201d 55%); }
@@ -356,12 +428,25 @@
 .dark .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.17) 0%, #1a201d 55%); }
 
 .dark .nav-link          { color: #9aada5; }
-.dark .nav-link:hover    { background-color: rgba(47,101,82,0.18); color: #e4e1d8; }
-.dark .nav-link-active   { background-color: #2f6552; color: #e4e1d8; }
-.dark .nav-link-active:hover { background-color: #3a7a65; }
+.dark .nav-link:hover    { background-color: rgba(58,79,122,0.22); color: #e4e1d8; }
+.dark .nav-link-active   { background-color: #2a3c61; color: #eef1f6; }
+.dark .nav-link-active:hover { background-color: #324775; }
+
+/* Government chrome — dark theme */
+.dark .gov-band        { background-color: #0b1220; color: #8e9fc1; border-color: #1f2d4a; }
+.dark .gov-band-title  { color: #dde3ee; }
+.dark .gov-band-sub    { color: #6f80a3; }
+.dark .gov-band-sep    { background-color: #1f2d4a; }
+.dark .masthead-name   { color: #d7e0f0; }
+.dark .masthead-office { color: #7e8fb5; }
+.dark .section-header  { background-color: #1f2d4a; }
+.dark .doc-footer      { color: #6b7570; border-color: #2b3530; }
+.dark .doc-footer-control { color: #8a9087; }
+.dark .doc-footer-sign { color: #8a9087; border-color: #4a5550; }
+.dark .page-underrule  { background-color: #5a6f9c; }
 
 .dark .sidebar-icon-btn       { color: #6b7570; }
-.dark .sidebar-icon-btn:hover { color: #d4ede4; background-color: rgba(47,101,82,0.22); }
+.dark .sidebar-icon-btn:hover { color: #d8e2f2; background-color: rgba(47,79,122,0.22); }
 
 .dark .status-dot-ok   { background-color: #4a8a68; box-shadow: 0 0 0 2px rgba(74,138,104,0.2); }
 .dark .status-dot-warn { background-color: #e0621a; box-shadow: 0 0 0 2px rgba(224,98,26,0.2); }
@@ -381,8 +466,8 @@
    light background and accent text/borders lost contrast on dark surfaces. */
 
 /* Tinted backgrounds → dark tints of the same hue */
-.dark .bg-forest-50    { background-color: #15241d; }
-.dark .bg-forest-100   { background-color: #1b2e25; }
+.dark .bg-forest-50    { background-color: #13203a; }
+.dark .bg-forest-100   { background-color: #18294a; }
 .dark .bg-low-50       { background-color: #0e2218; }
 .dark .bg-moderate-50  { background-color: #2a2410; }
 .dark .bg-moderate-100 { background-color: #332c14; }
@@ -396,10 +481,10 @@
 
 /* Accent text → lighter shades so it reads on dark fills (the *-700 risk/info
    shades are already remapped near the KPI section; these fill the gaps) */
-.dark .text-forest-600   { color: #6cab8e; }
-.dark .text-forest-700   { color: #7cbda3; }
-.dark .text-forest-800   { color: #8ccdb3; }
-.dark .text-forest-900   { color: #9bd9c1; }
+.dark .text-forest-600   { color: #8aaadb; }
+.dark .text-forest-700   { color: #9bb8e2; }
+.dark .text-forest-800   { color: #b0c6ea; }
+.dark .text-forest-900   { color: #c2d3f0; }
 .dark .text-critical-700 { color: #ef8d80; }
 .dark .text-critical-900 { color: #f4a89d; }
 .dark .text-high-600     { color: #dd9a5e; }
@@ -411,8 +496,8 @@
 .dark .text-rose-700     { color: #e89aa0; }
 
 /* Accent borders → dark tints so outlines stay visible without glowing */
-.dark .border-forest-200   { border-color: #234a37; }
-.dark .border-forest-300   { border-color: #2c5a44; }
+.dark .border-forest-200   { border-color: #243a5a; }
+.dark .border-forest-300   { border-color: #2c4a70; }
 .dark .border-rose-200     { border-color: #4a2227; }
 .dark .border-high-100     { border-color: #3a2410; }
 .dark .border-high-200     { border-color: #4a2e14; }
@@ -489,7 +574,7 @@ summary:focus-visible,
 .dark [role="button"]:focus-visible,
 .dark summary:focus-visible,
 .dark [tabindex]:focus-visible {
-  outline-color: #5fa088;
+  outline-color: #5681c4;
 }
 
 @media (prefers-reduced-motion: reduce) {
