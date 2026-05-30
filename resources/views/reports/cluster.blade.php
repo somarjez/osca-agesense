@@ -43,7 +43,7 @@
         @foreach ($clusterSummary as $cluster)
         @php
             $cid = $cluster->cluster_named_id;
-            $barColor = $clusterBar[$cid] ?? '#3f8068';
+            $barColor = $clusterBar[$cid] ?? '#3a6fc4';
         @endphp
         <div class="card card-body transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
             <div class="flex items-start justify-between gap-2">

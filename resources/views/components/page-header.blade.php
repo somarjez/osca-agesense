@@ -9,4 +9,5 @@
     @if ($subtitle)
         <p class="text-[13px] text-ink-500 dark:text-[#6b7570] mt-0.5 leading-relaxed">{{ $subtitle }}</p>
     @endif
+    <div class="page-underrule" aria-hidden="true"></div>
 </div>

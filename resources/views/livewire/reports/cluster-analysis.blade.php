@@ -214,7 +214,7 @@
         const palette = ['#4a8a68', '#c19a3b', '#b94a3a'];
         const datasets = (domainData.datasets || []).map((ds, i) => ({
             ...ds,
-            backgroundColor: palette[i] ?? '#3f8068',
+            backgroundColor: palette[i] ?? '#3a6fc4',
             borderRadius: 3,
             borderSkipped: false,
             barPercentage: 0.7,

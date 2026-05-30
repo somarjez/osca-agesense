@@ -212,5 +212,6 @@
         </div>
     </div>
 
+    <x-doc-footer signatory="OSCA Officer / Reviewer" />
 </div>
 @endsection

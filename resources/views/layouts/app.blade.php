@@ -25,7 +25,12 @@
    class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-forest-700 focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg">
     Skip to content
 </a>
-<div class="flex h-screen overflow-hidden">
+<div class="flex flex-col h-screen overflow-hidden">
+
+    {{-- ── Republic of the Philippines band ── --}}
+    <x-gov-band class="no-print flex-shrink-0" />
+
+    <div class="flex flex-1 overflow-hidden min-h-0">
 
     {{-- ── Sidebar ── --}}
     <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
@@ -35,10 +40,10 @@
         <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
             {{-- Expanded --}}
             <div x-show="sidebarOpen" x-cloak class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <x-app-logo :size="34" class="shadow-sm" />
                 <div class="min-w-0 flex-1">
-                    <div class="font-serif text-[15.5px] font-semibold tracking-tightish leading-none text-ink-900 dark:text-[#e4e1d8] whitespace-nowrap">AgeSense</div>
-                    <div class="text-[10px] tracking-[0.1em] text-ink-400 dark:text-[#4a5550] font-medium whitespace-nowrap mt-0.5 uppercase">OSCA · Pagsanjan</div>
+                    <div class="masthead-name text-[16px] whitespace-nowrap">AgeSense</div>
+                    <div class="masthead-office whitespace-nowrap mt-1">OSCA · Pagsanjan</div>
                 </div>
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn flex-shrink-0"
@@ -50,7 +55,7 @@
             </div>
             {{-- Collapsed --}}
             <div x-show="!sidebarOpen" class="flex flex-col items-center gap-2">
-                <div class="w-8 h-8 rounded-xl bg-forest-700 text-white grid place-items-center font-serif font-bold text-[16px] flex-shrink-0 shadow-sm">A</div>
+                <x-app-logo :size="32" class="shadow-sm" />
                 <button @click="toggleSidebar()"
                         class="sidebar-icon-btn"
                         type="button"
@@ -369,6 +374,7 @@
 
             @yield('content')
         </main>
+    </div>
     </div>
 </div>
 

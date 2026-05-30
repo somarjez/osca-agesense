@@ -246,5 +246,6 @@
         <livewire:reports.risk-report />
     </div>
 
+    <x-doc-footer signatory="OSCA Officer / Reviewer" />
 </div>
 @endsection
