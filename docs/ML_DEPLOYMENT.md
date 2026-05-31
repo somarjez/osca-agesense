@@ -115,15 +115,14 @@ The inference service uses two different paths depending on the senior and the `
 
 The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (which was populated from `senior_predictions.csv` during seeding). UMAP and the GBR/RFR models are **not called** for these seniors. The result is always identical across all devices regardless of hardware.
 
-**Guaranteed distribution for the 283 seed seniors (notebook_cache rows only):**
-- HIGH: 54
+**Guaranteed distribution for all 283 seniors (all notebook_cache rows):**
+- HIGH: 55
 - MODERATE: 191
-- LOW: 38
-- C1 (High Functioning): 75
-- C2 (Moderate / Mixed Needs): 132
-- C3 (Low Functioning / Multi-domain Risk): 76
-
-> The dashboard total is **286** (3 additional seniors scored via live model). Dashboard totals will show HIGH=56, MODERATE=192, LOW=38.
+- LOW: 37
+- C1 (High Functioning / Well-Supported Seniors): 60
+- C2 (Stable Ageing / Moderate Support Needs): 84
+- C3 (Environmentally and Financially Vulnerable Seniors): 74
+- C4 (Low Functioning / Multi-Domain Priority Seniors): 65
 
 Use this path for demos and the defense. It eliminates any possibility of floating-point variance across different CPUs.
 

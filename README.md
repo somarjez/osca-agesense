@@ -574,7 +574,7 @@ python\venv\Scripts\python.exe python\scripts\test_staleness.py
 
 # Step 8 — Start and check the dashboard
 .\start.bat
-# Expected: Total=286, HIGH=56, MODERATE=192, LOW=38, Notebook-Validated Cache: 283
+# Expected: Total=283, HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283
 ```
 
 > **Steps 6–7 are the ones most people skip.** They are what ensures the ML pipeline produces identical results across devices, not just the DB import.

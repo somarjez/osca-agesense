@@ -897,7 +897,7 @@ Distances are normalised against a 2 km reference radius. This score will be an 
 
 AgeSense is a **pilot-ready system** with Phase 1 (Core) and Phase 2 (Production Hardening) fully complete. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, recommendation management, and role-based access control — are implemented and operational.
 
-The dataset comprises **286 senior citizens** (283 seeded via `OscaCsvSeeder` + 3 added after the notebook run). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=56, MODERATE=192, LOW=38, Notebook-Validated Cache: 283.
+The dataset comprises **283 senior citizens** (all seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283.
 
 ### Completed phases
 

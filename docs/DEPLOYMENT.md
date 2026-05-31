@@ -404,15 +404,16 @@ Run these steps in order on every device before a demo or defense. Do not skip s
           notebook_cache: 283, live_model: 0 or more (for any new seniors added)
 
 [ ] 11. Confirm the dashboard shows the correct numbers:
-        Total seniors              : 286
-        Risk — HIGH                : 56
-        Risk — MODERATE            : 192
-        Risk — LOW                 : 38
-        Cluster C1                 : 75
-        Cluster C2                 : 132
-        Cluster C3                 : 76
+        Total seniors              : 283
+        Risk — HIGH                : 55
+        Risk — MODERATE            : 191
+        Risk — LOW                 : 37
+        Cluster C1                 : 60
+        Cluster C2                 : 84
+        Cluster C3                 : 74
+        Cluster C4                 : 65
         Notebook-Validated Cache   : 283
-        Live ML Model              : 3
+        Live ML Model              : 0
         Fallback                   : 0
 
 [ ] 12. Test one senior profile page:

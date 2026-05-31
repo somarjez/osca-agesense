@@ -301,10 +301,10 @@ Start the system with `start.bat` and open the browser. The dashboard should sho
 
 | Metric | Expected value |
 |---|---|
-| Total seniors | 286 |
-| HIGH risk | 56 |
-| MODERATE risk | 192 |
-| LOW risk | 38 |
+| Total seniors | 283 |
+| HIGH risk | 55 |
+| MODERATE risk | 191 |
+| LOW risk | 37 |
 | Notebook-Validated Cache | 283 |
 
 If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-numbers) below.
