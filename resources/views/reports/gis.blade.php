@@ -226,17 +226,29 @@
         0.76: '#fb923c',
         1.00: '#ef4444',
     };
+    // Rich sequential ramp for the Risk Distribution raster-KDE surface so it
+    // renders with the same smooth typhoon look as the cluster heatmap:
+    // green (low risk) -> lime -> yellow -> orange -> red -> deep red (highest).
+    const RISK_DISTRIBUTION_RAMP = {
+        0.00: '#16a34a',
+        0.18: '#22c55e',
+        0.38: '#84cc16',
+        0.55: '#facc15',
+        0.72: '#fb923c',
+        0.88: '#ef4444',
+        1.00: '#b91c1c',
+    };
     const CLUSTER_HEATMAP_GRADIENT = {
-        0.00: '#dbeafe',
-        0.10: '#93c5fd',
-        0.20: '#38bdf8',
-        0.32: '#22d3ee',
-        0.44: '#34d399',
-        0.56: '#a3e635',
-        0.68: '#fde047',
-        0.80: '#fb923c',
-        0.91: '#ef4444',
-        1.00: '#991b1b',
+        0.00: '#f0f9ff',
+        0.12: '#bae6fd',
+        0.24: '#7dd3fc',
+        0.36: '#38bdf8',
+        0.48: '#4ade80',
+        0.60: '#facc15',
+        0.72: '#fb923c',
+        0.84: '#f43f5e',
+        0.92: '#e11d48',
+        1.00: '#9f1239',
     };
     const CLUSTER_HEATMAP_COLORS = {
         'Group 1': '#0ea5e9',
@@ -249,44 +261,52 @@
             label: 'C1',
             name: 'Cluster 1',
             stops: {
-                0.00: '#6ee7b7',
-                0.22: '#22d3ee',
-                0.48: '#3b82f6',
-                0.74: '#1d4ed8',
-                1.00: '#1e3a8a',
+                0.00: '#dff7ff',
+                0.14: '#aeeeff',
+                0.32: '#67d8ff',
+                0.52: '#22b8ee',
+                0.70: '#0796d6',
+                0.86: '#0077b6',
+                1.00: '#005f99',
             },
         },
         2: {
             label: 'C2',
             name: 'Cluster 2',
             stops: {
-                0.00: '#d9f99d',
-                0.24: '#86efac',
-                0.50: '#22c55e',
-                0.74: '#166534',
-                1.00: '#14532d',
+                0.00: '#e5ffe9',
+                0.14: '#b9f8c7',
+                0.32: '#74eba0',
+                0.52: '#35d676',
+                0.70: '#16b957',
+                0.86: '#079640',
+                1.00: '#057a35',
             },
         },
         3: {
             label: 'C3',
             name: 'Cluster 3',
             stops: {
-                0.00: '#fef08a',
-                0.26: '#fbbf24',
-                0.52: '#f97316',
-                0.76: '#dc2626',
-                1.00: '#991b1b',
+                0.00: '#fff8bf',
+                0.14: '#fff178',
+                0.32: '#ffdd34',
+                0.52: '#ffc107',
+                0.70: '#f59e00',
+                0.86: '#df7f00',
+                1.00: '#c26200',
             },
         },
         4: {
             label: 'C4',
             name: 'Cluster 4',
             stops: {
-                0.00: '#fef08a',
-                0.24: '#fb923c',
-                0.50: '#ef4444',
-                0.74: '#b91c1c',
-                1.00: '#7f1d1d',
+                0.00: '#ffe2e2',
+                0.14: '#ffbdbd',
+                0.32: '#ff8585',
+                0.52: '#ff5252',
+                0.70: '#ef2f38',
+                0.86: '#d91f2b',
+                1.00: '#b91625',
             },
         },
     };
@@ -1217,7 +1237,7 @@
         }
 
         if (mode === 'cluster-heatmap') {
-            return Math.max(420, Math.min(620, derivedRadius ?? fallbackRadius));
+            return Math.max(300, Math.min(520, derivedRadius ?? fallbackRadius));
         }
 
         return Math.max(160, Math.min(480, derivedRadius ?? fallbackRadius));
@@ -1232,22 +1252,25 @@
         const rawRadius = metersToPixelsAtLatLng(map, reference, meters);
 
         if (mode === 'cluster-heatmap') {
-            const radius = Math.round(Math.max(10, Math.min(46, rawRadius)));
+            // Floor at 6px so the kernel never inflates beyond its geographic radius
+            // when zoomed out, preventing false cluster color in empty areas.
+            const radius = Math.round(Math.max(6, Math.min(42, rawRadius)));
 
             return {
                 radius,
-                blur: Math.round(Math.max(8, Math.min(28, radius * 0.58))),
+                blur: Math.round(Math.max(4, Math.min(24, radius * 0.52))),
                 radius_meters: Math.round(meters),
             };
         }
 
-        // Keep the browser KDE surface concentrated: nearby points blend, while
-        // isolated records stay light and empty areas remain transparent.
-        const radius = Math.round(Math.max(24, Math.min(170, rawRadius)));
+        // Floor at 6px — the geographic radius (meters) already sets the true
+        // spread; clamping at a tiny pixel floor avoids bleeding into empty
+        // areas when zoomed out far.
+        const radius = Math.round(Math.max(6, Math.min(160, rawRadius)));
 
         return {
             radius,
-            blur: Math.round(Math.max(16, Math.min(95, radius * 0.72))),
+            blur: Math.round(Math.max(4, Math.min(88, radius * 0.65))),
             radius_meters: Math.round(meters),
         };
     }
@@ -1397,11 +1420,17 @@
             _redraw() {
                 const width = this._canvas.width;
                 const height = this._canvas.height;
-                const radius = this._options.radius;
-                const blur = Math.max(1, Math.min(radius, this._options.blur || radius * 0.72));
-                const coreStop = clampUnit((radius - blur) / radius);
-                const shoulderStop = clampUnit(coreStop + ((1 - coreStop) * 0.45));
-                const edgeStop = clampUnit(coreStop + ((1 - coreStop) * 0.82));
+                // Recompute pixel radius from the stored geographic radius on every
+                // redraw so the kernel never grows beyond its real geographic footprint
+                // when zoomed out (was: fixed pixel radius set at layer-creation time).
+                let radius = this._options.radius;
+                let blur = Math.max(1, Math.min(radius, this._options.blur || radius * 0.65));
+                if (this._options.radius_meters && this._map) {
+                    const ref = this._map.getCenter();
+                    const raw = metersToPixelsAtLatLng(this._map, ref, this._options.radius_meters);
+                    radius = Math.round(Math.max(6, Math.min(160, raw)));
+                    blur = Math.round(Math.max(4, Math.min(88, radius * 0.65)));
+                }
                 const max = Math.max(this._options.max || 1, Number.EPSILON);
                 const densityCanvas = document.createElement('canvas');
                 densityCanvas.width = width;
@@ -1422,15 +1451,19 @@
                         return;
                     }
 
-                    const coreAlpha = Math.min(0.72, intensity * 0.62);
-                    const shoulderAlpha = Math.min(0.34, intensity * 0.30);
-                    const edgeAlpha = Math.min(0.12, intensity * 0.11);
+                    // Tight typhoon-style kernel: strong core that drops sharply
+                    // so isolated seniors produce a peaked spot and empty areas
+                    // between data points stay near-transparent.
+                    const coreAlpha = Math.min(0.90, intensity * 0.82);
+                    const shoulderAlpha = Math.min(0.24, intensity * 0.20);
+                    const edgeAlpha = Math.min(0.05, intensity * 0.04);
                     const gradient = densityContext.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-                    gradient.addColorStop(0, `rgba(0,0,0,${coreAlpha})`);
-                    gradient.addColorStop(Math.max(0.01, coreStop), `rgba(0,0,0,${coreAlpha * 0.72})`);
-                    gradient.addColorStop(shoulderStop, `rgba(0,0,0,${shoulderAlpha})`);
-                    gradient.addColorStop(edgeStop, `rgba(0,0,0,${edgeAlpha})`);
-                    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+                    gradient.addColorStop(0,    `rgba(0,0,0,${coreAlpha})`);
+                    gradient.addColorStop(0.18, `rgba(0,0,0,${coreAlpha * 0.78})`);
+                    gradient.addColorStop(0.40, `rgba(0,0,0,${shoulderAlpha})`);
+                    gradient.addColorStop(0.68, `rgba(0,0,0,${edgeAlpha})`);
+                    gradient.addColorStop(0.88, `rgba(0,0,0,${edgeAlpha * 0.22})`);
+                    gradient.addColorStop(1,    'rgba(0,0,0,0)');
 
                     densityContext.fillStyle = gradient;
                     densityContext.beginPath();
@@ -1997,7 +2030,9 @@
             let winningAlphaDensity = 0;
             let winningBroadDensity = 0;
             let winningPeakDensity = 0;
+            let winningCoreDensity = 0;
             let winningGroup = null;
+            const colorContributions = [];
 
             groupImages.forEach((group) => {
                 const alpha = group.data[index + 3];
@@ -2015,14 +2050,26 @@
                     const pointCoreScaleMax = Math.max(34, Math.min(colorScaleMax, group.strongestPointCoreDensity * 0.78 || 34));
                     pointCoreDensity = clampUnit(pointCoreAlpha / pointCoreScaleMax);
                 }
-                // localScore uses boosted narrow kernels to extend each cluster's
-                // dominance radius so minority patches win pixels far enough from
-                // their seniors to show the full outer gradient arc.
-                const localScore = Math.max(
-                    density,
-                    peakDensity * (options.peakSupportBoost ?? 2.8),
-                    pointCoreDensity * (options.pointCoreBoost ?? 3.8)
+                // Combine broad, peak, and point-core kernels instead of using a
+                // hard max. This lets a senior from a minority cluster create a
+                // smooth typhoon-style head inside a dominant cluster area.
+                const localScore = clampUnit(
+                    (density * (options.broadSupportBoost ?? 0.82)) +
+                    (peakDensity * (options.peakSupportBoost ?? 2.8)) +
+                    (pointCoreDensity * (options.pointCoreBoost ?? 3.8))
                 );
+                const groupColorDensity = clampUnit(Math.max(
+                    density * (options.broadColorBoost ?? 0.42),
+                    peakDensity * (options.peakColorBoost ?? 1.16),
+                    pointCoreDensity * (options.pointCoreColorBoost ?? 0.88)
+                ));
+                if (options.softColorMix !== false && groupColorDensity > 0.002 && localScore > 0.002) {
+                    colorContributions.push({
+                        group,
+                        localScore,
+                        colorDensity: groupColorDensity,
+                    });
+                }
                 totalDensity += density;
                 if (localScore > winningDensity) {
                     winningDensity = localScore;
@@ -2031,6 +2078,7 @@
                     // Track unbooted densities separately for color and contour use.
                     winningBroadDensity = density;
                     winningPeakDensity = peakDensity;
+                    winningCoreDensity = pointCoreDensity;
                 }
             });
 
@@ -2050,11 +2098,44 @@
             // Color uses unbooted broad+peak density so the gradient arc spans
             // yellow → orange → red (or green → cyan → blue) from edge to center
             // even for minority patches whose localScore was heavily boosted to win.
-            const colorDensity = clampUnit(Math.max(winningBroadDensity, winningPeakDensity * 0.72));
-            const [red, green, blue] = colorForGradientValue(
+            // Use the broad KDE mostly for the pale outside band. Strong color
+            // should come from the senior's local peak/core so each point has a
+            // clean light -> medium -> dark cluster-colored typhoon transition.
+            const colorDensity = clampUnit(Math.max(
+                winningBroadDensity * (options.broadColorBoost ?? 0.42),
+                winningPeakDensity * (options.peakColorBoost ?? 1.16),
+                winningCoreDensity * (options.pointCoreColorBoost ?? 0.88)
+            ));
+            let [red, green, blue] = colorForGradientValue(
                 Math.pow(colorDensity, options.dominancePower ?? 0.76),
                 winningGroup.ramp
             );
+            if (options.softColorMix !== false && colorContributions.length > 1) {
+                let totalWeight = 0;
+                let mixRed = 0;
+                let mixGreen = 0;
+                let mixBlue = 0;
+                colorContributions.forEach((item) => {
+                    const isWinner = item.group === winningGroup;
+                    const weight = Math.pow(
+                        item.localScore * (isWinner ? (options.winningColorBoost ?? 1.45) : 1),
+                        options.colorMixPower ?? 2.35
+                    );
+                    const [itemRed, itemGreen, itemBlue] = colorForGradientValue(
+                        Math.pow(item.colorDensity, options.dominancePower ?? 0.76),
+                        item.group.ramp
+                    );
+                    totalWeight += weight;
+                    mixRed += itemRed * weight;
+                    mixGreen += itemGreen * weight;
+                    mixBlue += itemBlue * weight;
+                });
+                if (totalWeight > 0) {
+                    red = Math.round(mixRed / totalWeight);
+                    green = Math.round(mixGreen / totalWeight);
+                    blue = Math.round(mixBlue / totalWeight);
+                }
+            }
 
             // Geographic raster: the KDE is generated in municipal-coordinate
             // space, clipped to Pagsanjan, and weak edge influence is discarded.
@@ -2081,12 +2162,12 @@
             contourDensityGrid,
             width,
             height,
-            options.contourSmoothPasses ?? 4
+            options.contourSmoothPasses ?? 5
         );
         drawKdeContours(outputContext, contourSourceGrid, width, height, {
             step: options.contourStep ?? 4,
-            levels: options.contourLevels,
-            lineWidth: options.contourLineWidth ?? 0.9,
+            levels: options.contourLevels ?? [0.08, 0.16, 0.24, 0.32, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90],
+            lineWidth: options.contourLineWidth ?? 1.1,
         });
 
         return createSmoothHeatmapImageOverlay(outputCanvas.toDataURL('image/png'), bounds, {
@@ -2140,11 +2221,15 @@
             };
         }
 
+        // Power > 1 gives a concave alpha curve: weak kernel edges are nearly
+        // transparent while dense cores stay vivid — the typhoon-style falloff.
+        // minVisibleDensity cuts off residual kernel tails that would color
+        // empty areas between senior clusters.
         return {
-            outputMaxAlpha: 190,
-            outputAlphaBase: 220,
-            outputAlphaPower: 0.94,
-            minVisibleDensity: 0,
+            outputMaxAlpha: 185,
+            outputAlphaBase: 210,
+            outputAlphaPower: 1.65,
+            minVisibleDensity: 0.06,
         };
     }
 
@@ -2170,6 +2255,7 @@
                 mode,
                 radius: pixelOptions.radius,
                 blur: pixelOptions.blur,
+                radius_meters: pixelOptions.radius_meters,
                 maxZoom: map?.getZoom?.() ?? 17,
                 minOpacity: 0.22,
                 max: maxIntensity,
@@ -2259,12 +2345,24 @@
     }
 
     function densityColor(count, maxCount) {
-        if (!maxCount || count <= 0) return '#dbeafe';
-        const ratio = count / maxCount;
-        if (ratio >= 0.75) return '#ef4444';
-        if (ratio >= 0.50) return '#fb923c';
-        if (ratio >= 0.25) return '#facc15';
-        return '#38bdf8';
+        if (!maxCount || count <= 0) return 'rgba(219,234,254,0)';
+        const ratio = Math.min(1, count / maxCount);
+        // Smooth typhoon ramp: cyan → green → yellow → orange → red
+        const stops = [
+            { at: 0.00, r: 56,  g: 189, b: 248 },
+            { at: 0.20, r: 74,  g: 222, b: 128 },
+            { at: 0.45, r: 250, g: 204, b: 21  },
+            { at: 0.70, r: 251, g: 146, b: 60  },
+            { at: 1.00, r: 239, g: 68,  b: 68  },
+        ];
+        let lo = stops[0];
+        let hi = stops[stops.length - 1];
+        for (let i = 1; i < stops.length; i++) {
+            if (ratio <= stops[i].at) { lo = stops[i - 1]; hi = stops[i]; break; }
+        }
+        const span = hi.at === lo.at ? 1 : hi.at - lo.at;
+        const t = Math.max(0, Math.min(1, (ratio - lo.at) / span));
+        return `rgb(${Math.round(lo.r + t * (hi.r - lo.r))},${Math.round(lo.g + t * (hi.g - lo.g))},${Math.round(lo.b + t * (hi.b - lo.b))})`;
     }
 
     function facilityLatLng(feature) {
@@ -2627,12 +2725,17 @@
                 const stat = stats.get(normalizeBarangayName(name));
                 const color = densityColor(stat?.count ?? 0, maxCount);
 
+                // Scale fill opacity with density so zero-senior barangays are
+                // fully transparent and high-density ones are most vivid.
+                const densityRatio = maxCount > 0 ? Math.min(1, (stat?.count ?? 0) / maxCount) : 0;
                 return {
                     color: selected === 'all' ? '#475569' : '#0f172a',
                     weight: selected === 'all' ? 1.4 : 2.8,
                     opacity: 0.9,
                     fillColor: color,
-                    fillOpacity: selected === 'all' ? 0.24 : 0.36,
+                    fillOpacity: selected === 'all'
+                        ? Math.max(0, Math.min(0.65, densityRatio * 0.65))
+                        : Math.max(0.12, Math.min(0.72, densityRatio * 0.60 + 0.18)),
                 };
             },
             onEachFeature(feature, layer) {
@@ -3318,19 +3421,34 @@
         const heatmapLayer = createClusterDistributionRasterLayer(groups, {
             bounds,
             radius_meters: radiusMeters,
-            peak_radius_meters: options.peakRadiusMeters ?? Math.max(80, Math.min(140, radiusMeters * 0.38)),
-            point_core_radius_meters: options.pointCoreRadiusMeters ?? Math.max(80, Math.min(130, radiusMeters * 0.34)),
+            peak_radius_meters: options.peakRadiusMeters ?? Math.max(100, Math.min(175, radiusMeters * 0.42)),
+            point_core_radius_meters: options.pointCoreRadiusMeters ?? Math.max(72, Math.min(125, radiusMeters * 0.28)),
             colorScaleMax,
             adaptiveScale: options.adaptiveScale ?? selectedClusterMode,
             enablePeakSupport: options.enablePeakSupport ?? !selectedClusterMode,
-            minVisibleDensity: options.minVisibleDensity ?? (selectedClusterMode ? 0.03 : 0.05),
-            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.02,
-            peakSupportBoost: options.peakSupportBoost ?? 2.8,
-            pointCoreBoost: options.pointCoreBoost ?? 3.8,
-            outputMaxAlpha: options.outputMaxAlpha ?? (selectedClusterMode ? 228 : 218),
-            outputAlphaBase: options.outputAlphaBase ?? (selectedClusterMode ? 255 : 252),
-            outputAlphaPower: options.outputAlphaPower ?? (selectedClusterMode ? 0.28 : 0.32),
-            dominancePower: options.dominancePower ?? (selectedClusterMode ? 0.78 : 0.75),
+            // Raised thresholds so only pixels with real cluster signal show
+            // color; previously 0.02/0.01 let heavily-boosted weak edges
+            // paint areas far from any actual senior data point.
+            minVisibleDensity: options.minVisibleDensity ?? (selectedClusterMode ? 0.055 : 0.07),
+            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.026,
+            broadSupportBoost: options.broadSupportBoost ?? 0.58,
+            peakSupportBoost: options.peakSupportBoost ?? 2.55,
+            pointCoreBoost: options.pointCoreBoost ?? 3.15,
+            broadColorBoost: options.broadColorBoost ?? 0.62,
+            peakColorBoost: options.peakColorBoost ?? 1.24,
+            pointCoreColorBoost: options.pointCoreColorBoost ?? 1.02,
+            softColorMix: options.softColorMix ?? false,
+            colorMixPower: options.colorMixPower ?? 2.35,
+            winningColorBoost: options.winningColorBoost ?? 1.45,
+            outputMaxAlpha: options.outputMaxAlpha ?? (selectedClusterMode ? 220 : 196),
+            outputAlphaBase: options.outputAlphaBase ?? (selectedClusterMode ? 242 : 226),
+            // Power 0.28 was too low: made weak signals nearly as opaque as strong
+            // ones, bleeding cluster color into empty barangays.
+            outputAlphaPower: options.outputAlphaPower ?? 0.92,
+            dominancePower: options.dominancePower ?? 0.66,
+            contourSmoothPasses: options.contourSmoothPasses ?? 8,
+            contourLevels: options.contourLevels ?? [0.07, 0.12, 0.18, 0.26, 0.36, 0.48, 0.60, 0.72, 0.84],
+            contourLineWidth: options.contourLineWidth ?? 1.05,
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
 
@@ -3342,6 +3460,93 @@
             pointCoreRadiusMeters: !selectedClusterMode ? Math.round(options.pointCoreRadiusMeters ?? Math.max(80, Math.min(130, radiusMeters * 0.34))) : null,
             colorScaleMax,
             layer: heatmapLayer,
+        };
+    }
+
+    function riskDistributionWeight(feature) {
+        // Real, data-driven weight: prefer the backend composite risk score
+        // (props.risk_score, normalized to 0..1); fall back to the categorical
+        // risk level. Returns null when a senior has no risk signal so it never
+        // contributes false intensity.
+        const props = feature.properties || {};
+        const score = normalizedRiskScore(props.risk_score);
+        if (score !== null) {
+            // Lift the floor a little so low-risk seniors still register a faint
+            // kernel but high-risk clearly dominates the surface.
+            return clampUnit(0.15 + score * 0.85);
+        }
+
+        return riskWeight(props.risk_level);
+    }
+
+    function riskDistributionPoints(features) {
+        return features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const weight = riskDistributionWeight(feature);
+
+                if (!latlng || weight === null || weight <= 0) {
+                    return null;
+                }
+
+                return [latlng.lat, latlng.lng, weight];
+            })
+            .filter(Boolean);
+    }
+
+    function riskDistributionRadiusMeters(features) {
+        const base = heatmapRadiusMeters(features, 'risk-indicator-heatmap');
+        // Bump the base spacing radius so the risk surface reads as a smooth,
+        // blended typhoon-style field instead of disconnected dots.
+        return Math.max(280, Math.min(560, base * 1.3));
+    }
+
+    // Reuses the cluster raster-KDE engine with a single risk-weighted surface,
+    // so the Risk Distribution heatmap renders with the exact same smooth,
+    // contoured, Pagsanjan-clipped look as the health-group heatmap.
+    function buildRiskDistributionRasterLayer(map, features, options = {}) {
+        const points = riskDistributionPoints(features);
+        const bounds = primaryBoundaryBounds();
+        const radiusMeters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : riskDistributionRadiusMeters(features);
+
+        if (!points.length || !bounds?.isValid?.()) {
+            return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
+        }
+
+        const group = {
+            label: 'Risk',
+            stops: RISK_DISTRIBUTION_RAMP,
+            points,
+        };
+
+        const layer = createClusterDistributionRasterLayer([group], {
+            bounds,
+            radius_meters: radiusMeters,
+            peak_radius_meters: options.peakRadiusMeters ?? Math.max(90, Math.min(160, radiusMeters * 0.40)),
+            point_core_radius_meters: options.pointCoreRadiusMeters ?? Math.max(90, Math.min(150, radiusMeters * 0.36)),
+            colorScaleMax: options.colorScaleMax ?? 255,
+            adaptiveScale: options.adaptiveScale ?? true,
+            enablePeakSupport: options.enablePeakSupport ?? true,
+            // No-data guardrails: only pixels with real accumulated risk signal
+            // are painted; faint kernel tails stay transparent.
+            minVisibleDensity: options.minVisibleDensity ?? 0.10,
+            peakMinVisibleDensity: options.peakMinVisibleDensity ?? 0.05,
+            peakSupportBoost: options.peakSupportBoost ?? 2.4,
+            pointCoreBoost: options.pointCoreBoost ?? 3.2,
+            outputMaxAlpha: options.outputMaxAlpha ?? 205,
+            outputAlphaBase: options.outputAlphaBase ?? 230,
+            outputAlphaPower: options.outputAlphaPower ?? 0.95,
+            dominancePower: options.dominancePower ?? 0.82,
+            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+        });
+
+        return {
+            layer,
+            points: { length: points.length },
+            radiusMeters: Math.round(radiusMeters),
+            colorScaleMax: options.colorScaleMax ?? 255,
         };
     }
 
@@ -3391,6 +3596,33 @@
         });
     }
 
+    function buildRiskIdentityHaloLayer(features) {
+        // Small senior dots (colored by real risk level) shown above the risk
+        // KDE surface so markers stay visible and popups keep working.
+        return window.L.geoJSON({
+            type: 'FeatureCollection',
+            features,
+        }, {
+            pointToLayer(feature, latlng) {
+                const color = riskColor(feature.properties?.risk_level);
+
+                return window.L.circleMarker(latlng, {
+                    pane: 'gis-senior-pane',
+                    radius: 3.5,
+                    color: '#ffffff',
+                    weight: 1,
+                    opacity: 0.82,
+                    fillColor: color,
+                    fillOpacity: 0.68,
+                    interactive: true,
+                });
+            },
+            onEachFeature(feature, layer) {
+                attachSeniorPopup(layer, feature);
+            },
+        });
+    }
+
     function setActiveHeatmapContext(map, mode, features, options = {}) {
         map._gisActiveHeatmap = {
             mode,
@@ -3407,6 +3639,12 @@
         }
 
         if (context.mode === 'cluster-heatmap') {
+            return;
+        }
+
+        // Raster-KDE modes use a zoom-stable L.imageOverlay; rebuilding them as a
+        // canvas layer on every zoom would both flicker and overwrite the raster.
+        if (context.mode === 'risk-indicator-heatmap') {
             return;
         }
 
@@ -3457,6 +3695,21 @@
             return result;
         }
 
+        if (mode === 'risk-indicator-heatmap') {
+            // Same smooth raster-KDE engine as the cluster overlay so the
+            // "Risk Distribution Heatmap" checkbox matches the typhoon style.
+            const result = buildRiskDistributionRasterLayer(map, features);
+            if (!result.layer || !result.points.length) return null;
+
+            layerGroup.addLayer(result.layer);
+            setKdeOverlayContext(map, mode, features, {
+                radiusMeters: result.radiusMeters,
+                colorScaleMax: result.colorScaleMax,
+            });
+
+            return result;
+        }
+
         const heatmapFeatures = heatmapFeaturesForMode(features, mode);
         const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, heatmapFeatures, mode);
 
@@ -3488,7 +3741,9 @@
             const layerGroup = kdeLayerForMode(map, context.mode);
             if (!layerGroup) return;
 
-            if (context.mode === 'cluster-heatmap') {
+            // Raster-KDE overlays (cluster + risk) are zoom-stable image overlays
+            // and must not be rebuilt as canvas layers on zoom.
+            if (context.mode === 'cluster-heatmap' || context.mode === 'risk-indicator-heatmap') {
                 return;
             }
 
@@ -3516,24 +3771,28 @@
     function renderRiskHeatmap(map, features) {
         clearHeatmapLayers(map);
 
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, features, 'risk-indicator-heatmap');
-
         if (!window.L.Layer) {
             focusMapOnActiveLayer(map, features);
             setStatus('Leaflet is unavailable. Rebuild frontend assets to enable GIS heatmaps.', 'error');
             return;
         }
 
-        if (!points.length || !heatLayer) {
+        const result = buildRiskDistributionRasterLayer(map, features);
+
+        if (!result.layer || !result.points.length) {
             focusMapOnActiveLayer(map, features);
             setStatus('No senior records had risk indicator values for the selected filters.', 'neutral');
             return;
         }
 
-        ensureLayerRegistry(map).heatmap.addLayer(heatLayer);
-        setActiveHeatmapContext(map, 'risk-indicator-heatmap', features);
+        ensureLayerRegistry(map).heatmap.addLayer(result.layer);
+        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(features));
+        setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
+            radiusMeters: result.radiusMeters,
+            colorScaleMax: result.colorScaleMax,
+        });
         focusMapOnActiveLayer(map, features);
-        setStatus(`Risk Indicator Distribution uses ${points.length} senior GIS point(s), weighted by existing risk score or risk level. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).`, 'success');
+        setStatus(`Risk Indicator Distribution renders ${result.points.length} senior GIS point(s) as a continuous KDE risk surface, weighted by composite risk score (falling back to risk level), clipped to Pagsanjan (${result.radiusMeters}m radius).`, 'success');
     }
 
     function renderClusterHeatmap(map, features) {
