@@ -38,15 +38,16 @@ Before sharing the database, verify the main laptop shows exactly:
 
 | Metric | Expected |
 |---|---|
-| Total active seniors | 286 |
-| Risk — HIGH | 56 |
-| Risk — MODERATE | 192 |
-| Risk — LOW | 38 |
-| Cluster C1 — High Functioning | 75 |
-| Cluster C2 — Moderate / Mixed Needs | 132 |
-| Cluster C3 — Low Functioning / Multi-domain Risk | 76 |
+| Total active seniors | 283 |
+| Risk — HIGH | 55 |
+| Risk — MODERATE | 191 |
+| Risk — LOW | 37 |
+| Cluster C1 — High Functioning / Well-Supported Seniors | 60 |
+| Cluster C2 — Stable Ageing / Moderate Support Needs | 84 |
+| Cluster C3 — Environmentally and Financially Vulnerable Seniors | 74 |
+| Cluster C4 — Low Functioning / Multi-Domain Priority Seniors | 65 |
 | Prediction source — Notebook-Validated Cache | 283 |
-| Prediction source — Live ML Model | 3 |
+| Prediction source — Live ML Model | 0 |
 
 Run the validation script to confirm:
 ```powershell
@@ -230,19 +231,20 @@ Expected output:
 ```
   PREDICTION SOURCE BREAKDOWN
     Notebook-Validated Cache : 283
-    Live ML Model            : 3
+    Live ML Model            : 0
     Heuristic Fallback       : 0
 
   RISK INDICATOR DISTRIBUTION
-    HIGH                     : 56   (expected 56)
-    MODERATE                 : 192  (expected 192)
-    LOW                      : 38   (expected 38)
-    Total                    : 286  [PASS]
+    HIGH                     : 55   (expected 55)
+    MODERATE                 : 191  (expected 191)
+    LOW                      : 37   (expected 37)
+    Total                    : 283  [PASS]
 
   CLUSTER DISTRIBUTION
-    C1 High Functioning      : 75   (expected 75)
-    C2 Moderate / Mixed Needs: 132  (expected 132)
-    C3 Low Functioning ...   : 76   (expected 76)
+    C1 High Functioning      : 60   (expected 60)
+    C2 Stable Ageing         : 84   (expected 84)
+    C3 Environmentally/Fin.  : 74   (expected 74)
+    C4 Low Functioning       : 65   (expected 65)
     Cluster check            : [PASS]
 
   OVERALL VALIDATION: PASS
@@ -251,22 +253,22 @@ Expected output:
 ### 3. Check via Tinker
 ```php
 // Active seniors
-App\Models\SeniorCitizen::active()->count();              // 286
+App\Models\SeniorCitizen::active()->count();              // 283
 
 // ML results
-App\Models\MlResult::count();                            // ≥ 286
+App\Models\MlResult::count();                            // ≥ 283
 
 // Prediction sources
 App\Models\MlResult::groupBy('prediction_source')
     ->selectRaw('prediction_source, COUNT(*) as cnt')
     ->pluck('cnt','prediction_source');
-// ['notebook_cache' => 283, 'live_model' => 3]
+// ['notebook_cache' => 283]
 
 // Risk distribution
 App\Models\MlResult::groupBy('overall_risk_level')
     ->selectRaw('overall_risk_level, COUNT(*) as cnt')
     ->pluck('cnt','overall_risk_level');
-// ['HIGH'=>56, 'MODERATE'=>192, 'LOW'=>38]
+// ['HIGH'=>55, 'MODERATE'=>191, 'LOW'=>37]
 ```
 
 ---

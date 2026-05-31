@@ -15,18 +15,17 @@ Before any sharing, the main device must confirm these exact numbers:
 
 | Metric | Expected |
 |---|---|
-| Total active seniors | 286 |
-| QoL Surveyed | 286 |
-| Risk — HIGH | 56 |
-| Risk — MODERATE | 192 |
-| Risk — LOW | 38 |
-| Cluster C1 — High Functioning | 75 |
-| Cluster C2 — Moderate / Mixed Needs | 132 |
-| Cluster C3 — Low Functioning / Multi-domain Risk | 76 |
+| Total active seniors | 283 |
+| QoL Surveyed | 283 |
+| Risk — HIGH | 55 |
+| Risk — MODERATE | 191 |
+| Risk — LOW | 37 |
+| Cluster C1 — High Functioning / Well-Supported Seniors | 60 |
+| Cluster C2 — Stable Ageing / Moderate Support Needs | 84 |
+| Cluster C3 — Environmentally and Financially Vulnerable Seniors | 74 |
+| Cluster C4 — Low Functioning / Multi-Domain Priority Seniors | 65 |
 | Prediction Source | Notebook-Validated Cache: 283 |
 | Model Version | 1.1.0 |
-
-> **Note:** Total is 286, but only 283 show `Notebook-Validated Cache`. The remaining 3 seniors were added after the notebook run and score via the live model path — this is expected and correct.
 
 ---
 
@@ -106,22 +105,23 @@ php artisan view:clear
 Open the app in a browser and confirm:
 
 ```
-Total Seniors   : 286
-QoL Surveyed    : 286
+Total Seniors   : 283
+QoL Surveyed    : 283
 
 Risk Distribution:
-  LOW           : 38
-  MODERATE      : 192
-  HIGH          : 56
+  LOW           : 37
+  MODERATE      : 191
+  HIGH          : 55
 
 Health Groups:
-  C1 High Functioning                    : 75
-  C2 Moderate / Mixed Needs              : 132
-  C3 Low Functioning / Multi-domain Risk : 76
+  C1 High Functioning / Well-Supported Seniors          : 60
+  C2 Stable Ageing / Moderate Support Needs             : 84
+  C3 Environmentally and Financially Vulnerable Seniors : 74
+  C4 Low Functioning / Multi-Domain Priority Seniors    : 65
 
 Prediction Source Summary:
   Notebook-Validated Cache : 283
-  Live ML Model            : 3
+  Live ML Model            : 0
   Fallback                 : 0
 ```
 
@@ -316,10 +316,10 @@ Double-click  start.bat
 Open `http://127.0.0.1:8000` and confirm the dashboard shows:
 
 ```
-Total Seniors              : 286
-Risk — HIGH                : 56
-Risk — MODERATE            : 192
-Risk — LOW                 : 38
+Total Seniors              : 283
+Risk — HIGH                : 55
+Risk — MODERATE            : 191
+Risk — LOW                 : 37
 Notebook-Validated Cache   : 283
 ```
 
@@ -626,7 +626,7 @@ python\venv\Scripts\python.exe python\scripts\test_staleness.py
 
 # Step 8 — Start and verify dashboard
 .\start.bat
-# Expected: Total=286, HIGH=56, MODERATE=192, LOW=38, Notebook-Validated Cache: 283
+# Expected: Total=283, HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283
 ```
 
 ### Shared MySQL — client device `.env`
