@@ -7,16 +7,29 @@
     <title>Sign in — AgeSense · OSCA Pagsanjan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
     <style>
-        /* Single calm entrance (this layout has no JS); honors reduced-motion. */
-        @keyframes ageReveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-        .reveal   { animation: ageReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
-        .reveal-2 { animation-delay: 0.07s; }
-        .reveal-3 { animation-delay: 0.14s; }
+        /* Rise + blur entrance — honors reduced-motion. */
+        @keyframes ageReveal {
+            from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
+            to   { opacity: 1; transform: none; filter: blur(0); }
+        }
+        .reveal   { animation: ageReveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .reveal-2 { animation-delay: 0.09s; }
+        .reveal-3 { animation-delay: 0.18s; }
         @media (prefers-reduced-motion: reduce) {
             .reveal, .reveal-2, .reveal-3 { animation: none; }
+        }
+
+        /* Care-group indicator — crisp circle with a soft inner ring */
+        .care-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 9999px;
+            flex-shrink: 0;
+            opacity: 0.9;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10);
         }
     </style>
 </head>
@@ -26,10 +39,14 @@
 
     {{-- ── Editorial left panel — institutional navy ── --}}
     <aside class="hidden lg:flex flex-col justify-between bg-navy-900 text-navy-100 p-12 relative overflow-hidden">
-        {{-- Layered depth: dot grid + soft glow + base vignette --}}
+        {{-- Layered depth: dot grid --}}
         <div class="absolute inset-0 opacity-[0.06]" style="background-image: radial-gradient(circle at 20% 25%, white 1px, transparent 1px); background-size: 26px 26px;"></div>
-        <div class="absolute -top-32 -right-24 w-[26rem] h-[26rem] rounded-full bg-navy-700/40 blur-3xl"></div>
-        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent"></div>
+        {{-- Top-right glow --}}
+        <div class="absolute -top-32 -right-24 w-[26rem] h-[26rem] rounded-full bg-navy-700/40 blur-3xl pointer-events-none"></div>
+        {{-- Bottom-left ambient accent — second light source for depth --}}
+        <div class="absolute -bottom-24 -left-16 w-[20rem] h-[20rem] rounded-full blur-[90px] pointer-events-none" style="background: rgba(29, 68, 136, 0.28)"></div>
+        {{-- Bottom vignette --}}
+        <div class="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
 
         {{-- Brand / masthead --}}
         <div class="relative reveal">
@@ -76,8 +93,14 @@
                 <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1.5">WHO Domains</div>
             </div>
             <div class="px-4 border-l border-navy-700">
-                <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">K=4</div>
-                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1.5">Health Groups</div>
+                <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">4</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1">Care Groups</div>
+                <div class="flex items-center gap-1.5 mt-2.5" title="Thriving · Stable · At-Risk · Priority Care">
+                    <div class="care-dot" style="background: #2ecc71"></div>
+                    <div class="care-dot" style="background: #3498db"></div>
+                    <div class="care-dot" style="background: #f39c12"></div>
+                    <div class="care-dot" style="background: #e74c3c"></div>
+                </div>
             </div>
             <div class="pl-4 border-l border-navy-700">
                 <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">16</div>
@@ -97,12 +120,14 @@
                 </div>
             </div>
 
-            <div class="eyebrow text-forest-700">Sign in</div>
-            <h1 class="font-serif text-[34px] font-semibold tracking-snug mt-2 text-balance">Welcome back.</h1>
-            <p class="text-ink-500 text-[13.5px] mt-2">Access the OSCA analytics workspace for Pagsanjan.</p>
+            {{-- Accent rule — visual anchor above the heading --}}
+            <div class="w-8 h-[3px] rounded-full bg-accent-500 mb-5"></div>
+            <div class="eyebrow text-forest-700">Staff Portal</div>
+            <h1 class="font-serif text-[34px] font-semibold tracking-snug mt-2 text-balance leading-[1.1]">Welcome back.</h1>
+            <p class="text-ink-500 text-[13.5px] mt-2 leading-relaxed">Access the OSCA analytics workspace for Pagsanjan.</p>
 
             @if ($errors->any())
-                <div class="mt-6 flex items-start gap-2 rounded-xl border border-critical-200 bg-critical-50 px-3.5 py-2.5 text-[13px] text-critical-700" role="alert">
+                <div class="mt-6 flex items-start gap-2.5 rounded-xl border border-critical-200 bg-critical-50 px-3.5 py-3 text-[13px] text-critical-700" role="alert">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -110,8 +135,8 @@
                 </div>
             @endif
 
-            {{-- No Alpine on this layout (only app.css is loaded), so the button state is
-                 handled with plain JS below — never x-data / template, which render blank. --}}
+            {{-- No Alpine on this layout (only app.css is loaded); button state handled
+                 with plain JS below — never x-data/template, which render blank. --}}
             <form method="POST" action="{{ route('login') }}" id="login-form" class="mt-8 space-y-5">
                 @csrf
                 <div>
@@ -124,7 +149,8 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label for="password" class="eyebrow">Password</label>
-                        <span class="text-[11px] text-ink-400 cursor-help" title="Ask your OSCA administrator to reset it.">Forgot?</span>
+                        <span class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors cursor-help"
+                              title="Ask your OSCA administrator to reset it.">Forgot password?</span>
                     </div>
                     <div class="relative">
                         <input id="password" name="password" type="password" required autocomplete="current-password"
@@ -146,7 +172,7 @@
                     </div>
                 </div>
 
-                <label class="inline-flex items-center gap-2 text-[13px] text-ink-700 select-none">
+                <label class="inline-flex items-center gap-2 text-[13px] text-ink-700 select-none cursor-pointer">
                     <input type="checkbox" name="remember" class="rounded border-paper-rule text-forest-700 focus:ring-forest-500" />
                     Keep me signed in on this device
                 </label>
@@ -188,9 +214,11 @@
                 })();
             </script>
 
-            <p class="text-[11px] text-ink-400 mt-10 leading-relaxed">
-                AgeSense · WHO Healthy Ageing framework · OSCA Pagsanjan, Laguna
-            </p>
+            <div class="mt-10 pt-5 border-t border-paper-rule">
+                <p class="text-[11px] text-ink-400 leading-relaxed">
+                    AgeSense · WHO Healthy Ageing framework · OSCA Pagsanjan, Laguna
+                </p>
+            </div>
         </div>
     </main>
 </div>
