@@ -389,16 +389,6 @@
 
     function clusterNumber(label, feature = null) {
         const props = feature?.properties || {};
-        const namedId = numericValue(props.cluster_named_id ?? props.health_group_id);
-        if (namedId !== null && namedId >= 1 && namedId <= 4) {
-            return namedId;
-        }
-
-        const apiClusterId = numericValue(props.cluster_id);
-        if (apiClusterId !== null && apiClusterId >= 1 && apiClusterId <= 4) {
-            return apiClusterId;
-        }
-
         const textCandidates = [
             label,
             props.health_group,
@@ -424,12 +414,26 @@
             }
         }
 
-        const rawId = apiClusterId;
+        const namedId = numericValue(props.cluster_named_id);
+        if (namedId !== null && namedId >= 1 && namedId <= 4) {
+            return namedId;
+        }
+
+        const rawId = numericValue(props.cluster_id);
         if (rawId !== null && rawId >= 0 && rawId <= 3) {
             return rawId + 1;
         }
 
-        if (namedId !== null && namedId === 0) {
+        if (rawId !== null && rawId >= 1 && rawId <= 4) {
+            return rawId;
+        }
+
+        const healthGroupId = numericValue(props.health_group_id);
+        if (healthGroupId !== null && healthGroupId >= 1 && healthGroupId <= 4) {
+            return healthGroupId;
+        }
+
+        if (healthGroupId !== null && healthGroupId === 0) {
             return 1;
         }
 
@@ -649,7 +653,7 @@
                     ${selectedClusterScale}
                     ${clusterLegend}
                     <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
-                        ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest health group color without blending groups. Markers show the actual senior health group.'
+                        ? 'All groups are shown as a continuous KDE heatmap surface. Each color represents the locally strongest health group contribution. Markers show the actual senior health group.'
                         : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                     ${boundaryLegend}
@@ -2115,7 +2119,6 @@
 
             return {
                 label: group.label,
-                color: hexToRgb(group.color),
                 ramp: gradientStopsFromStops(group.stops),
                 pointCount: group.points.length,
                 data,
@@ -2144,26 +2147,21 @@
             ? Math.max(42, Math.min(options.colorScaleMax || 255, strongestDensity * 0.82 || 42))
             : Math.max(72, Math.min(options.colorScaleMax || 255, strongestDensity * 1.05 || 72));
         const minVisibleDensity = options.minVisibleDensity ?? 0.22;
-        const rasterPixelInsideBoundary = (x, y) => {
-            if (!hasBoundaryFeatures(options.clipBoundary)) {
-                return true;
-            }
-
-            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
-            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
-
-            return pointInsideBoundary([lng, lat], options.clipBoundary);
-        };
 
         for (let index = 0; index < outputImage.data.length; index += 4) {
             const pixel = index / 4;
             const x = pixel % width;
             const y = Math.floor(pixel / width);
+            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
+            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
+
+            if (!pointInsideBoundary([lng, lat], options.clipBoundary)) {
+                continue;
+            }
 
             if (options.independentSurfaces === true) {
                 let contourDensity = 0;
                 const contributions = [];
-                const anchoredContributions = [];
                 let strongestDensityAtPixel = 0;
                 let totalDensityAtPixel = 0;
 
@@ -2209,22 +2207,6 @@
                         (pointCoreDensity * (options.pointCoreBlendWeight ?? 1.38))
                     );
 
-                    if (pointCoreDensity >= (options.pointAnchorDensity ?? 0.028) || peakDensity >= (options.localGroupedPeakDensity ?? 0.035)) {
-                        anchoredContributions.push({
-                            group,
-                            score: Math.max(
-                                pointCoreDensity * (options.pointAnchorPriorityScale ?? 2.60),
-                                peakDensity * (options.localGroupedPriorityScale ?? 1.80)
-                            ),
-                            colorDensity,
-                            localDensity: clampUnit(Math.max(
-                                localDensity,
-                                pointCoreDensity * (options.pointCoreBoost ?? 1.46),
-                                peakDensity * (options.peakSupportBoost ?? 1.28)
-                            )),
-                        });
-                    }
-
                     strongestDensityAtPixel = Math.max(strongestDensityAtPixel, localDensity);
                     totalDensityAtPixel += localDensity;
                     contourDensity = Math.max(contourDensity, localDensity);
@@ -2235,17 +2217,40 @@
                     continue;
                 }
 
-                if (!rasterPixelInsideBoundary(x, y)) {
+                const dominantContribution = contributions.reduce((best, item) => item.score > best.score ? item : best, contributions[0]);
+                const strongestContribution = dominantContribution.score;
+                const blendFloor = strongestContribution * (options.clusterBlendFloor ?? 0.18);
+                let totalWeight = 0;
+                let mixedRed = 0;
+                let mixedGreen = 0;
+                let mixedBlue = 0;
+
+                contributions.forEach((item) => {
+                    if (item.score < blendFloor) {
+                        return;
+                    }
+
+                    const isDominant = item === dominantContribution;
+                    const dominanceBoost = isDominant ? (options.dominantClusterWeightBoost ?? 2.40) : 1;
+                    const weight = Math.pow(item.score, options.clusterBlendPower ?? 2.10) * dominanceBoost;
+                    const [itemRed, itemGreen, itemBlue] = colorForGradientValue(
+                        Math.pow(item.colorDensity, options.dominancePower ?? 0.74),
+                        item.group.ramp
+                    );
+
+                    totalWeight += weight;
+                    mixedRed += itemRed * weight;
+                    mixedGreen += itemGreen * weight;
+                    mixedBlue += itemBlue * weight;
+                });
+
+                if (totalWeight <= 0) {
                     continue;
                 }
 
-                const dominantContribution = anchoredContributions.length
-                    ? anchoredContributions.reduce((best, item) => item.score > best.score ? item : best, anchoredContributions[0])
-                    : contributions.reduce((best, item) => item.score > best.score ? item : best, contributions[0]);
-                const [red, green, blue] = colorForGradientValue(
-                    Math.pow(dominantContribution.colorDensity, options.dominancePower ?? 0.74),
-                    dominantContribution.group.ramp
-                );
+                const red = Math.round(mixedRed / totalWeight);
+                const green = Math.round(mixedGreen / totalWeight);
+                const blue = Math.round(mixedBlue / totalWeight);
                 const alphaDensity = clampUnit(Math.max(
                     dominantContribution.localDensity,
                     strongestDensityAtPixel,
@@ -2328,10 +2333,6 @@
                 continue;
             }
 
-            if (!rasterPixelInsideBoundary(x, y)) {
-                continue;
-            }
-
             // Contour scalar field: medium-kernel peak density creates local maxima
             // at each cluster's concentration centers (including minority patches),
             // while a small broad contribution provides the regional backdrop.
@@ -2381,9 +2382,12 @@
                 }
             }
 
-            // Geographic raster: per-cluster KDE surfaces compete internally,
-            // then the locally strongest group writes its own fixed color.
-            // This avoids muddy mixed colors when major and minor groups overlap.
+            // Geographic raster: the KDE is generated in municipal-coordinate
+            // space, clipped to Pagsanjan, and weak edge influence is discarded.
+            // The final image is a single canvas: per-cluster KDE surfaces are
+            // compared internally, then the locally strongest group writes its
+            // own fixed color. This keeps minority peaks visible without
+            // stacking transparent color overlays into muddy mixed colors.
             outputImage.data[index] = red;
             outputImage.data[index + 1] = green;
             outputImage.data[index + 2] = blue;
@@ -2393,16 +2397,14 @@
             ));
         }
 
-        if (options.independentSurfaces !== true) {
-            smoothRasterColorEdges(
-                outputImage,
-                width,
-                height,
-                options.edgeSmoothPasses ?? 2,
-                options.edgeSmoothStrength ?? 0.34,
-                options.edgeSmoothRadius ?? 1
-            );
-        }
+        smoothRasterColorEdges(
+            outputImage,
+            width,
+            height,
+            options.edgeSmoothPasses ?? 2,
+            options.edgeSmoothStrength ?? 0.34,
+            options.edgeSmoothRadius ?? 1
+        );
         outputContext.putImageData(outputImage, 0, 0);
 
         // Run marching squares directly on the full-resolution contour density
@@ -3640,7 +3642,6 @@
         const groups = clusterGroups
             .map(([label, groupFeatures]) => ({
                 label,
-                color: clusterColorForLabel(label, groupFeatures[0]),
                 stops: clusterGradientForLabel(label, groupFeatures[0]),
                 points: heatmapPoints(groupFeatures, 'cluster-heatmap'),
             }))
@@ -3661,8 +3662,8 @@
         }
 
         // Renders independent filled-contour KDE surfaces per health group.
-        // Hue stays tied to one assigned cluster per pixel; overlapping major
-        // and minor groups never average into a blended color.
+        // Hue stays tied to the assigned cluster; opacity/saturation follows
+        // that cluster's local density so minority groups remain visible.
         const heatmapLayer = createClusterDistributionRasterLayer(groups, {
             bounds,
             radius_meters: radiusMeters,
@@ -3715,8 +3716,7 @@
             minorityPointPresenceScale: options.minorityPointPresenceScale ?? 7.6,
             majorityPointPresenceScale: options.majorityPointPresenceScale ?? 9.8,
             localMinorityPointPresenceScale: options.localMinorityPointPresenceScale ?? 12.0,
-            pointAnchorDensity: options.pointAnchorDensity ?? 0.018,
-            pointAnchorPriorityScale: options.pointAnchorPriorityScale ?? 3.20,
+            pointAnchorDensity: options.pointAnchorDensity ?? 0.028,
             pointAnchorCompeteRatio: options.pointAnchorCompeteRatio ?? 0.68,
             nonPointAnchorPriorityScale: options.nonPointAnchorPriorityScale ?? 0.14,
             broadOnlyPriorityScale: options.broadOnlyPriorityScale ?? 0.22,
@@ -3725,7 +3725,7 @@
             minorityPointColorLift: options.minorityPointColorLift ?? 1.62,
             localSameClusterBroadDensity: options.localSameClusterBroadDensity ?? 0.020,
             localSameClusterBroadRatio: options.localSameClusterBroadRatio ?? 0.98,
-            localGroupedCoreDensity: options.localGroupedCoreDensity ?? 0.018,
+            localGroupedCoreDensity: options.localGroupedCoreDensity ?? 0.024,
             localSameClusterPriorityScale: options.localSameClusterPriorityScale ?? 3.75,
             broadBlendWeight: options.broadBlendWeight ?? 0.54,
             peakBlendWeight: options.peakBlendWeight ?? 1.22,
@@ -3733,6 +3733,9 @@
             perClusterScaleFactor: options.perClusterScaleFactor ?? 0.88,
             perClusterPeakScaleFactor: options.perClusterPeakScaleFactor ?? 0.84,
             perClusterCoreScaleFactor: options.perClusterCoreScaleFactor ?? 0.78,
+            clusterBlendFloor: options.clusterBlendFloor ?? 0.18,
+            clusterBlendPower: options.clusterBlendPower ?? 2.10,
+            dominantClusterWeightBoost: options.dominantClusterWeightBoost ?? 2.40,
             totalDensityAlphaWeight: options.totalDensityAlphaWeight ?? 0.24,
             edgeSmoothPasses: options.edgeSmoothPasses ?? 1,
             edgeSmoothStrength: options.edgeSmoothStrength ?? 0.28,
@@ -3864,456 +3867,6 @@
         return overlay;
     }
 
-    function buildClusterPointRampLayer(features, options = {}) {
-        const groups = groupFeaturesByCluster(features)
-            .map(([label, groupFeatures]) => {
-                const groupNumber = featureClusterNumber(groupFeatures[0]);
-                const resolvedLabel = groupNumber ? `Group ${groupNumber}` : label;
-
-                return {
-                    label: resolvedLabel,
-                    color: clusterColorForLabel(resolvedLabel, groupFeatures[0]),
-                    ramp: gradientStopsFromStops(clusterGradientForLabel(resolvedLabel, groupFeatures[0])),
-                    points: groupFeatures
-                        .map((feature) => {
-                            const latlng = featureLatLng(feature);
-                            return latlng
-                                ? [latlng.lat, latlng.lng, Math.max(1, seniorCount(feature)), normalizeBarangayName(feature.properties?.barangay)]
-                                : null;
-                        })
-                        .filter(Boolean),
-                };
-            })
-            .filter((group) => group.points.length);
-
-        if (!groups.length) {
-            return null;
-        }
-
-        const PointRampLayer = window.L.Layer.extend({
-            initialize() {
-                this._groups = groups;
-                this._options = options;
-            },
-
-            onAdd(map) {
-                this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-point-ramp');
-                this._canvas.style.pointerEvents = 'none';
-
-                const pane = map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane;
-                pane.appendChild(this._canvas);
-
-                map.on('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation && window.L.Browser.any3d) {
-                    map.on('zoomanim', this._animateZoom, this);
-                }
-
-                this._reset();
-            },
-
-            onRemove(map) {
-                if (this._canvas?.parentNode) {
-                    this._canvas.parentNode.removeChild(this._canvas);
-                }
-
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                    this._resetFrame = null;
-                }
-
-                map.off('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation) {
-                    map.off('zoomanim', this._animateZoom, this);
-                }
-            },
-
-            _scheduleReset() {
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                }
-
-                this._resetFrame = window.requestAnimationFrame(() => {
-                    this._resetFrame = null;
-                    this._reset();
-                });
-            },
-
-            _reset() {
-                const size = this._map.getSize();
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-                this._canvas.width = size.x;
-                this._canvas.height = size.y;
-                this._redraw();
-            },
-
-            _animateZoom(event) {
-                const scale = this._map.getZoomScale(event.zoom);
-                const offset = this._map
-                    ._getCenterOffset(event.center)
-                    ._multiplyBy(-scale)
-                    .subtract(this._map._getMapPanePos());
-
-                if (window.L.DomUtil.setTransform) {
-                    window.L.DomUtil.setTransform(this._canvas, offset, scale);
-                    return;
-                }
-
-                this._canvas.style[window.L.DomUtil.TRANSFORM] = `${window.L.DomUtil.getTranslateString(offset)} scale(${scale})`;
-            },
-
-            _densityForGroup(group, width, height, radius) {
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const context = canvas.getContext('2d');
-                context.globalCompositeOperation = 'lighter';
-                const maxWeight = Math.max(1, ...group.points.map((point) => point[2] || 1));
-                const projectedPoints = [];
-
-                group.points.forEach(([lat, lng, weight, barangay]) => {
-                    const point = this._map.latLngToContainerPoint([lat, lng]);
-                    const isBuboy = barangay === 'buboy';
-                    const localRadius = radius * (isBuboy ? 1.34 : 1);
-                    if (point.x < -localRadius || point.y < -localRadius || point.x > width + localRadius || point.y > height + localRadius) {
-                        return;
-                    }
-
-                    const intensity = clampUnit(Math.max(isBuboy ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
-                    projectedPoints.push({ x: point.x, y: point.y, intensity, barangay });
-                    const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, localRadius);
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${0.96 * intensity})`);
-                    gradient.addColorStop(0.14, `rgba(0,0,0,${0.86 * intensity})`);
-                    gradient.addColorStop(0.30, `rgba(0,0,0,${0.58 * intensity})`);
-                    gradient.addColorStop(0.50, `rgba(0,0,0,${0.30 * intensity})`);
-                    gradient.addColorStop(0.72, `rgba(0,0,0,${0.11 * intensity})`);
-                    gradient.addColorStop(0.90, `rgba(0,0,0,${0.026 * intensity})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(point.x, point.y, localRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                const groupNumber = clusterNumber(group.label);
-                const compactGroup = projectedPoints.length >= 3;
-                const bridgeBoost = compactGroup ? 1.34 : 1;
-                const bridgeDistance = radius * 1.65 * bridgeBoost;
-                const bridgeDistanceSquared = bridgeDistance * bridgeDistance;
-                const bridgeKernelRadius = Math.max(10, radius * (compactGroup ? 0.62 : 0.48));
-
-                for (let firstIndex = 0; firstIndex < projectedPoints.length; firstIndex += 1) {
-                    const first = projectedPoints[firstIndex];
-                    for (let secondIndex = firstIndex + 1; secondIndex < projectedPoints.length; secondIndex += 1) {
-                        const second = projectedPoints[secondIndex];
-                        const buboyPair = first.barangay === 'buboy' && second.barangay === 'buboy';
-                        const dx = second.x - first.x;
-                        const dy = second.y - first.y;
-                        const distanceSquared = (dx * dx) + (dy * dy);
-                        const pairBridgeDistance = bridgeDistance * (buboyPair ? 1.32 : 1);
-                        const pairBridgeDistanceSquared = pairBridgeDistance * pairBridgeDistance;
-                        if (distanceSquared > pairBridgeDistanceSquared) {
-                            continue;
-                        }
-
-                        const distance = Math.sqrt(distanceSquared);
-                        const closeness = clampUnit(1 - (distance / pairBridgeDistance));
-                        const bridgeAlphaCap = buboyPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
-                        const bridgeAlphaBase = buboyPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
-                        const bridgeAlphaRange = buboyPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
-                        const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity));
-                        const midpointX = (first.x + second.x) / 2;
-                        const midpointY = (first.y + second.y) / 2;
-                        const blobCount = buboyPair ? 4 : (compactGroup ? 3 : 2);
-
-                        for (let blobIndex = 1; blobIndex <= blobCount; blobIndex += 1) {
-                            const t = blobIndex / (blobCount + 1);
-                            const centerX = first.x + (dx * t);
-                            const centerY = first.y + (dy * t);
-                            const wobble = Math.sin((first.x + second.y + blobIndex * 31) * 0.017) * bridgeKernelRadius * 0.14;
-                            const angle = Math.atan2(dy, dx) + (Math.PI / 2);
-                            const blobX = blobIndex === Math.ceil(blobCount / 2)
-                                ? midpointX
-                                : centerX + Math.cos(angle) * wobble;
-                            const blobY = blobIndex === Math.ceil(blobCount / 2)
-                                ? midpointY
-                                : centerY + Math.sin(angle) * wobble;
-                            const kernelRadius = bridgeKernelRadius * (buboyPair ? 1.22 : 1) * (0.74 + (closeness * 0.34));
-                            const gradient = context.createRadialGradient(blobX, blobY, 0, blobX, blobY, kernelRadius);
-
-                            gradient.addColorStop(0.00, `rgba(0,0,0,${bridgeAlpha * 0.78})`);
-                            gradient.addColorStop(0.34, `rgba(0,0,0,${bridgeAlpha * 0.42})`);
-                            gradient.addColorStop(0.68, `rgba(0,0,0,${bridgeAlpha * 0.12})`);
-                            gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                            context.fillStyle = gradient;
-                            context.beginPath();
-                            context.arc(blobX, blobY, kernelRadius, 0, Math.PI * 2);
-                            context.fill();
-                        }
-                    }
-                }
-
-                const componentDistance = radius * (compactGroup ? 2.35 : 1.95);
-                const componentDistanceSquared = componentDistance * componentDistance;
-                const visited = new Set();
-
-                projectedPoints.forEach((startPoint, startIndex) => {
-                    if (visited.has(startIndex)) {
-                        return;
-                    }
-
-                    const queue = [startIndex];
-                    const componentIndexes = [];
-                    visited.add(startIndex);
-
-                    while (queue.length) {
-                        const currentIndex = queue.shift();
-                        const current = projectedPoints[currentIndex];
-                        componentIndexes.push(currentIndex);
-
-                        projectedPoints.forEach((candidate, candidateIndex) => {
-                            if (visited.has(candidateIndex)) {
-                                return;
-                            }
-
-                            const buboyPair = candidate.barangay === 'buboy' && current.barangay === 'buboy';
-                            const dx = candidate.x - current.x;
-                            const dy = candidate.y - current.y;
-                            const distanceSquared = (dx * dx) + (dy * dy);
-                            const localComponentDistance = componentDistance * (buboyPair ? 1.34 : 1);
-                            if (distanceSquared > localComponentDistance * localComponentDistance) {
-                                return;
-                            }
-
-                            visited.add(candidateIndex);
-                            queue.push(candidateIndex);
-                        });
-                    }
-
-                    if (componentIndexes.length < 2) {
-                        return;
-                    }
-
-                    const component = componentIndexes.map((index) => projectedPoints[index]);
-                    const buboyPointCount = component.filter((point) => point.barangay === 'buboy').length;
-                    const isBuboyComponent = buboyPointCount >= Math.max(2, Math.ceil(component.length * 0.5));
-                    const centerX = component.reduce((total, point) => total + point.x, 0) / component.length;
-                    const centerY = component.reduce((total, point) => total + point.y, 0) / component.length;
-                    const extent = component.reduce((max, point) => {
-                        const dx = point.x - centerX;
-                        const dy = point.y - centerY;
-                        return Math.max(max, Math.sqrt((dx * dx) + (dy * dy)));
-                    }, 0);
-                    const cloudRadius = Math.max(
-                        radius * (isBuboyComponent ? 1.72 : (component.length >= 3 ? 1.28 : 1.06)),
-                        extent + (radius * (isBuboyComponent ? 1.08 : 0.78))
-                    );
-                    const cloudAlpha = Math.min(
-                        isBuboyComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
-                        (isBuboyComponent ? 0.13 : 0.08) + (component.length * (isBuboyComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
-                    );
-                    const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, cloudRadius);
-
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${cloudAlpha})`);
-                    gradient.addColorStop(0.34, `rgba(0,0,0,${cloudAlpha * 0.52})`);
-                    gradient.addColorStop(0.66, `rgba(0,0,0,${cloudAlpha * 0.18})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(centerX, centerY, cloudRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                return context.getImageData(0, 0, width, height).data;
-            },
-
-            _redraw() {
-                const width = this._canvas.width;
-                const height = this._canvas.height;
-                const radiusMeters = this._options.radiusMeters ?? 230;
-                const rawRadius = metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters);
-                const zoom = this._map.getZoom();
-                const minScreenRadius = zoom <= 11 ? 30 : (zoom <= 13 ? 38 : 3);
-                const maxScreenRadius = zoom <= 11 ? 54 : (zoom <= 13 ? 72 : 260);
-                const radius = Math.round(Math.max(minScreenRadius, Math.min(maxScreenRadius, rawRadius)));
-                const groupImages = this._groups.map((group) => ({
-                    ...group,
-                    data: this._densityForGroup(group, width, height, radius),
-                }));
-                const anchorGroupIndexes = new Int16Array(width * height);
-                const anchorScores = new Float32Array(width * height);
-                anchorGroupIndexes.fill(-1);
-                const protectedRadius = Math.round(Math.max(3, Math.min(90, radius * 0.46)));
-                const protectedRadiusSquared = protectedRadius * protectedRadius;
-
-                groupImages.forEach((group, groupIndex) => {
-                    group.points.forEach(([lat, lng]) => {
-                        const point = this._map.latLngToContainerPoint([lat, lng]);
-                        const startX = Math.max(0, Math.floor(point.x - protectedRadius));
-                        const endX = Math.min(width - 1, Math.ceil(point.x + protectedRadius));
-                        const startY = Math.max(0, Math.floor(point.y - protectedRadius));
-                        const endY = Math.min(height - 1, Math.ceil(point.y + protectedRadius));
-
-                        for (let y = startY; y <= endY; y += 1) {
-                            const dy = y - point.y;
-                            for (let x = startX; x <= endX; x += 1) {
-                                const dx = x - point.x;
-                                const distanceSquared = (dx * dx) + (dy * dy);
-                                if (distanceSquared > protectedRadiusSquared) {
-                                    continue;
-                                }
-
-                                const pixel = (y * width) + x;
-                                const score = Math.pow(1 - Math.sqrt(distanceSquared) / protectedRadius, 2.20);
-                                if (score > anchorScores[pixel]) {
-                                    anchorScores[pixel] = score;
-                                    anchorGroupIndexes[pixel] = groupIndex;
-                                }
-                            }
-                        }
-                    });
-                });
-                const outputContext = this._canvas.getContext('2d');
-                const outputImage = outputContext.createImageData(width, height);
-
-                for (let index = 0; index < outputImage.data.length; index += 4) {
-                    const pixel = index / 4;
-                    const x = pixel % width;
-                    const y = Math.floor(pixel / width);
-
-                    let winningGroup = null;
-                    let winningAlpha = 0;
-                    let secondAlpha = 0;
-
-                    for (const group of groupImages) {
-                        const alpha = group.data[index + 3];
-                        if (alpha > winningAlpha) {
-                            secondAlpha = winningAlpha;
-                            winningAlpha = alpha;
-                            winningGroup = group;
-                        } else if (alpha > secondAlpha) {
-                            secondAlpha = alpha;
-                        }
-                    }
-
-                    const anchorGroupIndex = anchorGroupIndexes[pixel];
-                    if (anchorGroupIndex >= 0 && anchorScores[pixel] >= 0.08) {
-                        winningGroup = groupImages[anchorGroupIndex];
-                        winningAlpha = Math.max(
-                            winningAlpha,
-                            255 * (0.12 + (anchorScores[pixel] * 0.84))
-                        );
-                    }
-
-                    const normalized = clampUnit(winningAlpha / 255);
-                    const supportAlpha = groupImages.reduce((total, group) => total + group.data[index + 3], 0);
-                    const supportDensity = clampUnit(supportAlpha / 255);
-                    const minVisibleDensity = zoom <= 11 ? 0.115 : (zoom <= 13 ? 0.062 : (this._options.minVisibleDensity ?? 0.004));
-                    const minSupportDensity = zoom <= 11 ? 0.34 : (zoom <= 13 ? 0.24 : 0);
-                    if (!winningGroup || normalized < minVisibleDensity) {
-                        continue;
-                    }
-
-                    if (supportDensity < minSupportDensity) {
-                        continue;
-                    }
-
-                    if (!canvasPixelInsideBoundary(this._map, x, y, this._options.clipBoundary)) {
-                        continue;
-                    }
-
-                    const fixedRampFloor = this._options.fixedRampFloor ?? 0.004;
-                    const rampDensity = clampUnit((normalized - fixedRampFloor) / (1 - fixedRampFloor));
-                    const [red, green, blue] = colorForGradientValue(
-                        Math.pow(rampDensity, this._options.dominancePower ?? 0.86),
-                        winningGroup.ramp
-                    );
-
-                    outputImage.data[index] = red;
-                    outputImage.data[index + 1] = green;
-                    outputImage.data[index + 2] = blue;
-                    const competition = secondAlpha > 0
-                        ? clampUnit((winningAlpha - secondAlpha) / Math.max(winningAlpha, 1))
-                        : 1;
-                    const supportFeather = zoom <= 13 ? clampUnit((supportDensity - minSupportDensity) / Math.max(0.18, 1 - minSupportDensity)) : 1;
-                    const edgeFeather = (0.58 + (Math.pow(competition, 0.42) * 0.42)) * (0.52 + (supportFeather * 0.48));
-                    outputImage.data[index + 3] = Math.round(Math.min(
-                        this._options.outputMaxAlpha ?? 255,
-                        (this._options.outputAlphaBase ?? 255) * Math.pow(rampDensity, this._options.outputAlphaPower ?? 0.58) * edgeFeather
-                    ));
-                }
-
-                outputContext.clearRect(0, 0, width, height);
-                outputContext.putImageData(outputImage, 0, 0);
-            },
-        });
-
-        return new PointRampLayer();
-    }
-
-    function buildBarangayMajorityClusterBlobLayer(features) {
-        if (!hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
-            return null;
-        }
-
-        const selected = selectedBarangay();
-        const selectedNormalized = normalizeBarangayName(selected);
-        const barangayGroups = new Map();
-
-        features.forEach((feature) => {
-            const props = feature.properties || {};
-            const barangay = normalizeBarangayName(props.barangay);
-            const groupNumber = featureClusterNumber(feature);
-            if (!barangay || groupNumber === null) {
-                return;
-            }
-
-            if (!barangayGroups.has(barangay)) {
-                barangayGroups.set(barangay, {
-                    total: 0,
-                    counts: new Map(),
-                });
-            }
-
-            const stat = barangayGroups.get(barangay);
-            stat.total += 1;
-            stat.counts.set(groupNumber, (stat.counts.get(groupNumber) || 0) + 1);
-        });
-
-        return window.L.geoJSON(latestBarangayBoundaryGeoJson, {
-            pane: 'gis-heat-pane',
-            interactive: false,
-            filter(feature) {
-                const barangay = normalizeBarangayName(barangayNameFromBoundary(feature));
-                return barangayGroups.has(barangay)
-                    && (selected === 'all' || barangay === selectedNormalized);
-            },
-            style(feature) {
-                const barangay = normalizeBarangayName(barangayNameFromBoundary(feature));
-                const stat = barangayGroups.get(barangay);
-                const winner = [...(stat?.counts || new Map()).entries()]
-                    .sort((a, b) => b[1] - a[1])[0];
-                const groupNumber = winner?.[0] ?? null;
-                const winnerCount = winner?.[1] ?? 0;
-                const share = stat?.total ? winnerCount / stat.total : 0;
-
-                return {
-                    color: 'transparent',
-                    weight: 0,
-                    opacity: 0,
-                    fillColor: groupNumber ? clusterColorForLabel(`Group ${groupNumber}`) : '#64748b',
-                    fillOpacity: Math.max(0.20, Math.min(0.38, 0.14 + (share * 0.24))),
-                    smoothFactor: 1.6,
-                };
-            },
-        });
-    }
-
     function buildClusterIdentityHaloLayer(features) {
         return window.L.geoJSON({
             type: 'FeatureCollection',
@@ -4337,6 +3890,310 @@
                 attachSeniorPopup(layer, feature);
             },
         });
+    }
+
+    function buildClusterMinorityVisibilityHaloLayer(features) {
+        const counts = new Map();
+        features.forEach((feature) => {
+            const cluster = featureClusterNumber(feature);
+            if (cluster === null) return;
+            counts.set(cluster, (counts.get(cluster) ?? 0) + 1);
+        });
+
+        const maxCount = Math.max(0, ...counts.values());
+        if (maxCount <= 0) {
+            return window.L.layerGroup();
+        }
+
+        const points = features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const cluster = featureClusterNumber(feature);
+                if (!latlng || cluster === null) return null;
+
+                const ratio = (counts.get(cluster) ?? 0) / maxCount;
+                const minorityStrength = Math.max(0.28, 1 - Math.min(1, ratio));
+
+                return {
+                    latlng,
+                    cluster,
+                    color: clusterColorForLabel(clusterLabel(feature), feature),
+                    minorityStrength,
+                };
+            })
+            .filter(Boolean);
+
+        if (!points.length) {
+            return window.L.layerGroup();
+        }
+
+        const HaloLayer = window.L.Layer.extend({
+            onAdd(map) {
+                this._map = map;
+                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-minority-halo');
+                this._canvas.style.pointerEvents = 'none';
+
+                const pane = map.getPane('gis-risk-pane') ?? map.getPanes().overlayPane;
+                pane.appendChild(this._canvas);
+
+                map.on('moveend zoomend resize', this._reset, this);
+                if (map.options.zoomAnimation && window.L.Browser.any3d) {
+                    map.on('zoomanim', this._animateZoom, this);
+                }
+                this._reset();
+            },
+
+            onRemove(map) {
+                if (this._canvas?.parentNode) {
+                    this._canvas.parentNode.removeChild(this._canvas);
+                }
+                map.off('moveend zoomend resize', this._reset, this);
+                if (map.options.zoomAnimation) {
+                    map.off('zoomanim', this._animateZoom, this);
+                }
+            },
+
+            _animateZoom(event) {
+                const scale = this._map.getZoomScale(event.zoom);
+                const offset = this._map
+                    ._getCenterOffset(event.center)
+                    ._multiplyBy(-scale)
+                    .subtract(this._map._getMapPanePos());
+
+                if (window.L.DomUtil.setTransform) {
+                    window.L.DomUtil.setTransform(this._canvas, offset, scale);
+                    return;
+                }
+
+                this._canvas.style[window.L.DomUtil.TRANSFORM] = `${window.L.DomUtil.getTranslateString(offset)} scale(${scale})`;
+            },
+
+            _reset() {
+                const size = this._map.getSize();
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
+                this._canvas.width = size.x;
+                this._canvas.height = size.y;
+                this._redraw();
+            },
+
+            _redraw() {
+                const context = this._canvas.getContext('2d');
+                const width = this._canvas.width;
+                const height = this._canvas.height;
+
+                context.clearRect(0, 0, width, height);
+                context.globalCompositeOperation = 'source-over';
+
+                const visiblePoints = points
+                    .map((point) => ({
+                        ...point,
+                        pixel: this._map.latLngToContainerPoint(point.latlng),
+                    }))
+                    .filter((point) => (
+                        point.pixel.x >= -60 &&
+                        point.pixel.y >= -60 &&
+                        point.pixel.x <= width + 60 &&
+                        point.pixel.y <= height + 60
+                    ));
+
+                drawSameClusterGroupBackground(context, visiblePoints);
+
+                visiblePoints.forEach((point) => {
+                    const pixel = point.pixel;
+                    if (pixel.x < -40 || pixel.y < -40 || pixel.x > width + 40 || pixel.y > height + 40) {
+                        return;
+                    }
+
+                    const [red, green, blue] = hexToRgb(point.color);
+                    if (point.minorityStrength <= 0) {
+                        return;
+                    }
+
+                    const strength = Math.max(0.34, point.minorityStrength);
+                    const radius = 13 + (strength * 15);
+
+                    context.save();
+                    context.translate(pixel.x, pixel.y);
+                    context.rotate(-Math.PI / 7);
+                    context.scale(0.84, 1.22);
+
+                    const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+
+                    // Same-cluster teardrop halo: saturated at the true senior
+                    // point, then medium and light shades outward. This is a
+                    // visibility aid only; it does not move or fabricate data.
+                    gradient.addColorStop(0.00, `rgba(${red},${green},${blue},${0.68 + strength * 0.20})`);
+                    gradient.addColorStop(0.22, `rgba(${red},${green},${blue},${0.48 + strength * 0.18})`);
+                    gradient.addColorStop(0.50, `rgba(${red},${green},${blue},${0.22 + strength * 0.14})`);
+                    gradient.addColorStop(0.78, `rgba(${red},${green},${blue},${0.08 + strength * 0.08})`);
+                    gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+
+                    context.fillStyle = gradient;
+                    context.beginPath();
+                    context.moveTo(0, -radius * 0.95);
+                    context.bezierCurveTo(radius * 0.88, -radius * 0.28, radius * 0.72, radius * 0.78, 0, radius);
+                    context.bezierCurveTo(-radius * 0.72, radius * 0.78, -radius * 0.88, -radius * 0.28, 0, -radius * 0.95);
+                    context.fill();
+
+                    context.strokeStyle = `rgba(255,255,255,${0.34 + strength * 0.12})`;
+                    context.lineWidth = 0.9;
+                    context.beginPath();
+                    context.ellipse(0, 0, radius * 0.44, radius * 0.34, 0, 0, Math.PI * 2);
+                    context.stroke();
+
+                    context.strokeStyle = `rgba(255,255,255,${0.18 + strength * 0.08})`;
+                    context.lineWidth = 0.7;
+                    context.beginPath();
+                    context.ellipse(0, 0, radius * 0.68, radius * 0.52, 0, 0, Math.PI * 2);
+                    context.stroke();
+                    context.restore();
+                });
+            },
+        });
+
+        return new HaloLayer();
+    }
+
+    function drawSameClusterGroupBackground(context, points) {
+        const grouped = new Map();
+        points.forEach((point) => {
+            if (!point?.pixel || point.cluster === null || point.cluster === undefined) return;
+            const key = String(point.cluster);
+            if (!grouped.has(key)) {
+                grouped.set(key, []);
+            }
+            grouped.get(key).push(point);
+        });
+
+        grouped.forEach((clusterPoints) => {
+            if (clusterPoints.length < 2) return;
+
+            const components = sameClusterPointComponents(clusterPoints, 122);
+            components.forEach((component) => {
+                if (component.length < 2) return;
+
+                const groupStrength = component.reduce((total, point) => total + point.minorityStrength, 0) / component.length;
+                const isMinorGroup = groupStrength >= 0.42;
+                const isDenseMajorGroup = !isMinorGroup && component.length >= 3;
+                if (isMinorGroup && component.length > 7) return;
+                if (isDenseMajorGroup && component.length > 42) return;
+                if (!isMinorGroup && !isDenseMajorGroup) return;
+
+                const [red, green, blue] = hexToRgb(component[0].color);
+                const foreignPoints = points.filter((point) => point.cluster !== component[0].cluster);
+                const centroid = component.reduce((acc, point) => ({
+                    x: acc.x + point.pixel.x,
+                    y: acc.y + point.pixel.y,
+                }), { x: 0, y: 0 });
+                centroid.x /= component.length;
+                centroid.y /= component.length;
+
+                const maxDistanceFromCenter = component.reduce((max, point) => Math.max(
+                    max,
+                    Math.hypot(point.pixel.x - centroid.x, point.pixel.y - centroid.y)
+                ), 0);
+                const nearestForeignToCenter = foreignPoints.reduce((nearest, point) => Math.min(
+                    nearest,
+                    Math.hypot(point.pixel.x - centroid.x, point.pixel.y - centroid.y)
+                ), Infinity);
+                const cloudRadius = isDenseMajorGroup
+                    ? Math.min(220, Math.max(92, maxDistanceFromCenter + 72))
+                    : Math.min(
+                        96,
+                        Math.max(0, nearestForeignToCenter - 42),
+                        Math.max(52, maxDistanceFromCenter + 32)
+                    );
+
+                context.save();
+                context.globalCompositeOperation = 'source-over';
+                const opacityScale = isMinorGroup ? 1 : (component.length > 18 ? 0.28 : (component.length > 8 ? 0.38 : 0.54));
+
+                if (cloudRadius >= 48) {
+                    const cloudGradient = context.createRadialGradient(
+                        centroid.x,
+                        centroid.y,
+                        Math.max(8, cloudRadius * 0.12),
+                        centroid.x,
+                        centroid.y,
+                        cloudRadius
+                    );
+                    cloudGradient.addColorStop(0.00, `rgba(${red},${green},${blue},${0.14 * opacityScale})`);
+                    cloudGradient.addColorStop(0.48, `rgba(${red},${green},${blue},${0.10 * opacityScale})`);
+                    cloudGradient.addColorStop(0.78, `rgba(${red},${green},${blue},${0.04 * opacityScale})`);
+                    cloudGradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+
+                    context.fillStyle = cloudGradient;
+                    context.beginPath();
+                    context.arc(centroid.x, centroid.y, cloudRadius, 0, Math.PI * 2);
+                    context.fill();
+                }
+
+                component.forEach((point) => {
+                    const nearestForeignToPoint = foreignPoints.reduce((nearest, foreignPoint) => Math.min(
+                        nearest,
+                        Math.hypot(point.pixel.x - foreignPoint.pixel.x, point.pixel.y - foreignPoint.pixel.y)
+                    ), Infinity);
+                    const radius = isDenseMajorGroup
+                        ? (component.length > 8 ? 70 : 60)
+                        : Math.max(22, Math.min(48, nearestForeignToPoint - 24));
+                    const gradient = context.createRadialGradient(
+                        point.pixel.x,
+                        point.pixel.y,
+                        0,
+                        point.pixel.x,
+                        point.pixel.y,
+                        radius
+                    );
+                    gradient.addColorStop(0.00, `rgba(${red},${green},${blue},${0.24 * opacityScale})`);
+                    gradient.addColorStop(0.42, `rgba(${red},${green},${blue},${0.15 * opacityScale})`);
+                    gradient.addColorStop(0.76, `rgba(${red},${green},${blue},${0.06 * opacityScale})`);
+                    gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+
+                    context.fillStyle = gradient;
+                    context.beginPath();
+                    context.arc(point.pixel.x, point.pixel.y, radius, 0, Math.PI * 2);
+                    context.fill();
+                });
+                context.restore();
+            });
+        });
+    }
+
+    function sameClusterPointComponents(points, maxDistancePx) {
+        const visited = new Set();
+        const components = [];
+
+        points.forEach((point, startIndex) => {
+            if (visited.has(startIndex)) return;
+
+            const queue = [startIndex];
+            const component = [];
+            visited.add(startIndex);
+
+            while (queue.length) {
+                const index = queue.shift();
+                const current = points[index];
+                component.push(current);
+
+                points.forEach((candidate, candidateIndex) => {
+                    if (visited.has(candidateIndex)) return;
+                    const distance = Math.hypot(
+                        current.pixel.x - candidate.pixel.x,
+                        current.pixel.y - candidate.pixel.y
+                    );
+                    if (distance <= maxDistancePx) {
+                        visited.add(candidateIndex);
+                        queue.push(candidateIndex);
+                    }
+                });
+            }
+
+            components.push(component);
+        });
+
+        return components;
     }
 
     function buildRiskIdentityHaloLayer(features) {
@@ -4429,14 +4286,7 @@
             const result = buildClusterDistributionHeatmapLayer(map, features);
             if (!result.layer || !result.points.length) return null;
 
-            const clusterFeatures = heatmapFeaturesForMode(features, 'cluster-heatmap');
             layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
-                clipBoundary: primaryBoundaryGeoJson(),
-            });
-            if (pointRampLayer) {
-                layerGroup.addLayer(pointRampLayer);
-            }
             setKdeOverlayContext(map, mode, features, {
                 radiusMeters: result.radiusMeters,
                 colorScaleMax: result.colorScaleMax,
@@ -4563,12 +4413,6 @@
             }
 
             layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
-                clipBoundary: primaryBoundaryGeoJson(),
-            });
-            if (pointRampLayer) {
-                layerGroup.addLayer(pointRampLayer);
-            }
             if (shouldShowClusterSeniorPoints()) {
                 ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
             }
@@ -4577,7 +4421,7 @@
                 colorScaleMax: result.colorScaleMax,
             });
             focusMapOnActiveLayer(map, clusterFeatures);
-            setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s), rendered as a KDE density heatmap with non-blended group colors (${result.radiusMeters}m radius).`, 'success');
+            setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s), rendered as a continuous KDE density heatmap (${result.radiusMeters}m radius).`, 'success');
             return;
         }
 
@@ -4596,12 +4440,6 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
-            clipBoundary: primaryBoundaryGeoJson(),
-        });
-        if (pointRampLayer) {
-            ensureLayerRegistry(map).heatmap.addLayer(pointRampLayer);
-        }
         if (shouldShowClusterSeniorPoints()) {
             ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
         }
