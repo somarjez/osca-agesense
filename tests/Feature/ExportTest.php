@@ -24,8 +24,11 @@ class ExportTest extends TestCase
     use DatabaseTransactions;
 
     private User $admin;
+
     private User $encoder;
+
     private User $viewer;
+
     private SeniorCitizen $senior;
 
     protected function setUp(): void
@@ -61,13 +64,13 @@ class ExportTest extends TestCase
         $this->senior = SeniorCitizen::firstOrCreate(
             ['osca_id' => 'TST-2026-0001'],
             [
-                'first_name'    => 'Test',
-                'last_name'     => 'Senior',
-                'barangay'      => 'Barangay I',
+                'first_name' => 'Test',
+                'last_name' => 'Senior',
+                'barangay' => 'Barangay I',
                 'date_of_birth' => '1950-01-01',
-                'age'           => 76,
-                'gender'        => 'Male',
-                'status'        => 'active',
+                'age' => 76,
+                'gender' => 'Male',
+                'status' => 'active',
             ]
         );
 
@@ -75,19 +78,19 @@ class ExportTest extends TestCase
         MlResult::firstOrCreate(
             ['senior_citizen_id' => $this->senior->id],
             [
-                'cluster_id'        => 2,
-                'cluster_named_id'  => 3,
-                'cluster_name'      => 'Low Functioning / Multi-domain Risk',
-                'overall_risk_level'=> 'HIGH',
-                'ic_risk_level'     => 'high',
-                'env_risk_level'    => 'high',
-                'func_risk_level'   => 'high',
-                'composite_risk'    => 0.75,
-                'ic_risk'           => 0.72,
-                'env_risk'          => 0.68,
-                'func_risk'         => 0.70,
-                'wellbeing_score'   => 0.30,
-                'processed_at'      => now(),
+                'cluster_id' => 2,
+                'cluster_named_id' => 3,
+                'cluster_name' => 'Low Functioning / Multi-domain Risk',
+                'overall_risk_level' => 'HIGH',
+                'ic_risk_level' => 'high',
+                'env_risk_level' => 'high',
+                'func_risk_level' => 'high',
+                'composite_risk' => 0.75,
+                'ic_risk' => 0.72,
+                'env_risk' => 0.68,
+                'func_risk' => 0.70,
+                'wellbeing_score' => 0.30,
+                'processed_at' => now(),
             ]
         );
     }
@@ -137,7 +140,7 @@ class ExportTest extends TestCase
     public function senior_pdf_export_requires_authentication()
     {
         $this->get(route('seniors.export', $this->senior))
-             ->assertRedirect(route('login'));
+            ->assertRedirect(route('login'));
     }
 
     // ── Cluster CSV export ────────────────────────────────────────────────
@@ -171,23 +174,23 @@ class ExportTest extends TestCase
         $dataRow = str_getcsv($lines[1]);   // first data row (index 0 = header)
         $ageValue = (int) $dataRow[3];      // Age is the 4th column (0-indexed: 3)
         $this->assertGreaterThan(0, $ageValue,
-            "Age column in cluster CSV is 0 — getAgeAttribute accessor bug.");
+            'Age column in cluster CSV is 0 — getAgeAttribute accessor bug.');
     }
 
     #[Test]
     public function cluster_csv_export_is_forbidden_for_encoder()
     {
         $this->actingAs($this->encoder)
-             ->get(route('reports.cluster.export'))
-             ->assertForbidden();
+            ->get(route('reports.cluster.export'))
+            ->assertForbidden();
     }
 
     #[Test]
     public function cluster_csv_export_is_forbidden_for_viewer()
     {
         $this->actingAs($this->viewer)
-             ->get(route('reports.cluster.export'))
-             ->assertForbidden();
+            ->get(route('reports.cluster.export'))
+            ->assertForbidden();
     }
 
     // ── Risk CSV export ───────────────────────────────────────────────────
@@ -222,15 +225,15 @@ class ExportTest extends TestCase
         $firstDataRow = str_getcsv($lines[1]);
         $ageValue = (int) $firstDataRow[3];
         $this->assertGreaterThan(0, $ageValue,
-            "Age column in risk CSV is 0 — getAgeAttribute accessor bug.");
+            'Age column in risk CSV is 0 — getAgeAttribute accessor bug.');
     }
 
     #[Test]
     public function risk_csv_export_is_forbidden_for_viewer()
     {
         $this->actingAs($this->viewer)
-             ->get(route('reports.risk.export'))
-             ->assertForbidden();
+            ->get(route('reports.risk.export'))
+            ->assertForbidden();
     }
 
     // ── Registry Excel export ─────────────────────────────────────────────
@@ -269,8 +272,8 @@ class ExportTest extends TestCase
     public function registry_excel_export_is_forbidden_for_viewer()
     {
         $this->actingAs($this->viewer)
-             ->get(route('reports.registry.export'))
-             ->assertForbidden();
+            ->get(route('reports.registry.export'))
+            ->assertForbidden();
     }
 
     // ── Bulk upload sample template ───────────────────────────────────────
@@ -289,7 +292,7 @@ class ExportTest extends TestCase
 
         // Header row must contain all required columns
         $headerLine = explode("\n", $body)[0];
-        foreach (['first_name','last_name','barangay','dob','gender'] as $col) {
+        foreach (['first_name', 'last_name', 'barangay', 'dob', 'gender'] as $col) {
             $this->assertStringContainsString($col, $headerLine,
                 "Required column '$col' missing from template header.");
         }
@@ -303,7 +306,7 @@ class ExportTest extends TestCase
     public function bulk_upload_sample_is_forbidden_for_viewer()
     {
         $this->actingAs($this->viewer)
-             ->get(route('seniors.bulk-upload.sample'))
-             ->assertForbidden();
+            ->get(route('seniors.bulk-upload.sample'))
+            ->assertForbidden();
     }
 }

@@ -11,26 +11,24 @@ class RecommendationController extends Controller
     public function index(Request $request)
     {
         $stats = [
-            'total'     => Recommendation::count(),
-            'pending'   => Recommendation::where('status', 'pending')->count(),
+            'total' => Recommendation::count(),
+            'pending' => Recommendation::where('status', 'pending')->count(),
             'immediate' => Recommendation::where('urgency', 'immediate')->where('status', 'pending')->count(),
-            'seniors'   => SeniorCitizen::active()->whereHas('recommendations')->count(),
+            'seniors' => SeniorCitizen::active()->whereHas('recommendations')->count(),
         ];
 
         $seniors = SeniorCitizen::active()
             ->whereHas('recommendations')
             ->withCount([
                 'recommendations',
-                'recommendations as pending_count'   => fn($q) => $q->where('status', 'pending'),
-                'recommendations as immediate_count' => fn($q) => $q->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending'),
+                'recommendations as pending_count' => fn ($q) => $q->where('status', 'pending'),
+                'recommendations as immediate_count' => fn ($q) => $q->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending'),
             ])
             ->with(['latestMlResult'])
-            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
-            ->when($request->risk,     fn($q) => $q->byRiskLevel($request->risk))
-            ->when($request->has_urgent, fn($q) =>
-                $q->whereHas('recommendations', fn($r) =>
-                    $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
-                )
+            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
+            ->when($request->risk, fn ($q) => $q->byRiskLevel($request->risk))
+            ->when($request->has_urgent, fn ($q) => $q->whereHas('recommendations', fn ($r) => $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
+            )
             )
             ->orderByDesc('immediate_count')
             ->orderByDesc('pending_count')
@@ -60,6 +58,7 @@ class RecommendationController extends Controller
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
+
         return back()->with('success', 'Status updated.');
     }
 
@@ -67,6 +66,7 @@ class RecommendationController extends Controller
     {
         $request->validate(['assigned_to' => 'nullable|exists:users,id']);
         $rec->update(['assigned_to' => $request->assigned_to]);
+
         return back()->with('success', 'Assigned.');
     }
 }

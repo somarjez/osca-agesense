@@ -14,7 +14,8 @@ class RunMlPipeline implements ShouldQueue
     use Queueable;
 
     public int $timeout = 300;
-    public int $tries   = 2;
+
+    public int $tries = 2;
 
     public function __construct(
         public readonly int $seniorId,
@@ -34,7 +35,7 @@ class RunMlPipeline implements ShouldQueue
         Log::error('RunMlPipeline job failed', [
             'senior_id' => $this->seniorId,
             'survey_id' => $this->surveyId,
-            'error'     => $e->getMessage(),
+            'error' => $e->getMessage(),
         ]);
     }
 }

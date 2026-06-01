@@ -13,27 +13,29 @@ class UserManagementController extends Controller
     public function index()
     {
         $users = User::with('roles')->orderBy('name')->get();
+
         return view('users.index', compact('users'));
     }
 
     public function create()
     {
         $roles = Role::orderBy('name')->pluck('name');
+
         return view('users.create', compact('roles'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role'     => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
+            'role' => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
         ]);
 
         $user = User::create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
+            'name' => $data['name'],
+            'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -49,18 +51,18 @@ class UserManagementController extends Controller
         // bag so a failed validation re-opens that user's modal with its own errors
         // instead of leaking messages onto every other row's form.
         $data = $request->validateWithBag("editUser{$user->id}", [
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'role'     => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
+            'role' => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
         ]);
 
         $user->update([
-            'name'  => $data['name'],
+            'name' => $data['name'],
             'email' => $data['email'],
         ]);
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $user->update(['password' => Hash::make($data['password'])]);
         }
 

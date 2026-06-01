@@ -9,7 +9,8 @@ use Illuminate\Console\Command;
 
 class RunMlSingle extends Command
 {
-    protected $signature   = 'ml:run-single {seniorId} {surveyId}';
+    protected $signature = 'ml:run-single {seniorId} {surveyId}';
+
     protected $description = 'Run ML pipeline for a single senior (called as a detached background process).';
 
     public function handle(MlService $ml): int
@@ -17,8 +18,9 @@ class RunMlSingle extends Command
         $senior = SeniorCitizen::find($this->argument('seniorId'));
         $survey = QolSurvey::find($this->argument('surveyId'));
 
-        if (!$senior || !$survey) {
+        if (! $senior || ! $survey) {
             $this->error('Senior or survey not found.');
+
             return self::FAILURE;
         }
 
@@ -29,9 +31,11 @@ class RunMlSingle extends Command
         // back to local Python subprocess without needing to wait.
         try {
             $ml->runPipeline($senior, $survey);
+
             return self::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('ML pipeline failed: ' . $e->getMessage());
+            $this->error('ML pipeline failed: '.$e->getMessage());
+
             return self::FAILURE;
         }
     }

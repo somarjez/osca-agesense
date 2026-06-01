@@ -11,17 +11,18 @@ use Illuminate\Support\Facades\Cache;
 
 class ProcessMlBatch implements ShouldQueue
 {
-    use Queueable, Batchable;
+    use Batchable, Queueable;
 
     public int $timeout = 300;
-    public int $tries   = 1;
+
+    public int $tries = 1;
 
     /**
-     * @param array<int> $seniorIds IDs of seniors to process in this chunk
-     * @param string     $cacheKey  Cache key shared across all chunks for progress tracking
+     * @param  array<int>  $seniorIds  IDs of seniors to process in this chunk
+     * @param  string  $cacheKey  Cache key shared across all chunks for progress tracking
      */
     public function __construct(
-        public readonly array  $seniorIds,
+        public readonly array $seniorIds,
         public readonly string $cacheKey,
     ) {}
 
@@ -39,8 +40,8 @@ class ProcessMlBatch implements ShouldQueue
             ->get();
 
         $items = $seniors
-            ->filter(fn($s) => $s->latestQolSurvey !== null)
-            ->map(fn($s) => ['senior' => $s, 'survey' => $s->latestQolSurvey])
+            ->filter(fn ($s) => $s->latestQolSurvey !== null)
+            ->map(fn ($s) => ['senior' => $s, 'survey' => $s->latestQolSurvey])
             ->values()
             ->all();
 
@@ -50,11 +51,11 @@ class ProcessMlBatch implements ShouldQueue
 
         $results = $ml->runBatchPipeline($items);
 
-        $succeeded = count(array_filter($results, fn($r) => $r['success']));
-        $failed    = count($results) - $succeeded;
+        $succeeded = count(array_filter($results, fn ($r) => $r['success']));
+        $failed = count($results) - $succeeded;
 
         // Accumulate progress atomically into a shared cache key
         Cache::increment("{$this->cacheKey}:processed", $succeeded);
-        Cache::increment("{$this->cacheKey}:failed",    $failed);
+        Cache::increment("{$this->cacheKey}:failed", $failed);
     }
 }

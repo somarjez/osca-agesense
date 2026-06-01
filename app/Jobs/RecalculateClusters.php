@@ -23,7 +23,8 @@ class RecalculateClusters implements ShouldQueue
     use Queueable;
 
     public int $timeout = 600;
-    public int $tries   = 1;
+
+    public int $tries = 1;
 
     public function __construct(public readonly string $cacheKey) {}
 

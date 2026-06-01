@@ -14,7 +14,7 @@ return new class extends Migration
             // live_model     = new seniors scored by live GBR/RFR pipeline
             // fallback       = PHP heuristic used when Python services unreachable
             $table->string('prediction_source', 20)->default('live_model')->after('model_version')
-                  ->comment('notebook_cache | live_model | fallback');
+                ->comment('notebook_cache | live_model | fallback');
 
             $table->boolean('is_cached_prediction')->default(false)->after('prediction_source');
 
@@ -56,7 +56,7 @@ return new class extends Migration
         ");
 
         // scored_at defaults to processed_at for historical rows
-        DB::statement("UPDATE ml_results SET scored_at = processed_at WHERE scored_at IS NULL AND processed_at IS NOT NULL");
+        DB::statement('UPDATE ml_results SET scored_at = processed_at WHERE scored_at IS NULL AND processed_at IS NOT NULL');
 
         // Index for fast prediction_source filtering
         Schema::table('ml_results', function (Blueprint $table) {

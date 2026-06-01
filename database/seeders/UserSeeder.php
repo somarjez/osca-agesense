@@ -18,22 +18,22 @@ class UserSeeder extends Seeder
 
         $accounts = [
             [
-                'name'     => 'OSCA Admin',
-                'email'    => 'admin@osca.local',
+                'name' => 'OSCA Admin',
+                'email' => 'admin@osca.local',
                 'password' => Hash::make('Admin@OSCA2026!'),
-                'role'     => 'admin',
+                'role' => 'admin',
             ],
             [
-                'name'     => 'OSCA Encoder',
-                'email'    => 'encoder@osca.local',
+                'name' => 'OSCA Encoder',
+                'email' => 'encoder@osca.local',
                 'password' => Hash::make('Encoder@OSCA2026!'),
-                'role'     => 'encoder',
+                'role' => 'encoder',
             ],
             [
-                'name'     => 'OSCA Viewer',
-                'email'    => 'viewer@osca.local',
+                'name' => 'OSCA Viewer',
+                'email' => 'viewer@osca.local',
                 'password' => Hash::make('Viewer@OSCA2026!'),
-                'role'     => 'viewer',
+                'role' => 'viewer',
             ],
         ];
 

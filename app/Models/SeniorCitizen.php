@@ -5,9 +5,9 @@ namespace App\Models;
 use App\Casts\EncryptedOrPlainText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SeniorCitizen extends Model
 {
@@ -34,30 +34,30 @@ class SeniorCitizen extends Model
     ];
 
     protected $casts = [
-        'date_of_birth'          => 'date',
-        'consent_given_at'       => 'datetime',
-        'has_medical_checkup'    => 'boolean',
+        'date_of_birth' => 'date',
+        'consent_given_at' => 'datetime',
+        'has_medical_checkup' => 'boolean',
         // Non-searchable PII encrypted at rest
-        'contact_number'         => EncryptedOrPlainText::class,
-        'place_of_birth'         => EncryptedOrPlainText::class,
-        'philsys_id'             => EncryptedOrPlainText::class,
-        'latitude'               => 'decimal:7',
-        'longitude'              => 'decimal:7',
-        'location_verified_at'   => 'datetime',
-        'specialization'         => 'array',
-        'community_service'      => 'array',
-        'living_with'            => 'array',
-        'household_condition'    => 'array',
-        'income_source'          => 'array',
-        'real_assets'            => 'array',
-        'movable_assets'         => 'array',
-        'medical_concern'          => 'array',
-        'dental_concern'           => 'array',
-        'optical_concern'          => 'array',
-        'hearing_concern'          => 'array',
-        'healthcare_difficulty'    => 'array',
+        'contact_number' => EncryptedOrPlainText::class,
+        'place_of_birth' => EncryptedOrPlainText::class,
+        'philsys_id' => EncryptedOrPlainText::class,
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
+        'location_verified_at' => 'datetime',
+        'specialization' => 'array',
+        'community_service' => 'array',
+        'living_with' => 'array',
+        'household_condition' => 'array',
+        'income_source' => 'array',
+        'real_assets' => 'array',
+        'movable_assets' => 'array',
+        'medical_concern' => 'array',
+        'dental_concern' => 'array',
+        'optical_concern' => 'array',
+        'hearing_concern' => 'array',
+        'healthcare_difficulty' => 'array',
         'social_emotional_concern' => 'array',
-        'problems_needs'           => 'array',
+        'problems_needs' => 'array',
     ];
 
     // ── Accessors ─────────────────────────────────────────────────────────────
@@ -66,10 +66,11 @@ class SeniorCitizen extends Model
     {
         $parts = array_filter([
             $this->first_name,
-            $this->middle_name ? mb_substr($this->middle_name, 0, 1) . '.' : null,
+            $this->middle_name ? mb_substr($this->middle_name, 0, 1).'.' : null,
             $this->last_name,
             $this->name_extension,
         ]);
+
         return implode(' ', $parts);
     }
 
@@ -81,6 +82,7 @@ class SeniorCitizen extends Model
         if (array_key_exists('age', $this->attributes) && $this->attributes['age'] !== null) {
             return (int) $this->attributes['age'];
         }
+
         // Full model loads (profile page, PDF, show view) use the Carbon path.
         return $this->date_of_birth?->diffInYears(now()) ?? 0;
     }
@@ -141,8 +143,7 @@ class SeniorCitizen extends Model
 
     public function scopeByRiskLevel($query, string $level)
     {
-        return $query->whereHas('latestMlResult', fn($q) =>
-            $q->where('overall_risk_level', strtoupper($level))
+        return $query->whereHas('latestMlResult', fn ($q) => $q->where('overall_risk_level', strtoupper($level))
         );
     }
 
@@ -151,19 +152,20 @@ class SeniorCitizen extends Model
     public static function generateOscaId(string $barangay): string
     {
         $prefix = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $barangay), 0, 3));
-        $year   = now()->format('Y');
-        $seq    = str_pad(static::where('osca_id', 'like', "{$prefix}-{$year}-%")->count() + 1, 4, '0', STR_PAD_LEFT);
+        $year = now()->format('Y');
+        $seq = str_pad(static::where('osca_id', 'like', "{$prefix}-{$year}-%")->count() + 1, 4, '0', STR_PAD_LEFT);
+
         return "{$prefix}-{$year}-{$seq}";
     }
 
     public static function barangayList(): array
     {
         return [
-            'Anibong','Biñan','Buboy','Calusiche','Cabanbanan',
-            'Dingin','Lambac','Layugan','Magdapio','Maulawin',
+            'Anibong', 'Biñan', 'Buboy', 'Calusiche', 'Cabanbanan',
+            'Dingin', 'Lambac', 'Layugan', 'Magdapio', 'Maulawin',
             'Pinagsanjan',
-            'Barangay I (Poblacion)','Barangay II (Poblacion)',
-            'Sabang','Sampaloc','San Isidro',
+            'Barangay I (Poblacion)', 'Barangay II (Poblacion)',
+            'Sabang', 'Sampaloc', 'San Isidro',
         ];
     }
 }

@@ -21,7 +21,7 @@ class MlController extends Controller
         $health = $this->ml->healthCheck();
 
         $activeLatestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereHas('seniorCitizen', fn($q) => $q->active())
+            ->whereHas('seniorCitizen', fn ($q) => $q->active())
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -32,17 +32,17 @@ class MlController extends Controller
             ->toArray();
 
         $stats = [
-            'total_processed'    => MlResult::whereIn('id', $activeLatestIds)->count(),
-            'last_run'           => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
-            'urgent_count'       => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
-            'critical_count'     => MlResult::whereIn('id', $activeLatestIds)->where('critical_flag', true)->count(),
-            'unprocessed'        => SeniorCitizen::active()->whereDoesntHave('mlResults')->count(),
-            'notebook_cache'     => $sourceCounts['notebook_cache'] ?? 0,
-            'live_model'         => $sourceCounts['live_model']     ?? 0,
-            'fallback'           => $sourceCounts['fallback']        ?? 0,
-            'model_version'      => MlResult::whereIn('id', $activeLatestIds)->value('model_version') ?? '—',
-            'umap_mode'          => 'Frozen Transform Only',
-            'active_ml_mode'     => env('ENABLE_NOTEBOOK_OVERRIDES', false) ? 'Notebook Overrides Enabled' : 'Live Model Only',
+            'total_processed' => MlResult::whereIn('id', $activeLatestIds)->count(),
+            'last_run' => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
+            'urgent_count' => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
+            'critical_count' => MlResult::whereIn('id', $activeLatestIds)->where('critical_flag', true)->count(),
+            'unprocessed' => SeniorCitizen::active()->whereDoesntHave('mlResults')->count(),
+            'notebook_cache' => $sourceCounts['notebook_cache'] ?? 0,
+            'live_model' => $sourceCounts['live_model'] ?? 0,
+            'fallback' => $sourceCounts['fallback'] ?? 0,
+            'model_version' => MlResult::whereIn('id', $activeLatestIds)->value('model_version') ?? '—',
+            'umap_mode' => 'Frozen Transform Only',
+            'active_ml_mode' => env('ENABLE_NOTEBOOK_OVERRIDES', false) ? 'Notebook Overrides Enabled' : 'Live Model Only',
         ];
 
         return view('ml.status', compact('health', 'stats'));
@@ -52,6 +52,7 @@ class MlController extends Controller
     {
         $success = $this->ml->startServices();
         Cache::forget('ml_nav_health');
+
         return back()->with(
             $success ? 'success' : 'error',
             $success
@@ -66,8 +67,8 @@ class MlController extends Controller
         // $totalReady: subset with status='processed' — what batchRun() will actually process
         // Keeping both avoids the UI showing "Run Batch (286)" when only 283 will run.
         $totalEligible = SeniorCitizen::active()->whereHas('latestQolSurvey')->count();
-        $totalReady    = SeniorCitizen::active()
-            ->whereHas('latestQolSurvey', fn($q) => $q->where('status', 'processed'))
+        $totalReady = SeniorCitizen::active()
+            ->whereHas('latestQolSurvey', fn ($q) => $q->where('status', 'processed'))
             ->count();
 
         $pending = SeniorCitizen::active()
@@ -77,7 +78,7 @@ class MlController extends Controller
             ->withQueryString();
 
         return view('ml.batch', compact('pending', 'totalEligible', 'totalReady'))
-            ->with('lastBatchRun',   Cache::get('ml_last_batch_started'))
+            ->with('lastBatchRun', Cache::get('ml_last_batch_started'))
             ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'));
     }
 
@@ -87,10 +88,10 @@ class MlController extends Controller
      */
     public function batchRun(Request $request)
     {
-        $cacheKey = 'ml_batch_' . now()->format('YmdHis');
+        $cacheKey = 'ml_batch_'.now()->format('YmdHis');
 
         $seniorIds = SeniorCitizen::active()
-            ->whereHas('latestQolSurvey', fn($q) => $q->where('status', 'processed'))
+            ->whereHas('latestQolSurvey', fn ($q) => $q->where('status', 'processed'))
             ->orderBy('id')
             ->pluck('id')
             ->all();
@@ -100,27 +101,27 @@ class MlController extends Controller
         }
 
         $chunks = array_chunk($seniorIds, 100);
-        $jobs   = array_map(fn($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
+        $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
 
         $batch = Bus::batch($jobs)
-            ->name('ML Batch — ' . now()->format('Y-m-d H:i'))
+            ->name('ML Batch — '.now()->format('Y-m-d H:i'))
             ->allowFailures()
             ->dispatch();
 
-        Cache::put("{$cacheKey}:batch_id",  $batch->id,        now()->addHours(2));
-        Cache::put("{$cacheKey}:total",     count($seniorIds), now()->addHours(2));
-        Cache::put("{$cacheKey}:processed", 0,                 now()->addHours(2));
-        Cache::put("{$cacheKey}:failed",    0,                 now()->addHours(2));
+        Cache::put("{$cacheKey}:batch_id", $batch->id, now()->addHours(2));
+        Cache::put("{$cacheKey}:total", count($seniorIds), now()->addHours(2));
+        Cache::put("{$cacheKey}:processed", 0, now()->addHours(2));
+        Cache::put("{$cacheKey}:failed", 0, now()->addHours(2));
 
         // NEW — record when the last full batch was started, shown on the batch page.
-        Cache::put('ml_last_batch_started',      now(),              now()->addDays(90));
-        Cache::put('ml_last_batch_senior_count', count($seniorIds),  now()->addDays(90));
+        Cache::put('ml_last_batch_started', now(), now()->addDays(90));
+        Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
 
         return response()->json([
-            'queued'    => true,
-            'batch_id'  => $batch->id,
+            'queued' => true,
+            'batch_id' => $batch->id,
             'cache_key' => $cacheKey,
-            'total'     => count($seniorIds),
+            'total' => count($seniorIds),
         ]);
     }
 
@@ -130,38 +131,38 @@ class MlController extends Controller
     public function batchStatus(Request $request)
     {
         $cacheKey = $request->input('cache_key');
-        $batchId  = $request->input('batch_id');
+        $batchId = $request->input('batch_id');
 
-        if (!$cacheKey || !$batchId) {
+        if (! $cacheKey || ! $batchId) {
             return response()->json(['error' => 'Missing parameters.'], 422);
         }
 
         $batch = Bus::findBatch($batchId);
 
-        if (!$batch) {
+        if (! $batch) {
             return response()->json(['error' => 'Batch not found.'], 404);
         }
 
-        $total     = (int) Cache::get("{$cacheKey}:total",     $batch->totalJobs * 100);
+        $total = (int) Cache::get("{$cacheKey}:total", $batch->totalJobs * 100);
         $processed = (int) Cache::get("{$cacheKey}:processed", 0);
-        $failed    = (int) Cache::get("{$cacheKey}:failed",    0);
+        $failed = (int) Cache::get("{$cacheKey}:failed", 0);
 
         // When the batch is finished the cache counters may lag the last job's
         // increment (file cache is not atomic). Use the batch's own counters as
         // the authoritative final values so the completion message is accurate.
         if ($batch->finished()) {
-            $failed    = $batch->failedJobs;
+            $failed = $batch->failedJobs;
             $processed = max($processed, $total - $failed);
         }
 
         return response()->json([
-            'finished'     => $batch->finished(),
-            'cancelled'    => $batch->cancelled(),
-            'total'        => $total,
-            'processed'    => $processed,
-            'failed'       => $failed,
+            'finished' => $batch->finished(),
+            'cancelled' => $batch->cancelled(),
+            'total' => $total,
+            'processed' => $processed,
+            'failed' => $failed,
             'pending_jobs' => $batch->pendingJobs,
-            'progress'     => $total > 0 ? round($processed / $total * 100) : 0,
+            'progress' => $total > 0 ? round($processed / $total * 100) : 0,
         ]);
     }
 
@@ -169,7 +170,7 @@ class MlController extends Controller
     {
         $survey = $senior->latestQolSurvey;
 
-        if (!$survey) {
+        if (! $survey) {
             return response()->json(['error' => 'No QoL survey found for this senior.'], 422);
         }
 
@@ -186,16 +187,16 @@ class MlController extends Controller
     {
         $result = $senior->latestMlResult;
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['ready' => false]);
         }
 
         return response()->json([
-            'ready'          => true,
-            'risk_level'     => $result->overall_risk_level,
-            'cluster_name'   => $result->cluster_name,
+            'ready' => true,
+            'risk_level' => $result->overall_risk_level,
+            'cluster_name' => $result->cluster_name,
             'composite_risk' => $result->composite_risk,
-            'processed_at'   => $result->processed_at?->timestamp,
+            'processed_at' => $result->processed_at?->timestamp,
         ]);
     }
 }

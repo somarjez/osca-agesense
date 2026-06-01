@@ -12,11 +12,15 @@ class RiskReport extends Component
 {
     use WithPagination;
 
-    public string $filterRisk     = '';
+    public string $filterRisk = '';
+
     public string $filterBarangay = '';
-    public string $filterCluster  = '';
-    public string $sortBy         = 'composite_risk';
-    public string $sortDir        = 'desc';
+
+    public string $filterCluster = '';
+
+    public string $sortBy = 'composite_risk';
+
+    public string $sortDir = 'desc';
 
     public function render()
     {
@@ -29,10 +33,9 @@ class RiskReport extends Component
 
         $query = MlResult::with(['seniorCitizen'])
             ->whereIn('id', $latestIds)
-            ->when($this->filterRisk,     fn($q) => $q->where('overall_risk_level', strtoupper($this->filterRisk)))
-            ->when($this->filterCluster,  fn($q) => $q->where('cluster_named_id', $this->filterCluster))
-            ->when($this->filterBarangay, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($sq) => $sq->active()->where('barangay', $this->filterBarangay))
+            ->when($this->filterRisk, fn ($q) => $q->where('overall_risk_level', strtoupper($this->filterRisk)))
+            ->when($this->filterCluster, fn ($q) => $q->where('cluster_named_id', $this->filterCluster))
+            ->when($this->filterBarangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq->active()->where('barangay', $this->filterBarangay))
             )
             ->orderBy($this->sortBy, $this->sortDir);
 
@@ -54,13 +57,27 @@ class RiskReport extends Component
 
     public function sortColumn(string $col): void
     {
-        $this->sortBy  = ($this->sortBy === $col) ? $this->sortBy  : $col;
+        $this->sortBy = ($this->sortBy === $col) ? $this->sortBy : $col;
         $this->sortDir = ($this->sortBy === $col && $this->sortDir === 'desc') ? 'asc' : 'desc';
-        if ($this->sortBy !== $col) { $this->sortBy = $col; $this->sortDir = 'desc'; }
+        if ($this->sortBy !== $col) {
+            $this->sortBy = $col;
+            $this->sortDir = 'desc';
+        }
         $this->resetPage();
     }
 
-    public function updatedFilterRisk():     void { $this->resetPage(); }
-    public function updatedFilterBarangay(): void { $this->resetPage(); }
-    public function updatedFilterCluster():  void { $this->resetPage(); }
+    public function updatedFilterRisk(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterBarangay(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterCluster(): void
+    {
+        $this->resetPage();
+    }
 }

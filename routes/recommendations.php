@@ -6,7 +6,7 @@ Route::prefix('recommendations')->name('recommendations.')->group(function () {
 
     // All roles can view
     Route::middleware('role:admin,encoder,viewer')->group(function () {
-        Route::get('/',         [RecommendationController::class, 'index'])->name('index');
+        Route::get('/', [RecommendationController::class, 'index'])->name('index');
         Route::get('/{senior}', [RecommendationController::class, 'show'])->name('show');
     });
 

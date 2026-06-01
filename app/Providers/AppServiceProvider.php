@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\ServeCommand;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
@@ -20,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
         // Override the built-in serve command so Python ML services
         // are auto-started whenever `php artisan serve` is run.
         $this->app->singleton('command.serve', function () {
-            return new \App\Console\Commands\ServeCommand();
+            return new ServeCommand;
         });
     }
 

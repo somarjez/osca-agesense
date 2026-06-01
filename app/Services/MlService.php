@@ -19,29 +19,38 @@ class MlService
     public const MODEL_VERSION = '2.0.0';
 
     // Risk thresholds — must stay in sync with inference_service.py RISK_THRESHOLDS.
-    private const HIGH_THRESHOLD     = 0.50;
+    private const HIGH_THRESHOLD = 0.50;
+
     private const MODERATE_THRESHOLD = 0.30;
-    private const URGENT_THRESHOLD   = 0.70;
+
+    private const URGENT_THRESHOLD = 0.70;
 
     protected string $preprocessUrl;
+
     protected string $inferenceUrl;
+
     protected int $timeout;
+
     protected int $coldStartTimeout;
+
     protected ?bool $preprocessAvailable = null;
-    protected ?bool $inferenceAvailable  = null;
+
+    protected ?bool $inferenceAvailable = null;
+
     protected ?string $localPythonExecutable;
+
     protected string $localPythonRunner;
 
     public function __construct()
     {
-        $base               = config('services.python.base_url', 'http://127.0.0.1');
-        $preprocessPort     = (int) config('services.python.preprocess_port', 5001);
-        $inferencePort      = (int) config('services.python.inference_port', 5002);
-        $this->timeout      = (int) config('services.python.timeout', 120);
+        $base = config('services.python.base_url', 'http://127.0.0.1');
+        $preprocessPort = (int) config('services.python.preprocess_port', 5001);
+        $inferencePort = (int) config('services.python.inference_port', 5002);
+        $this->timeout = (int) config('services.python.timeout', 120);
         $this->coldStartTimeout = (int) config('services.python.cold_start_timeout', 120);
 
-        $this->preprocessUrl = $base . ':' . $preprocessPort;
-        $this->inferenceUrl  = $base . ':' . $inferencePort;
+        $this->preprocessUrl = $base.':'.$preprocessPort;
+        $this->inferenceUrl = $base.':'.$inferencePort;
         $this->localPythonExecutable = $this->resolveLocalPythonExecutable();
         $this->localPythonRunner = base_path('python/services/local_ml_runner.py');
     }
@@ -60,12 +69,13 @@ class MlService
         //   3. Its model_version matches the currently running inference service version
         //   4. prediction_source is notebook_cache or live_model (not fallback)
         //   5. force reanalysis has not been requested
-        if (!$force) {
+        if (! $force) {
             $cached = $this->findReusableResult($senior, $survey);
             if ($cached !== null) {
                 // Bump processed_at so "Last Assessment" reflects this run, not the
                 // original computation date.  Scores and source are unchanged.
                 $cached->update(['processed_at' => now()]);
+
                 return $cached->load('recommendations');
             }
         }
@@ -75,10 +85,10 @@ class MlService
         if ($this->isPreprocessAvailable()) {
             // HTTP mode: two separate service calls
             $preprocessed = $this->callPreprocess($raw);
-            $inferResult  = $this->callInfer($preprocessed);
+            $inferResult = $this->callInfer($preprocessed);
         } else {
             // Local mode: combined preprocess+infer in ONE subprocess (no double cold-start)
-            $inferResult  = $this->localCombinedOrFallback($raw);
+            $inferResult = $this->localCombinedOrFallback($raw);
             $preprocessed = [];
         }
 
@@ -97,7 +107,7 @@ class MlService
             ->orderByDesc('id')
             ->first();
 
-        if (!$existing) {
+        if (! $existing) {
             return null;
         }
 
@@ -136,9 +146,9 @@ class MlService
 
         if ($this->isPreprocessAvailable()) {
             $preprocessed = $this->callPreprocess($raw);
-            $inferResult  = $this->callInfer($preprocessed);
+            $inferResult = $this->callInfer($preprocessed);
         } else {
-            $inferResult  = $this->localCombinedOrFallback($raw);
+            $inferResult = $this->localCombinedOrFallback($raw);
             $preprocessed = [];
         }
 
@@ -149,7 +159,7 @@ class MlService
      * Run the pipeline for a batch of seniors in one Python subprocess.
      * Eliminates per-senior subprocess cold-start overhead for batch runs.
      *
-     * @param array<array{senior: SeniorCitizen, survey: QolSurvey}> $items
+     * @param  array<array{senior: SeniorCitizen, survey: QolSurvey}>  $items
      * @return array<array{success: bool, result: MlResult|null, error: string|null}>
      */
     public function runBatchPipeline(array $items): array
@@ -164,9 +174,9 @@ class MlService
         // This mirrors BatchAnalyzeSeniors::needsRecompute() — valid non-stale rows
         // with matching model_version are returned as-is. Only stale, missing,
         // fallback, or version-mismatch rows are sent to the pipeline.
-        $output         = [];
+        $output = [];
         $itemsToCompute = [];
-        $computeMap     = []; // maps original $items index → $itemsToCompute index
+        $computeMap = []; // maps original $items index → $itemsToCompute index
 
         foreach ($items as $i => $item) {
             $reusable = $this->findReusableResult($item['senior'], $item['survey']);
@@ -177,17 +187,18 @@ class MlService
                 $output[$i] = ['success' => true, 'result' => $reusable->load('recommendations'), 'error' => null];
             } else {
                 $computeMap[count($itemsToCompute)] = $i;
-                $itemsToCompute[]                   = $item;
+                $itemsToCompute[] = $item;
             }
         }
 
         if (empty($itemsToCompute)) {
             ksort($output);
+
             return array_values($output);
         }
 
         $payloads = array_map(
-            fn($item) => $this->buildRawPayload($item['senior'], $item['survey']),
+            fn ($item) => $this->buildRawPayload($item['senior'], $item['survey']),
             $itemsToCompute
         );
 
@@ -200,27 +211,29 @@ class MlService
 
         foreach ($itemsToCompute as $j => $item) {
             $originalIndex = $computeMap[$j];
-            $entry         = $rawResults[$j] ?? ['success' => false, 'error' => 'No result returned'];
+            $entry = $rawResults[$j] ?? ['success' => false, 'error' => 'No result returned'];
 
-            if (!($entry['success'] ?? false)) {
+            if (! ($entry['success'] ?? false)) {
                 $output[$originalIndex] = [
                     'success' => false,
-                    'result'  => null,
-                    'error'   => $entry['error'] ?? 'Unknown error',
+                    'result' => null,
+                    'error' => $entry['error'] ?? 'Unknown error',
                 ];
+
                 continue;
             }
 
             try {
-                $inferResult               = $entry['data'] ?? $entry;
-                $result                    = $this->persistResults($item['senior'], $item['survey'], [], $inferResult);
-                $output[$originalIndex]    = ['success' => true, 'result' => $result, 'error' => null];
+                $inferResult = $entry['data'] ?? $entry;
+                $result = $this->persistResults($item['senior'], $item['survey'], [], $inferResult);
+                $output[$originalIndex] = ['success' => true, 'result' => $result, 'error' => null];
             } catch (\Exception $e) {
                 $output[$originalIndex] = ['success' => false, 'result' => null, 'error' => $e->getMessage()];
             }
         }
 
         ksort($output);
+
         return array_values($output);
     }
 
@@ -239,8 +252,8 @@ class MlService
     {
         $results = [];
         foreach ([
-            'preprocessor' => $this->preprocessUrl . '/health',
-            'inference'    => $this->inferenceUrl  . '/health',
+            'preprocessor' => $this->preprocessUrl.'/health',
+            'inference' => $this->inferenceUrl.'/health',
         ] as $name => $url) {
             try {
                 // 10s timeout: Flask loads models in ~30s on cold start but the
@@ -267,16 +280,16 @@ class MlService
     public function startServices(): bool
     {
         $startScript = base_path('python/start_services.ps1');
-        if (!is_file($startScript)) {
+        if (! is_file($startScript)) {
             return false;
         }
 
         // If both services are already up, skip the kill/restart cycle entirely.
         $allUp = true;
-        foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
+        foreach ([$this->preprocessUrl.'/health', $this->inferenceUrl.'/health'] as $url) {
             try {
                 $resp = Http::timeout(3)->connectTimeout(2)->get($url);
-                if (!$resp->successful()) {
+                if (! $resp->successful()) {
                     $allUp = false;
                     break;
                 }
@@ -307,7 +320,7 @@ class MlService
             // best-effort
         }
 
-        foreach ([$this->preprocessUrl . '/health', $this->inferenceUrl . '/health'] as $url) {
+        foreach ([$this->preprocessUrl.'/health', $this->inferenceUrl.'/health'] as $url) {
             $ready = false;
             for ($attempt = 1; $attempt <= 20; $attempt++) {
                 try {
@@ -323,10 +336,11 @@ class MlService
                     sleep(2);
                 }
             }
-            if (!$ready) {
+            if (! $ready) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -346,41 +360,42 @@ class MlService
         if ($dob && $ref) {
             return (int) abs($dob->diffInYears($ref));
         }
+
         return (int) $senior->age;
     }
 
     private function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
     {
         return [
-            'senior_id'               => $senior->id,
-            'first_name'              => $senior->first_name,
-            'last_name'               => $senior->last_name,
-            'barangay'                => $senior->barangay,
-            'age'                     => $this->ageAtSurvey($senior, $survey),
-            'gender'                  => $senior->gender,
-            'marital_status'          => $senior->marital_status,
-            'educational_attainment'  => $senior->educational_attainment,
-            'monthly_income_range'    => $senior->monthly_income_range,
-            'num_children'            => $senior->num_children,
-            'num_working_children'    => $senior->num_working_children,
-            'household_size'          => $senior->household_size,
+            'senior_id' => $senior->id,
+            'first_name' => $senior->first_name,
+            'last_name' => $senior->last_name,
+            'barangay' => $senior->barangay,
+            'age' => $this->ageAtSurvey($senior, $survey),
+            'gender' => $senior->gender,
+            'marital_status' => $senior->marital_status,
+            'educational_attainment' => $senior->educational_attainment,
+            'monthly_income_range' => $senior->monthly_income_range,
+            'num_children' => $senior->num_children,
+            'num_working_children' => $senior->num_working_children,
+            'household_size' => $senior->household_size,
             'child_financial_support' => $senior->child_financial_support,
-            'spouse_working'          => $senior->spouse_working,
-            'income_source'           => $senior->income_source ?? [],
-            'real_assets'             => $senior->real_assets ?? [],
-            'movable_assets'          => $senior->movable_assets ?? [],
-            'living_with'             => $senior->living_with ?? [],
-            'household_condition'     => $senior->household_condition ?? [],
-            'community_service'       => $senior->community_service ?? [],
-            'specialization'          => $senior->specialization ?? [],
-            'medical_concern'         => $senior->medical_concern ?? [],
-            'dental_concern'          => $senior->dental_concern ?? [],
-            'optical_concern'         => $senior->optical_concern ?? [],
-            'hearing_concern'         => $senior->hearing_concern ?? [],
-            'social_emotional_concern'=> $senior->social_emotional_concern ?? [],
-            'healthcare_difficulty'   => $senior->healthcare_difficulty ?? [],
-            'has_medical_checkup'     => $senior->has_medical_checkup && $senior->checkup_schedule !== 'No Follow-up',
-            'qol_responses'           => $survey->toFeatureArray(),
+            'spouse_working' => $senior->spouse_working,
+            'income_source' => $senior->income_source ?? [],
+            'real_assets' => $senior->real_assets ?? [],
+            'movable_assets' => $senior->movable_assets ?? [],
+            'living_with' => $senior->living_with ?? [],
+            'household_condition' => $senior->household_condition ?? [],
+            'community_service' => $senior->community_service ?? [],
+            'specialization' => $senior->specialization ?? [],
+            'medical_concern' => $senior->medical_concern ?? [],
+            'dental_concern' => $senior->dental_concern ?? [],
+            'optical_concern' => $senior->optical_concern ?? [],
+            'hearing_concern' => $senior->hearing_concern ?? [],
+            'social_emotional_concern' => $senior->social_emotional_concern ?? [],
+            'healthcare_difficulty' => $senior->healthcare_difficulty ?? [],
+            'has_medical_checkup' => $senior->has_medical_checkup && $senior->checkup_schedule !== 'No Follow-up',
+            'qol_responses' => $survey->toFeatureArray(),
         ];
     }
 
@@ -397,6 +412,7 @@ class MlService
 
         // Full PHP fallback
         $preprocessed = $this->fallbackPreprocess($raw);
+
         return $this->fallbackInfer($preprocessed);
     }
 
@@ -408,30 +424,31 @@ class MlService
         try {
             $preResp = Http::connectTimeout(5)
                 ->timeout($this->timeout)
-                ->post($this->preprocessUrl . '/batch_preprocess', $payloads);
+                ->post($this->preprocessUrl.'/batch_preprocess', $payloads);
 
             if ($preResp->failed()) {
-                throw new \RuntimeException('Batch preprocess HTTP error: ' . $preResp->status());
+                throw new \RuntimeException('Batch preprocess HTTP error: '.$preResp->status());
             }
 
             $preprocessedList = $preResp->json('results') ?? [];
 
             $infResp = Http::connectTimeout(5)
                 ->timeout($this->timeout)
-                ->post($this->inferenceUrl . '/batch_infer', $preprocessedList);
+                ->post($this->inferenceUrl.'/batch_infer', $preprocessedList);
 
             if ($infResp->failed()) {
-                throw new \RuntimeException('Batch infer HTTP error: ' . $infResp->status());
+                throw new \RuntimeException('Batch infer HTTP error: '.$infResp->status());
             }
 
             $inferResults = $infResp->json('results') ?? [];
 
             return array_map(
-                fn($r) => ['success' => true, 'data' => $r],
+                fn ($r) => ['success' => true, 'data' => $r],
                 $inferResults
             );
         } catch (\Exception $e) {
             Log::warning('Batch HTTP pipeline failed, falling back to local batch', ['error' => $e->getMessage()]);
+
             return $this->callBatchLocal($payloads);
         }
     }
@@ -442,7 +459,7 @@ class MlService
      */
     private function callBatchLocal(array $payloads): array
     {
-        if (!$this->canUseLocalPython()) {
+        if (! $this->canUseLocalPython()) {
             return $this->batchFallback($payloads);
         }
 
@@ -463,19 +480,20 @@ class MlService
 
             $decoded = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
-            if (!is_array($decoded)) {
+            if (! is_array($decoded)) {
                 throw new \RuntimeException('Batch Python runner returned non-array.');
             }
 
             // If more than half the items failed, assume a systemic subprocess issue
             // and fall back to sequential combined calls (which spawn fresh processes).
-            $failCount = count(array_filter($decoded, fn($r) => !($r['success'] ?? false)));
+            $failCount = count(array_filter($decoded, fn ($r) => ! ($r['success'] ?? false)));
             if ($failCount > count($decoded) / 2) {
                 Log::warning('Batch Python: majority of items failed, switching to sequential combined mode', [
                     'failed' => $failCount,
-                    'total'  => count($decoded),
-                    'sample_error' => collect($decoded)->first(fn($r) => !($r['success'] ?? false))['error'] ?? '',
+                    'total' => count($decoded),
+                    'sample_error' => collect($decoded)->first(fn ($r) => ! ($r['success'] ?? false))['error'] ?? '',
                 ]);
+
                 return $this->callSequentialCombined($payloads);
             }
 
@@ -511,6 +529,7 @@ class MlService
 
             // Last resort: PHP heuristic fallback
             $preprocessed = $this->fallbackPreprocess($raw);
+
             return ['success' => true, 'data' => $this->fallbackInfer($preprocessed)];
         }, $payloads);
     }
@@ -522,24 +541,26 @@ class MlService
     {
         return array_map(function ($raw) {
             $preprocessed = $this->fallbackPreprocess($raw);
+
             return ['success' => true, 'data' => $this->fallbackInfer($preprocessed)];
         }, $payloads);
     }
 
     private function callPreprocess(array $raw): array
     {
-        if (!$this->isPreprocessAvailable()) {
+        if (! $this->isPreprocessAvailable()) {
             return $this->localPreprocessOrFallback($raw);
         }
 
         try {
             $response = Http::connectTimeout(5)
                 ->timeout($this->timeout)
-                ->post($this->preprocessUrl . '/preprocess', $raw);
+                ->post($this->preprocessUrl.'/preprocess', $raw);
 
             if ($response->failed()) {
                 $this->preprocessAvailable = false;
                 Log::error('Preprocess service error', ['body' => $response->body()]);
+
                 return $this->localPreprocessOrFallback($raw);
             }
 
@@ -549,10 +570,11 @@ class MlService
                 try {
                     $response = Http::connectTimeout(5)
                         ->timeout(max($this->timeout, $this->coldStartTimeout))
-                        ->post($this->preprocessUrl . '/preprocess', $raw);
+                        ->post($this->preprocessUrl.'/preprocess', $raw);
 
                     if ($response->successful()) {
                         $this->preprocessAvailable = true;
+
                         return $response->json();
                     }
                 } catch (\Exception) {
@@ -561,28 +583,31 @@ class MlService
 
             $this->preprocessAvailable = false;
             Log::warning('Preprocess service unreachable, using fallback', ['error' => $e->getMessage()]);
+
             return $this->localPreprocessOrFallback($raw);
         } catch (\Exception $e) {
             $this->preprocessAvailable = false;
             Log::warning('Preprocess service error, using fallback', ['error' => $e->getMessage()]);
+
             return $this->localPreprocessOrFallback($raw);
         }
     }
 
     private function callInfer(array $preprocessed): array
     {
-        if (!$this->isInferenceAvailable()) {
+        if (! $this->isInferenceAvailable()) {
             return $this->localInferOrFallback($preprocessed);
         }
 
         try {
             $response = Http::connectTimeout(5)
                 ->timeout($this->timeout)
-                ->post($this->inferenceUrl . '/infer', $preprocessed);
+                ->post($this->inferenceUrl.'/infer', $preprocessed);
 
             if ($response->failed()) {
                 $this->inferenceAvailable = false;
                 Log::error('Inference service error', ['body' => $response->body()]);
+
                 return $this->localInferOrFallback($preprocessed);
             }
 
@@ -592,10 +617,11 @@ class MlService
                 try {
                     $response = Http::connectTimeout(5)
                         ->timeout(max($this->timeout, $this->coldStartTimeout))
-                        ->post($this->inferenceUrl . '/infer', $preprocessed);
+                        ->post($this->inferenceUrl.'/infer', $preprocessed);
 
                     if ($response->successful()) {
                         $this->inferenceAvailable = true;
+
                         return $response->json();
                     }
                 } catch (\Exception) {
@@ -604,10 +630,12 @@ class MlService
 
             $this->inferenceAvailable = false;
             Log::warning('Inference service unreachable, using fallback', ['error' => $e->getMessage()]);
+
             return $this->localInferOrFallback($preprocessed);
         } catch (\Exception $e) {
             $this->inferenceAvailable = false;
             Log::warning('Inference service error, using fallback', ['error' => $e->getMessage()]);
+
             return $this->localInferOrFallback($preprocessed);
         }
     }
@@ -618,7 +646,7 @@ class MlService
             return $this->preprocessAvailable;
         }
 
-        return $this->preprocessAvailable = $this->checkHealth($this->preprocessUrl . '/health', 'Preprocess');
+        return $this->preprocessAvailable = $this->checkHealth($this->preprocessUrl.'/health', 'Preprocess');
     }
 
     private function isInferenceAvailable(): bool
@@ -627,7 +655,7 @@ class MlService
             return $this->inferenceAvailable;
         }
 
-        return $this->inferenceAvailable = $this->checkHealth($this->inferenceUrl . '/health', 'Inference');
+        return $this->inferenceAvailable = $this->checkHealth($this->inferenceUrl.'/health', 'Inference');
     }
 
     private function checkHealth(string $url, string $serviceName): bool
@@ -639,9 +667,11 @@ class MlService
             }
 
             Log::warning("{$serviceName} health check failed; using fallback", ['status' => $resp->status()]);
+
             return false;
         } catch (\Exception $e) {
             Log::warning("{$serviceName} unreachable; using fallback", ['error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -658,7 +688,7 @@ class MlService
 
     private function runLocalPythonStage(string $stage, array $payload): ?array
     {
-        if (!$this->canUseLocalPython()) {
+        if (! $this->canUseLocalPython()) {
             return null;
         }
 
@@ -668,16 +698,16 @@ class MlService
 
         // Use storage/app as temp dir so proc_open can write its lock/output files
         // even when called from a restricted context (e.g. detached background process).
-        $tmpDir  = storage_path('app');
-        $outFile = $tmpDir . DIRECTORY_SEPARATOR . 'ml_out_' . uniqid('', true) . '.json';
-        $errFile = $tmpDir . DIRECTORY_SEPARATOR . 'ml_err_' . uniqid('', true) . '.txt';
+        $tmpDir = storage_path('app');
+        $outFile = $tmpDir.DIRECTORY_SEPARATOR.'ml_out_'.uniqid('', true).'.json';
+        $errFile = $tmpDir.DIRECTORY_SEPARATOR.'ml_err_'.uniqid('', true).'.txt';
 
         try {
-            $input    = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-            $env      = $this->pythonEnvironment();
+            $input = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $env = $this->pythonEnvironment();
             $envPairs = [];
             foreach ($env as $k => $v) {
-                $envPairs[] = $k . '=' . $v;
+                $envPairs[] = $k.'='.$v;
             }
 
             $cmd = [
@@ -694,14 +724,14 @@ class MlService
 
             $proc = proc_open($cmd, $descriptors, $pipes, base_path(), $env);
 
-            if (!is_resource($proc)) {
+            if (! is_resource($proc)) {
                 throw new \RuntimeException('proc_open failed to start Python.');
             }
 
             fwrite($pipes[0], $input);
             fclose($pipes[0]);
 
-            $timeout   = max($this->timeout, $this->coldStartTimeout);
+            $timeout = max($this->timeout, $this->coldStartTimeout);
             $startTime = time();
             while (proc_get_status($proc)['running']) {
                 if (time() - $startTime > $timeout) {
@@ -712,8 +742,8 @@ class MlService
             }
 
             $exitCode = proc_close($proc);
-            $output   = is_file($outFile) ? file_get_contents($outFile) : '';
-            $stderr   = is_file($errFile) ? trim(file_get_contents($errFile)) : '';
+            $output = is_file($outFile) ? file_get_contents($outFile) : '';
+            $stderr = is_file($errFile) ? trim(file_get_contents($errFile)) : '';
 
             if ($exitCode !== 0) {
                 throw new \RuntimeException("Python exited {$exitCode}. stderr: {$stderr}");
@@ -721,7 +751,7 @@ class MlService
 
             $decoded = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
-            if (!is_array($decoded)) {
+            if (! is_array($decoded)) {
                 throw new \RuntimeException('Local Python stage returned a non-array payload.');
             }
 
@@ -739,8 +769,12 @@ class MlService
                 'error' => $e->getMessage(),
             ]);
         } finally {
-            if (isset($outFile) && is_file($outFile)) @unlink($outFile);
-            if (isset($errFile) && is_file($errFile)) @unlink($errFile);
+            if (isset($outFile) && is_file($outFile)) {
+                @unlink($outFile);
+            }
+            if (isset($errFile) && is_file($errFile)) {
+                @unlink($errFile);
+            }
         }
 
         return null;
@@ -758,19 +792,21 @@ class MlService
     public function runRecluster(): bool
     {
         $script = base_path('python/fix_cluster_distribution.py');
-        if (!is_file($script) || !$this->canUseLocalPython()) {
+        if (! is_file($script) || ! $this->canUseLocalPython()) {
             Log::warning('runRecluster: script or Python executable not found — skipping.');
+
             return false;
         }
 
         // Count non-notebook_cache active ml_result rows that would actually be updated.
         // If there are none, running fix_cluster_distribution.py is a no-op — skip it.
-        $liveRows = MlResult::whereHas('seniorCitizen', fn($q) => $q->active())
+        $liveRows = MlResult::whereHas('seniorCitizen', fn ($q) => $q->active())
             ->where('prediction_source', '!=', 'notebook_cache')
             ->count();
 
         if ($liveRows === 0) {
             Log::info('runRecluster: all active rows are notebook_cache — skipping recluster.');
+
             return true;
         }
 
@@ -785,15 +821,18 @@ class MlService
             $process->setTimeout(600);
             $process->run();
 
-            if (!$process->isSuccessful()) {
+            if (! $process->isSuccessful()) {
                 Log::error('runRecluster failed', ['stderr' => trim($process->getErrorOutput())]);
+
                 return false;
             }
 
             Log::info('runRecluster completed', ['output' => trim($process->getOutput())]);
+
             return true;
         } catch (\Throwable $e) {
             Log::error('runRecluster exception', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -845,8 +884,8 @@ class MlService
         // This prevents WinError 10106 and asyncio state corruption when UMAP's
         // reducer.transform() is called multiple times inside one subprocess.
         $env['NUMBA_THREADING_LAYER'] = $env['NUMBA_THREADING_LAYER'] ?? 'workqueue';
-        $env['NUMBA_NUM_THREADS']     = $env['NUMBA_NUM_THREADS']     ?? '1';
-        $env['OMP_NUM_THREADS']       = $env['OMP_NUM_THREADS']       ?? '1';
+        $env['NUMBA_NUM_THREADS'] = $env['NUMBA_NUM_THREADS'] ?? '1';
+        $env['OMP_NUM_THREADS'] = $env['OMP_NUM_THREADS'] ?? '1';
 
         return $env;
     }
@@ -863,33 +902,33 @@ class MlService
         // than to persist nulls that silently display as "Unknown" in the UI.
         $requiredKeys = ['cluster', 'risk_scores', 'risk_levels'];
         foreach ($requiredKeys as $key) {
-            if (!array_key_exists($key, $inferResult)) {
+            if (! array_key_exists($key, $inferResult)) {
                 Log::error('ML inference result missing required key', [
-                    'key'    => $key,
+                    'key' => $key,
                     'senior' => $senior->id,
-                    'keys'   => array_keys($inferResult),
+                    'keys' => array_keys($inferResult),
                 ]);
                 throw new \RuntimeException("ML inference result missing required key '{$key}' for senior {$senior->id}.");
             }
         }
 
-        $cluster      = $inferResult['cluster']      ?? [];
-        $scores       = $inferResult['risk_scores']  ?? [];
-        $levels       = $inferResult['risk_levels']  ?? [];
-        $domainRisks  = $inferResult['domain_risks'] ?? [];
-        $whoScores    = $inferResult['who_scores']   ?? [];
-        $meta         = $inferResult['model_metadata'] ?? [];
+        $cluster = $inferResult['cluster'] ?? [];
+        $scores = $inferResult['risk_scores'] ?? [];
+        $levels = $inferResult['risk_levels'] ?? [];
+        $domainRisks = $inferResult['domain_risks'] ?? [];
+        $whoScores = $inferResult['who_scores'] ?? [];
+        $meta = $inferResult['model_metadata'] ?? [];
 
         // section_scores come from preprocessed in HTTP mode, or forwarded in inferResult in combined/batch mode
         $sectionScores = $preprocessed['section_scores'] ?? $inferResult['section_scores'] ?? null;
 
         // Derive prediction_source from model_metadata (set by inference_service.py)
         // fallback is detected by status field; PHP fallbackInfer() always sets status=success_fallback
-        $isFallback        = ($inferResult['status'] ?? '') === 'success_fallback';
-        $predictionSource  = $isFallback
+        $isFallback = ($inferResult['status'] ?? '') === 'success_fallback';
+        $predictionSource = $isFallback
             ? 'fallback'
             : ($meta['prediction_source'] ?? (($meta['notebook_override_applied'] ?? false) ? 'notebook_cache' : 'live_model'));
-        $isCached          = $predictionSource === 'notebook_cache';
+        $isCached = $predictionSource === 'notebook_cache';
 
         // Notebook-cache protection: if an existing ml_result for this senior already
         // has prediction_source = notebook_cache AND model_version = current, do NOT
@@ -897,68 +936,68 @@ class MlService
         // This prevents a routine re-analysis from degrading a validated notebook result.
         // Note: runPipeline() already gates on findReusableResult() before reaching here,
         // so this guard handles the runBatchPipeline() path which calls persistResults directly.
-        if (!$force && $predictionSource !== 'notebook_cache') {
+        if (! $force && $predictionSource !== 'notebook_cache') {
             $existing = MlResult::where('senior_citizen_id', $senior->id)
                 ->where('qol_survey_id', $survey->id)
                 ->orderByDesc('id')
                 ->first();
             if ($existing
                 && $existing->prediction_source === 'notebook_cache'
-                && $existing->model_version     === self::MODEL_VERSION
-                && !$existing->is_stale
+                && $existing->model_version === self::MODEL_VERSION
+                && ! $existing->is_stale
             ) {
                 return $existing->load('recommendations');
             }
         }
 
-        $compositeRisk     = (float) ($scores['composite_risk'] ?? 0);
-        $overallLevel      = $levels['overall'] ?? null;
-        $criticalFlag      = $compositeRisk >= self::URGENT_THRESHOLD && $overallLevel === 'HIGH';
+        $compositeRisk = (float) ($scores['composite_risk'] ?? 0);
+        $overallLevel = $levels['overall'] ?? null;
+        $criticalFlag = $compositeRisk >= self::URGENT_THRESHOLD && $overallLevel === 'HIGH';
 
         /** @var MlResult $mlResult */
         $mlResult = MlResult::updateOrCreate(
             ['senior_citizen_id' => $senior->id, 'qol_survey_id' => $survey->id],
             [
-                'model_version'        => self::MODEL_VERSION,
-                'prediction_source'    => $predictionSource,
+                'model_version' => self::MODEL_VERSION,
+                'prediction_source' => $predictionSource,
                 'is_cached_prediction' => $isCached,
-                'critical_flag'        => $criticalFlag,
+                'critical_flag' => $criticalFlag,
                 // Clear staleness — this is a fresh scored result.
-                'is_stale'             => false,
-                'stale_reason'         => null,
-                'stale_at'             => null,
-                'scored_at'            => now(),
-                'cluster_id'          => $cluster['raw_id']   ?? null,
-                'cluster_named_id'    => $cluster['named_id'] ?? null,
-                'cluster_name'        => $cluster['name']     ?? null,
-                'ic_risk'             => $scores['ic_risk']         ?? null,
-                'env_risk'            => $scores['env_risk']        ?? null,
-                'func_risk'           => $scores['func_risk']       ?? null,
-                'composite_risk'      => $compositeRisk ?: null,
-                'wellbeing_score'     => $scores['wellbeing_score'] ?? null,
-                'ic_risk_level'       => $levels['ic']      ?? null,
-                'env_risk_level'      => $levels['env']     ?? null,
-                'func_risk_level'     => $levels['func']    ?? null,
-                'overall_risk_level'  => $overallLevel,
-                'priority_flag'       => $inferResult['priority_flag'] ?? $this->computePriorityFlag($compositeRisk),
+                'is_stale' => false,
+                'stale_reason' => null,
+                'stale_at' => null,
+                'scored_at' => now(),
+                'cluster_id' => $cluster['raw_id'] ?? null,
+                'cluster_named_id' => $cluster['named_id'] ?? null,
+                'cluster_name' => $cluster['name'] ?? null,
+                'ic_risk' => $scores['ic_risk'] ?? null,
+                'env_risk' => $scores['env_risk'] ?? null,
+                'func_risk' => $scores['func_risk'] ?? null,
+                'composite_risk' => $compositeRisk ?: null,
+                'wellbeing_score' => $scores['wellbeing_score'] ?? null,
+                'ic_risk_level' => $levels['ic'] ?? null,
+                'env_risk_level' => $levels['env'] ?? null,
+                'func_risk_level' => $levels['func'] ?? null,
+                'overall_risk_level' => $overallLevel,
+                'priority_flag' => $inferResult['priority_flag'] ?? $this->computePriorityFlag($compositeRisk),
                 // Rule-based domain risks
-                'risk_medical'        => $domainRisks['risk_medical']    ?? null,
-                'risk_financial'      => $domainRisks['risk_financial']  ?? null,
-                'risk_social'         => $domainRisks['risk_social']     ?? null,
-                'risk_functional'     => $domainRisks['risk_functional'] ?? null,
-                'risk_housing'        => $domainRisks['risk_housing']    ?? null,
-                'risk_hc_access'      => $domainRisks['risk_hc_access']  ?? null,
-                'risk_sensory'        => $domainRisks['risk_sensory']    ?? null,
-                'rule_composite'      => $domainRisks['rule_composite']  ?? null,
+                'risk_medical' => $domainRisks['risk_medical'] ?? null,
+                'risk_financial' => $domainRisks['risk_financial'] ?? null,
+                'risk_social' => $domainRisks['risk_social'] ?? null,
+                'risk_functional' => $domainRisks['risk_functional'] ?? null,
+                'risk_housing' => $domainRisks['risk_housing'] ?? null,
+                'risk_hc_access' => $domainRisks['risk_hc_access'] ?? null,
+                'risk_sensory' => $domainRisks['risk_sensory'] ?? null,
+                'rule_composite' => $domainRisks['rule_composite'] ?? null,
                 // WHO domain scores
-                'ic_score'            => $whoScores['ic_score']   ?? null,
-                'env_score'           => $whoScores['env_score']  ?? null,
-                'func_score'          => $whoScores['func_score'] ?? null,
-                'qol_score'           => $whoScores['qol_score']  ?? null,
-                'section_scores'      => $sectionScores,
-                'xai_data'            => $inferResult['xai'] ?? null,
-                'raw_output'          => $inferResult,
-                'processed_at'        => now(),
+                'ic_score' => $whoScores['ic_score'] ?? null,
+                'env_score' => $whoScores['env_score'] ?? null,
+                'func_score' => $whoScores['func_score'] ?? null,
+                'qol_score' => $whoScores['qol_score'] ?? null,
+                'section_scores' => $sectionScores,
+                'xai_data' => $inferResult['xai'] ?? null,
+                'raw_output' => $inferResult,
+                'processed_at' => now(),
             ]
         );
 
@@ -969,29 +1008,29 @@ class MlService
             // documents_needed arrives as an array from Python; encode for JSON column.
             $docsNeeded = $rec['documents_needed'] ?? null;
             $recs[] = [
-                'ml_result_id'              => $mlResult->id,
-                'senior_citizen_id'         => $senior->id,
-                'priority'                  => $rec['priority'],
-                'type'                      => $rec['type'],
-                'domain'                    => $rec['domain']               ?? null,
-                'category'                  => $rec['category']             ?? null,
-                'action'                    => $rec['action']               ?? '',
-                'urgency'                   => $rec['urgency']              ?? null,
-                'risk_level'                => $rec['risk_level']           ?? null,
-                'notes'                     => $rec['reason']               ?? null,
+                'ml_result_id' => $mlResult->id,
+                'senior_citizen_id' => $senior->id,
+                'priority' => $rec['priority'],
+                'type' => $rec['type'],
+                'domain' => $rec['domain'] ?? null,
+                'category' => $rec['category'] ?? null,
+                'action' => $rec['action'] ?? '',
+                'urgency' => $rec['urgency'] ?? null,
+                'risk_level' => $rec['risk_level'] ?? null,
+                'notes' => $rec['reason'] ?? null,
                 // v2 enriched fields (null-safe for old ML payloads)
-                'recommendation_code'       => $rec['recommendation_code']  ?? null,
-                'service_provider'          => $rec['service_provider']     ?? null,
-                'evidence_source'           => $rec['evidence_source']      ?? null,
-                'apa_reference'             => $rec['apa_reference']        ?? null,
-                'source_type'              => $rec['source_type']           ?? null,
-                'eligibility_basis'         => $rec['eligibility_basis']    ?? null,
-                'documents_needed'          => is_array($docsNeeded)
+                'recommendation_code' => $rec['recommendation_code'] ?? null,
+                'service_provider' => $rec['service_provider'] ?? null,
+                'evidence_source' => $rec['evidence_source'] ?? null,
+                'apa_reference' => $rec['apa_reference'] ?? null,
+                'source_type' => $rec['source_type'] ?? null,
+                'eligibility_basis' => $rec['eligibility_basis'] ?? null,
+                'documents_needed' => is_array($docsNeeded)
                                                 ? json_encode($docsNeeded)
                                                 : null,
                 'requires_human_validation' => (bool) ($rec['requires_human_validation'] ?? true),
-                'created_at'                => now(),
-                'updated_at'                => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ];
         }
         if ($recs) {
@@ -1003,22 +1042,22 @@ class MlService
 
     private function fallbackPreprocess(array $raw): array
     {
-        $age      = (int) ($raw['age'] ?? 70);
+        $age = (int) ($raw['age'] ?? 70);
         $wellbeing = 0.5;
 
         return [
-            'status'           => 'success_fallback',
+            'status' => 'success_fallback',
             'encoded_features' => ['age' => $age],
-            'scaled_features'  => array_fill(0, 35, 0.0),
+            'scaled_features' => array_fill(0, 35, 0.0),
             'reduced_features' => array_fill(0, 10, 0.0),
-            'section_scores'   => [
-                'sec1_age_risk'        => max(0, ($age - 60) / 40),
-                'sec2_family_support'  => 0.5,
-                'sec3_hr_score'        => 0.5,
+            'section_scores' => [
+                'sec1_age_risk' => max(0, ($age - 60) / 40),
+                'sec2_family_support' => 0.5,
+                'sec3_hr_score' => 0.5,
                 'sec4_dependency_risk' => 0.3,
-                'sec5_eco_stability'   => 0.5,
-                'sec6_health_score'    => 0.5,
-                'overall_wellbeing'    => $wellbeing,
+                'sec5_eco_stability' => 0.5,
+                'sec6_health_score' => 0.5,
+                'overall_wellbeing' => $wellbeing,
             ],
             'who_domain_scores' => [
                 'ic_score' => 3.0, 'env_score' => 3.0,
@@ -1029,56 +1068,56 @@ class MlService
 
     private function fallbackInfer(array $preprocessed): array
     {
-        $ss        = $preprocessed['section_scores'] ?? [];
-        $who       = $preprocessed['who_domain_scores'] ?? [];
+        $ss = $preprocessed['section_scores'] ?? [];
+        $who = $preprocessed['who_domain_scores'] ?? [];
         $wellbeing = (float) ($ss['overall_wellbeing'] ?? 0.5);
         $composite = round(1 - $wellbeing, 4);
 
         // 3-level classification: HIGH>=0.45, MODERATE>=0.30, LOW<0.30
         // Scores >= 0.70 remain HIGH; urgency surfaced via priority_flag.
-        $level     = $composite >= self::HIGH_THRESHOLD ? 'HIGH' : ($composite >= self::MODERATE_THRESHOLD ? 'MODERATE' : 'LOW');
+        $level = $composite >= self::HIGH_THRESHOLD ? 'HIGH' : ($composite >= self::MODERATE_THRESHOLD ? 'MODERATE' : 'LOW');
         $clusterId = $composite >= self::HIGH_THRESHOLD ? 3 : ($composite >= self::MODERATE_THRESHOLD ? 2 : 1);
 
         // Derive domain risks from available section scores (same logic as _compute_rule_based_risk)
-        $ageRisk      = (float) ($ss['sec1_age_risk']        ?? 0.5);
-        $healthScore  = (float) ($ss['sec6_health_score']    ?? 0.5);
-        $ecoStability = (float) ($ss['sec5_eco_stability']   ?? 0.5);
-        $famSupport   = (float) ($ss['sec2_family_support']  ?? 0.5);
-        $depRisk      = (float) ($ss['sec4_dependency_risk'] ?? 0.3);
-        $hrScore      = (float) ($ss['sec3_hr_score']        ?? 0.5);
+        $ageRisk = (float) ($ss['sec1_age_risk'] ?? 0.5);
+        $healthScore = (float) ($ss['sec6_health_score'] ?? 0.5);
+        $ecoStability = (float) ($ss['sec5_eco_stability'] ?? 0.5);
+        $famSupport = (float) ($ss['sec2_family_support'] ?? 0.5);
+        $depRisk = (float) ($ss['sec4_dependency_risk'] ?? 0.3);
+        $hrScore = (float) ($ss['sec3_hr_score'] ?? 0.5);
 
         $domainRisks = [
-            'risk_medical'    => round(min($healthScore, 1.0), 4),
-            'risk_financial'  => round(min(max(1.0 - $ecoStability, 0.0), 1.0), 4),
-            'risk_social'     => round(min(max(1.0 - $famSupport, 0.0), 1.0), 4),
+            'risk_medical' => round(min($healthScore, 1.0), 4),
+            'risk_financial' => round(min(max(1.0 - $ecoStability, 0.0), 1.0), 4),
+            'risk_social' => round(min(max(1.0 - $famSupport, 0.0), 1.0), 4),
             'risk_functional' => round(min($ageRisk * 0.5 + (1.0 - $hrScore) * 0.5, 1.0), 4),
-            'risk_housing'    => round(min((float) ($ss['sec4_household_risk'] ?? 0.0), 1.0), 4),
-            'risk_hc_access'  => round(min($healthScore * 0.5 + $ageRisk * 0.5, 1.0), 4),
-            'risk_sensory'    => round(min($healthScore * 0.6, 1.0), 4),
-            'rule_composite'  => $composite,
+            'risk_housing' => round(min((float) ($ss['sec4_household_risk'] ?? 0.0), 1.0), 4),
+            'risk_hc_access' => round(min($healthScore * 0.5 + $ageRisk * 0.5, 1.0), 4),
+            'risk_sensory' => round(min($healthScore * 0.6, 1.0), 4),
+            'rule_composite' => $composite,
         ];
 
         return [
-            'status'  => 'success_fallback',
+            'status' => 'success_fallback',
             'model_metadata' => [
-                'model_version'             => self::MODEL_VERSION,
-                'prediction_source'         => 'fallback',
+                'model_version' => self::MODEL_VERSION,
+                'prediction_source' => 'fallback',
                 'notebook_override_applied' => false,
-                'db_cache_hit'              => false,
-                'is_cached_prediction'      => false,
+                'db_cache_hit' => false,
+                'is_cached_prediction' => false,
             ],
             'cluster' => [
-                'raw_id'  => $clusterId - 1,
+                'raw_id' => $clusterId - 1,
                 'named_id' => $clusterId,
-                'name'    => ['', 'High Functioning', 'Moderate / Mixed Needs', 'Low Functioning / Multi-Domain Risk'][$clusterId],
+                'name' => ['', 'High Functioning', 'Moderate / Mixed Needs', 'Low Functioning / Multi-Domain Risk'][$clusterId],
                 'ic' => 'Unknown', 'env' => 'Unknown', 'func' => 'Unknown',
                 'description' => 'Heuristic assignment — ML service unavailable.',
             ],
             'risk_scores' => [
-                'ic_risk'         => $composite,
-                'env_risk'        => $composite,
-                'func_risk'       => $composite,
-                'composite_risk'  => $composite,
+                'ic_risk' => $composite,
+                'env_risk' => $composite,
+                'func_risk' => $composite,
+                'composite_risk' => $composite,
                 'wellbeing_score' => $wellbeing,
             ],
             'risk_levels' => [
@@ -1086,18 +1125,18 @@ class MlService
                 'func' => strtolower($level), 'overall' => $level,
             ],
             'domain_risks' => $domainRisks,
-            'who_scores'   => [
-                'ic_score'   => (float) ($who['ic_score']   ?? 3.0),
-                'env_score'  => (float) ($who['env_score']  ?? 3.0),
+            'who_scores' => [
+                'ic_score' => (float) ($who['ic_score'] ?? 3.0),
+                'env_score' => (float) ($who['env_score'] ?? 3.0),
                 'func_score' => (float) ($who['func_score'] ?? 3.0),
-                'qol_score'  => (float) ($who['qol_score']  ?? 3.0),
+                'qol_score' => (float) ($who['qol_score'] ?? 3.0),
             ],
             'section_scores' => $ss,
             'recommendations' => [
                 [
                     'priority' => 1, 'type' => 'general', 'domain' => 'general', 'category' => 'general',
-                    'action'   => 'ML service unavailable. Please re-run analysis when the service is restored.',
-                    'urgency'  => 'planned', 'risk_level' => strtolower($level),
+                    'action' => 'ML service unavailable. Please re-run analysis when the service is restored.',
+                    'urgency' => 'planned', 'risk_level' => strtolower($level),
                 ],
             ],
             'warnings' => ['Python ML services are currently unreachable. Fallback heuristics used.'],
@@ -1107,9 +1146,16 @@ class MlService
 
     private function computePriorityFlag(float $composite): string
     {
-        if ($composite >= self::URGENT_THRESHOLD)   return 'urgent';
-        if ($composite >= self::HIGH_THRESHOLD)     return 'priority_action';
-        if ($composite >= self::MODERATE_THRESHOLD) return 'planned_monitoring';
+        if ($composite >= self::URGENT_THRESHOLD) {
+            return 'urgent';
+        }
+        if ($composite >= self::HIGH_THRESHOLD) {
+            return 'priority_action';
+        }
+        if ($composite >= self::MODERATE_THRESHOLD) {
+            return 'planned_monitoring';
+        }
+
         return 'maintenance';
     }
 }

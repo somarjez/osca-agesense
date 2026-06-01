@@ -13,7 +13,8 @@ class ProcessMlSingle implements ShouldQueue
     use Queueable;
 
     public int $timeout = 300;
-    public int $tries   = 1;
+
+    public int $tries = 1;
 
     public function __construct(
         public readonly int $seniorId,
@@ -27,7 +28,7 @@ class ProcessMlSingle implements ShouldQueue
         $senior = SeniorCitizen::find($this->seniorId);
         $survey = QolSurvey::find($this->surveyId);
 
-        if (!$senior || !$survey) {
+        if (! $senior || ! $survey) {
             return;
         }
 
