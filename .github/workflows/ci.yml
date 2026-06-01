@@ -117,6 +117,9 @@ jobs:
       - name: Audit Composer dependencies for known CVEs
         run: composer audit
 
+      - name: Check PHP code style (Pint)
+        run: ./vendor/bin/pint --test
+
   # â”€â”€ Python ML pipeline tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   python-ml-tests:
     name: python-ml-tests
@@ -142,6 +145,11 @@ jobs:
         run: |
           pip install pip-audit==2.10.0
           pip-audit -r python/requirements.txt
+
+      - name: Check Python code style (ruff)
+        run: |
+          pip install ruff
+          ruff check python/
 
   # â”€â”€ JS / frontend build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   js-build:
