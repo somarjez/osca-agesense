@@ -114,6 +114,9 @@ jobs:
           fi
           echo ".env is not tracked."
 
+      - name: Audit Composer dependencies for known CVEs
+        run: composer audit
+
   # ── Python ML pipeline tests ──────────────────────────────────────────────
   python-ml-tests:
     name: python-ml-tests
@@ -134,6 +137,11 @@ jobs:
 
       - name: Run ML pipeline validation tests
         run: python python/tests/test_ml_pipeline.py
+
+      - name: Audit Python dependencies for known CVEs
+        run: |
+          pip install pip-audit
+          pip-audit -r python/requirements.txt
 
   # ── JS / frontend build ───────────────────────────────────────────────────
   js-build:
@@ -161,3 +169,6 @@ jobs:
           test -d public/build \
             && echo "public/build exists." \
             || (echo "ERROR: public/build missing after build step." && exit 1)
+
+      - name: Audit npm dependencies for known CVEs
+        run: npm audit --audit-level=high
