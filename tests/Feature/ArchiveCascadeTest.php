@@ -41,14 +41,14 @@ class ArchiveCascadeTest extends TestCase
     private function makeSenior(): SeniorCitizen
     {
         return SeniorCitizen::create([
-            'osca_id'       => 'TST-' . uniqid(),
-            'first_name'    => 'Cascade',
-            'last_name'     => 'TestSenior',
-            'barangay'      => 'Pagsanjan',
+            'osca_id' => 'TST-'.uniqid(),
+            'first_name' => 'Cascade',
+            'last_name' => 'TestSenior',
+            'barangay' => 'Pagsanjan',
             'date_of_birth' => '1950-06-15',
-            'gender'        => 'Male',
-            'status'        => 'active',
-            'encoded_by'    => 'Test',
+            'gender' => 'Male',
+            'status' => 'active',
+            'encoded_by' => 'Test',
         ]);
     }
 
@@ -56,18 +56,18 @@ class ArchiveCascadeTest extends TestCase
     {
         return MlResult::create([
             'senior_citizen_id' => $senior->id,
-            'model_version'     => 'v1',
+            'model_version' => 'v1',
         ]);
     }
 
     private function makeRecommendation(MlResult $result, SeniorCitizen $senior): Recommendation
     {
         return Recommendation::create([
-            'ml_result_id'      => $result->id,
+            'ml_result_id' => $result->id,
             'senior_citizen_id' => $senior->id,
-            'priority'          => 1,
-            'type'              => 'general',
-            'action'            => 'Test action',
+            'priority' => 1,
+            'type' => 'general',
+            'action' => 'Test action',
         ]);
     }
 
@@ -78,7 +78,7 @@ class ArchiveCascadeTest extends TestCase
     {
         $senior = $this->makeSenior();
         $result = $this->makeResult($senior);
-        $rec    = $this->makeRecommendation($result, $senior);
+        $rec = $this->makeRecommendation($result, $senior);
 
         $this->actingAs($this->admin)
             ->delete(route('seniors.destroy', $senior))
@@ -86,8 +86,8 @@ class ArchiveCascadeTest extends TestCase
 
         // Senior and related data should be soft-deleted
         $this->assertSoftDeleted('senior_citizens', ['id' => $senior->id]);
-        $this->assertSoftDeleted('ml_results',      ['id' => $result->id]);
-        $this->assertSoftDeleted('recommendations',  ['id' => $rec->id]);
+        $this->assertSoftDeleted('ml_results', ['id' => $result->id]);
+        $this->assertSoftDeleted('recommendations', ['id' => $rec->id]);
     }
 
     #[Test]
@@ -95,7 +95,7 @@ class ArchiveCascadeTest extends TestCase
     {
         $senior = $this->makeSenior();
         $result = $this->makeResult($senior);
-        $rec    = $this->makeRecommendation($result, $senior);
+        $rec = $this->makeRecommendation($result, $senior);
 
         // Archive first
         $this->actingAs($this->admin)
@@ -108,8 +108,8 @@ class ArchiveCascadeTest extends TestCase
 
         // All records should be back with deleted_at = null
         $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('ml_results',      ['id' => $result->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('recommendations',  ['id' => $rec->id,    'deleted_at' => null]);
+        $this->assertDatabaseHas('ml_results', ['id' => $result->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('recommendations', ['id' => $rec->id,    'deleted_at' => null]);
     }
 
     #[Test]
@@ -117,7 +117,7 @@ class ArchiveCascadeTest extends TestCase
     {
         $senior = $this->makeSenior();
         $result = $this->makeResult($senior);
-        $rec    = $this->makeRecommendation($result, $senior);
+        $rec = $this->makeRecommendation($result, $senior);
 
         // Archive first (force-delete only works on archived seniors via UI)
         $this->actingAs($this->admin)
@@ -129,8 +129,8 @@ class ArchiveCascadeTest extends TestCase
             ->assertRedirect(route('seniors.archives'));
 
         $this->assertDatabaseMissing('senior_citizens', ['id' => $senior->id]);
-        $this->assertDatabaseMissing('ml_results',      ['id' => $result->id]);
-        $this->assertDatabaseMissing('recommendations',  ['id' => $rec->id]);
+        $this->assertDatabaseMissing('ml_results', ['id' => $result->id]);
+        $this->assertDatabaseMissing('recommendations', ['id' => $rec->id]);
     }
 
     #[Test]

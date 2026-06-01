@@ -15,9 +15,9 @@ class PurgeExpiredRecords extends Command
 
     public function handle(): int
     {
-        $years    = (int) $this->option('years');
-        $execute  = $this->option('execute');
-        $cutoff   = now()->subYears($years);
+        $years = (int) $this->option('years');
+        $execute = $this->option('execute');
+        $cutoff = now()->subYears($years);
 
         $expired = SeniorCitizen::onlyTrashed()
             ->where('deleted_at', '<=', $cutoff)
@@ -25,12 +25,13 @@ class PurgeExpiredRecords extends Command
 
         if ($expired->isEmpty()) {
             $this->info("No records found soft-deleted before {$cutoff->toDateString()}.");
+
             return self::SUCCESS;
         }
 
         $this->table(
             ['ID', 'OSCA ID', 'Name', 'Archived At'],
-            $expired->map(fn($s) => [
+            $expired->map(fn ($s) => [
                 $s->id,
                 $s->osca_id,
                 $s->full_name,
@@ -41,13 +42,15 @@ class PurgeExpiredRecords extends Command
         $this->newLine();
         $count = $expired->count();
 
-        if (!$execute) {
+        if (! $execute) {
             $this->warn("DRY RUN — {$count} record(s) would be permanently deleted. Pass --execute to apply.");
+
             return self::SUCCESS;
         }
 
-        if (!$this->confirm("Permanently delete {$count} record(s)? This cannot be undone.")) {
+        if (! $this->confirm("Permanently delete {$count} record(s)? This cannot be undone.")) {
             $this->info('Aborted.');
+
             return self::SUCCESS;
         }
 

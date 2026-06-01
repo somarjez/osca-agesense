@@ -38,40 +38,40 @@ class RepairNotebookCache extends Command
     public function handle(MlService $ml): int
     {
         $isDryRun = (bool) $this->option('dry-run');
-        $doAll    = (bool) $this->option('all');
+        $doAll = (bool) $this->option('all');
 
         set_time_limit(0);
 
         // ── 1. Collect seniors to process ────────────────────────────────────
         $query = SeniorCitizen::active()->with('latestQolSurvey', 'latestMlResult');
 
-        if (!$doAll) {
+        if (! $doAll) {
             // Only seniors whose latest result is NOT notebook_cache (or have no result yet)
             $query->where(function ($q) {
                 $q->whereDoesntHave('mlResults')
-                  ->orWhereHas('latestMlResult', fn($q2) =>
-                      $q2->where('prediction_source', '!=', 'notebook_cache')
-                  );
+                    ->orWhereHas('latestMlResult', fn ($q2) => $q2->where('prediction_source', '!=', 'notebook_cache')
+                    );
             });
         }
 
         $seniors = $query->get();
 
-        $this->info("=== ml:repair-notebook-cache ===");
-        $this->info("Mode     : " . ($isDryRun ? 'DRY-RUN' : 'LIVE'));
-        $this->info("Scope    : " . ($doAll ? 'All active seniors' : 'Non-notebook_cache seniors only'));
-        $this->info("Seniors  : " . $seniors->count());
+        $this->info('=== ml:repair-notebook-cache ===');
+        $this->info('Mode     : '.($isDryRun ? 'DRY-RUN' : 'LIVE'));
+        $this->info('Scope    : '.($doAll ? 'All active seniors' : 'Non-notebook_cache seniors only'));
+        $this->info('Seniors  : '.$seniors->count());
         $this->line('');
 
         if ($seniors->isEmpty()) {
-            $this->info("Nothing to repair — all active seniors already have notebook_cache results.");
+            $this->info('Nothing to repair — all active seniors already have notebook_cache results.');
+
             return self::SUCCESS;
         }
 
         // ── 2. Process each senior ────────────────────────────────────────────
-        $repaired  = [];   // Successfully matched to CSV
-        $missed    = [];   // Still fell through to live_model or fallback
-        $noSurvey  = [];   // Skipped — no QoL survey
+        $repaired = [];   // Successfully matched to CSV
+        $missed = [];   // Still fell through to live_model or fallback
+        $noSurvey = [];   // Skipped — no QoL survey
 
         $bar = $this->output->createProgressBar($seniors->count());
         $bar->start();
@@ -82,25 +82,27 @@ class RepairNotebookCache extends Command
             $survey = $senior->latestQolSurvey;
             if ($survey === null) {
                 $noSurvey[] = [
-                    'id'       => $senior->id,
-                    'name'     => $senior->first_name . ' ' . $senior->last_name,
+                    'id' => $senior->id,
+                    'name' => $senior->first_name.' '.$senior->last_name,
                     'barangay' => $senior->barangay,
-                    'age'      => $senior->age,
-                    'reason'   => 'No QoL survey found',
+                    'age' => $senior->age,
+                    'reason' => 'No QoL survey found',
                 ];
+
                 continue;
             }
 
             if ($isDryRun) {
                 // In dry-run, just note who would be processed — don't actually call pipeline
                 $missed[] = [
-                    'id'       => $senior->id,
-                    'name'     => $senior->first_name . ' ' . $senior->last_name,
+                    'id' => $senior->id,
+                    'name' => $senior->first_name.' '.$senior->last_name,
                     'barangay' => $senior->barangay,
-                    'age'      => $senior->age,
-                    'source'   => $senior->latestMlResult?->prediction_source ?? 'none',
-                    'reason'   => 'dry-run: would be re-scored',
+                    'age' => $senior->age,
+                    'source' => $senior->latestMlResult?->prediction_source ?? 'none',
+                    'reason' => 'dry-run: would be re-scored',
                 ];
+
                 continue;
             }
 
@@ -112,29 +114,29 @@ class RepairNotebookCache extends Command
                 $source = $result->prediction_source ?? 'unknown';
                 if ($source === 'notebook_cache') {
                     $repaired[] = [
-                        'id'       => $senior->id,
-                        'name'     => $senior->first_name . ' ' . $senior->last_name,
+                        'id' => $senior->id,
+                        'name' => $senior->first_name.' '.$senior->last_name,
                         'barangay' => $senior->barangay,
-                        'age'      => $senior->age,
+                        'age' => $senior->age,
                     ];
                 } else {
                     $missed[] = [
-                        'id'       => $senior->id,
-                        'name'     => $senior->first_name . ' ' . $senior->last_name,
+                        'id' => $senior->id,
+                        'name' => $senior->first_name.' '.$senior->last_name,
                         'barangay' => $senior->barangay,
-                        'age'      => $senior->age,
-                        'source'   => $source,
-                        'reason'   => 'CSV match failed (name/barangay/age mismatch)',
+                        'age' => $senior->age,
+                        'source' => $source,
+                        'reason' => 'CSV match failed (name/barangay/age mismatch)',
                     ];
                 }
             } catch (\Throwable $e) {
                 $missed[] = [
-                    'id'       => $senior->id,
-                    'name'     => $senior->first_name . ' ' . $senior->last_name,
+                    'id' => $senior->id,
+                    'name' => $senior->first_name.' '.$senior->last_name,
                     'barangay' => $senior->barangay,
-                    'age'      => $senior->age,
-                    'source'   => 'error',
-                    'reason'   => 'Pipeline error: ' . $e->getMessage(),
+                    'age' => $senior->age,
+                    'source' => 'error',
+                    'reason' => 'Pipeline error: '.$e->getMessage(),
                 ];
             }
         }
@@ -143,35 +145,35 @@ class RepairNotebookCache extends Command
         $this->line("\n");
 
         // ── 3. Report ─────────────────────────────────────────────────────────
-        if (!$isDryRun && !empty($repaired)) {
-            $this->info("REPAIRED — matched to notebook CSV (" . count($repaired) . "):");
+        if (! $isDryRun && ! empty($repaired)) {
+            $this->info('REPAIRED — matched to notebook CSV ('.count($repaired).'):');
             $headers = ['ID', 'Name', 'Barangay', 'Age'];
-            $rows    = array_map(
-                fn($r) => [$r['id'], $r['name'], $r['barangay'], $r['age']],
+            $rows = array_map(
+                fn ($r) => [$r['id'], $r['name'], $r['barangay'], $r['age']],
                 $repaired
             );
             $this->table($headers, $rows);
             $this->line('');
         }
 
-        if (!empty($noSurvey)) {
-            $this->warn("SKIPPED — no QoL survey (" . count($noSurvey) . "):");
+        if (! empty($noSurvey)) {
+            $this->warn('SKIPPED — no QoL survey ('.count($noSurvey).'):');
             $this->table(
                 ['ID', 'Name', 'Barangay', 'Age', 'Reason'],
-                array_map(fn($r) => [$r['id'], $r['name'], $r['barangay'], $r['age'], $r['reason']], $noSurvey)
+                array_map(fn ($r) => [$r['id'], $r['name'], $r['barangay'], $r['age'], $r['reason']], $noSurvey)
             );
             $this->line('');
         }
 
-        if (!empty($missed)) {
+        if (! empty($missed)) {
             $this->warn(
-                ($isDryRun ? "WOULD PROCESS" : "STILL MISMATCHED") .
-                " (" . count($missed) . "):"
+                ($isDryRun ? 'WOULD PROCESS' : 'STILL MISMATCHED').
+                ' ('.count($missed).'):'
             );
             $this->table(
                 ['ID', 'Name', 'Barangay', 'Age', 'Source', 'Reason'],
                 array_map(
-                    fn($r) => [
+                    fn ($r) => [
                         $r['id'], $r['name'], $r['barangay'], $r['age'],
                         $r['source'] ?? '', $r['reason'] ?? '',
                     ],
@@ -182,21 +184,21 @@ class RepairNotebookCache extends Command
         }
 
         // ── 4. Final summary ──────────────────────────────────────────────────
-        $this->info("=== SUMMARY ===");
-        if (!$isDryRun) {
-            $this->info("  Repaired (notebook_cache) : " . count($repaired));
-            $this->info("  Still mismatched          : " . count($missed));
-            $this->info("  Skipped (no survey)       : " . count($noSurvey));
+        $this->info('=== SUMMARY ===');
+        if (! $isDryRun) {
+            $this->info('  Repaired (notebook_cache) : '.count($repaired));
+            $this->info('  Still mismatched          : '.count($missed));
+            $this->info('  Skipped (no survey)       : '.count($noSurvey));
         } else {
-            $this->info("  Would re-score : " . count($missed));
-            $this->info("  Skipped        : " . count($noSurvey));
+            $this->info('  Would re-score : '.count($missed));
+            $this->info('  Skipped        : '.count($noSurvey));
         }
         $this->line('');
 
         // Verify final DB state
-        if (!$isDryRun) {
-            $nbCount   = MlResult::whereHas(
-                'seniorCitizen', fn($q) => $q->where('status', 'active')->whereNull('deleted_at')
+        if (! $isDryRun) {
+            $nbCount = MlResult::whereHas(
+                'seniorCitizen', fn ($q) => $q->where('status', 'active')->whereNull('deleted_at')
             )->whereIn('id', function ($sub) {
                 $sub->selectRaw('MAX(id)')
                     ->from('ml_results')
@@ -207,7 +209,7 @@ class RepairNotebookCache extends Command
             })->where('prediction_source', 'notebook_cache')->count();
 
             $liveCount = MlResult::whereHas(
-                'seniorCitizen', fn($q) => $q->where('status', 'active')->whereNull('deleted_at')
+                'seniorCitizen', fn ($q) => $q->where('status', 'active')->whereNull('deleted_at')
             )->whereIn('id', function ($sub) {
                 $sub->selectRaw('MAX(id)')
                     ->from('ml_results')
@@ -221,10 +223,12 @@ class RepairNotebookCache extends Command
             $this->info("  DB: live_model     : {$liveCount}");
 
             if ($liveCount === 0) {
-                $this->info("  All seed seniors now have notebook_cache results.");
+                $this->info('  All seed seniors now have notebook_cache results.');
+
                 return self::SUCCESS;
             } else {
                 $this->warn("  {$liveCount} senior(s) still have live_model — check mismatched list above.");
+
                 return self::FAILURE;
             }
         }

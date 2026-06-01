@@ -33,14 +33,13 @@ os.environ["OMP_NUM_THREADS"] = "1"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
 
 from inference_service import (
-    _health_recs,
+    _build_recommendations,
     _financial_recs,
-    _social_recs,
     _functional_recs,
     _hc_access_recs,
+    _health_recs,
     _household_safety_recs,
-    _assistive_device_recs,
-    _build_recommendations,
+    _social_recs,
 )
 
 all_ok = True
@@ -383,8 +382,11 @@ LONELY_ROW = {
 }
 soc_lone = _social_recs(LONELY_ROW)
 soc_lone_codes = [r.get("recommendation_code") for r in soc_lone]
-check_true("MENTAL_HEALTH_REFERRAL fires for psych_lonely_r=2 (loneliness score)", "MENTAL_HEALTH_REFERRAL" in soc_lone_codes,
-           f"codes: {soc_lone_codes}")
+check_true(
+    "MENTAL_HEALTH_REFERRAL fires for psych_lonely_r=2 (loneliness score)",
+    "MENTAL_HEALTH_REFERRAL" in soc_lone_codes,
+    f"codes: {soc_lone_codes}",
+)
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -667,4 +669,6 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 print("=" * 50)
 print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
-import sys; sys.exit(0 if all_ok else 1)
+import sys  # noqa: E402
+
+sys.exit(0 if all_ok else 1)

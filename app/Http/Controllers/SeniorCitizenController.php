@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\MlResult;
+use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
-use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SeniorCitizenController extends Controller
 {
@@ -14,21 +16,18 @@ class SeniorCitizenController extends Controller
     {
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
-            ->when($request->search, fn($q) =>
-                $q->where(fn($q) =>
-                    $q->where('first_name', 'like', "%{$request->search}%")
-                      ->orWhere('last_name', 'like', "%{$request->search}%")
-                      ->orWhere('osca_id', 'like', "%{$request->search}%")
-                ))
-            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
-            ->when($request->risk, fn($q) => $q->byRiskLevel($request->risk))
-            ->when($request->cluster, fn($q) => $q->whereHas('latestMlResult', fn($m) =>
-                $m->where('cluster_named_id', (int) $request->cluster)
+            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
+                ->orWhere('last_name', 'like', "%{$request->search}%")
+                ->orWhere('osca_id', 'like', "%{$request->search}%")
+            ))
+            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
+            ->when($request->risk, fn ($q) => $q->byRiskLevel($request->risk))
+            ->when($request->cluster, fn ($q) => $q->whereHas('latestMlResult', fn ($m) => $m->where('cluster_named_id', (int) $request->cluster)
             ))
             ->latest();
 
-        $seniors    = $query->paginate(20)->withQueryString();
-        $barangays  = SeniorCitizen::barangayList();
+        $seniors = $query->paginate(20)->withQueryString();
+        $barangays = SeniorCitizen::barangayList();
 
         // Restrict stats to active (non-archived) seniors only
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
@@ -37,11 +36,11 @@ class SeniorCitizenController extends Controller
             ->groupBy('senior_citizen_id');
 
         $stats = [
-            'total'  => $activeSeniorIds->count(),
+            'total' => $activeSeniorIds->count(),
             'urgent' => MlResult::where('priority_flag', 'urgent')
                 ->whereIn('id', $latestActiveMlIds)
                 ->count(),
-            'high'   => MlResult::where('overall_risk_level', 'HIGH')
+            'high' => MlResult::where('overall_risk_level', 'HIGH')
                 ->whereIn('id', $latestActiveMlIds)
                 ->count(),
         ];
@@ -62,9 +61,9 @@ class SeniorCitizenController extends Controller
     public function show(SeniorCitizen $senior)
     {
         $senior->load([
-            'qolSurveys'              => fn($q) => $q->latest()->limit(5),
+            'qolSurveys' => fn ($q) => $q->latest()->limit(5),
             'latestMlResult.recommendations',
-            'mlResults'               => fn($q) => $q->latest()->limit(3),
+            'mlResults' => fn ($q) => $q->latest()->limit(3),
         ]);
 
         return view('seniors.show', compact('senior'));
@@ -80,8 +79,9 @@ class SeniorCitizenController extends Controller
         // Cascade soft-delete: recommendations → ml_results → surveys → senior
         Recommendation::where('senior_citizen_id', $senior->id)->delete();
         MlResult::where('senior_citizen_id', $senior->id)->delete();
-        $senior->qolSurveys()->each(fn($s) => $s->delete());
+        $senior->qolSurveys()->each(fn ($s) => $s->delete());
         $senior->delete();
+
         return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
     }
 
@@ -95,10 +95,11 @@ class SeniorCitizenController extends Controller
         foreach ($seniors as $senior) {
             Recommendation::where('senior_citizen_id', $senior->id)->delete();
             MlResult::where('senior_citizen_id', $senior->id)->delete();
-            $senior->qolSurveys()->each(fn($s) => $s->delete());
+            $senior->qolSurveys()->each(fn ($s) => $s->delete());
             $senior->delete();
         }
         $count = $seniors->count();
+
         return redirect()->route('seniors.index')->with('success', "{$count} senior record(s) archived.");
     }
 
@@ -110,12 +111,13 @@ class SeniorCitizenController extends Controller
         }
         $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
-            \App\Models\QolSurvey::onlyTrashed()
+            QolSurvey::onlyTrashed()
                 ->where('senior_citizen_id', $senior->id)
-                ->each(fn($s) => $s->restore());
+                ->each(fn ($s) => $s->restore());
             $senior->restore();
         }
         $count = $seniors->count();
+
         return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) restored.");
     }
 
@@ -138,31 +140,27 @@ class SeniorCitizenController extends Controller
             $senior->forceDelete();
         }
         $count = $seniors->count();
+
         return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) permanently deleted.");
     }
 
     public function archives(Request $request)
     {
         $seniors = SeniorCitizen::onlyTrashed()
-            ->when($request->search, fn($q) =>
-                $q->where(fn($q) =>
-                    $q->where('first_name', 'like', "%{$request->search}%")
-                      ->orWhere('last_name',  'like', "%{$request->search}%")
-                      ->orWhere('osca_id',    'like', "%{$request->search}%")
-                ))
-            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
+            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
+                ->orWhere('last_name', 'like', "%{$request->search}%")
+                ->orWhere('osca_id', 'like', "%{$request->search}%")
+            ))
+            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
             ->latest('deleted_at')
             ->paginate(20)->withQueryString();
 
-        $archivedSurveys = \App\Models\QolSurvey::onlyTrashed()
-            ->with(['seniorCitizen' => fn($q) => $q->withTrashed()])
-            ->when($request->search, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($q) => $q->withTrashed()->where(fn($q) =>
-                    $q->where('first_name', 'like', "%{$request->search}%")
-                      ->orWhere('last_name',  'like', "%{$request->search}%")
-                )))
-            ->when($request->barangay, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($q) => $q->withTrashed()->where('barangay', $request->barangay))
+        $archivedSurveys = QolSurvey::onlyTrashed()
+            ->with(['seniorCitizen' => fn ($q) => $q->withTrashed()])
+            ->when($request->search, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
+                ->orWhere('last_name', 'like', "%{$request->search}%")
+            )))
+            ->when($request->barangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->where('barangay', $request->barangay))
             )
             ->latest('deleted_at')
             ->paginate(20, ['*'], 'qol_page')->withQueryString();
@@ -178,10 +176,11 @@ class SeniorCitizenController extends Controller
         // Restore all data that was soft-deleted when this senior was archived
         Recommendation::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
         MlResult::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
-        \App\Models\QolSurvey::onlyTrashed()
+        QolSurvey::onlyTrashed()
             ->where('senior_citizen_id', $senior->id)
-            ->each(fn($s) => $s->restore());
+            ->each(fn ($s) => $s->restore());
         $senior->restore();
+
         return redirect()->route('seniors.archives')->with('success', 'Senior record restored to active.');
     }
 
@@ -194,7 +193,7 @@ class SeniorCitizenController extends Controller
         // then surveys, finally the senior.
         Recommendation::withTrashed()->where('senior_citizen_id', $senior->id)->forceDelete();
         MlResult::withTrashed()->where('senior_citizen_id', $senior->id)->forceDelete();
-        $senior->qolSurveys()->withTrashed()->each(fn($s) => $s->forceDelete());
+        $senior->qolSurveys()->withTrashed()->each(fn ($s) => $s->forceDelete());
         $senior->forceDelete();
 
         return redirect()->route('seniors.archives')->with('success', 'Senior record and all related data permanently deleted.');
@@ -203,8 +202,9 @@ class SeniorCitizenController extends Controller
     public function export(SeniorCitizen $senior)
     {
         $senior->load(['latestMlResult.recommendations', 'latestQolSurvey']);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('seniors.pdf', compact('senior'))
+        $pdf = Pdf::loadView('seniors.pdf', compact('senior'))
             ->setPaper('a4', 'portrait');
+
         return $pdf->download("osca-profile-{$senior->osca_id}.pdf");
     }
 }

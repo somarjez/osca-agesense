@@ -17,17 +17,17 @@ Route::middleware(['auth'])->group(function () {
 
     // Admin only
     Route::middleware('role:admin')->prefix('activity-log')->name('activity-log.')->group(function () {
-        Route::get('/',       [ActivityLogController::class, 'index'])->name('index');
+        Route::get('/', [ActivityLogController::class, 'index'])->name('index');
         Route::delete('bulk', [ActivityLogController::class, 'bulkDestroy'])->name('bulk-destroy');
-        Route::delete('all',  [ActivityLogController::class, 'clear'])->name('clear');
+        Route::delete('all', [ActivityLogController::class, 'clear'])->name('clear');
     });
 
-    require __DIR__ . '/seniors.php';
-    require __DIR__ . '/surveys.php';
-    require __DIR__ . '/ml.php';
-    require __DIR__ . '/reports.php';
-    require __DIR__ . '/recommendations.php';
-    require __DIR__ . '/users.php';
+    require __DIR__.'/seniors.php';
+    require __DIR__.'/surveys.php';
+    require __DIR__.'/ml.php';
+    require __DIR__.'/reports.php';
+    require __DIR__.'/recommendations.php';
+    require __DIR__.'/users.php';
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

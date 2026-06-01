@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ArrayExport;
 use App\Models\ClusterSnapshot;
-use App\Models\MlResult;
-use App\Models\QolSurvey;
-use App\Models\Recommendation;
 use App\Models\Facility;
+use App\Models\MlResult;
+use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
+use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -22,7 +24,7 @@ class ReportController extends Controller
     {
         $mappedCount = SeniorCitizen::active()->count();
         $highRiskMapped = SeniorCitizen::active()
-            ->whereHas('latestMlResult', fn($q) => $q->where('overall_risk_level', 'HIGH'))
+            ->whereHas('latestMlResult', fn ($q) => $q->where('overall_risk_level', 'HIGH'))
             ->count();
 
         $stats = [
@@ -67,7 +69,7 @@ class ReportController extends Controller
         $barangayCluster = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->select('barangay', 'cluster_named_id', 'cluster_name', DB::raw('COUNT(*) as count'))
             ->groupBy('barangay', 'cluster_named_id', 'cluster_name')
@@ -109,7 +111,7 @@ class ReportController extends Controller
             ->get()
             ->keyBy('cluster_named_id');
 
-        $evalMetrics = \App\Support\ClusterMetrics::load();
+        $evalMetrics = ClusterMetrics::load();
 
         // Snapshot history — last 30 distinct snapshot dates, newest first.
         // Fetch only those dates at DB level to avoid loading the entire table into memory.
@@ -123,7 +125,7 @@ class ReportController extends Controller
             ->orderByDesc('snapshot_date')
             ->orderBy('cluster_id')
             ->get()
-            ->groupBy(fn($s) => $s->snapshot_date->format('Y-m-d'));
+            ->groupBy(fn ($s) => $s->snapshot_date->format('Y-m-d'));
 
         return view('reports.cluster', compact(
             'clusterSummary', 'barangayCluster', 'domainByCluster',
@@ -152,14 +154,14 @@ class ReportController extends Controller
         $atRiskSeniors = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->whereIn('ml_results.overall_risk_level', ['HIGH'])
             ->select('senior_citizens.*', 'ml_results.overall_risk_level',
-                     'ml_results.composite_risk', 'ml_results.cluster_name',
-                     'ml_results.ic_risk', 'ml_results.env_risk', 'ml_results.func_risk')
-            ->when($request->barangay, fn($q) => $q->where('barangay', $request->barangay))
-            ->when($request->risk_level, fn($q) => $q->where('ml_results.overall_risk_level', strtoupper($request->risk_level)))
+                'ml_results.composite_risk', 'ml_results.cluster_name',
+                'ml_results.ic_risk', 'ml_results.env_risk', 'ml_results.func_risk')
+            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
+            ->when($request->risk_level, fn ($q) => $q->where('ml_results.overall_risk_level', strtoupper($request->risk_level)))
             ->orderByDesc('ml_results.composite_risk')
             ->paginate(25)
             ->withQueryString();
@@ -168,7 +170,7 @@ class ReportController extends Controller
         $barangayRisk = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->select('barangay', 'ml_results.overall_risk_level', DB::raw('COUNT(*) as count'))
             ->groupBy('barangay', 'ml_results.overall_risk_level')
@@ -201,6 +203,7 @@ class ReportController extends Controller
     public function barangayIndex()
     {
         $first = SeniorCitizen::barangayList()[0];
+
         return redirect()->route('reports.barangay', $first);
     }
 
@@ -211,7 +214,7 @@ class ReportController extends Controller
     {
         $barangays = SeniorCitizen::barangayList();
 
-        if (!in_array($brgy, $barangays, true)) {
+        if (! in_array($brgy, $barangays, true)) {
             abort(404, 'Barangay not found.');
         }
 
@@ -230,14 +233,14 @@ class ReportController extends Controller
 
         // Risk distribution for this barangay
         $riskDist = MlResult::whereIn('id', $latestIds)
-            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
             ->groupBy('overall_risk_level')
             ->pluck('count', 'overall_risk_level');
 
         // Cluster distribution for this barangay
         $clusterDist = MlResult::whereIn('id', $latestIds)
-            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->whereNotNull('cluster_named_id')
             ->select('cluster_named_id', 'cluster_name', DB::raw('COUNT(*) as count'))
             ->groupBy('cluster_named_id', 'cluster_name')
@@ -246,19 +249,19 @@ class ReportController extends Controller
 
         // Domain risk averages for this barangay
         $domainAvgs = MlResult::whereIn('id', $latestIds)
-            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->selectRaw('AVG(ic_risk) as ic, AVG(env_risk) as env, AVG(func_risk) as func, AVG(composite_risk) as composite')
             ->first();
 
         // Urgency breakdown
         $urgentCount = MlResult::whereIn('id', $latestIds)
-            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->where('priority_flag', 'urgent')
             ->count();
 
         // Pending recommendations for seniors in this barangay
         $pendingRecs = Recommendation::where('status', 'pending')
-            ->whereHas('seniorCitizen', fn($q) => $q->active()->where('barangay', $brgy))
+            ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->select('category', DB::raw('COUNT(*) as count'))
             ->groupBy('category')
             ->orderByDesc('count')
@@ -285,7 +288,7 @@ class ReportController extends Controller
         $data = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->select(
                 'senior_citizens.osca_id',
@@ -307,18 +310,18 @@ class ReportController extends Controller
             ->orderByDesc('ml_results.composite_risk')
             ->get();
 
-        $filename = 'osca_cluster_report_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'osca_cluster_report_'.now()->format('Ymd_His').'.csv';
 
         $headers = [
-            'Content-Type'        => 'text/csv',
+            'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
         $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['OSCA ID','Name','Barangay','Age','Gender',
-                'Cluster ID','Cluster Name','Risk Level','Composite Risk',
-                'IC Risk','Env Risk','Func Risk','Wellbeing Score','Processed At']);
+            fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Gender',
+                'Cluster ID', 'Cluster Name', 'Risk Level', 'Composite Risk',
+                'IC Risk', 'Env Risk', 'Func Risk', 'Wellbeing Score', 'Processed At']);
             foreach ($data as $row) {
                 fputcsv($file, array_values($row->toArray()));
             }
@@ -340,7 +343,7 @@ class ReportController extends Controller
         $seniors = SeniorCitizen::active()
             ->leftJoin('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->select(
                 'senior_citizens.osca_id',
@@ -369,7 +372,7 @@ class ReportController extends Controller
             ->orderBy('senior_citizens.last_name')
             ->get();
 
-        $filename = 'osca_senior_registry_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'osca_senior_registry_'.now()->format('Ymd_His').'.xlsx';
 
         // Build array data for SimpleExcel write-through
         $rows = [];
@@ -393,8 +396,8 @@ class ReportController extends Controller
             ];
         }
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\ArrayExport($rows),
+        return Excel::download(
+            new ArrayExport($rows),
             $filename
         );
     }
@@ -404,7 +407,7 @@ class ReportController extends Controller
      */
     public function snapshotClusters(Request $request)
     {
-        $today    = now()->toDateString();
+        $today = now()->toDateString();
         $existing = ClusterSnapshot::whereDate('snapshot_date', $today)->exists();
 
         $exitCode = Artisan::call('osca:snapshot-clusters', [
@@ -432,7 +435,7 @@ class ReportController extends Controller
         $data = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                     ->whereIn('ml_results.id', $latestIds);
+                    ->whereIn('ml_results.id', $latestIds);
             })
             ->whereIn('ml_results.overall_risk_level', ['HIGH'])
             ->select(
@@ -450,12 +453,12 @@ class ReportController extends Controller
             ->orderByDesc('ml_results.composite_risk')
             ->get();
 
-        $filename = 'osca_risk_report_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'osca_risk_report_'.now()->format('Ymd_His').'.csv';
 
         $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['OSCA ID','Name','Barangay','Age','Risk Level',
-                'Composite Risk','IC Risk Level','Env Risk Level','Func Risk Level','Processed At']);
+            fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Risk Level',
+                'Composite Risk', 'IC Risk Level', 'Env Risk Level', 'Func Risk Level', 'Processed At']);
             foreach ($data as $row) {
                 fputcsv($file, array_values($row->toArray()));
             }
@@ -463,7 +466,7 @@ class ReportController extends Controller
         };
 
         return response()->stream($callback, 200, [
-            'Content-Type'        => 'text/csv',
+            'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }

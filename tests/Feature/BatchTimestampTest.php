@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\SeniorCitizen;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -53,15 +53,15 @@ class BatchTimestampTest extends TestCase
     public function batch_index_passes_cached_timestamp_to_view(): void
     {
         $timestamp = now()->subHours(3);
-        Cache::put('ml_last_batch_started',      $timestamp, now()->addDays(90));
-        Cache::put('ml_last_batch_senior_count', 283,        now()->addDays(90));
+        Cache::put('ml_last_batch_started', $timestamp, now()->addDays(90));
+        Cache::put('ml_last_batch_senior_count', 283, now()->addDays(90));
 
         $response = $this->actingAs($this->admin)->get(route('ml.batch'));
 
         $response->assertOk();
         $response->assertViewHas('lastBatchCount', 283);
         $viewTimestamp = $response->viewData('lastBatchRun');
-        $this->assertInstanceOf(\Carbon\Carbon::class, $viewTimestamp,
+        $this->assertInstanceOf(Carbon::class, $viewTimestamp,
             'lastBatchRun should be a Carbon instance.');
         $this->assertTrue($timestamp->equalTo($viewTimestamp),
             'lastBatchRun timestamp does not match the cached value.');

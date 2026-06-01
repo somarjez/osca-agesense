@@ -21,7 +21,9 @@ class ActivityLogObserver
         $dirty = $model->getDirty();
         // Skip noise-only updates (e.g. updated_at only)
         unset($dirty['updated_at']);
-        if (empty($dirty)) return;
+        if (empty($dirty)) {
+            return;
+        }
 
         ActivityLog::record('updated', $model, $this->describe('updated', $model), [
             'changed_fields' => array_keys($dirty),
@@ -49,11 +51,12 @@ class ActivityLogObserver
     {
         $class = class_basename($model);
         $label = match ($class) {
-            'SeniorCitizen'  => $model->full_name  ?? "ID {$model->getKey()}",
-            'QolSurvey'      => "survey ID {$model->getKey()} (senior {$model->senior_citizen_id})",
+            'SeniorCitizen' => $model->full_name ?? "ID {$model->getKey()}",
+            'QolSurvey' => "survey ID {$model->getKey()} (senior {$model->senior_citizen_id})",
             'Recommendation' => "rec ID {$model->getKey()} (senior {$model->senior_citizen_id})",
-            default          => "ID {$model->getKey()}",
+            default => "ID {$model->getKey()}",
         };
+
         return "{$class} {$action}: {$label}";
     }
 }

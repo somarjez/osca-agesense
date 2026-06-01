@@ -11,8 +11,8 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 import json
 import sys
 import traceback
-import numpy as np
 
+import numpy as np
 from inference_service import batch_cluster_assign, infer
 from preprocess_service import preprocess
 

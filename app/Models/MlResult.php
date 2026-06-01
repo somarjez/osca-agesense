@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MlResult extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'senior_citizen_id', 'qol_survey_id', 'model_version',
         'prediction_source', 'is_cached_prediction', 'critical_flag',
@@ -27,32 +28,32 @@ class MlResult extends Model
     ];
 
     protected $casts = [
-        'section_scores'      => 'array',
-        'xai_data'            => 'array',
-        'raw_output'          => 'array',
-        'processed_at'        => 'datetime',
-        'scored_at'           => 'datetime',
+        'section_scores' => 'array',
+        'xai_data' => 'array',
+        'raw_output' => 'array',
+        'processed_at' => 'datetime',
+        'scored_at' => 'datetime',
         'is_cached_prediction' => 'boolean',
-        'critical_flag'        => 'boolean',
-        'is_stale'             => 'boolean',
-        'stale_at'             => 'datetime',
-        'ic_risk'          => 'float',
-        'env_risk'         => 'float',
-        'func_risk'        => 'float',
-        'composite_risk'   => 'float',
-        'wellbeing_score'  => 'float',
-        'risk_medical'     => 'float',
-        'risk_financial'   => 'float',
-        'risk_social'      => 'float',
-        'risk_functional'  => 'float',
-        'risk_housing'     => 'float',
-        'risk_hc_access'   => 'float',
-        'risk_sensory'     => 'float',
-        'rule_composite'   => 'float',
-        'ic_score'         => 'float',
-        'env_score'        => 'float',
-        'func_score'       => 'float',
-        'qol_score'        => 'float',
+        'critical_flag' => 'boolean',
+        'is_stale' => 'boolean',
+        'stale_at' => 'datetime',
+        'ic_risk' => 'float',
+        'env_risk' => 'float',
+        'func_risk' => 'float',
+        'composite_risk' => 'float',
+        'wellbeing_score' => 'float',
+        'risk_medical' => 'float',
+        'risk_financial' => 'float',
+        'risk_social' => 'float',
+        'risk_functional' => 'float',
+        'risk_housing' => 'float',
+        'risk_hc_access' => 'float',
+        'risk_sensory' => 'float',
+        'rule_composite' => 'float',
+        'ic_score' => 'float',
+        'env_score' => 'float',
+        'func_score' => 'float',
+        'qol_score' => 'float',
     ];
 
     public function seniorCitizen(): BelongsTo
@@ -83,11 +84,11 @@ class MlResult extends Model
     public function getPriorityLabelAttribute(): string
     {
         return match ($this->priority_flag) {
-            'urgent'             => 'Urgent attention recommended',
-            'priority_action'    => 'Priority action required',
+            'urgent' => 'Urgent attention recommended',
+            'priority_action' => 'Priority action required',
             'planned_monitoring' => 'Planned monitoring',
-            'maintenance'        => 'Routine maintenance',
-            default              => '',
+            'maintenance' => 'Routine maintenance',
+            default => '',
         };
     }
 
@@ -122,14 +123,14 @@ class MlResult extends Model
         // notebook_cache rows are protected from version-only invalidation.
         // They can still be marked stale when real input data changes.
         if ($this->prediction_source === 'notebook_cache'
-            && !in_array($reason, self::DATA_CHANGE_REASONS, true)) {
+            && ! in_array($reason, self::DATA_CHANGE_REASONS, true)) {
             return;
         }
 
         $this->update([
-            'is_stale'     => true,
+            'is_stale' => true,
             'stale_reason' => $reason,
-            'stale_at'     => now(),
+            'stale_at' => now(),
         ]);
     }
 
@@ -155,9 +156,9 @@ class MlResult extends Model
     {
         return match ($this->prediction_source) {
             'notebook_cache' => 'Notebook-Validated Cache',
-            'live_model'     => 'Live ML Model',
-            'fallback'       => 'Heuristic Fallback',
-            default          => 'Unknown',
+            'live_model' => 'Live ML Model',
+            'fallback' => 'Heuristic Fallback',
+            default => 'Unknown',
         };
     }
 
@@ -168,9 +169,9 @@ class MlResult extends Model
     {
         return match ($this->prediction_source) {
             'notebook_cache' => 'text-forest-700 bg-forest-50 border border-forest-200',
-            'live_model'     => 'text-info-700 bg-info-50 border border-info-200',
-            'fallback'       => 'text-ink-600 bg-paper-2 border border-paper-rule',
-            default          => 'text-ink-500 bg-paper-2',
+            'live_model' => 'text-info-700 bg-info-50 border border-info-200',
+            'fallback' => 'text-ink-600 bg-paper-2 border border-paper-rule',
+            default => 'text-ink-500 bg-paper-2',
         };
     }
 }

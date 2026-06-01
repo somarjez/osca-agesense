@@ -10,12 +10,16 @@ Fields compared: the multiselect fields most likely to differ between
 CSV comma-strings and DB JSON arrays.
 
 Run from repo root:
-    python\venv\Scripts\python.exe python\scripts\validate_csv_db_parity.py
+    python\venv\\Scripts\\python.exe python\\scripts\validate_csv_db_parity.py
 """
 
-import os, sys, json, csv
-import pymysql
+import csv
+import json
+import os
+import sys
 from typing import Any
+
+import pymysql
 
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT  = os.path.dirname(BASE_DIR)

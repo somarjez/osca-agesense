@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('senior_citizens', function (Blueprint $table) {
             $table->timestamp('consent_given_at')->nullable()->after('encoded_by');
             $table->string('consent_method')->nullable()->after('consent_given_at')
-                  ->comment('verbal, written, digital');
+                ->comment('verbal, written, digital');
         });
     }
 

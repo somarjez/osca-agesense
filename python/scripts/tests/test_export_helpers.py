@@ -2,10 +2,13 @@
 Unit tests for export_normalized_db helper functions.
 Run: python\\venv\\Scripts\\python.exe -m pytest python\\scripts\\tests\\test_export_helpers.py -v
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from datetime import date, datetime
+
 
 # ── json_to_csv_str ───────────────────────────────────────────────────────────
 def test_json_array_string_converts_to_comma_string():

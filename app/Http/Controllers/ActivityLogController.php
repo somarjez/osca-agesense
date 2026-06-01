@@ -10,8 +10,8 @@ class ActivityLogController extends Controller
     public function index(Request $request)
     {
         $logs = ActivityLog::with('user')
-            ->when($request->action,  fn($q) => $q->where('action', $request->action))
-            ->when($request->search,  fn($q) => $q->where('description', 'like', '%' . $request->search . '%'))
+            ->when($request->action, fn ($q) => $q->where('action', $request->action))
+            ->when($request->search, fn ($q) => $q->where('description', 'like', '%'.$request->search.'%'))
             ->latest()
             ->paginate(50)
             ->withQueryString();
@@ -24,14 +24,15 @@ class ActivityLogController extends Controller
     public function bulkDestroy(Request $request)
     {
         $request->validate([
-            'ids'   => ['required', 'array'],
+            'ids' => ['required', 'array'],
             'ids.*' => ['integer', 'min:1'],
         ]);
 
         ActivityLog::whereIn('id', $request->ids)->delete();
 
         $count = count($request->ids);
-        $noun  = $count === 1 ? 'entry' : 'entries';
+        $noun = $count === 1 ? 'entry' : 'entries';
+
         return back()->with('success', "{$count} log {$noun} deleted.");
     }
 

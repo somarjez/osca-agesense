@@ -14,14 +14,14 @@ Rollback:
     Rename-Item python/models_backup_YYYYMMDD_HHMM python/models
 """
 
-import os
-import sys
 import csv
-import json
-import pickle
-import shutil
 import hashlib
+import json
+import os
+import pickle
 import re
+import shutil
+import sys
 import unicodedata
 import warnings
 from datetime import datetime
@@ -170,11 +170,12 @@ n_clusters = 4
 n_dims = 31
 
 try:
+    from collections import defaultdict
+
     import numpy as np
     import pandas as pd
     import pymysql
     import pymysql.cursors
-    from collections import defaultdict
 
     # Add services to path so we can import preprocess() directly (no Flask startup)
     SERVICES_DIR = os.path.join(REPO_ROOT, "python", "services")

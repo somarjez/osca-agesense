@@ -11,15 +11,15 @@ class SurveyController extends Controller
     public function profileCreate(?int $senior = null)
     {
         $s = $senior ? SeniorCitizen::findOrFail($senior) : null;
+
         return view('seniors.create', compact('s'));
     }
 
     public function qolIndex(Request $request)
     {
         $surveys = QolSurvey::with(['seniorCitizen'])
-            ->when($request->status,   fn($q) => $q->where('status', $request->status))
-            ->when($request->barangay, fn($q) =>
-                $q->whereHas('seniorCitizen', fn($q) => $q->where('barangay', $request->barangay))
+            ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when($request->barangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->where('barangay', $request->barangay))
             )
             ->latest('survey_date')
             ->paginate(20)->withQueryString();
@@ -35,6 +35,7 @@ class SurveyController extends Controller
     public function qolEdit(QolSurvey $survey)
     {
         $survey->load('seniorCitizen');
+
         return view('surveys.qol.create', ['senior' => $survey->seniorCitizen, 'surveyId' => $survey->id]);
     }
 
@@ -55,6 +56,7 @@ class SurveyController extends Controller
     public function qolRestore(int $id)
     {
         QolSurvey::onlyTrashed()->findOrFail($id)->restore();
+
         return redirect()->route('seniors.archives')->with('success', 'QoL survey restored.');
     }
 
@@ -64,8 +66,9 @@ class SurveyController extends Controller
         // Include soft-deleted seniors so results remain readable after archiving
         $survey->setRelation(
             'seniorCitizen',
-            \App\Models\SeniorCitizen::withTrashed()->find($survey->senior_citizen_id)
+            SeniorCitizen::withTrashed()->find($survey->senior_citizen_id)
         );
+
         return view('surveys.qol.results', compact('survey'));
     }
 }

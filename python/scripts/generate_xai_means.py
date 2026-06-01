@@ -8,7 +8,11 @@ Writes python/models/cluster_feature_means.json.
 Run from repo root:
     python\\venv\\Scripts\\python.exe python\\scripts\\generate_xai_means.py
 """
-import os, sys, json, pickle, warnings
+import json
+import os
+import pickle
+import sys
+import warnings
 from collections import defaultdict
 from datetime import date, datetime
 
@@ -20,10 +24,11 @@ MODEL_DIR  = os.path.join(REPO_ROOT, "python", "models")
 SERVICES   = os.path.join(REPO_ROOT, "python", "services")
 
 sys.path.insert(0, SERVICES)
-from preprocess_service import preprocess as _preprocess
+import numpy as np  # noqa: E402
+import pymysql  # noqa: E402
+import pymysql.cursors  # noqa: E402
+from preprocess_service import preprocess as _preprocess  # noqa: E402
 
-import numpy as np
-import pymysql, pymysql.cursors
 
 def _read_dotenv(name):
     for cand in [os.path.join(REPO_ROOT, ".env"),
@@ -38,16 +43,22 @@ def _read_dotenv(name):
     return ""
 
 def _parse_json_col(val):
-    if val is None: return []
-    if isinstance(val, (list, dict)): return val
-    try: return json.loads(val)
-    except: return []
+    if val is None:
+        return []
+    if isinstance(val, (list, dict)):
+        return val
+    try:
+        return json.loads(val)
+    except Exception:
+        return []
 
 def _compute_age(dob, ref=None):
     # Age anchored to the survey date (immutable) so means match the live path,
     # which computes age from date_of_birth relative to survey_date (not today).
-    if dob is None: return 70
-    if isinstance(dob, str): dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
+    if dob is None:
+        return 70
+    if isinstance(dob, str):
+        dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
     if ref is None:
         ref = date.today()
     elif isinstance(ref, str):
@@ -64,14 +75,17 @@ baseline = {row["key"]: row for row in json.load(open(baseline_path, encoding="u
 risk_features = json.load(open(os.path.join(MODEL_DIR, "ml_risk_features.json"), encoding="utf-8"))
 print(f"Risk features: {len(risk_features)}")
 
-import re, unicodedata
+import re  # noqa: E402
+import unicodedata  # noqa: E402
+
+
 def _norm(s):
     s = unicodedata.normalize("NFC", str(s or ""))
     s = s.replace("\xf1", "n").replace("\xd1", "n")
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", "", s.lower())
-def _key(f, l, b): return f"{_norm(f)}|{_norm(l)}|{_norm(b)}"
+def _key(f, last, b): return f"{_norm(f)}|{_norm(last)}|{_norm(b)}"
 
 conn = pymysql.connect(
     host=_read_dotenv("DB_HOST") or "127.0.0.1",

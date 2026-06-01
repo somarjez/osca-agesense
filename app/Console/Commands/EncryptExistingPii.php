@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class EncryptExistingPii extends Command
 {
-    protected $signature   = 'osca:encrypt-pii {--dry-run : Show what would be encrypted without writing}';
+    protected $signature = 'osca:encrypt-pii {--dry-run : Show what would be encrypted without writing}';
+
     protected $description = 'One-time migration: encrypt existing plaintext PII fields in senior_citizens.';
 
     private const FIELDS = ['contact_number', 'place_of_birth', 'philsys_id'];
@@ -45,7 +46,7 @@ class EncryptExistingPii extends Command
                 continue;
             }
 
-            if (!$isDry) {
+            if (! $isDry) {
                 DB::table('senior_citizens')
                     ->where('id', $row->id)
                     ->update($changes);

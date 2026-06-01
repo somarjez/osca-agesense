@@ -41,10 +41,10 @@ class BatchAnalyzeSeniors extends Command
     {
         set_time_limit(0);
 
-        $chunkSize  = max(1, (int) ($this->option('chunk') ?: 50));
-        $barangay   = $this->option('barangay');
-        $force      = (bool) $this->option('force');
-        $staleOnly  = (bool) $this->option('stale-only');
+        $chunkSize = max(1, (int) ($this->option('chunk') ?: 50));
+        $barangay = $this->option('barangay');
+        $force = (bool) $this->option('force');
+        $staleOnly = (bool) $this->option('stale-only');
         $strictMode = (bool) $this->option('strict-notebook-cache');
 
         $query = SeniorCitizen::active()
@@ -57,30 +57,39 @@ class BatchAnalyzeSeniors extends Command
 
         $total = $query->count();
 
-        $this->info("=== ml:batch-analyze ===");
+        $this->info('=== ml:batch-analyze ===');
         $this->info("Seniors to process : {$total}");
         $this->info("Chunk size         : {$chunkSize}");
-        if ($barangay) $this->info("Barangay filter    : {$barangay}");
-        if ($force)    $this->info("Mode               : --force (recompute all)");
-        if ($staleOnly) $this->info("Mode               : --stale-only (skip valid rows)");
-        if ($strictMode) $this->info("Post-check         : --strict-notebook-cache enabled");
+        if ($barangay) {
+            $this->info("Barangay filter    : {$barangay}");
+        }
+        if ($force) {
+            $this->info('Mode               : --force (recompute all)');
+        }
+        if ($staleOnly) {
+            $this->info('Mode               : --stale-only (skip valid rows)');
+        }
+        if ($strictMode) {
+            $this->info('Post-check         : --strict-notebook-cache enabled');
+        }
         $this->line('');
 
         if ($total === 0) {
-            $this->warn("No eligible seniors found (active + has QoL survey).");
+            $this->warn('No eligible seniors found (active + has QoL survey).');
+
             return self::SUCCESS;
         }
 
         // Counters
-        $reused                  = 0;
-        $staleRecomputed         = 0;
+        $reused = 0;
+        $staleRecomputed = 0;
         $versionMismatchRecomputed = 0;
-        $missingComputed         = 0;
-        $fallbackUpgraded        = 0;
-        $failed                  = 0;
-        $notebookCacheCount      = 0;
-        $liveModelCount          = 0;
-        $fallbackCount           = 0;
+        $missingComputed = 0;
+        $fallbackUpgraded = 0;
+        $failed = 0;
+        $notebookCacheCount = 0;
+        $liveModelCount = 0;
+        $fallbackCount = 0;
 
         $bar = $this->output->createProgressBar($total);
         $bar->start();
@@ -94,8 +103,9 @@ class BatchAnalyzeSeniors extends Command
         ) {
             foreach ($seniors as $senior) {
                 $survey = $senior->latestQolSurvey;
-                if (!$survey) {
+                if (! $survey) {
                     $bar->advance();
+
                     continue;
                 }
 
@@ -107,15 +117,16 @@ class BatchAnalyzeSeniors extends Command
 
                 $needsRecompute = $this->needsRecompute($existing, $ml, $force, $staleOnly);
 
-                if (!$needsRecompute) {
+                if (! $needsRecompute) {
                     // Reuse valid result — track source counts
                     $reused++;
                     match ($existing->prediction_source) {
                         'notebook_cache' => $notebookCacheCount++,
-                        'live_model'     => $liveModelCount++,
-                        default          => $fallbackCount++,
+                        'live_model' => $liveModelCount++,
+                        default => $fallbackCount++,
                     };
                     $bar->advance();
+
                     continue;
                 }
 
@@ -126,17 +137,17 @@ class BatchAnalyzeSeniors extends Command
                     $result = $ml->runPipeline($senior, $survey, force: true);
 
                     match ($recomputeReason) {
-                        'stale'            => $staleRecomputed++,
+                        'stale' => $staleRecomputed++,
                         'version_mismatch' => $versionMismatchRecomputed++,
-                        'missing'          => $missingComputed++,
+                        'missing' => $missingComputed++,
                         'fallback_upgrade' => $fallbackUpgraded++,
-                        default            => $missingComputed++,
+                        default => $missingComputed++,
                     };
 
                     match ($result->prediction_source) {
                         'notebook_cache' => $notebookCacheCount++,
-                        'live_model'     => $liveModelCount++,
-                        default          => $fallbackCount++,
+                        'live_model' => $liveModelCount++,
+                        default => $fallbackCount++,
                     };
                 } catch (\Throwable $e) {
                     $failed++;
@@ -149,7 +160,7 @@ class BatchAnalyzeSeniors extends Command
         $bar->finish();
         $this->line("\n");
 
-        $this->info("=== Batch Summary ===");
+        $this->info('=== Batch Summary ===');
         $this->table(
             ['Category', 'Count'],
             [
@@ -212,10 +223,19 @@ class BatchAnalyzeSeniors extends Command
 
     private function recomputeReason(?MlResult $existing, MlService $ml, bool $force): string
     {
-        if ($existing === null) return 'missing';
-        if ($existing->is_stale) return 'stale';
-        if ($existing->prediction_source === 'fallback' && $ml->isPreprocessAvailable()) return 'fallback_upgrade';
-        if ($existing->model_version !== MlService::MODEL_VERSION) return 'version_mismatch';
+        if ($existing === null) {
+            return 'missing';
+        }
+        if ($existing->is_stale) {
+            return 'stale';
+        }
+        if ($existing->prediction_source === 'fallback' && $ml->isPreprocessAvailable()) {
+            return 'fallback_upgrade';
+        }
+        if ($existing->model_version !== MlService::MODEL_VERSION) {
+            return 'version_mismatch';
+        }
+
         return 'force';
     }
 
@@ -224,14 +244,14 @@ class BatchAnalyzeSeniors extends Command
      */
     private function runStrictCheck(): int
     {
-        $this->info("=== --strict-notebook-cache check ===");
+        $this->info('=== --strict-notebook-cache check ===');
 
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereHas('seniorCitizen', fn($q) => $q->active())
+            ->whereHas('seniorCitizen', fn ($q) => $q->active())
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
-        $nbCount  = MlResult::whereIn('id', $latestIds)
+        $nbCount = MlResult::whereIn('id', $latestIds)
             ->where('prediction_source', 'notebook_cache')
             ->count();
 
@@ -241,18 +261,19 @@ class BatchAnalyzeSeniors extends Command
             ->get();
 
         $this->info("  notebook_cache : {$nbCount}");
-        $this->info("  live_model     : " . $liveRows->count());
+        $this->info('  live_model     : '.$liveRows->count());
         $this->line('');
 
         if ($liveRows->isEmpty()) {
-            $this->info("All seed seniors matched notebook cache. PASS");
+            $this->info('All seed seniors matched notebook cache. PASS');
+
             return self::SUCCESS;
         }
 
-        $this->warn("The following seniors still have prediction_source = live_model:");
-        $rows = $liveRows->map(fn($r) => [
+        $this->warn('The following seniors still have prediction_source = live_model:');
+        $rows = $liveRows->map(fn ($r) => [
             $r->senior_citizen_id,
-            $r->seniorCitizen?->first_name . ' ' . $r->seniorCitizen?->last_name,
+            $r->seniorCitizen?->first_name.' '.$r->seniorCitizen?->last_name,
             $r->seniorCitizen?->barangay,
             $r->seniorCitizen?->age,
             $r->prediction_source,
@@ -260,8 +281,8 @@ class BatchAnalyzeSeniors extends Command
 
         $this->table(['ID', 'Name', 'Barangay', 'Age', 'Source'], $rows);
         $this->line('');
-        $this->error("--strict-notebook-cache FAILED: " . $liveRows->count() . " live_model row(s) remain.");
-        $this->line("Run: php artisan ml:repair-notebook-cache");
+        $this->error('--strict-notebook-cache FAILED: '.$liveRows->count().' live_model row(s) remain.');
+        $this->line('Run: php artisan ml:repair-notebook-cache');
 
         return self::FAILURE;
     }

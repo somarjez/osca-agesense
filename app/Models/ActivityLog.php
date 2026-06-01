@@ -34,19 +34,19 @@ class ActivityLog extends Model
      */
     public static function record(
         string $action,
-        Model  $subject,
+        Model $subject,
         string $description = '',
-        array  $metadata    = []
+        array $metadata = []
     ): void {
         try {
             static::create([
-                'user_id'      => Auth::id(),
-                'action'       => $action,
+                'user_id' => Auth::id(),
+                'action' => $action,
                 'subject_type' => get_class($subject),
-                'subject_id'   => $subject->getKey(),
-                'description'  => $description,
-                'metadata'     => $metadata ?: null,
-                'ip_address'   => Request::ip(),
+                'subject_id' => $subject->getKey(),
+                'description' => $description,
+                'metadata' => $metadata ?: null,
+                'ip_address' => Request::ip(),
             ]);
         } catch (\Throwable) {
             // Never let audit logging break the application

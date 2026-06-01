@@ -11,6 +11,7 @@ class NoTimeLimit
     public function handle(Request $request, Closure $next): Response
     {
         set_time_limit(0);
+
         return $next($request);
     }
 }

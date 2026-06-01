@@ -3,11 +3,13 @@ Final comparison report: live system vs notebook reference.
 Explains every difference and confirms the system is working correctly.
 
 Run:
-    python\venv\Scripts\python.exe python\final_comparison_report.py
+    python\venv\\Scripts\\python.exe python\final_comparison_report.py
 
 Model v1.1.0  |  HIGH threshold >= 0.45  |  Locked baseline: 2026-05-20
 """
-import os, sys, csv
+import csv
+import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,7 +23,8 @@ for candidate in [os.path.join(BASE_DIR, ".env"), os.path.join(os.path.dirname(B
                 env[k.strip()] = v.strip().strip('"')
         break
 
-import pymysql
+import pymysql  # noqa: E402
+
 conn = pymysql.connect(
     host=env.get("DB_HOST", "127.0.0.1"), port=int(env.get("DB_PORT", 3306)),
     user=env.get("DB_USERNAME", "root"), password=env.get("DB_PASSWORD", ""),
@@ -78,13 +81,14 @@ print("=" * 70)
 nb_dist, sys_dist = {}, {}
 for v in nb.values():
     lv = (v.get("risk_level") or "").upper()
-    if lv == "CRITICAL": lv = "HIGH"
+    if lv == "CRITICAL":
+        lv = "HIGH"
     nb_dist[lv] = nb_dist.get(lv, 0) + 1
 for v in sys_by_key.values():
     lv = (v.get("overall_risk_level") or "").upper()
     sys_dist[lv] = sys_dist.get(lv, 0) + 1
 
-print(f"\nDISTRIBUTION")
+print("\nDISTRIBUTION")
 print(f"  {'Level':<12}  {'Notebook':>10}  {'System':>10}  {'Diff':>6}  Note")
 print("  " + "-" * 62)
 notes = {
@@ -107,7 +111,7 @@ for v in sys_by_key.values():
     c = str(v.get("cluster_named_id") or "?")
     sys_c[c] = sys_c.get(c, 0) + 1
 
-print(f"\nCLUSTER DISTRIBUTION")
+print("\nCLUSTER DISTRIBUTION")
 print(f"  {'Cluster':<10}  {'Notebook':>10}  {'System':>10}  {'Diff':>6}")
 print("  " + "-" * 42)
 cluster_names = {"1": "C1 High-Func", "2": "C2 Moderate", "3": "C3 Low-Func"}
@@ -126,7 +130,8 @@ for key, nb_row in nb.items():
         continue
     matched += 1
     nb_lv  = (nb_row.get("risk_level") or "").upper()
-    if nb_lv == "CRITICAL": nb_lv = "HIGH"
+    if nb_lv == "CRITICAL":
+        nb_lv = "HIGH"
     sys_lv = (sys_row["overall_risk_level"] or "").upper()
     nb_c_id  = str(nb_row.get("cluster_id") or "")
     sys_c_id = str(sys_row["cluster_named_id"] or "")
@@ -156,7 +161,7 @@ print(f"  Cluster disagreement:   {len(cluster_disagree)}")
 
 # ── Explain disagreements ─────────────────────────────────────────────────────
 if level_disagree:
-    print(f"\nRISK LEVEL DISAGREEMENTS -- explained")
+    print("\nRISK LEVEL DISAGREEMENTS -- explained")
     print(f"  {'Name':<32}  {'NB':>8}  {'SYS':>8}  {'NB_risk':>8}  {'SYS_risk':>8}  {'Drift':>6}  Reason")
     print("  " + "-" * 90)
     for d in sorted(level_disagree, key=lambda x: -abs(x["drift"])):
@@ -169,7 +174,7 @@ if level_disagree:
 
 # ── Urgent-priority seniors ───────────────────────────────────────────────────
 urgent = [r for r in sys_rows if r.get("priority_flag") == "urgent"]
-print(f"\nURGENT-PRIORITY SENIORS (composite >= 0.70)")
+print("\nURGENT-PRIORITY SENIORS (composite >= 0.70)")
 print(f"  Count: {len(urgent)}")
 if urgent:
     print(f"  {'Name':<32}  {'Risk':>6}  {'Cluster':>8}  {'Level':>8}")

@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
@@ -17,6 +18,7 @@ class ActivityLogDeleteTest extends TestCase
     use DatabaseTransactions;
 
     private User $admin;
+
     private User $encoder;
 
     protected function setUp(): void
@@ -42,21 +44,22 @@ class ActivityLogDeleteTest extends TestCase
     }
 
     /** Create N activity log entries owned by the admin user. */
-    private function createLogs(int $count): \Illuminate\Support\Collection
+    private function createLogs(int $count): Collection
     {
         $senior = SeniorCitizen::first();   // uses seeded data
 
         $logs = collect();
         for ($i = 0; $i < $count; $i++) {
             $logs->push(ActivityLog::create([
-                'user_id'      => $this->admin->id,
-                'action'       => 'created',
+                'user_id' => $this->admin->id,
+                'action' => 'created',
                 'subject_type' => SeniorCitizen::class,
-                'subject_id'   => $senior?->id ?? 1,
-                'description'  => "Test log entry {$i}",
-                'ip_address'   => '127.0.0.1',
+                'subject_id' => $senior?->id ?? 1,
+                'description' => "Test log entry {$i}",
+                'ip_address' => '127.0.0.1',
             ]));
         }
+
         return $logs;
     }
 
@@ -65,13 +68,13 @@ class ActivityLogDeleteTest extends TestCase
     #[Test]
     public function bulk_destroy_deletes_only_selected_log_entries(): void
     {
-        $logs    = $this->createLogs(3);
+        $logs = $this->createLogs(3);
         $toDelete = $logs->take(2)->pluck('id')->toArray();
-        $keep     = $logs->last()->id;
+        $keep = $logs->last()->id;
 
         $this->actingAs($this->admin)
-             ->delete(route('activity-log.bulk-destroy'), ['ids' => $toDelete])
-             ->assertRedirect();
+            ->delete(route('activity-log.bulk-destroy'), ['ids' => $toDelete])
+            ->assertRedirect();
 
         foreach ($toDelete as $id) {
             $this->assertDatabaseMissing('activity_logs', ['id' => $id]);
@@ -83,8 +86,8 @@ class ActivityLogDeleteTest extends TestCase
     public function bulk_destroy_requires_ids_to_be_present(): void
     {
         $this->actingAs($this->admin)
-             ->delete(route('activity-log.bulk-destroy'), ['ids' => []])
-             ->assertSessionHasErrors('ids');
+            ->delete(route('activity-log.bulk-destroy'), ['ids' => []])
+            ->assertSessionHasErrors('ids');
     }
 
     #[Test]
@@ -93,8 +96,8 @@ class ActivityLogDeleteTest extends TestCase
         $logs = $this->createLogs(2);
 
         $this->actingAs($this->encoder)
-             ->delete(route('activity-log.bulk-destroy'), ['ids' => $logs->pluck('id')->toArray()])
-             ->assertForbidden();
+            ->delete(route('activity-log.bulk-destroy'), ['ids' => $logs->pluck('id')->toArray()])
+            ->assertForbidden();
 
         // Entries must still exist.
         foreach ($logs as $log) {
@@ -107,7 +110,7 @@ class ActivityLogDeleteTest extends TestCase
     {
         $logs = $this->createLogs(2);
         $this->delete(route('activity-log.bulk-destroy'), ['ids' => $logs->pluck('id')->toArray()])
-             ->assertRedirect(route('login'));
+            ->assertRedirect(route('login'));
     }
 
     // ── clear ─────────────────────────────────────────────────────────────
@@ -121,8 +124,8 @@ class ActivityLogDeleteTest extends TestCase
         $this->assertEquals($baseline + 4, ActivityLog::count());
 
         $this->actingAs($this->admin)
-             ->delete(route('activity-log.clear'))
-             ->assertRedirect(route('activity-log.index'));
+            ->delete(route('activity-log.clear'))
+            ->assertRedirect(route('activity-log.index'));
 
         // DatabaseTransactions wraps all rows (including pre-existing seed data) in the
         // same transaction, so query()->delete() empties the table completely. The
@@ -137,8 +140,8 @@ class ActivityLogDeleteTest extends TestCase
         $countBefore = ActivityLog::count();
 
         $this->actingAs($this->encoder)
-             ->delete(route('activity-log.clear'))
-             ->assertForbidden();
+            ->delete(route('activity-log.clear'))
+            ->assertForbidden();
 
         $this->assertEquals($countBefore, ActivityLog::count());
     }
@@ -147,6 +150,6 @@ class ActivityLogDeleteTest extends TestCase
     public function clear_requires_authentication(): void
     {
         $this->delete(route('activity-log.clear'))
-             ->assertRedirect(route('login'));
+            ->assertRedirect(route('login'));
     }
 }

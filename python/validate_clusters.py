@@ -1,13 +1,14 @@
 """
 Cluster validation script — run from project root:
-    python\venv\Scripts\python.exe python\validate_clusters.py
+    python\venv\\Scripts\\python.exe python\validate_clusters.py
 
 DEPRECATED (K=3 era): this diagnostic assumes the original 3-cluster model and
 is superseded by python/scripts/validate_system.py, which validates the current
 K=4 system end-to-end (feature engineering, risk, clustering, XAI, determinism).
 Kept for historical reference; numbers/labels here reflect the K=3 build.
 """
-import os, sys
+import os
+import sys
 
 os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
 os.environ.setdefault("NUMBA_NUM_THREADS", "1")
@@ -27,7 +28,8 @@ for line in open(env_path, encoding="utf-8"):
         k, _, v = line.partition("=")
         env[k.strip()] = v.strip().strip('"')
 
-import pymysql
+import pymysql  # noqa: E402
+
 conn = pymysql.connect(
     host=env.get("DB_HOST", "127.0.0.1"),
     port=int(env.get("DB_PORT", 3306)),
@@ -65,7 +67,10 @@ with conn.cursor() as cur:
     rows = cur.fetchall()
 
 print("\n=== Cluster Semantic Validation ===")
-print(f"{'C':<3} {'Name':<34} {'N':>4}  {'%HIGH':>6}  {'%LOW':>5}  {'Risk':>5}  {'WB':>5}  {'IC':>5}  {'ENV':>5}  {'FUNC':>5}  {'QoL':>5}")
+print(
+    f"{'C':<3} {'Name':<34} {'N':>4}  {'%HIGH':>6}  {'%LOW':>5}"
+    f"  {'Risk':>5}  {'WB':>5}  {'IC':>5}  {'ENV':>5}  {'FUNC':>5}  {'QoL':>5}"
+)
 print("-" * 110)
 
 PASS = True

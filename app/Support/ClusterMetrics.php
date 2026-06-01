@@ -16,17 +16,17 @@ class ClusterMetrics
         $modelsDir = str_starts_with($configured, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\/]/', $configured)
             ? $configured
             : base_path($configured);
-        $path = $modelsDir . DIRECTORY_SEPARATOR . 'cluster_eval_metrics.json';
+        $path = $modelsDir.DIRECTORY_SEPARATOR.'cluster_eval_metrics.json';
 
         $defaults = [
-            'silhouette'        => null,
-            'davies_bouldin'    => null,
+            'silhouette' => null,
+            'davies_bouldin' => null,
             'calinski_harabasz' => null,
-            'inertia'           => null,
-            'k_chosen'          => 4,
+            'inertia' => null,
+            'k_chosen' => 4,
         ];
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return $defaults;
         }
 

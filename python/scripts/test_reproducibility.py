@@ -167,7 +167,7 @@ def _fetch_senior_payload(conn, senior_id: int | None):
             """,
             (sid,),
         )
-        ml = cur.fetchone() or {}
+        cur.fetchone() or {}
 
     # Build payload matching MlService::buildRawPayload() exactly.
     # JSON-encoded array columns are stored as strings in the DB — decode them.
@@ -383,7 +383,8 @@ def main():
     print(f"  Senior citizen id:  {senior_id}")
     print(f"  Name:               {full_name}")
     print(f"  Barangay:           {raw_payload.get('barangay','')}")
-    print(f"  ENABLE_NOTEBOOK_OVERRIDES is {'true' if _env('ENABLE_NOTEBOOK_OVERRIDES','false').lower() in ('1','true','yes','on') else 'false'}")
+    nb_overrides = _env("ENABLE_NOTEBOOK_OVERRIDES", "false").lower() in ("1", "true", "yes", "on")
+    print(f"  ENABLE_NOTEBOOK_OVERRIDES is {'true' if nb_overrides else 'false'}")
     print()
     print("  NOTE: If ENABLE_NOTEBOOK_OVERRIDES=true, the inference service returns")
     print("  the stored notebook_cache result from the DB, which is always identical.")
@@ -422,7 +423,7 @@ def main():
     r = result_1.get("risk_scores", {})
     lv = result_1.get("risk_levels", {})
     pf = result_1.get("priority_flag", False)
-    print(f"\n  Run 1 results:")
+    print("\n  Run 1 results:")
     print(f"    cluster_raw={c.get('raw_id')}  named_id={c.get('named_id')}  name={c.get('name')}")
     print(f"    ic_risk={r.get('ic_risk')}  env_risk={r.get('env_risk')}  func_risk={r.get('func_risk')}")
     print(f"    composite_risk={r.get('composite_risk')}  level={lv.get('overall')}  urgent={pf}")

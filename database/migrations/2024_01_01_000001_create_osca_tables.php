@@ -25,8 +25,8 @@ return new class extends Migration
             $table->integer('age')->nullable();
             $table->string('contact_number')->nullable();
             $table->text('place_of_birth')->nullable();
-            $table->enum('marital_status', ['Single','Married','Widowed','Separated','Divorced','Annulled'])->nullable();
-            $table->enum('gender', ['Male','Female','Prefer not to say'])->nullable();
+            $table->enum('marital_status', ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled'])->nullable();
+            $table->enum('gender', ['Male', 'Female', 'Prefer not to say'])->nullable();
             $table->string('religion')->nullable();
             $table->string('ethnic_origin')->nullable();
             $table->string('blood_type')->nullable();
@@ -35,8 +35,8 @@ return new class extends Migration
             // II. Family Composition
             $table->integer('num_children')->default(0);
             $table->integer('num_working_children')->default(0);
-            $table->enum('child_financial_support', ['Yes','No','Occasional','N/A'])->nullable();
-            $table->enum('spouse_working', ['Yes','No','Deceased','N/A'])->nullable();
+            $table->enum('child_financial_support', ['Yes', 'No', 'Occasional', 'N/A'])->nullable();
+            $table->enum('spouse_working', ['Yes', 'No', 'Deceased', 'N/A'])->nullable();
             $table->integer('household_size')->default(1);
 
             // III. Education / HR Profile
@@ -66,7 +66,7 @@ return new class extends Migration
             $table->string('checkup_schedule')->nullable();
 
             // Admin
-            $table->enum('status', ['active','inactive','deceased'])->default('active');
+            $table->enum('status', ['active', 'inactive', 'deceased'])->default('active');
             $table->string('encoded_by')->nullable()->comment('User who encoded the record');
             $table->timestamps();
             $table->softDeletes();
@@ -141,7 +141,7 @@ return new class extends Migration
             $table->decimal('score_spirituality', 5, 3)->nullable();
             $table->decimal('overall_score', 5, 3)->nullable();
 
-            $table->enum('status', ['draft','submitted','processed'])->default('draft');
+            $table->enum('status', ['draft', 'submitted', 'processed'])->default('draft');
             $table->timestamps();
 
             $table->index('senior_citizen_id');
@@ -169,10 +169,10 @@ return new class extends Migration
             $table->decimal('wellbeing_score', 5, 4)->nullable();
 
             // Risk Levels
-            $table->enum('ic_risk_level', ['low','moderate','high','critical'])->nullable();
-            $table->enum('env_risk_level', ['low','moderate','high','critical'])->nullable();
-            $table->enum('func_risk_level', ['low','moderate','high','critical'])->nullable();
-            $table->enum('overall_risk_level', ['LOW','MODERATE','HIGH','CRITICAL'])->nullable();
+            $table->enum('ic_risk_level', ['low', 'moderate', 'high', 'critical'])->nullable();
+            $table->enum('env_risk_level', ['low', 'moderate', 'high', 'critical'])->nullable();
+            $table->enum('func_risk_level', ['low', 'moderate', 'high', 'critical'])->nullable();
+            $table->enum('overall_risk_level', ['LOW', 'MODERATE', 'HIGH', 'CRITICAL'])->nullable();
 
             // Section Scores from Preprocessing
             $table->json('section_scores')->nullable();
@@ -195,15 +195,15 @@ return new class extends Migration
             $table->foreignId('senior_citizen_id')->constrained('senior_citizens')->cascadeOnDelete();
 
             $table->integer('priority');
-            $table->enum('type', ['cluster','domain','section','general']);
+            $table->enum('type', ['cluster', 'domain', 'section', 'general']);
             $table->string('domain')->nullable()->comment('ic_risk, env_risk, func_risk, general');
             $table->string('category')->nullable()->comment('health, financial, social, functional, hc_access');
             $table->text('action');
-            $table->enum('urgency', ['immediate','urgent','planned','maintenance'])->nullable();
-            $table->enum('risk_level', ['low','moderate','high','critical'])->nullable();
+            $table->enum('urgency', ['immediate', 'urgent', 'planned', 'maintenance'])->nullable();
+            $table->enum('risk_level', ['low', 'moderate', 'high', 'critical'])->nullable();
 
             // Status tracking
-            $table->enum('status', ['pending','in_progress','completed','dismissed'])->default('pending');
+            $table->enum('status', ['pending', 'in_progress', 'completed', 'dismissed'])->default('pending');
             $table->text('notes')->nullable();
             $table->date('target_date')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();

@@ -10,20 +10,20 @@ return new class extends Migration
     {
         Schema::table('ml_results', function (Blueprint $table) {
             // Rule-based domain-level risks (from _compute_rule_based_risk)
-            $table->decimal('risk_medical',    5, 4)->nullable()->after('wellbeing_score')->comment('Medical/health domain risk');
-            $table->decimal('risk_financial',  5, 4)->nullable()->after('risk_medical')->comment('Financial domain risk');
-            $table->decimal('risk_social',     5, 4)->nullable()->after('risk_financial')->comment('Social domain risk');
+            $table->decimal('risk_medical', 5, 4)->nullable()->after('wellbeing_score')->comment('Medical/health domain risk');
+            $table->decimal('risk_financial', 5, 4)->nullable()->after('risk_medical')->comment('Financial domain risk');
+            $table->decimal('risk_social', 5, 4)->nullable()->after('risk_financial')->comment('Social domain risk');
             $table->decimal('risk_functional', 5, 4)->nullable()->after('risk_social')->comment('Functional domain risk');
-            $table->decimal('risk_housing',    5, 4)->nullable()->after('risk_functional')->comment('Housing domain risk');
-            $table->decimal('risk_hc_access',  5, 4)->nullable()->after('risk_housing')->comment('Healthcare access domain risk');
-            $table->decimal('risk_sensory',    5, 4)->nullable()->after('risk_hc_access')->comment('Sensory domain risk');
-            $table->decimal('rule_composite',  5, 4)->nullable()->after('risk_sensory')->comment('Weighted composite of all rule-based domain risks');
+            $table->decimal('risk_housing', 5, 4)->nullable()->after('risk_functional')->comment('Housing domain risk');
+            $table->decimal('risk_hc_access', 5, 4)->nullable()->after('risk_housing')->comment('Healthcare access domain risk');
+            $table->decimal('risk_sensory', 5, 4)->nullable()->after('risk_hc_access')->comment('Sensory domain risk');
+            $table->decimal('rule_composite', 5, 4)->nullable()->after('risk_sensory')->comment('Weighted composite of all rule-based domain risks');
 
             // WHO Healthy Ageing domain scores (1–5 scale from QoL items)
-            $table->decimal('ic_score',   5, 4)->nullable()->after('rule_composite')->comment('WHO Intrinsic Capacity score (1-5)');
-            $table->decimal('env_score',  5, 4)->nullable()->after('ic_score')->comment('WHO Environment score (1-5)');
+            $table->decimal('ic_score', 5, 4)->nullable()->after('rule_composite')->comment('WHO Intrinsic Capacity score (1-5)');
+            $table->decimal('env_score', 5, 4)->nullable()->after('ic_score')->comment('WHO Environment score (1-5)');
             $table->decimal('func_score', 5, 4)->nullable()->after('env_score')->comment('WHO Functional Ability score (1-5)');
-            $table->decimal('qol_score',  5, 4)->nullable()->after('func_score')->comment('WHO Quality of Life score (1-5)');
+            $table->decimal('qol_score', 5, 4)->nullable()->after('func_score')->comment('WHO Quality of Life score (1-5)');
 
             // Indexes for the most-queried domain risk fields
             $table->index('risk_medical');

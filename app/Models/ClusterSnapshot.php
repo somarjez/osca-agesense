@@ -20,8 +20,8 @@ class ClusterSnapshot extends Model
     ];
 
     protected $casts = [
-        'snapshot_date'           => 'date',
-        'barangay_distribution'   => 'array',
+        'snapshot_date' => 'date',
+        'barangay_distribution' => 'array',
         'risk_level_distribution' => 'array',
     ];
 }

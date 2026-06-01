@@ -1,4 +1,4 @@
-name: ci
+﻿name: ci
 
 on:
   push:
@@ -24,7 +24,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ── PHP checks ────────────────────────────────────────────────────────────
+  # â”€â”€ PHP checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   php-checks:
     name: php-checks
     runs-on: ubuntu-latest
@@ -104,17 +104,23 @@ jobs:
             -e "dd(" -e "dump(" -e "var_dump(" -e "print_r(" \
             app/ routes/ \
           && echo "No debug statements found." \
-          || (echo "ERROR: Debug statements found — remove before merging." && exit 1)
+          || (echo "ERROR: Debug statements found â€” remove before merging." && exit 1)
 
       - name: Check .env is not committed
         run: |
           if git ls-files --error-unmatch .env 2>/dev/null; then
-            echo "ERROR: .env is tracked by git — add it to .gitignore immediately."
+            echo "ERROR: .env is tracked by git â€” add it to .gitignore immediately."
             exit 1
           fi
           echo ".env is not tracked."
 
-  # ── Python ML pipeline tests ──────────────────────────────────────────────
+      - name: Audit Composer dependencies for known CVEs
+        run: composer audit
+
+      - name: Check PHP code style (Pint)
+        run: ./vendor/bin/pint --test
+
+  # â”€â”€ Python ML pipeline tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   python-ml-tests:
     name: python-ml-tests
     runs-on: ubuntu-latest
@@ -135,7 +141,17 @@ jobs:
       - name: Run ML pipeline validation tests
         run: python python/tests/test_ml_pipeline.py
 
-  # ── JS / frontend build ───────────────────────────────────────────────────
+      - name: Audit Python dependencies for known CVEs
+        run: |
+          pip install pip-audit==2.10.0
+          pip-audit -r python/requirements.txt
+
+      - name: Check Python code style (ruff)
+        run: |
+          pip install ruff
+          ruff check python/
+
+  # â”€â”€ JS / frontend build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   js-build:
     name: js-build
     runs-on: ubuntu-latest
@@ -161,3 +177,7 @@ jobs:
           test -d public/build \
             && echo "public/build exists." \
             || (echo "ERROR: public/build missing after build step." && exit 1)
+
+      - name: Audit npm dependencies for known CVEs
+        run: npm audit --audit-level=high
+

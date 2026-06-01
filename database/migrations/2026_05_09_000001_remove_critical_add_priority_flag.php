@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -12,7 +12,7 @@ return new class extends Migration
         // Add priority_flag to ml_results
         Schema::table('ml_results', function (Blueprint $table) {
             $table->string('priority_flag')->nullable()->after('overall_risk_level')
-                  ->comment('Internal priority: maintenance|planned_monitoring|priority_action|urgent');
+                ->comment('Internal priority: maintenance|planned_monitoring|priority_action|urgent');
         });
 
         // Add priority_flag to recommendations

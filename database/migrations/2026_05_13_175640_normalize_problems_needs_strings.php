@@ -7,11 +7,11 @@ return new class extends Migration
 {
     private const MAP = [
         'Lack of source of income/resources' => 'Lack of income/resources',
-        'Lack of source of income'           => 'Lack of income/resources',
-        'Lack of income'                     => 'Lack of income/resources',
+        'Lack of source of income' => 'Lack of income/resources',
+        'Lack of income' => 'Lack of income/resources',
         'Loss of source of income/resources' => 'Loss of income/resources',
-        'Loss of source of income'           => 'Loss of income/resources',
-        'Loss of income'                     => 'Loss of income/resources',
+        'Loss of source of income' => 'Loss of income/resources',
+        'Loss of income' => 'Loss of income/resources',
     ];
 
     public function up(): void
@@ -21,12 +21,12 @@ return new class extends Migration
             ->get(['id', 'problems_needs'])
             ->each(function ($row) {
                 $items = json_decode($row->problems_needs, true);
-                if (!is_array($items)) {
+                if (! is_array($items)) {
                     return;
                 }
 
                 $normalized = array_values(array_unique(
-                    array_map(fn($item) => self::MAP[$item] ?? $item, $items)
+                    array_map(fn ($item) => self::MAP[$item] ?? $item, $items)
                 ));
 
                 if ($normalized !== $items) {

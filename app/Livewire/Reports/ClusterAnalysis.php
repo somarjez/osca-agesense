@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Services\ClusterAnalyticsService;
+use App\Support\ClusterMetrics;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -13,7 +14,9 @@ class ClusterAnalysis extends Component
     private ClusterAnalyticsService $clusterAnalytics;
 
     public string $selectedBarangay = '';
+
     public string $sortBy = 'composite_risk';
+
     public string $sortDir = 'desc';
 
     public function boot(ClusterAnalyticsService $clusterAnalytics): void
@@ -37,33 +40,34 @@ class ClusterAnalysis extends Component
         // Cluster summaries
         $clusterSummaries = $results->groupBy('cluster_named_id')->map(function ($group, $clusterId) {
             return [
-                'id'                 => $clusterId,
-                'name'               => $group->first()->cluster_name,
-                'count'              => $group->count(),
-                'avg_composite'      => round($group->avg('composite_risk'), 3),
-                'avg_ic'             => round($group->avg('ic_risk'), 3),
-                'avg_env'            => round($group->avg('env_risk'), 3),
-                'avg_func'           => round($group->avg('func_risk'), 3),
-                'high_count'         => $group->where('overall_risk_level', 'HIGH')->count(),
-                'barangay_top'       => $group->map(fn($r) => $r->seniorCitizen?->barangay)
-                                              ->filter()->countBy()->sortDesc()->keys()->first(),
+                'id' => $clusterId,
+                'name' => $group->first()->cluster_name,
+                'count' => $group->count(),
+                'avg_composite' => round($group->avg('composite_risk'), 3),
+                'avg_ic' => round($group->avg('ic_risk'), 3),
+                'avg_env' => round($group->avg('env_risk'), 3),
+                'avg_func' => round($group->avg('func_risk'), 3),
+                'high_count' => $group->where('overall_risk_level', 'HIGH')->count(),
+                'barangay_top' => $group->map(fn ($r) => $r->seniorCitizen?->barangay)
+                    ->filter()->countBy()->sortDesc()->keys()->first(),
             ];
         })->sortKeys();
 
         // WHO domain comparison across clusters
         $domainChart = [
-            'labels'   => ['Intrinsic Capacity', 'Environment', 'Functional'],
+            'labels' => ['Intrinsic Capacity', 'Environment', 'Functional'],
             'datasets' => $results->groupBy('cluster_named_id')->map(function ($group, $id) {
                 $colors = [1 => '#2ecc71', 2 => '#3498db', 3 => '#f39c12', 4 => '#e74c3c'];
+
                 return [
-                    'label'           => "Cluster {$id}: " . $group->first()->cluster_name,
-                    'data'            => [
+                    'label' => "Cluster {$id}: ".$group->first()->cluster_name,
+                    'data' => [
                         round($group->avg('ic_risk') * 100, 1),
                         round($group->avg('env_risk') * 100, 1),
                         round($group->avg('func_risk') * 100, 1),
                     ],
                     'backgroundColor' => $colors[$id] ?? '#94a3b8',
-                    'borderRadius'    => 4,
+                    'borderRadius' => 4,
                 ];
             })->values()->toArray(),
         ];
@@ -71,13 +75,13 @@ class ClusterAnalysis extends Component
         // Risk distribution per cluster for stacked chart
         $riskByCluster = $results->groupBy('cluster_named_id')->map(function ($group) {
             return [
-                'LOW'      => $group->where('overall_risk_level', 'LOW')->count(),
+                'LOW' => $group->where('overall_risk_level', 'LOW')->count(),
                 'MODERATE' => $group->where('overall_risk_level', 'MODERATE')->count(),
-                'HIGH'     => $group->where('overall_risk_level', 'HIGH')->count(),
+                'HIGH' => $group->where('overall_risk_level', 'HIGH')->count(),
             ];
         });
 
-        $evalMetrics = \App\Support\ClusterMetrics::load();
+        $evalMetrics = ClusterMetrics::load();
 
         return view('livewire.reports.cluster-analysis', compact(
             'results', 'records', 'clusterSummaries', 'domainChart', 'riskByCluster', 'evalMetrics'
@@ -89,7 +93,7 @@ class ClusterAnalysis extends Component
         if ($this->sortBy === $col) {
             $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
         } else {
-            $this->sortBy  = $col;
+            $this->sortBy = $col;
             $this->sortDir = 'desc';
         }
         $this->resetPage();

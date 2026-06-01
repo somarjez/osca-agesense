@@ -12,14 +12,15 @@ Pass criteria (deployment-ready):
     - Risk level match:     >= 280 / 283 seniors
 """
 
-import os
-import sys
 import csv
 import json
+import os
+import sys
 import warnings
+from typing import Any, Dict, List
+
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, List
 
 warnings.filterwarnings("ignore")
 
@@ -37,7 +38,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # ── Import live preprocess service ─────────────────────────────────────────────
 sys.path.insert(0, SERVICES_DIR)
 os.environ.setdefault("ML_MODELS_PATH", MODELS_DIR)
-import preprocess_service as _ps
+import preprocess_service as _ps  # noqa: E402
 
 # ── Use the SAME merged weights as the live service (asset_weights.json + defaults) ──
 # The notebook used asset_weights.json keywords during training; the hardcoded
@@ -210,7 +211,9 @@ def build_reference_row(row: Dict[str, Any]) -> Dict[str, float]:
     # Section II
     wc  = min(r["num_working_children"], 5) / 5
     hsn = min(r["household_size"], 10) / 10
-    r["sec2_family_support"]   = round(wc*0.35 + r["child_support_enc"]*0.35 + r["spouse_working_enc"]*0.20 + hsn*0.10, 4)
+    r["sec2_family_support"] = round(
+        wc * 0.35 + r["child_support_enc"] * 0.35 + r["spouse_working_enc"] * 0.20 + hsn * 0.10, 4
+    )
     r["sec2_family_size_norm"] = round(hsn, 4)
 
     # Section III
@@ -231,7 +234,11 @@ def build_reference_row(row: Dict[str, Any]) -> Dict[str, float]:
         r["sec5_movable_asset_score"]*0.10 + r["has_pension"]*0.10 + r["child_support_enc"]*0.05, 4)
 
     # Section VI
-    phy  = np.mean([r["phy_energy"], r["phy_pain_r"], r["phy_health_limit_r"], r["phy_mobility_outside"], r["phy_mobility_indoor"]]) / 5
+    phy_fields = [
+        r["phy_energy"], r["phy_pain_r"], r["phy_health_limit_r"],
+        r["phy_mobility_outside"], r["phy_mobility_indoor"],
+    ]
+    phy = np.mean(phy_fields) / 5
     psy  = np.mean([r["psych_happiness"], r["psych_peace"], r["psych_lonely_r"], r["psych_confidence"]]) / 5
     func = np.mean([r["func_independence"], r["func_autonomy"], r["func_control"]]) / 5
     r["sec6_phy_score"]   = round(float(phy), 4)
@@ -370,7 +377,7 @@ def main():
     print(f"Seniors compared      : {n}")
     print(f"Features PASS (<0.001): {n_pass} / {len(COMPARE_COLS)}")
     print(f"Features FAIL         : {len(COMPARE_COLS)-n_pass} / {len(COMPARE_COLS)}")
-    print(f"\nTop 10 largest deltas:")
+    print("\nTop 10 largest deltas:")
     print(report_df.head(10).to_string(index=False))
     print(f"\nenv_score mean delta  : {env_delta:.4f}  ({'FAIL' if env_delta > 0.001 else 'PASS'})")
     print(f"func_score mean delta : {func_delta:.4f}  ({'FAIL' if func_delta > 0.001 else 'PASS'})")

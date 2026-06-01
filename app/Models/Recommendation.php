@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Recommendation extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'ml_result_id', 'senior_citizen_id',
         'priority', 'type', 'domain', 'category',
@@ -22,8 +23,8 @@ class Recommendation extends Model
     ];
 
     protected $casts = [
-        'target_date'               => 'date',
-        'documents_needed'          => 'array',
+        'target_date' => 'date',
+        'documents_needed' => 'array',
         'requires_human_validation' => 'boolean',
     ];
 

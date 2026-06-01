@@ -26,9 +26,17 @@ Run from repo root (services must be up on 5001/5002):
     python\\venv\\Scripts\\python.exe python\\scripts\\validate_system.py
 """
 
-import os, sys, csv, json, re, unicodedata, pickle, urllib.request, urllib.error
-from datetime import date, datetime
+import csv
+import json
+import os
+import pickle
+import re
+import sys
+import unicodedata
+import urllib.error
+import urllib.request
 from collections import defaultdict
+from datetime import date, datetime
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -36,7 +44,8 @@ if hasattr(sys.stdout, "reconfigure"):
 try:
     import numpy as np
     import pandas as pd
-    import pymysql, pymysql.cursors
+    import pymysql
+    import pymysql.cursors
 except ImportError as e:
     print(f"[ERROR] missing dependency: {e}")
     sys.exit(1)
@@ -62,7 +71,7 @@ def _norm(s):
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
-def _key(f, l, b): return f"{_norm(f)}|{_norm(l)}|{_norm(b)}"
+def _key(f, last, b): return f"{_norm(f)}|{_norm(last)}|{_norm(b)}"
 
 def _read_dotenv(name):
     for cand in [os.path.join(REPO_ROOT, ".env"), os.path.join(BASE_DIR, ".env")]:
@@ -82,19 +91,27 @@ def _post(url, payload):
         return json.loads(r.read())
 
 def _f(v, d=0.0):
-    try: return float(v)
-    except: return d
+    try:
+        return float(v)
+    except Exception:
+        return d
 
 def _parse_json_col(v):
-    if v is None: return []
-    if isinstance(v, (list, dict)): return v
-    try: return json.loads(v)
-    except: return []
+    if v is None:
+        return []
+    if isinstance(v, (list, dict)):
+        return v
+    try:
+        return json.loads(v)
+    except Exception:
+        return []
 
 def _age(dob, ref=None):
     # Mirror the live path: age anchored to the immutable survey_date, not today.
-    if dob is None: return 70
-    if isinstance(dob, str): dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
+    if dob is None:
+        return 70
+    if isinstance(dob, str):
+        dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
     if ref is None:
         ref = date.today()
     elif isinstance(ref, str):
@@ -235,8 +252,10 @@ for row in db_rows:
         rs  = inf.get("risk_scores", {})
         near, second, mrg = (None, None, None)
         if fm:
-            try: near, second, mrg = margin(fm)
-            except Exception: pass
+            try:
+                near, second, mrg = margin(fm)
+            except Exception:
+                pass
         res.append({
             "id": row["id"], "key": k,
             "live_cluster": int(inf["cluster"]["named_id"]),
@@ -309,7 +328,9 @@ report_block("  Risk scores:", [
 ], TOL_UNIT)
 
 print("\n[3] RISK-LEVEL DISTRIBUTION")
-live_dist = defaultdict(int); nb_dist = defaultdict(int); rl_match = 0
+live_dist = defaultdict(int)
+nb_dist = defaultdict(int)
+rl_match = 0
 for r in res:
     live_dist[r["live_risklvl"]] += 1
     nb_dist[r["nb_risklvl"]] += 1
@@ -323,8 +344,8 @@ print("\n[4] CLUSTERING (live nearest-centroid vs notebook UMAP+KMeans)")
 cl_match = sum(1 for r in res if r["live_cluster"] == r["nb_cluster"])
 mism = [r for r in res if r["live_cluster"] != r["nb_cluster"]]
 print(f"  Cluster match: {cl_match}/{n} ({cl_match/n*100:.1f}%)")
-print(f"  NOTE: 100% is impossible deterministically — notebook used UMAP+KMeans")
-print(f"        (non-reproducible per-record). Mismatches should be boundary cases.")
+print("  NOTE: 100% is impossible deterministically — notebook used UMAP+KMeans")
+print("        (non-reproducible per-record). Mismatches should be boundary cases.")
 if mism:
     margins = [r["margin"] for r in mism if r["margin"] is not None]
     matched_margins = [r["margin"] for r in res if r["live_cluster"] == r["nb_cluster"] and r["margin"] is not None]
@@ -333,18 +354,20 @@ if mism:
               f"mean={sum(margins)/len(margins):.4f} max={max(margins):.4f}")
     if matched_margins:
         print(f"  Match    centroid margin: mean={sum(matched_margins)/len(matched_margins):.4f}")
-    print(f"  -> If mismatch margins << match margins, mismatches are boundary cases (expected).")
+    print("  -> If mismatch margins << match margins, mismatches are boundary cases (expected).")
 
 print("\n[5] CLUSTER COHERENCE (model-internal — risk should rise with cluster id)")
 by_cluster = defaultdict(list)
 for r in res:
     by_cluster[r["live_cluster"]].append(r["live_comp"])
-prev = -1; monotonic = True
+prev = -1
+monotonic = True
 for cid in sorted(by_cluster):
     m = sum(by_cluster[cid]) / len(by_cluster[cid])
     flag = ""
     if m < prev:
-        monotonic = False; flag = "  <-- NOT monotonic"
+        monotonic = False
+        flag = "  <-- NOT monotonic"
     print(f"  cluster {cid}: n={len(by_cluster[cid]):4d}  mean composite risk={m:.4f}{flag}")
     prev = m
 print(f"  Monotonic risk by cluster: {'YES (coherent)' if monotonic else 'NO (investigate)'}")
@@ -371,7 +394,8 @@ for row in sample:
                json.dumps(inf.get("xai", {}).get("ic", {}), sort_keys=True))
         sigs.add(sig)
     status = "stable" if len(sigs) == 1 else "VARIES"
-    if len(sigs) != 1: det_ok = False
+    if len(sigs) != 1:
+        det_ok = False
     print(f"  senior {row['id']}: {status} ({len(sigs)} distinct result(s) over 3 runs)")
 print(f"  Determinism: {'PASS — identical across repeated runs' if det_ok else 'FAIL — non-deterministic!'}")
 
@@ -381,7 +405,8 @@ print("=" * 72)
 fe_ok = all(pct_within(f, TOL_SCORE)[1] >= 95 for f in ["d_ic_score","d_env_score","d_func_score","d_qol_score"]) and \
         all(pct_within(f, TOL_UNIT)[1] >= 95 for f in ["d_eco","d_realast","d_movast","d_wellb"])
 risk_ok = all(pct_within(f, TOL_UNIT)[1] >= 95 for f in ["d_ic_risk","d_env_risk","d_func_risk","d_comp"])
-print(f"  Feature engineering fidelity : {'PASS' if fe_ok else 'CHECK'}  (live preprocess reproduces notebook features)")
+fe_label = "PASS" if fe_ok else "CHECK"
+print(f"  Feature engineering fidelity : {fe_label}  (live preprocess reproduces notebook features)")
 print(f"  Risk model fidelity          : {'PASS' if risk_ok else 'CHECK'}  (live GBR/RFR reproduces notebook risk)")
 print(f"  Risk-level match             : {rl_match/n*100:.1f}%")
 print(f"  Cluster match (vs UMAP)      : {cl_match/n*100:.1f}%  (deterministic ceiling)")

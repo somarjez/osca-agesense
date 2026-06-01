@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\XaiFeatureLabels;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use App\Support\XaiFeatureLabels;
 
 class XaiController extends Controller
 {
@@ -23,6 +23,7 @@ class XaiController extends Controller
                 }
                 unset($item);
             }
+
             return $raw;
         });
 

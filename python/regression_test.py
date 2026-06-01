@@ -7,16 +7,18 @@ regression_baseline.json (model v1.1.x). For the current K=4 system use
 python/scripts/validate_system.py. Kept for historical reference.
 
 Run after any code change or re-seeding:
-    python\venv\Scripts\python.exe python\regression_test.py
+    python\venv\\Scripts\\python.exe python\regression_test.py
 
 Exit 0 = all checks passed.
 Exit 1 = one or more checks failed (scores drifted beyond tolerance).
 
 BASELINE was locked on 2026-05-20 with model v1.1.0, threshold HIGH >= 0.45.
 To update the baseline after an intentional model retrain, run with --update:
-    python\venv\Scripts\python.exe python\regression_test.py --update
+    python\venv\\Scripts\\python.exe python\regression_test.py --update
 """
-import os, sys, json, csv
+import json
+import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -31,7 +33,8 @@ for candidate in [os.path.join(BASE_DIR, ".env"), os.path.join(os.path.dirname(B
                 env[k.strip()] = v.strip().strip('"')
         break
 
-import pymysql
+import pymysql  # noqa: E402
+
 conn = pymysql.connect(
     host=env.get("DB_HOST", "127.0.0.1"), port=int(env.get("DB_PORT", 3306)),
     user=env.get("DB_USERNAME", "root"), password=env.get("DB_PASSWORD", ""),
@@ -88,7 +91,7 @@ if UPDATE_MODE:
 # ── Load existing baseline ────────────────────────────────────────────────────
 if not os.path.exists(BASELINE_PATH):
     print(f"[ERROR] No baseline found at {BASELINE_PATH}")
-    print(f"        Run with --update to create it from current DB state.")
+    print("        Run with --update to create it from current DB state.")
     sys.exit(1)
 
 with open(BASELINE_PATH, encoding="utf-8") as f:
@@ -121,7 +124,10 @@ for key, base in baseline.items():
         errs.append(f"cluster C{base['cluster']} -> C{cur_row['cluster']}")
     drift = abs(cur_row["composite_risk"] - base["composite_risk"])
     if drift > COMPOSITE_TOL:
-        errs.append(f"composite_risk {base['composite_risk']:.4f} -> {cur_row['composite_risk']:.4f}  (drift={drift:.4f})")
+        errs.append(
+            f"composite_risk {base['composite_risk']:.4f} -> "
+            f"{cur_row['composite_risk']:.4f}  (drift={drift:.4f})"
+        )
     if errs:
         name = " ".join(p.capitalize() for p in key.replace("|", " ").split())
         failures.append((name, errs))
@@ -138,7 +144,7 @@ for v in baseline.values():
 for v in current.values():
     curr_dist[v["risk_level"]] = curr_dist.get(v["risk_level"], 0) + 1
 
-print(f"\n  Risk distribution:")
+print("\n  Risk distribution:")
 print(f"  {'Level':<12}  {'Baseline':>10}  {'Current':>10}  {'Diff':>6}")
 print("  " + "-" * 44)
 for lv in ["HIGH", "MODERATE", "LOW"]:

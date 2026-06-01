@@ -39,14 +39,14 @@ class GisApiController extends Controller
                     'coordinates' => [$longitude, $latitude],
                 ],
                 'properties' => [
-                    'anonymized_id' => $senior->osca_id ?: 'SEN-' . str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
+                    'anonymized_id' => $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
                     'barangay' => $senior->barangay ?: 'Unknown',
                     'age' => $senior->age,
                     'risk_level' => $latestResult?->overall_risk_level
                         ? ucfirst(strtolower($latestResult->overall_risk_level))
                         : 'Unknown',
                     'cluster' => $latestResult?->cluster_named_id
-                        ? 'Group ' . $latestResult->cluster_named_id
+                        ? 'Group '.$latestResult->cluster_named_id
                         : 'Unassigned',
                     'composite_risk' => $latestResult?->composite_risk,
                 ],
@@ -163,7 +163,7 @@ class GisApiController extends Controller
 
     private function boundaryResponse(string $path, string $label): JsonResponse
     {
-        if (!Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             return $this->geoJsonResponse(
                 [],
                 'file',
@@ -181,7 +181,7 @@ class GisApiController extends Controller
 
         $decoded = json_decode(Storage::disk('local')->get($path), true);
 
-        if (!is_array($decoded) || ($decoded['type'] ?? null) !== 'FeatureCollection' || !isset($decoded['features']) || !is_array($decoded['features'])) {
+        if (! is_array($decoded) || ($decoded['type'] ?? null) !== 'FeatureCollection' || ! isset($decoded['features']) || ! is_array($decoded['features'])) {
             return $this->geoJsonResponse(
                 [],
                 'file',
@@ -215,7 +215,7 @@ class GisApiController extends Controller
 
     private function hashToOffset(string $hex, float $spread): float
     {
-        $value = hexdec($hex) / 0xffffffff;
+        $value = hexdec($hex) / 0xFFFFFFFF;
 
         return ($value * 2 - 1) * $spread;
     }

@@ -1,24 +1,25 @@
 <?php
 
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\XaiController;
 
 Route::prefix('reports')->name('reports.')->group(function () {
 
     // All roles can view reports
     Route::middleware('role:admin,encoder,viewer')->group(function () {
-        Route::get('/cluster',              [ReportController::class, 'cluster'])->name('cluster');
-        Route::get('/gis',                  [ReportController::class, 'gis'])->name('gis');
-        Route::get('/risk',                 [ReportController::class, 'risk'])->name('risk');
-        Route::get('/barangay',             [ReportController::class, 'barangayIndex'])->name('barangay.index');
-        Route::get('/barangay/{brgy}',      [ReportController::class, 'barangay'])->name('barangay');
-        Route::get('/xai/model-insights', [\App\Http\Controllers\XaiController::class, 'modelInsights'])->name('xai.model-insights');
+        Route::get('/cluster', [ReportController::class, 'cluster'])->name('cluster');
+        Route::get('/gis', [ReportController::class, 'gis'])->name('gis');
+        Route::get('/risk', [ReportController::class, 'risk'])->name('risk');
+        Route::get('/barangay', [ReportController::class, 'barangayIndex'])->name('barangay.index');
+        Route::get('/barangay/{brgy}', [ReportController::class, 'barangay'])->name('barangay');
+        Route::get('/xai/model-insights', [XaiController::class, 'modelInsights'])->name('xai.model-insights');
     });
 
     // Admin only: exports and snapshots
     Route::middleware('role:admin')->group(function () {
-        Route::get('/risk/export',          [ReportController::class, 'exportRisk'])->name('risk.export');
-        Route::get('/cluster/export',       [ReportController::class, 'exportCluster'])->name('cluster.export');
-        Route::post('/cluster/snapshot',    [ReportController::class, 'snapshotClusters'])->name('cluster.snapshot');
-        Route::get('/registry/export',      [ReportController::class, 'exportRegistry'])->name('registry.export');
+        Route::get('/risk/export', [ReportController::class, 'exportRisk'])->name('risk.export');
+        Route::get('/cluster/export', [ReportController::class, 'exportCluster'])->name('cluster.export');
+        Route::post('/cluster/snapshot', [ReportController::class, 'snapshotClusters'])->name('cluster.snapshot');
+        Route::get('/registry/export', [ReportController::class, 'exportRegistry'])->name('registry.export');
     });
 });
