@@ -12,10 +12,11 @@ the saved UMAP+KMeans models on the full senior population in a single transform
 (same as the notebook did), eliminating per-senior UMAP non-determinism.
 """
 
+import json
 import os
 import sys
-import json
 import traceback
+
 import pymysql
 
 # Set before any numba/umap import
@@ -29,14 +30,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVICES_DIR = os.path.join(BASE_DIR, "services")
 sys.path.insert(0, SERVICES_DIR)
 
-from preprocess_service import preprocess
-from inference_service import (
-    batch_cluster_assign, infer,
-    _db_connect, _load_model, _load_first_model, _load_json,
-    _safe_float, _clip01, _get_risk_level, _priority_flag,
+from inference_service import (  # noqa: E402
     _load_cluster_mapping,
+    batch_cluster_assign,
+    infer,
 )
-
+from preprocess_service import preprocess  # noqa: E402
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -267,7 +266,8 @@ def update_ml_result(conn, ml_result_id, senior_id, result):
             if recs:
                 cur.executemany("""
                     INSERT INTO recommendations
-                        (ml_result_id, senior_citizen_id, priority, type, domain, category, action, urgency, risk_level, notes, created_at, updated_at)
+                        (ml_result_id, senior_citizen_id, priority, type, domain,
+                         category, action, urgency, risk_level, notes, created_at, updated_at)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
                 """, [
                     (ml_result_id, senior_id,
@@ -298,7 +298,7 @@ def main():
             print("  ENABLE_NOTEBOOK_OVERRIDES is not set to true in .env")
             print("  Scores will be computed by the live model (may not match notebook)")
         if not csv_exists:
-            print(f"  senior_predictions.csv not found at:")
+            print("  senior_predictions.csv not found at:")
             print(f"  {csv_path}")
             print("  Copy it from osca_output/predictions/ before running this script")
         print("  To fix: set ENABLE_NOTEBOOK_OVERRIDES=true in .env and copy the CSV")
@@ -392,7 +392,7 @@ def main():
 
         with open(mapping_path, "w") as f:
             json.dump({str(k): v for k, v in corrected_map.items()}, f, indent=2)
-        print(f"  [ OK ] cluster_mapping.json updated.")
+        print("  [ OK ] cluster_mapping.json updated.")
         # Clear lru_cache so subsequent infer() calls without _precomputed_named_id
         # read the corrected file instead of the stale startup-time cache.
         _load_cluster_mapping.cache_clear()
@@ -402,7 +402,10 @@ def main():
             if raw_id is not None and raw_id in corrected_map:
                 preprocessed["_precomputed_named_id"] = corrected_map[raw_id]
     else:
-        print(f"  [WARN] Could not auto-calibrate (raw clusters found: {list(raw_sizes.keys())}). Using existing mapping.")
+        print(
+            f"  [WARN] Could not auto-calibrate (raw clusters found: "
+            f"{list(raw_sizes.keys())}). Using existing mapping."
+        )
 
     # Fetch prediction_source and is_stale for all ml_result rows so we can
     # protect notebook_cache rows from being overwritten.
@@ -412,7 +415,8 @@ def main():
         with conn.cursor() as cur:
             fmt = ",".join(["%s"] * len(result_ids))
             cur.execute(
-                f"SELECT id FROM ml_results WHERE id IN ({fmt}) AND prediction_source = 'notebook_cache' AND is_stale = 0",
+                f"SELECT id FROM ml_results WHERE id IN ({fmt})"
+                " AND prediction_source = 'notebook_cache' AND is_stale = 0",
                 result_ids,
             )
             protected_result_ids = {r["id"] for r in cur.fetchall()}
@@ -453,10 +457,10 @@ def main():
 
     print(f"\n{'='*50}")
     print(f"Done. Updated: {updated}  Protected (notebook_cache): {protected}  Skipped: {skipped}")
-    print(f"\nNew cluster distribution:")
+    print("\nNew cluster distribution:")
     for c, n in sorted(cluster_counts.items()):
         print(f"  C{c}: {n}")
-    print(f"\nNew risk distribution:")
+    print("\nNew risk distribution:")
     for r, n in sorted(risk_counts.items()):
         print(f"  {r}: {n}")
 

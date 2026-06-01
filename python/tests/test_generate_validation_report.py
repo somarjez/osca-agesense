@@ -6,7 +6,9 @@ Tests load_model_metrics() and render_evidence_table() without a DB connection.
 Run:
     python\\venv\\Scripts\\python.exe python\\tests\\test_generate_validation_report.py
 """
-import sys, os, unittest
+import os
+import sys
+import unittest
 
 # Make python/scripts importable
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
@@ -127,7 +129,7 @@ class TestRenderEvidenceTable(unittest.TestCase):
 
     def test_is_markdown_table_format(self):
         """Every data row contains pipe separators."""
-        pipe_lines = [l for l in self.table.splitlines() if "|" in l and l.strip()]
+        pipe_lines = [line for line in self.table.splitlines() if "|" in line and line.strip()]
         self.assertGreaterEqual(len(pipe_lines), 10,
             "Expected at least 10 pipe-separated rows in the evidence table")
 

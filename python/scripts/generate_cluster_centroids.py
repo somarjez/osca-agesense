@@ -21,10 +21,10 @@ Requirements:
 Output: python/models/cluster_centroids_scaled.json
 """
 
-import os
-import sys
 import json
+import os
 import pickle
+import sys
 import warnings
 from collections import defaultdict
 from datetime import date, datetime
@@ -37,10 +37,11 @@ BASE_DIR   = os.path.dirname(os.path.dirname(SCRIPT_DIR))   # osca-system/
 
 sys.path.insert(0, os.path.join(BASE_DIR, "python", "services"))
 
-import numpy as np
-import pandas as pd
-import pymysql
-import pymysql.cursors
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import pymysql  # noqa: E402
+import pymysql.cursors  # noqa: E402
+
 
 # ── Resolve MODEL_DIR ─────────────────────────────────────────────────────────
 def _read_dotenv(name: str):
@@ -109,7 +110,7 @@ def _db_connect():
         cursorclass = pymysql.cursors.DictCursor,
     )
 
-from preprocess_service import preprocess
+from preprocess_service import preprocess  # noqa: E402
 
 # ── Query seeded seniors — use DB cluster_named_id as ground truth ─────────────
 QUERY = """
@@ -285,7 +286,8 @@ for named_id in sorted(cluster_vectors.keys()):
           f"centroid dims={len(centroid)}")
 
 # ── Also compute and print model artifact hashes for the manifest ─────────────
-import hashlib
+import hashlib  # noqa: E402
+
 
 def _sha256(path: str) -> str:
     h = hashlib.sha256()

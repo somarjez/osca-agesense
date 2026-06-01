@@ -15,9 +15,16 @@ Run from repo root:
     python\\venv\\Scripts\\python.exe python\\scripts\\audit_csv_vs_db.py
 """
 
-import os, sys, csv, json, re, unicodedata, urllib.request, urllib.error
-from datetime import date, datetime
+import csv
+import json
+import os
+import re
+import sys
+import unicodedata
+import urllib.error
+import urllib.request
 from collections import defaultdict
+from datetime import date, datetime
 
 try:
     import pymysql
@@ -67,20 +74,28 @@ def _http_post(url, payload):
         return json.loads(r.read())
 
 def _parse_json_col(val):
-    if val is None: return []
-    if isinstance(val, (list, dict)): return val
-    try: return json.loads(val)
-    except: return []
+    if val is None:
+        return []
+    if isinstance(val, (list, dict)):
+        return val
+    try:
+        return json.loads(val)
+    except Exception:
+        return []
 
 def _compute_age(dob):
-    if dob is None: return 70
-    if isinstance(dob, str): dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
+    if dob is None:
+        return 70
+    if isinstance(dob, str):
+        dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 def _parse_csv_age(s):
-    try: return int(float(str(s).strip()))
-    except: return None
+    try:
+        return int(float(str(s).strip()))
+    except Exception:
+        return None
 
 # ── Load CSV ──────────────────────────────────────────────────────────────────
 print(f"Loading osca_normalized.csv from: {CSV_PATH}")
@@ -198,7 +213,7 @@ for key, csv_row in csv_rows.items():
                 dv = int(float(db_val))
                 if cv != dv:
                     qol_diffs_for_senior.append(f"{csv_field}: csv={cv} db={dv}")
-            except:
+            except Exception:
                 pass
 
     if qol_diffs_for_senior:
@@ -241,7 +256,7 @@ print("=" * 70)
 print("AUDIT: osca_normalized.csv vs DB")
 print("=" * 70)
 
-print(f"\n[1] Coverage")
+print("\n[1] Coverage")
 print(f"  CSV seniors:                {len(csv_rows)}")
 print(f"  DB seniors with ML results: {len(db_by_key)}")
 print(f"  In CSV but NOT in DB:       {len(not_in_db)}")
@@ -251,14 +266,14 @@ for name in not_in_db[:10]:
 for name in not_in_csv[:10]:
     print(f"    EXTRA in DB:     {name}")
 
-print(f"\n[2] QoL Value Mismatches (DB vs CSV)")
+print("\n[2] QoL Value Mismatches (DB vs CSV)")
 print(f"  Seniors with >=1 QoL value difference: {len(qol_mismatches)}")
 for s in qol_mismatches[:10]:
     print(f"  {s['name']} / {s['barangay']}:")
     for d in s["diffs"][:5]:
         print(f"    {d}")
 
-print(f"\n[3] Age Drift (CSV fixed age vs computed from DOB today)")
+print("\n[3] Age Drift (CSV fixed age vs computed from DOB today)")
 age_by_diff = defaultdict(list)
 for a in age_diffs:
     age_by_diff[a["diff"]].append(a)
@@ -266,21 +281,24 @@ print(f"  Seniors with age drift:    {len(age_diffs)}")
 for diff_val in sorted(age_by_diff.keys()):
     print(f"  Drift +{diff_val} year(s): {len(age_by_diff[diff_val])} seniors")
 if age_diffs:
-    print(f"  Examples (showing up to 5):")
+    print("  Examples (showing up to 5):")
     for a in age_diffs[:5]:
         print(f"    {a['name']} / {a['barangay']}: csv_age={a['csv_age']} live_age={a['live_age']} drift=+{a['diff']}")
 
-print(f"\n[4] Cluster Mismatches (DB live result vs notebook prediction)")
+print("\n[4] Cluster Mismatches (DB live result vs notebook prediction)")
 print(f"  Mismatched clusters: {len(cluster_diffs)} / {len(csv_rows)}")
-print(f"  Match rate:          {(len(csv_rows)-len(cluster_diffs))/len(csv_rows)*100:.1f}%")
+match_rate = (len(csv_rows) - len(cluster_diffs)) / len(csv_rows) * 100
+print(f"  Match rate:          {match_rate:.1f}%")
 if cluster_diffs:
-    print(f"  Examples (showing up to 10):")
+    print("  Examples (showing up to 10):")
     for c in cluster_diffs[:10]:
         print(f"    {c['name']} / {c['barangay']}: notebook={c['nb_cluster']} db={c['db_cluster']}")
 
-print(f"\n[5] Summary")
-print(f"  QoL input integrity:  {'OK' if not qol_mismatches else 'ISSUES FOUND (' + str(len(qol_mismatches)) + ' seniors)'}")
-print(f"  Age computation:      {'DRIFT detected (' + str(len(age_diffs)) + ' seniors differ from CSV)' if age_diffs else 'OK'}")
+print("\n[5] Summary")
+qol_status = "OK" if not qol_mismatches else f"ISSUES FOUND ({len(qol_mismatches)} seniors)"
+age_status = f"DRIFT detected ({len(age_diffs)} seniors differ from CSV)" if age_diffs else "OK"
+print(f"  QoL input integrity:  {qol_status}")
+print(f"  Age computation:      {age_status}")
 print(f"  Cluster match rate:   {(len(csv_rows)-len(cluster_diffs))/len(csv_rows)*100:.1f}%")
 
 if not qol_mismatches and not age_diffs:

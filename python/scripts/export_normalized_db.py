@@ -9,10 +9,10 @@ Run from repo root:
     python\\venv\\Scripts\\python.exe python\\scripts\\export_normalized_db.py
 """
 
-import os
-import sys
 import csv
 import json
+import os
+import sys
 from datetime import date, datetime
 from typing import Any
 
@@ -143,7 +143,10 @@ def main() -> None:
             env = _read_env(cand)
             break
     if not env:
-        print(f"[ERROR] .env file not found or contains no valid key=value pairs. Tried:\n  {BASE_DIR}\\.env\n  {NOTEBOOK_DIR}\\.env")
+        print(
+            f"[ERROR] .env file not found or contains no valid key=value pairs. "
+            f"Tried:\n  {BASE_DIR}\\.env\n  {NOTEBOOK_DIR}\\.env"
+        )
         sys.exit(1)
 
     # ── Connect ────────────────────────────────────────────────────────────────
@@ -298,7 +301,9 @@ def main() -> None:
                 "housing_concern":       "",
                 "household_size":        row.get("household_size") if row.get("household_size") is not None else "",
                 "num_children":          row.get("num_children") if row.get("num_children") is not None else "",
-                "num_working_children":  row.get("num_working_children") if row.get("num_working_children") is not None else "",
+                "num_working_children":  (
+                    row.get("num_working_children") if row.get("num_working_children") is not None else ""
+                ),
                 "child_financial_support": str(row.get("child_financial_support") or ""),
                 "spouse_working":        str(row.get("spouse_working") or ""),
             }

@@ -17,8 +17,8 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
 
+from inference_service import batch_cluster_assign, infer
 from preprocess_service import preprocess
-from inference_service import infer, batch_cluster_assign
 
 SENIORS = [
     # Likely HIGH / urgent — old age, no assets, heavy disease burden, poor QoL
@@ -175,7 +175,10 @@ def run_tests():
         failed_checks = []
         print(f"\n{'='*60}")
         print(f"Senior: {s['label']}")
-        print(f"  composite={scores.get('composite_risk'):.4f}  level={levels.get('overall')}  pflag={pflag}  cluster={cluster.get('named_id')} ({cluster.get('name')})")
+        print(
+            f"  composite={scores.get('composite_risk'):.4f}  level={levels.get('overall')}  "
+            f"pflag={pflag}  cluster={cluster.get('named_id')} ({cluster.get('name')})"
+        )
         for name, actual, expected in checks:
             ok = actual == expected
             if not ok:
@@ -183,10 +186,23 @@ def run_tests():
                 all_ok = False
             print(f"  [{'OK' if ok else 'FAIL'}] {name}: {actual!r}")
 
-        print(f"  Result: {'PASS' if not failed_checks else 'FAIL — ' + ', '.join(failed_checks)}")
-        print(f"  Cluster: {cluster.get('named_id')} ({cluster.get('name')})  [expected {s['expect_cluster']} — informational, UMAP non-deterministic on 2 seniors]")
-        print(f"\n  WHO scores: IC={who_scores.get('ic_score'):.2f}  ENV={who_scores.get('env_score'):.2f}  FUNC={who_scores.get('func_score'):.2f}  QoL={who_scores.get('qol_score'):.2f}")
-        print(f"  Domain risks: medical={domain_risks.get('risk_medical'):.3f}  financial={domain_risks.get('risk_financial'):.3f}  social={domain_risks.get('risk_social'):.3f}")
+        result_str = "PASS" if not failed_checks else "FAIL — " + ", ".join(failed_checks)
+        print(f"  Result: {result_str}")
+        print(
+            f"  Cluster: {cluster.get('named_id')} ({cluster.get('name')})"
+            f"  [expected {s['expect_cluster']} — informational, UMAP non-deterministic on 2 seniors]"
+        )
+        print(
+            f"\n  WHO scores: IC={who_scores.get('ic_score'):.2f}"
+            f"  ENV={who_scores.get('env_score'):.2f}"
+            f"  FUNC={who_scores.get('func_score'):.2f}"
+            f"  QoL={who_scores.get('qol_score'):.2f}"
+        )
+        print(
+            f"  Domain risks: medical={domain_risks.get('risk_medical'):.3f}"
+            f"  financial={domain_risks.get('risk_financial'):.3f}"
+            f"  social={domain_risks.get('risk_social'):.3f}"
+        )
         print(f"  Recommendations: {len(recs)} items across domains: {sorted(set(r.get('domain','?') for r in recs))}")
         print(f"  Warnings: {result.get('warnings', [])}")
 

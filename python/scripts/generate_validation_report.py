@@ -7,12 +7,16 @@ validation document.
 
 Usage (from repo root):
     python\\venv\\Scripts\\python.exe python\\scripts\\generate_validation_report.py
-    python\\venv\\Scripts\\python.exe python\\scripts\\generate_validation_report.py --output docs\\evidence-table-current.md
+    python\\venv\\Scripts\\python.exe python\\scripts\\generate_validation_report.py
+        --output docs\\evidence-table-current.md
 
 Exit 0 = success.
 Exit 1 = required file missing or DB connection failed.
 """
-import os, sys, json, argparse
+import argparse
+import json
+import os
+import sys
 
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
@@ -182,22 +186,30 @@ def render_evidence_table(metrics: dict, distribution: dict) -> str:
         "| Metric | Value | Source |",
         "|---|---|---|",
         f"| Training population | {_NB_CLUSTER_MATCH_TOT} seniors (Pagsanjan OSCA dataset) | `osca5.ipynb` |",
-        f"| Cluster match: live system vs notebook | **{_NB_CLUSTER_MATCH_N} / {_NB_CLUSTER_MATCH_TOT} = {cluster_pct:.1f}%** | `compare_notebook_vs_live.py` |",
-        f"| Risk-level match: live system vs notebook | **{_NB_RISK_MATCH_N} / {_NB_RISK_MATCH_TOT} = {risk_pct:.1f}%** | `compare_notebook_vs_live.py` |",
-        f"| Max composite risk delta (live vs notebook) | **{_NB_MAX_DELTA}** | `compare_notebook_vs_live.py` |",
-        f"| Regression baseline failures (post v1.1.1) | **{reg_f} failures** (tolerance ±0.005 per senior) | `regression_test.py` |",
+        f"| Cluster match: live system vs notebook | "
+        f"**{_NB_CLUSTER_MATCH_N} / {_NB_CLUSTER_MATCH_TOT} = {cluster_pct:.1f}%** | `compare_notebook_vs_live.py` |",
+        f"| Risk-level match: live system vs notebook | "
+        f"**{_NB_RISK_MATCH_N} / {_NB_RISK_MATCH_TOT} = {risk_pct:.1f}%** | `compare_notebook_vs_live.py` |",
+        f"| Max composite risk delta (live vs notebook) | "
+        f"**{_NB_MAX_DELTA}** | `compare_notebook_vs_live.py` |",
+        f"| Regression baseline failures (post v1.1.1) | "
+        f"**{reg_f} failures** (tolerance ±0.005 per senior) | `regression_test.py` |",
         "| **Risk distribution (live model)** | | |",
         f"| — LOW risk | {low_n} seniors ({low_pct:.1f}%) | `validate_clusters.py` |",
         f"| — MODERATE risk | {mod_n} seniors ({mod_pct:.1f}%) | `validate_clusters.py` |",
         f"| — HIGH risk | {high_n} seniors ({high_pct:.1f}%) | `validate_clusters.py` |",
-        f"| — HIGH risk, urgent flag (composite >= {_URGENT_THRESHOLD}) | **{urgent} seniors** | `final_comparison_report.py` |",
+        f"| — HIGH risk, urgent flag (composite >= {_URGENT_THRESHOLD}) | "
+        f"**{urgent} seniors** | `final_comparison_report.py` |",
         "| **Cluster distribution (live model)** | | |",
         f"| — C1 High Functioning | {c1_n} seniors | `validate_clusters.py` |",
         f"| — C2 Moderate / Mixed Needs | {c2_n} seniors | `validate_clusters.py` |",
         f"| — C3 Low Functioning / Multi-domain Risk | {c3_n} seniors | `validate_clusters.py` |",
-        f"| Silhouette score (cluster quality) | **{metrics['silhouette']}** | `cluster_eval_metrics.json` |",
-        f"| Davies-Bouldin index (cluster separation) | **{metrics['davies_bouldin']}** | `cluster_eval_metrics.json` |",
-        f"| Calinski-Harabasz index (cluster density) | **{metrics['calinski_harabasz']}** | `cluster_eval_metrics.json` |",
+        f"| Silhouette score (cluster quality) | "
+        f"**{metrics['silhouette']}** | `cluster_eval_metrics.json` |",
+        f"| Davies-Bouldin index (cluster separation) | "
+        f"**{metrics['davies_bouldin']}** | `cluster_eval_metrics.json` |",
+        f"| Calinski-Harabasz index (cluster density) | "
+        f"**{metrics['calinski_harabasz']}** | `cluster_eval_metrics.json` |",
         f"| Model version | **{metrics['model_version']}** | `model_manifest.json` |",
         f"| Regression baseline locked | **{metrics['baseline_locked_on']}** | `regression_baseline.json` |",
     ]

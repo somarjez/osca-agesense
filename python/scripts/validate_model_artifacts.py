@@ -14,11 +14,11 @@ Exit codes:
     1 - one or more checks FAIL
 """
 
-import os
-import sys
 import json
+import os
 import pickle
-import struct
+import sys
+
 import pandas as pd
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -249,7 +249,7 @@ if _exists(umap_fn):
             _fail(f"UMAP n_components == {EXPECTED['umap_n_components']}", f"Got {nc}.")
         if hasattr(u, "embedding_"):
             n_train = u.embedding_.shape[0]
-            _pass(f"UMAP has embedding_ (fitted)", f"{n_train} training samples")
+            _pass("UMAP has embedding_ (fitted)", f"{n_train} training samples")
         else:
             _fail("UMAP has embedding_", "UMAP is not fitted. Re-export from osca5.ipynb.")
         if hasattr(u, "_raw_data") and u._raw_data is not None:
@@ -331,7 +331,7 @@ if _exists("cluster_mapping.json"):
             )
         else:
             _pass(
-                f"cluster_mapping.json values correct",
+                "cluster_mapping.json values correct",
                 f"{cm} — raw 0->C3, raw 1->C1, raw 2->C2"
             )
 else:
@@ -366,7 +366,8 @@ for fn in EXPECTED["risk_models"]:
 _section("[8] Cross-file consistency check")
 
 # UMAP input == feature_list length (already checked above; repeat as a combined check)
-if all(_exists(f) for f in ["feature_list.json", "umap_nd.pkl" if _exists("umap_nd.pkl") else "umap_reducer.pkl", "scaler.pkl", "kmeans.pkl"]):
+umap_file = "umap_nd.pkl" if _exists("umap_nd.pkl") else "umap_reducer.pkl"
+if all(_exists(f) for f in ["feature_list.json", umap_file, "scaler.pkl", "kmeans.pkl"]):
     _forward_pass_ok = False
     try:
         import warnings
@@ -410,7 +411,6 @@ if all(_exists(f) for f in ["feature_list.json", "umap_nd.pkl" if _exists("umap_
             else:
                 _pass("feature_list features present in scaler.feature_names_in_")
         # Run a single forward pass to confirm pipeline produces output
-        import numpy as np
         os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
         os.environ.setdefault("NUMBA_NUM_THREADS", "1")
         sc_names2 = list(getattr(sc2, "feature_names_in_", fl2))
@@ -508,7 +508,10 @@ print(f"\n  ENABLE_NOTEBOOK_OVERRIDES = {nb_overrides}")
 if nb_overrides.lower() in ("true", "1", "yes", "on"):
     print("  -> Seeded seniors use notebook_cache; new seniors use live_model. (Correct for deployment.)")
 else:
-    print("  -> All seniors use live_model pipeline. (Set ENABLE_NOTEBOOK_OVERRIDES=true to protect validated baselines.)")
+    print(
+        "  -> All seniors use live_model pipeline. "
+        "(Set ENABLE_NOTEBOOK_OVERRIDES=true to protect validated baselines.)"
+    )
 
 
 # ── Final summary ─────────────────────────────────────────────────────────────

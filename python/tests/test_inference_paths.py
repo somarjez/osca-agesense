@@ -17,9 +17,12 @@ os.environ["OMP_NUM_THREADS"] = "1"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
 
 from inference_service import (
-    ENABLE_NOTEBOOK_OVERRIDES, MODEL_DIR,
-    _recommendation_urgency, _priority_flag,
-    _load_model, _load_json,
+    ENABLE_NOTEBOOK_OVERRIDES,
+    MODEL_DIR,
+    _load_json,
+    _load_model,
+    _priority_flag,
+    _recommendation_urgency,
 )
 
 all_ok = True
@@ -100,8 +103,9 @@ check("ml_risk_features.json is list", isinstance(ml_features, list), True)
 print()
 
 print("=== Python DB cache removed ===")
-import inspect
-import inference_service as _inf_svc   # module ref (already in sys.modules)
+import inspect  # noqa: E402
+
+import inference_service as _inf_svc  # noqa: E402  # module ref (already in sys.modules)
 
 # Confirm that _db_cache_lookup, _db_cache_write, _db_connect are gone
 check("_db_cache_lookup removed", hasattr(_inf_svc, "_db_cache_lookup"), False)
@@ -116,7 +120,12 @@ check("prediction_source is live_model or notebook_cache only",
 print()
 
 print("=== ENABLE_DETERMINISTIC_CLUSTER flag ===")
-from inference_service import ENABLE_DETERMINISTIC_CLUSTER, _deterministic_cluster_assign, _load_cluster_centroids_scaled
+from inference_service import (  # noqa: E402
+    ENABLE_DETERMINISTIC_CLUSTER,
+    _deterministic_cluster_assign,
+    _load_cluster_centroids_scaled,
+)
+
 check("flag defaults to False", ENABLE_DETERMINISTIC_CLUSTER, False)
 print()
 

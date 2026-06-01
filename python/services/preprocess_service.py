@@ -7,17 +7,17 @@ Usage:
     python preprocess_service.py
 """
 
-import os
 import json
+import logging
+import os
 import pickle
 import warnings
-import logging
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO)

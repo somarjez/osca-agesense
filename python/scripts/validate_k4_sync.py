@@ -15,13 +15,13 @@ Run from repo root:
 Exit code 0 = PASS, exit code 1 = FAIL.
 """
 
-import os
-import sys
 import json
+import os
 import re
+import sys
 import unicodedata
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import date, datetime
 
 # Force UTF-8 on Windows consoles (cp1252 chokes on checkmarks etc.)
@@ -195,7 +195,7 @@ print(f"  Loaded {len(db_rows)} seniors with QoL surveys from DB")
 
 
 # ── Step 4: Two-step inference for each matched senior ─────────────────────────
-print(f"\nRunning two-step inference for matched seniors ...")
+print("\nRunning two-step inference for matched seniors ...")
 
 results        = []
 not_in_baseline = 0
@@ -364,7 +364,7 @@ if inference_errors > 0:
     print(f"  ⚠️  Inference errors: {inference_errors}")
 
 if mismatches:
-    print(f"\nCluster mismatches (showing up to 20):")
+    print("\nCluster mismatches (showing up to 20):")
     for r in mismatches[:20]:
         borderline = " [borderline]" if r["composite_delta"] < 0.05 else ""
         print(f"  Senior #{r['senior_id']:>4d}  {r['name'][:24]:<24}"

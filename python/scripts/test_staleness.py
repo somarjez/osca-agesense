@@ -22,7 +22,8 @@ Usage:
   python/venv/Scripts/python.exe python/scripts/test_staleness.py
 """
 
-import os, sys
+import os
+import sys
 from pathlib import Path
 from typing import Optional
 

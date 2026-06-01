@@ -14,11 +14,11 @@ Covers:
   7. Modified asset_weights.json changes relevant scoring output at runtime.
 """
 
-import os
-import sys
-import json
 import copy
+import json
+import os
 import shutil
+import sys
 import tempfile
 
 # Ensure python/services is on the path so module imports resolve correctly.
@@ -97,8 +97,8 @@ def _check(name: str, condition: bool, detail: str = "") -> None:
 # Helpers to temporarily redirect MODEL_DIR
 # ---------------------------------------------------------------------------
 def _patch_model_dir(new_dir: str):
-    import preprocess_service
     import inference_service
+    import preprocess_service
     preprocess_service.MODEL_DIR = new_dir
     inference_service.MODEL_DIR  = new_dir
     # Bust lru_caches that depend on MODEL_DIR
@@ -131,8 +131,8 @@ def _original_model_dir():
 # ---------------------------------------------------------------------------
 def test_single_inference():
     print("\n[Test 1] Single combined inference")
-    import preprocess_service
     import inference_service
+    import preprocess_service
     try:
         preprocessed = preprocess_service.preprocess(SAMPLE_SENIOR)
         result = inference_service.infer(preprocessed)
@@ -152,8 +152,6 @@ def test_single_inference():
 # ---------------------------------------------------------------------------
 def test_batch_real_kmeans():
     print("\n[Test 2] Batch inference uses real KMeans when models are available")
-    import preprocess_service
-    import inference_service
     from local_ml_runner import run_batch
 
     # Clear OSCA_BATCH_MODE from a previous run
@@ -213,8 +211,8 @@ def test_missing_asset_weights():
 # ---------------------------------------------------------------------------
 def test_missing_cluster_metadata():
     print("\n[Test 4] Missing cluster_metadata.json does not crash inference")
-    import preprocess_service
     import inference_service
+    import preprocess_service
 
     orig_dir = _original_model_dir()
     tmp = tempfile.mkdtemp()
@@ -242,8 +240,8 @@ def test_missing_cluster_metadata():
 # ---------------------------------------------------------------------------
 def test_cluster_metadata_dynamic():
     print("\n[Test 5] Modified cluster_metadata.json changes cluster name without code changes")
-    import preprocess_service
     import inference_service
+    import preprocess_service
 
     orig_dir = _original_model_dir()
     tmp = tempfile.mkdtemp()
@@ -336,7 +334,7 @@ def test_asset_weights_dynamic():
                f"orig={orig_real:.4f}  modified={mod_real:.4f}")
         _check("modified weight is lower (house & lot -> 0.01)",
                mod_real < orig_real,
-               f"expected mod_real < orig_real")
+               "expected mod_real < orig_real")
     except Exception as exc:
         _check("no exception", False, str(exc))
     finally:

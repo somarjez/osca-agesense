@@ -9,20 +9,19 @@ Usage:
 """
 
 import os
-import sys
 
 # Force single-threaded numba/UMAP so transform() is deterministic across devices
 os.environ.setdefault("NUMBA_THREADING_LAYER", "workqueue")
 os.environ.setdefault("NUMBA_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-import json
-import pickle
-import warnings
-import logging
 import csv
+import json
+import logging
+import pickle
 import re
 import unicodedata
+import warnings
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,7 +41,7 @@ except ImportError:
 
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO)
@@ -673,7 +672,9 @@ NOTEBOOK_RECOMMENDATIONS_CANDIDATES = [
     os.path.join(MODEL_DIR, "predictions", "senior_recommendations_flat.csv"),
     # Fallback: osca_output/ is one level above the project root (BASE_DIR/../)
     os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "predictions", "senior_recommendations_flat.csv")),
-    os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_recommendations_flat.csv")),
+    os.path.abspath(os.path.join(
+        BASE_DIR, "..", "osca_output", "reports", "predictions", "senior_recommendations_flat.csv"
+    )),
 ]
 
 
@@ -967,7 +968,10 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             category = str(row.get("category", "")).strip().lower() or "general"
             risk_level = (row.get("risk_level") or "").strip().upper() or "MODERATE"
             csv_priority = str(row.get("priority", "")).strip().lower()
-            urgency_map = {"immediate": "immediate", "urgent": "urgent", "planned": "planned", "maintenance": "maintenance"}
+            urgency_map = {
+                "immediate": "immediate", "urgent": "urgent",
+                "planned": "planned", "maintenance": "maintenance",
+            }
             urgency = urgency_map.get(csv_priority, _recommendation_urgency(risk_level))
             # v2 enriched fields (present only after notebook rerun with new cell 60)
             rec_code = str(row.get("recommendation_code", "") or "").strip() or None
@@ -1042,8 +1046,10 @@ def _resolve_notebook_cluster_override(
                 abs(candidate.get("overall_wellbeing", 0.0) - _safe_float(section_scores.get("overall_wellbeing"))) +
                 abs(candidate.get("composite_risk", 0.0) - _safe_float(section_scores.get("rule_composite"))) +
                 abs(candidate.get("sec5_eco_stability", 0.0) - _safe_float(section_scores.get("sec5_eco_stability"))) +
-                abs(candidate.get("sec5_real_asset_score", 0.0) - _safe_float(section_scores.get("sec5_real_asset_score"))) +
-                abs(candidate.get("sec5_movable_asset_score", 0.0) - _safe_float(section_scores.get("sec5_movable_asset_score"))) +
+                abs(candidate.get("sec5_real_asset_score", 0.0) -
+                    _safe_float(section_scores.get("sec5_real_asset_score"))) +
+                abs(candidate.get("sec5_movable_asset_score", 0.0) -
+                    _safe_float(section_scores.get("sec5_movable_asset_score"))) +
                 abs(candidate.get("ic_score", 0.0) - _safe_float(who_scores.get("ic_score"))) +
                 abs(candidate.get("env_score", 0.0) - _safe_float(who_scores.get("env_score"))) +
                 abs(candidate.get("func_score", 0.0) - _safe_float(who_scores.get("func_score"))) +
@@ -1240,7 +1246,9 @@ def _health_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1369,7 +1377,9 @@ def _financial_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1441,7 +1451,9 @@ def _social_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1547,7 +1559,9 @@ def _functional_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1674,7 +1688,9 @@ def _hc_access_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1751,7 +1767,9 @@ def _household_safety_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -1817,7 +1835,9 @@ def _assistive_device_recs(
     seen_codes: set = set()
 
     def _np() -> int:
-        v = _p[0]; _p[0] += 1; return v
+        v = _p[0]
+        _p[0] += 1
+        return v
 
     def _add_rule(code: str, reason: str = None) -> None:
         if code in seen_codes:
@@ -2006,11 +2026,11 @@ def _build_recommendations(
 def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     warnings_list: List[str] = []
 
-    senior_id: Optional[int] = None
+    _senior_id: Optional[int] = None
     _raw_senior_id = preprocessed.get("senior_id") or preprocessed.get("identity", {}).get("senior_id")
     if _raw_senior_id is not None:
         try:
-            senior_id = int(_raw_senior_id)
+            _senior_id = int(_raw_senior_id)
         except (TypeError, ValueError):
             pass
 
@@ -2122,7 +2142,7 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                         row_scaled   = scaler.transform(
                             pd.DataFrame([cluster_row], columns=cluster_input_names)
                         )[0].tolist()
-                        scaled_features = row_scaled
+                        scaled_features = row_scaled  # noqa: F841
                         reducer.transform_seed = 42
                         if getattr(reducer, "_rp_forest", None) is None:
                             reducer.transform_queue_size = 0.0
@@ -2208,9 +2228,15 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
     gbr_env_pred, rfr_env_pred = _dual_predict(gbr_env, rfr_env, ml_features)
     gbr_func_pred, rfr_func_pred = _dual_predict(gbr_func, rfr_func, ml_features)
 
-    ic_fallback = _clip01(_safe_float(section_scores.get("ic_risk"), 1.0 - (_safe_float(who_scores.get("ic_score"), 3.0) - 1.0) / 4.0))
-    env_fallback = _clip01(_safe_float(section_scores.get("env_risk"), 1.0 - (_safe_float(who_scores.get("env_score"), 3.0) - 1.0) / 4.0))
-    func_fallback = _clip01(_safe_float(section_scores.get("func_risk"), 1.0 - (_safe_float(who_scores.get("func_score"), 3.0) - 1.0) / 4.0))
+    ic_fallback = _clip01(_safe_float(
+        section_scores.get("ic_risk"), 1.0 - (_safe_float(who_scores.get("ic_score"), 3.0) - 1.0) / 4.0
+    ))
+    env_fallback = _clip01(_safe_float(
+        section_scores.get("env_risk"), 1.0 - (_safe_float(who_scores.get("env_score"), 3.0) - 1.0) / 4.0
+    ))
+    func_fallback = _clip01(_safe_float(
+        section_scores.get("func_risk"), 1.0 - (_safe_float(who_scores.get("func_score"), 3.0) - 1.0) / 4.0
+    ))
 
     if gbr_ic_pred is None and rfr_ic_pred is None:
         warnings_list.append("IC ML models unavailable/incompatible; fallback score used.")

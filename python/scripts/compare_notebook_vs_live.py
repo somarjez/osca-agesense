@@ -19,8 +19,11 @@ Saves full report to:
     python\\scripts\\audit_output\\notebook_vs_live_report.txt
 """
 
-import os, sys, csv
+import csv
+import os
+import sys
 from collections import Counter
+
 import pymysql
 import pymysql.cursors
 
@@ -198,7 +201,8 @@ for cid in ["1", "2", "3"]:
     ok     = abs(diff) <= 5
     if not ok:
         dist_ok = False
-    print(f"  C{cid} · {NOTEBOOK_TARGET[cid]['name']:<33}  {target:>8}  {actual:>6}  {diff:>+5}  {'OK' if ok else 'MISMATCH'}")
+    status = "OK" if ok else "MISMATCH"
+    print(f"  C{cid} · {NOTEBOOK_TARGET[cid]['name']:<33}  {target:>8}  {actual:>6}  {diff:>+5}  {status}")
 
 # ── Risk distribution ──────────────────────────────────────────────────────────
 risk_counter = Counter(str(db_rows[k]["lv_risk"] or "").lower() for k in matched_keys)
@@ -263,7 +267,10 @@ for cid in ["1","2","3"]:
     lines.append(f"  C{cid}: target={t}  actual={a}  diff={a-t:+d}")
 lines += ["", f"CLUSTER MISMATCHES ({len(cluster_mismatches)})"]
 for m in cluster_mismatches:
-    lines.append(f"  {m['name']}: NB=C{m['nb_cluster']} ({m['nb_risk']}, {m['nb_comp']:.3f}) -> LV=C{m['lv_cluster']} ({m['lv_risk']}, {m['lv_comp']:.3f})")
+    lines.append(
+        f"  {m['name']}: NB=C{m['nb_cluster']} ({m['nb_risk']}, {m['nb_comp']:.3f})"
+        f" -> LV=C{m['lv_cluster']} ({m['lv_risk']}, {m['lv_comp']:.3f})"
+    )
 lines += ["", f"RISK MISMATCHES ({len(risk_mismatches)})"]
 for m in risk_mismatches:
     lines.append(f"  {m['name']}: NB={m['nb_risk']} ({m['nb_comp']:.3f}) -> LV={m['lv_risk']} ({m['lv_comp']:.3f})")
