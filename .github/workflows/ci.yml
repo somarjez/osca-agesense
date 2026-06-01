@@ -3,12 +3,25 @@ name: ci
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - '.claude/**'
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [main, develop]
+    paths-ignore:
+      - '.claude/**'
+      - 'docs/**'
+      - '**.md'
 
+# One run per ref; cancel stale runs when a new push arrives.
+# Include github.sha so a PR's first-open double-fire doesn't self-cancel.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ── PHP checks ────────────────────────────────────────────────────────────
