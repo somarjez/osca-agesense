@@ -204,7 +204,8 @@ The coordinates in the table are Barangay Hall centers. Health Centers and Churc
 
 - Remove both values from `HEATMAP_MODES` set
 - Remove their entries from `heatmapLabels`, `heatmapWeight()`, `heatmapGradient()`, `heatmapRadiusMeters()`, `heatmapPixelOptions()`, `heatmapNormalization()`
-- Remove now-unused gradient constants: `RISK_HEATMAP_GRADIENT`, `RISK_DISTRIBUTION_RAMP`
+- Remove `RISK_HEATMAP_GRADIENT` — becomes dead code once `density-heatmap` and `risk-heatmap` are removed (the only remaining mode reaching `buildHeatmapLayer` is `accessibility-heatmap`, which has its own inline gradient in `heatmapGradient()`). Remove the dead fallback line from `heatmapGradient()` too.
+- Keep `RISK_DISTRIBUTION_RAMP` — still used by `buildRiskDistributionRasterLayer()` for the `risk-indicator-heatmap` main mode and its KDE overlay.
 - Update legend label map to match renamed modes
 
 ### KDE Overlay Checkboxes
