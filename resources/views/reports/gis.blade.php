@@ -105,12 +105,10 @@
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
                         <option value="markers">Senior Distribution Points</option>
-                        <option value="density-heatmap">Barangay-Level Senior Heatmap</option>
-                        <option value="risk-heatmap">Generalized Barangay-Based Heatmap</option>
-                        <option value="accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
+                        <option value="accessibility-heatmap">Accessibility Heatmap</option>
                         <option value="barangay-density">Barangay Density View</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
-                        <option value="cluster-heatmap">Health Group Cluster Distribution</option>
+                        <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -218,18 +216,10 @@
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
     const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
     const HEATMAP_MODES = new Set([
-        'density-heatmap',
-        'risk-heatmap',
         'accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
     ]);
-    const RISK_HEATMAP_GRADIENT = {
-        0.12: '#22c55e',
-        0.48: '#facc15',
-        0.76: '#fb923c',
-        1.00: '#ef4444',
-    };
     // Rich sequential ramp for the Risk Distribution raster-KDE surface so it
     // renders with the same smooth typhoon look as the cluster heatmap:
     // green (low risk) -> lime -> yellow -> orange -> red -> deep red (highest).
@@ -618,11 +608,9 @@
         }
 
         const heatmapLabels = {
-            'density-heatmap': ['Barangay-Level Senior Heatmap', 'Low concentration', 'High concentration'],
-            'risk-heatmap': ['Generalized Barangay-Based Heatmap', 'Low risk intensity', 'High risk intensity'],
-            'accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
-            'cluster-heatmap': ['Health Group Cluster Distribution', 'Assigned group color', 'Stronger local concentration'],
+            'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
         const heatmapLabel = heatmapLabels[mode];
         const gradient = 'linear-gradient(90deg,#22c55e 0%,#facc15 48%,#fb923c 76%,#ef4444 100%)';
@@ -950,15 +938,6 @@
 
     function heatmapWeight(feature, mode) {
         const props = feature.properties || {};
-
-        if (mode === 'density-heatmap') {
-            return seniorCount(feature);
-        }
-
-        if (mode === 'risk-heatmap') {
-            const count = seniorCount(feature);
-            return count > 0 ? clampUnit((numericValue(props.high_risk_count) ?? 0) / count) : null;
-        }
 
         if (mode === 'accessibility-heatmap') {
             return accessibilityNeedWeight(props);
@@ -1326,12 +1305,8 @@
     function heatmapRadiusMeters(features, mode) {
         const spacingRadius = nearestNeighborDistanceMeters(features);
         const boundaryRadius = boundaryRadiusMeters();
-        const fallbackRadius = mode === 'density-heatmap' ? 360 : (mode === 'cluster-heatmap' ? 300 : 260);
+        const fallbackRadius = mode === 'cluster-heatmap' ? 300 : 260;
         const derivedRadius = median([spacingRadius ? spacingRadius * 1.35 : null, boundaryRadius, fallbackRadius]);
-
-        if (mode === 'density-heatmap') {
-            return Math.max(220, Math.min(720, derivedRadius ?? fallbackRadius));
-        }
 
         if (mode === 'accessibility-heatmap') {
             return Math.max(180, Math.min(560, derivedRadius ?? fallbackRadius));
@@ -1375,10 +1350,6 @@
     }
 
     function heatmapMaxIntensity(points, mode) {
-        if (mode === 'density-heatmap') {
-            return Math.max(1, ...points.map((point) => Number(point[2]) || 0));
-        }
-
         return 1;
     }
 
@@ -2458,16 +2429,12 @@
             return CLUSTER_HEATMAP_GRADIENT;
         }
 
-        if (mode === 'accessibility-heatmap') {
-            return {
-                0.15: '#10b981',
-                0.45: '#facc15',
-                0.72: '#fb923c',
-                1.00: '#ef4444',
-            };
-        }
-
-        return RISK_HEATMAP_GRADIENT;
+        return {
+            0.15: '#10b981',
+            0.45: '#facc15',
+            0.72: '#fb923c',
+            1.00: '#ef4444',
+        };
     }
 
     function singleColorGradient(color) {
