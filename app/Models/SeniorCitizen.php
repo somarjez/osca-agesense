@@ -119,6 +119,11 @@ class SeniorCitizen extends Model
         return $this->hasMany(SeniorAccessibilityMetric::class);
     }
 
+    public function facilityRouteDistances(): HasMany
+    {
+        return $this->hasMany(SeniorFacilityRouteDistance::class);
+    }
+
     public function accessibilityMetric(): HasOne
     {
         return $this->hasOne(SeniorAccessibilityMetric::class);
