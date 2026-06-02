@@ -95,4 +95,17 @@ class GisApiCachingTest extends TestCase
             . implode('; ', array_column($seniorQueries, 'query'))
         );
     }
+
+    #[Test]
+    public function geocode_dispatch_busts_seniors_geojson_cache(): void
+    {
+        Cache::put('gis.seniors_geojson', ['dummy' => true], now()->addMinutes(5));
+        $this->assertTrue(Cache::has('gis.seniors_geojson'));
+
+        $this->actingAs($this->admin)
+            ->post(route('reports.gis.geocode'))
+            ->assertRedirect();
+
+        $this->assertFalse(Cache::has('gis.seniors_geojson'));
+    }
 }
