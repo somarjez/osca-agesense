@@ -8,6 +8,7 @@ use App\Models\SeniorFacilityRouteFailure;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CacheGisRouteDistances extends Command
 {
@@ -45,7 +46,7 @@ class CacheGisRouteDistances extends Command
         $facilityGeoJson = $controller->facilities()->getData(true);
         $seniorFeatures = $seniorGeoJson['features'] ?? [];
         $facilityFeatures = $facilityGeoJson['features'] ?? [];
-        $seniorLimit = $this->option('seniors') ? (int) $this->option('seniors') : null;
+        $seniorLimit = $this->option('seniors') !== null ? (int) $this->option('seniors') : null;
         $facilityLimit = max(1, (int) $this->option('facilities'));
         $maxRequestsOption = $this->option('max-requests');
         $maxRequests = $maxRequestsOption === null || $maxRequestsOption === ''
@@ -67,7 +68,7 @@ class CacheGisRouteDistances extends Command
             }
         }
 
-        if ($seniorLimit) {
+        if ($seniorLimit !== null) {
             $seniorFeatures = array_slice($seniorFeatures, 0, $seniorLimit);
         }
 
@@ -181,14 +182,11 @@ class CacheGisRouteDistances extends Command
                     $cachedRoutes++;
                 } catch (\Throwable $exception) {
                     $failed++;
-                    if ($this->isRateLimitOrApiError($exception)) {
+                    if ($this->isOpenRouteServiceLimitError($exception)) {
                         $rateLimitOrApiErrors++;
-                    }
-                    if ($this->isOpenRouteServiceLimitError($exception)
-                        && $stopAfterRateLimits > 0
-                        && $rateLimitOrApiErrors >= $stopAfterRateLimits
-                    ) {
-                        $hitRequestCap = true;
+                        if ($stopAfterRateLimits > 0 && $rateLimitOrApiErrors >= $stopAfterRateLimits) {
+                            $hitRequestCap = true;
+                        }
                     }
                     if ($this->isPermanentRouteFailure($exception)) {
                         $this->storeRouteFailure($seniorId, $facilityId, $origin, $destination, $exception);
@@ -426,6 +424,7 @@ class CacheGisRouteDistances extends Command
 
         if (filter_var(config('services.openrouteservice.verify_ssl', true), FILTER_VALIDATE_BOOLEAN) === false) {
             $this->warn('WARNING: OPENROUTESERVICE_VERIFY_SSL=false is enabled. Use this only for local development; production should use SSL verification or OPENROUTESERVICE_CA_BUNDLE.');
+            Log::warning('gis:cache-route-distances: SSL certificate verification is disabled via OPENROUTESERVICE_VERIFY_SSL=false.');
 
             return false;
         }
