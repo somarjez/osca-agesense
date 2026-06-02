@@ -243,14 +243,6 @@ class ProfileSurvey extends Component
         $this->religion = $s->religion ?? '';
         $this->ethnicOrigin = $s->ethnic_origin ?? '';
         $this->bloodType = $s->blood_type ?? '';
-        if ($this->hasValidCoordinatePair($s->latitude, $s->longitude)) {
-            $this->latitude = (string) $s->latitude;
-            $this->longitude = (string) $s->longitude;
-        } else {
-            $this->latitude = null;
-            $this->longitude = null;
-        }
-        $this->locationPinTouched = false;
         $this->numChildren = $s->num_children;
         $this->numWorkingChildren = $s->num_working_children;
         $this->childFinancialSupport = $s->child_financial_support ?? '';
