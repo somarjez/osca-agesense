@@ -19,6 +19,7 @@ class GeocodeSeniors extends Command
     private const MUNICIPAL_CENTER = [14.2708, 121.4560];
 
     private ?array $barangayFeatures = null;
+
     private ?array $municipalFeatures = null;
 
     public function handle(): int
@@ -61,8 +62,8 @@ class GeocodeSeniors extends Command
         $invalidBarangays = [];
 
         $this->info('GIS barangay-level geocoding');
-        $this->line('Dry run: ' . ($dryRun ? 'yes' : 'no'));
-        $this->line('Force generated coordinates: ' . ($force ? 'yes' : 'no'));
+        $this->line('Dry run: '.($dryRun ? 'yes' : 'no'));
+        $this->line('Force generated coordinates: '.($force ? 'yes' : 'no'));
         if ($barangay) {
             $this->line("Barangay filter: {$barangay}");
         }
@@ -77,24 +78,28 @@ class GeocodeSeniors extends Command
 
                 if ($this->isVerifiedCoordinate($senior)) {
                     $stats['skipped_verified']++;
+
                     continue;
                 }
 
                 $hasValidCoordinates = $this->hasValidCoordinates($senior->latitude, $senior->longitude);
-                if ($hasValidCoordinates && !$force) {
+                if ($hasValidCoordinates && ! $force) {
                     $stats['skipped_existing']++;
+
                     continue;
                 }
 
-                if ($hasValidCoordinates && $force && !$this->isGeneratedCoordinate($senior)) {
+                if ($hasValidCoordinates && $force && ! $this->isGeneratedCoordinate($senior)) {
                     $stats['skipped_existing']++;
+
                     continue;
                 }
 
                 $result = $this->coordinatesForSenior($senior);
-                if (!$result) {
+                if (! $result) {
                     $stats['skipped_missing_barangay_data']++;
                     $invalidBarangays[$senior->barangay ?: '(blank)'] = true;
+
                     continue;
                 }
 
@@ -105,7 +110,7 @@ class GeocodeSeniors extends Command
 
                 $stats['updated']++;
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $senior->forceFill([
                         'latitude' => $result['latitude'],
                         'longitude' => $result['longitude'],
@@ -138,10 +143,10 @@ class GeocodeSeniors extends Command
         );
 
         if ($invalidBarangays) {
-            $this->warn('Invalid or missing barangay data: ' . implode(', ', array_keys($invalidBarangays)));
+            $this->warn('Invalid or missing barangay data: '.implode(', ', array_keys($invalidBarangays)));
         }
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             Storage::disk('local')->put('gis/geocode_status.json', json_encode([
                 'last_run_at' => now()->toIso8601String(),
                 'checked' => $stats['checked'],
@@ -191,7 +196,7 @@ class GeocodeSeniors extends Command
             ];
         }
 
-        if (!$senior->barangay) {
+        if (! $senior->barangay) {
             return [
                 'latitude' => self::MUNICIPAL_CENTER[0],
                 'longitude' => self::MUNICIPAL_CENTER[1],
@@ -297,7 +302,7 @@ class GeocodeSeniors extends Command
 
     private function geoJsonFeatures(string $path): array
     {
-        if (!Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             return [];
         }
 
@@ -313,16 +318,16 @@ class GeocodeSeniors extends Command
         $rings = $this->polygonRings($feature);
         $bounds = $this->coordinateBounds($rings);
 
-        if (!$rings || !$bounds) {
+        if (! $rings || ! $bounds) {
             return null;
         }
 
         [$minLng, $minLat, $maxLng, $maxLat] = $bounds;
 
         for ($attempt = 0; $attempt < 160; $attempt++) {
-            $hash = md5($seed . '|barangay-geocode|' . $attempt);
-            $lngRatio = hexdec(substr($hash, 0, 8)) / 0xffffffff;
-            $latRatio = hexdec(substr($hash, 8, 8)) / 0xffffffff;
+            $hash = md5($seed.'|barangay-geocode|'.$attempt);
+            $lngRatio = hexdec(substr($hash, 0, 8)) / 0xFFFFFFFF;
+            $latRatio = hexdec(substr($hash, 8, 8)) / 0xFFFFFFFF;
             $lng = $minLng + (($maxLng - $minLng) * $lngRatio);
             $lat = $minLat + (($maxLat - $minLat) * $latRatio);
             $point = [$lng, $lat];
@@ -338,7 +343,7 @@ class GeocodeSeniors extends Command
     private function representativePoint(array $feature): ?array
     {
         $rings = $this->polygonRings($feature);
-        if (!$rings || !isset($rings[0])) {
+        if (! $rings || ! isset($rings[0])) {
             return null;
         }
 
@@ -360,7 +365,7 @@ class GeocodeSeniors extends Command
     private function pointInsidePagsanjan(array $latLng): bool
     {
         $features = $this->municipalFeatures();
-        if (!$features) {
+        if (! $features) {
             return true;
         }
 
@@ -397,7 +402,7 @@ class GeocodeSeniors extends Command
             $largestArea = -1.0;
 
             foreach ($coordinates as $polygon) {
-                if (!is_array($polygon) || !isset($polygon[0]) || !is_array($polygon[0])) {
+                if (! is_array($polygon) || ! isset($polygon[0]) || ! is_array($polygon[0])) {
                     continue;
                 }
 
@@ -421,7 +426,7 @@ class GeocodeSeniors extends Command
 
         foreach ($rings as $ring) {
             foreach ($ring as $coordinate) {
-                if (!is_array($coordinate) || count($coordinate) < 2) {
+                if (! is_array($coordinate) || count($coordinate) < 2) {
                     continue;
                 }
 
@@ -437,7 +442,7 @@ class GeocodeSeniors extends Command
 
     private function pointInsideRings(array $point, array $rings): bool
     {
-        if (!$rings || !$this->pointInsideRing($point, $rings[0])) {
+        if (! $rings || ! $this->pointInsideRing($point, $rings[0])) {
             return false;
         }
 
@@ -458,7 +463,7 @@ class GeocodeSeniors extends Command
         $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (!is_array($ring[$i]) || !is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
+            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
                 continue;
             }
 
@@ -471,7 +476,7 @@ class GeocodeSeniors extends Command
                 && ($x < (($xj - $xi) * ($y - $yi)) / (($yj - $yi) ?: PHP_FLOAT_EPSILON) + $xi);
 
             if ($intersects) {
-                $inside = !$inside;
+                $inside = ! $inside;
             }
         }
 
@@ -484,7 +489,7 @@ class GeocodeSeniors extends Command
         $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (!is_array($ring[$i]) || !is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
+            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
                 continue;
             }
 
@@ -501,7 +506,7 @@ class GeocodeSeniors extends Command
         $count = 0;
 
         foreach ($ring as $coordinate) {
-            if (!is_array($coordinate) || count($coordinate) < 2) {
+            if (! is_array($coordinate) || count($coordinate) < 2) {
                 continue;
             }
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Surveys;
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
 
@@ -48,8 +49,11 @@ class ProfileSurvey extends Component
     public string $ethnicOrigin = '';
 
     public string $bloodType = '';
+
     public ?string $latitude = null;
+
     public ?string $longitude = null;
+
     public bool $locationPinTouched = false;
 
     // ── II. Family Composition ────────────────────────────────────────────────
@@ -194,7 +198,7 @@ class ProfileSurvey extends Component
             $data['latitude'] = round((float) $this->latitude, 7);
             $data['longitude'] = round((float) $this->longitude, 7);
 
-            if ($this->locationPinTouched || !$this->senior?->location_source) {
+            if ($this->locationPinTouched || ! $this->senior?->location_source) {
                 $data['location_source'] = 'manual_pin';
                 $data['location_accuracy'] = 'verified/manual';
                 $data['location_verified_at'] = now();
@@ -301,7 +305,7 @@ class ProfileSurvey extends Component
         $hasLatitude = $this->latitude !== null && $this->latitude !== '';
         $hasLongitude = $this->longitude !== null && $this->longitude !== '';
 
-        if (!$hasLatitude && !$hasLongitude) {
+        if (! $hasLatitude && ! $hasLongitude) {
             return;
         }
 
@@ -310,21 +314,21 @@ class ProfileSurvey extends Component
             'longitude' => 'required|numeric|between:-180,180',
         ]);
 
-        if (!$this->hasUsableLocationPin()) {
+        if (! $this->hasUsableLocationPin()) {
             $message = 'Click inside Pagsanjan to set a valid verified location pin.';
             $this->addError('latitude', $message);
             $this->addError('longitude', $message);
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'latitude' => $message,
                 'longitude' => $message,
             ]);
         }
 
-        if (!$this->pointIsInsidePagsanjan((float) $this->longitude, (float) $this->latitude)) {
+        if (! $this->pointIsInsidePagsanjan((float) $this->longitude, (float) $this->latitude)) {
             $message = 'Selected location must be inside the Pagsanjan municipal boundary.';
             $this->addError('latitude', $message);
             $this->addError('longitude', $message);
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'latitude' => $message,
                 'longitude' => $message,
             ]);
@@ -359,12 +363,12 @@ class ProfileSurvey extends Component
     private function pointIsInsidePagsanjan(float $longitude, float $latitude): bool
     {
         $path = 'gis/boundaries/pagsanjan_boundary.geojson';
-        if (!Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             return true;
         }
 
         $geoJson = json_decode(Storage::disk('local')->get($path), true);
-        if (!is_array($geoJson) || !isset($geoJson['features']) || !is_array($geoJson['features'])) {
+        if (! is_array($geoJson) || ! isset($geoJson['features']) || ! is_array($geoJson['features'])) {
             return true;
         }
 
@@ -390,11 +394,11 @@ class ProfileSurvey extends Component
 
     private function pointInPolygon(array $point, mixed $polygonCoordinates): bool
     {
-        if (!is_array($polygonCoordinates) || !isset($polygonCoordinates[0]) || !is_array($polygonCoordinates[0])) {
+        if (! is_array($polygonCoordinates) || ! isset($polygonCoordinates[0]) || ! is_array($polygonCoordinates[0])) {
             return false;
         }
 
-        if (!$this->pointInRing($point, $polygonCoordinates[0])) {
+        if (! $this->pointInRing($point, $polygonCoordinates[0])) {
             return false;
         }
 
@@ -422,7 +426,7 @@ class ProfileSurvey extends Component
                 && ($point[0] < (($xj - $xi) * ($point[1] - $yi)) / (($yj - $yi) ?: PHP_FLOAT_EPSILON) + $xi);
 
             if ($intersects) {
-                $inside = !$inside;
+                $inside = ! $inside;
             }
         }
 

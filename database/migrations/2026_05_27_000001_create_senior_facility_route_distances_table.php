@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('senior_facility_route_distances')) {
+        if (! Schema::hasTable('senior_facility_route_distances')) {
             Schema::create('senior_facility_route_distances', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('senior_citizen_id')->constrained('senior_citizens')->cascadeOnDelete();
@@ -30,7 +30,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('senior_facility_route_failures')) {
+        if (! Schema::hasTable('senior_facility_route_failures')) {
             Schema::create('senior_facility_route_failures', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('senior_citizen_id')->constrained('senior_citizens')->cascadeOnDelete();

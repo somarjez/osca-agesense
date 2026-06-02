@@ -10,6 +10,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -64,13 +65,15 @@ class ReportController extends Controller
         $missing = 0;
 
         foreach ($seniors as $senior) {
-            if (!$this->hasValidGisCoordinates($senior->latitude, $senior->longitude)) {
+            if (! $this->hasValidGisCoordinates($senior->latitude, $senior->longitude)) {
                 $missing++;
+
                 continue;
             }
 
             if ($this->isVerifiedGisCoordinate($senior->location_source, $senior->location_accuracy)) {
                 $verified++;
+
                 continue;
             }
 
@@ -99,19 +102,19 @@ class ReportController extends Controller
     private function lastGisGeocodeRunAt(): ?string
     {
         $path = 'gis/geocode_status.json';
-        if (!Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             return null;
         }
 
         $decoded = json_decode(Storage::disk('local')->get($path), true);
         $lastRunAt = $decoded['last_run_at'] ?? null;
 
-        if (!$lastRunAt) {
+        if (! $lastRunAt) {
             return null;
         }
 
         try {
-            return \Carbon\Carbon::parse($lastRunAt)->timezone(config('app.timezone'))->format('M j, Y g:i A');
+            return Carbon::parse($lastRunAt)->timezone(config('app.timezone'))->format('M j, Y g:i A');
         } catch (\Throwable) {
             return null;
         }
@@ -450,13 +453,10 @@ class ReportController extends Controller
     {
         $query = SeniorCitizen::active()
             ->with(['latestMlResult', 'latestAccessibilityMetric'])
-            ->when($request->filled('barangay') && $request->barangay !== 'all', fn ($q) =>
-                $q->where('barangay', $request->barangay)
+            ->when($request->filled('barangay') && $request->barangay !== 'all', fn ($q) => $q->where('barangay', $request->barangay)
             )
-            ->when($request->filled('risk') && $request->risk !== 'all', fn ($q) =>
-                $q->whereHas('latestMlResult', fn ($ml) =>
-                    $ml->where('overall_risk_level', strtoupper((string) $request->risk))
-                )
+            ->when($request->filled('risk') && $request->risk !== 'all', fn ($q) => $q->whereHas('latestMlResult', fn ($ml) => $ml->where('overall_risk_level', strtoupper((string) $request->risk))
+            )
             )
             ->when($request->filled('cluster') && $request->cluster !== 'all', function ($q) use ($request) {
                 $cluster = (string) $request->cluster;
@@ -464,13 +464,13 @@ class ReportController extends Controller
 
                 $q->whereHas('latestMlResult', function ($ml) use ($cluster, $clusterId) {
                     $ml->when($clusterId, fn ($sub) => $sub->where('cluster_named_id', $clusterId))
-                        ->when(!$clusterId, fn ($sub) => $sub->where('cluster_name', $cluster));
+                        ->when(! $clusterId, fn ($sub) => $sub->where('cluster_name', $cluster));
                 });
             })
             ->orderBy('barangay')
             ->orderBy('osca_id');
 
-        $filename = 'osca_gis_accessibility_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'osca_gis_accessibility_'.now()->format('Ymd_His').'.csv';
 
         $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
@@ -500,7 +500,7 @@ class ReportController extends Controller
                         : null;
 
                     fputcsv($file, [
-                        $senior->osca_id ?: 'SEN-' . str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
+                        $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
                         $senior->barangay,
                         $senior->latitude,
                         $senior->longitude,
@@ -512,7 +512,7 @@ class ReportController extends Controller
                         $metric?->distance_to_pharmacy_m,
                         $metric?->distance_to_barangay_hall_m,
                         $score,
-                        $ml?->cluster_named_id ? 'Group ' . $ml->cluster_named_id : ($ml?->cluster_name ?? 'Unassigned'),
+                        $ml?->cluster_named_id ? 'Group '.$ml->cluster_named_id : ($ml?->cluster_name ?? 'Unassigned'),
                         $ml?->overall_risk_level,
                     ]);
                 }

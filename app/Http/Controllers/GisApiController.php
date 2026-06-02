@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Facility;
-use App\Models\SeniorFacilityRouteFailure;
-use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorCitizen;
+use App\Models\SeniorFacilityRouteDistance;
+use App\Models\SeniorFacilityRouteFailure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -43,7 +43,7 @@ class GisApiController extends Controller
         foreach ($seniors as $senior) {
             $boundaryFeature = $this->barangayBoundaryFeature((string) $senior->barangay);
 
-            if (!$boundaryFeature) {
+            if (! $boundaryFeature) {
                 continue;
             }
 
@@ -54,7 +54,7 @@ class GisApiController extends Controller
             $point = [$coordinates[0], $coordinates[1]];
             $locationStatus = $coordinates[2];
 
-            if (!$point) {
+            if (! $point) {
                 continue;
             }
 
@@ -66,7 +66,7 @@ class GisApiController extends Controller
                 : 'Unknown';
             $clusterId = $latestResult?->cluster_named_id ?? $latestResult?->cluster_id;
             $cluster = $latestResult?->cluster_named_id
-                ? 'Group ' . $latestResult->cluster_named_id
+                ? 'Group '.$latestResult->cluster_named_id
                 : ($latestResult?->cluster_name ?: 'Unassigned');
             $accessibilityScore = $accessibilityMetric?->accessibility_score !== null
                 ? (float) $accessibilityMetric->accessibility_score
@@ -214,7 +214,7 @@ class GisApiController extends Controller
 
         $apiKey = env('OPENROUTESERVICE_API_KEY');
 
-        if (!$apiKey) {
+        if (! $apiKey) {
             return response()->json([
                 'message' => 'OpenRouteService API key is not configured.',
             ], 503);
@@ -223,7 +223,7 @@ class GisApiController extends Controller
         try {
             $verify = $this->openRouteServiceVerifyOption();
         } catch (\Throwable $exception) {
-            Log::warning('GIS OpenRouteService SSL configuration error: ' . $exception->getMessage());
+            Log::warning('GIS OpenRouteService SSL configuration error: '.$exception->getMessage());
 
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -254,14 +254,14 @@ class GisApiController extends Controller
                 'instructions' => false,
             ]);
         } catch (\Throwable $exception) {
-            Log::warning('GIS OpenRouteService connection error: ' . $exception->getMessage());
+            Log::warning('GIS OpenRouteService connection error: '.$exception->getMessage());
 
             return response()->json([
                 'message' => $this->openRouteServiceFailureMessage($exception),
             ], 502);
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             $orsMessage = $this->openRouteServiceErrorMessage($response->json());
             Log::warning('GIS OpenRouteService route request failed.', [
                 'status' => $response->status(),
@@ -278,7 +278,7 @@ class GisApiController extends Controller
 
         $summary = $response->json('routes.0.summary');
 
-        if (!is_array($summary) || !isset($summary['distance'])) {
+        if (! is_array($summary) || ! isset($summary['distance'])) {
             $this->storeRouteFailure($validated, 502, 'OpenRouteService returned no usable route.');
 
             return response()->json([
@@ -308,7 +308,7 @@ class GisApiController extends Controller
             ->where('facility_id', $validated['facility_id'])
             ->first();
 
-        if (!$failure || !$this->routeCacheCoordinatesMatch($validated, $failure)) {
+        if (! $failure || ! $this->routeCacheCoordinatesMatch($validated, $failure)) {
             return null;
         }
 
@@ -333,11 +333,11 @@ class GisApiController extends Controller
             ->where('facility_id', $validated['facility_id'])
             ->first();
 
-        if (!$route) {
+        if (! $route) {
             return null;
         }
 
-        if (!$this->routeCacheCoordinatesMatch($validated, $route)) {
+        if (! $this->routeCacheCoordinatesMatch($validated, $route)) {
             return null;
         }
 
@@ -428,7 +428,7 @@ class GisApiController extends Controller
     {
         $caBundle = trim((string) env('OPENROUTESERVICE_CA_BUNDLE', ''));
         if ($caBundle !== '') {
-            if (!is_file($caBundle) || !is_readable($caBundle)) {
+            if (! is_file($caBundle) || ! is_readable($caBundle)) {
                 throw new \RuntimeException("OPENROUTESERVICE_CA_BUNDLE is set but the file does not exist or is not readable: {$caBundle}");
             }
 
@@ -437,6 +437,7 @@ class GisApiController extends Controller
 
         if (filter_var(env('OPENROUTESERVICE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) === false) {
             Log::warning('OPENROUTESERVICE_VERIFY_SSL=false is enabled for GIS OpenRouteService requests. Use this only for local development.');
+
             return false;
         }
 
@@ -479,7 +480,7 @@ class GisApiController extends Controller
         }
 
         if (str_contains($message, 'cURL error')) {
-            return 'OpenRouteService connection failed: ' . mb_strimwidth($message, 0, 180, '...');
+            return 'OpenRouteService connection failed: '.mb_strimwidth($message, 0, 180, '...');
         }
 
         return 'OpenRouteService route request could not be completed.';
@@ -517,7 +518,7 @@ class GisApiController extends Controller
                 ? ucfirst(strtolower($latestResult->overall_risk_level))
                 : 'Unknown';
             $cluster = $latestResult?->cluster_named_id
-                ? 'Group ' . $latestResult->cluster_named_id
+                ? 'Group '.$latestResult->cluster_named_id
                 : 'Unassigned';
             $accessibilityScore = $accessibilityMetric?->accessibility_score !== null
                 ? (float) $accessibilityMetric->accessibility_score
@@ -570,7 +571,7 @@ class GisApiController extends Controller
 
     private function dominantLabel(array $counts, string $fallback): string
     {
-        if (!$counts) {
+        if (! $counts) {
             return $fallback;
         }
 
@@ -708,12 +709,12 @@ class GisApiController extends Controller
         }
 
         $path = 'gis/boundaries/pagsanjan_barangays.geojson';
-        if (!Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             return $this->barangayBoundaryFeatures = [];
         }
 
         $decoded = json_decode(Storage::disk('local')->get($path), true);
-        if (!is_array($decoded) || !isset($decoded['features']) || !is_array($decoded['features'])) {
+        if (! is_array($decoded) || ! isset($decoded['features']) || ! is_array($decoded['features'])) {
             return $this->barangayBoundaryFeatures = [];
         }
 
@@ -736,7 +737,7 @@ class GisApiController extends Controller
 
     private function representativePointForBoundary(array $feature, string $barangay): ?array
     {
-        $point = $this->deterministicPointInsideBoundary($feature, 'barangay-centroid|' . $barangay);
+        $point = $this->deterministicPointInsideBoundary($feature, 'barangay-centroid|'.$barangay);
 
         if ($point) {
             return $point;
@@ -751,21 +752,21 @@ class GisApiController extends Controller
     private function deterministicPointInsideBoundary(array $feature, string $seed): ?array
     {
         $rings = $this->polygonRings($feature);
-        if (!$rings) {
+        if (! $rings) {
             return null;
         }
 
         $bounds = $this->coordinateBounds($rings);
-        if (!$bounds) {
+        if (! $bounds) {
             return null;
         }
 
         [$minLng, $minLat, $maxLng, $maxLat] = $bounds;
 
         for ($attempt = 0; $attempt < 120; $attempt++) {
-            $hash = md5($seed . '|' . $attempt);
-            $lngRatio = hexdec(substr($hash, 0, 8)) / 0xffffffff;
-            $latRatio = hexdec(substr($hash, 8, 8)) / 0xffffffff;
+            $hash = md5($seed.'|'.$attempt);
+            $lngRatio = hexdec(substr($hash, 0, 8)) / 0xFFFFFFFF;
+            $latRatio = hexdec(substr($hash, 8, 8)) / 0xFFFFFFFF;
             $lng = $minLng + (($maxLng - $minLng) * $lngRatio);
             $lat = $minLat + (($maxLat - $minLat) * $latRatio);
 
@@ -803,7 +804,7 @@ class GisApiController extends Controller
             $largestArea = -1.0;
 
             foreach ($coordinates as $polygon) {
-                if (!is_array($polygon) || !isset($polygon[0]) || !is_array($polygon[0])) {
+                if (! is_array($polygon) || ! isset($polygon[0]) || ! is_array($polygon[0])) {
                     continue;
                 }
 
@@ -827,7 +828,7 @@ class GisApiController extends Controller
 
         foreach ($rings as $ring) {
             foreach ($ring as $coordinate) {
-                if (!is_array($coordinate) || count($coordinate) < 2) {
+                if (! is_array($coordinate) || count($coordinate) < 2) {
                     continue;
                 }
 
@@ -836,7 +837,7 @@ class GisApiController extends Controller
             }
         }
 
-        if (!$lngValues || !$latValues) {
+        if (! $lngValues || ! $latValues) {
             return null;
         }
 
@@ -845,7 +846,7 @@ class GisApiController extends Controller
 
     private function pointInsideRings(array $point, array $rings): bool
     {
-        if (!$rings || !$this->pointInsideRing($point, $rings[0])) {
+        if (! $rings || ! $this->pointInsideRing($point, $rings[0])) {
             return false;
         }
 
@@ -866,7 +867,7 @@ class GisApiController extends Controller
         $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (!is_array($ring[$i]) || !is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
+            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
                 continue;
             }
 
@@ -879,7 +880,7 @@ class GisApiController extends Controller
                 && ($x < (($xj - $xi) * ($y - $yi)) / (($yj - $yi) ?: PHP_FLOAT_EPSILON) + $xi);
 
             if ($intersects) {
-                $inside = !$inside;
+                $inside = ! $inside;
             }
         }
 
@@ -892,7 +893,7 @@ class GisApiController extends Controller
         $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (!is_array($ring[$i]) || !is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
+            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
                 continue;
             }
 
@@ -909,7 +910,7 @@ class GisApiController extends Controller
         $count = 0;
 
         foreach ($ring as $coordinate) {
-            if (!is_array($coordinate) || count($coordinate) < 2) {
+            if (! is_array($coordinate) || count($coordinate) < 2) {
                 continue;
             }
 
@@ -996,7 +997,7 @@ class GisApiController extends Controller
 
     private function nearestFacilityDistance(mixed $metric): ?float
     {
-        if (!$metric) {
+        if (! $metric) {
             return null;
         }
 
@@ -1011,7 +1012,7 @@ class GisApiController extends Controller
             fn ($distance) => $distance !== null && is_numeric($distance)
         ));
 
-        if (!$validDistances) {
+        if (! $validDistances) {
             return null;
         }
 

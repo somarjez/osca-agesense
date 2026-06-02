@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\GisApiController;
-use App\Models\SeniorFacilityRouteFailure;
 use App\Models\SeniorFacilityRouteDistance;
+use App\Models\SeniorFacilityRouteFailure;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -34,8 +34,9 @@ class CacheGisRouteDistances extends Command
     public function handle(): int
     {
         $apiKey = env('OPENROUTESERVICE_API_KEY');
-        if (!$apiKey && !$this->option('dry-run')) {
+        if (! $apiKey && ! $this->option('dry-run')) {
             $this->error('OPENROUTESERVICE_API_KEY is not configured.');
+
             return self::FAILURE;
         }
 
@@ -56,11 +57,12 @@ class CacheGisRouteDistances extends Command
         $sleepMs = max(0, (int) $this->option('sleep-ms'));
         $orsVerify = true;
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             try {
                 $orsVerify = $this->openRouteServiceVerifyOption();
             } catch (\Throwable $exception) {
                 $this->error($exception->getMessage());
+
                 return self::FAILURE;
             }
         }
@@ -89,7 +91,7 @@ class CacheGisRouteDistances extends Command
             $this->line('Existing cached route pairs will be skipped. New seniors/routes only will be requested.');
         }
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             $this->line("Throttle delay: {$sleepMs} ms after each OpenRouteService request.");
             if ($maxRequests !== null) {
                 $this->line("Request cap: this run will stop after {$maxRequests} OpenRouteService request(s).");
@@ -104,13 +106,13 @@ class CacheGisRouteDistances extends Command
                 break;
             }
 
-
             $seniorId = $seniorFeature['properties']['senior_id'] ?? null;
             $origin = $this->featurePoint($seniorFeature);
 
-            if (!$seniorId || !$origin) {
+            if (! $seniorId || ! $origin) {
                 $skippedInvalid++;
                 $bar->advance();
+
                 continue;
             }
 
@@ -119,8 +121,9 @@ class CacheGisRouteDistances extends Command
                 $facilityId = $candidate['feature']['properties']['facility_id'] ?? null;
                 $destination = $candidate['point'];
 
-                if (!$facilityId) {
+                if (! $facilityId) {
                     $skippedInvalid++;
+
                     continue;
                 }
 
@@ -137,8 +140,9 @@ class CacheGisRouteDistances extends Command
                     ->where('destination_longitude', round($destination['lng'], 7))
                     ->exists();
 
-                if (($hasCachedRoute || $hasCachedFailure) && !$force) {
+                if (($hasCachedRoute || $hasCachedFailure) && ! $force) {
                     $skippedCached++;
+
                     continue;
                 }
 
@@ -228,7 +232,7 @@ class CacheGisRouteDistances extends Command
     private function featurePoint(array $feature): ?array
     {
         $coordinates = $feature['geometry']['coordinates'] ?? null;
-        if (!is_array($coordinates) || count($coordinates) < 2) {
+        if (! is_array($coordinates) || count($coordinates) < 2) {
             return null;
         }
 
@@ -242,7 +246,7 @@ class CacheGisRouteDistances extends Command
     {
         $candidates = array_values(array_filter(array_map(function (array $feature) use ($origin) {
             $point = $this->featurePoint($feature);
-            if (!$point) {
+            if (! $point) {
                 return null;
             }
 
@@ -301,7 +305,7 @@ class CacheGisRouteDistances extends Command
         try {
             return $this->openRouteServiceRouteOnly($apiKey, $origin, $destination, $verify);
         } catch (\Throwable $exception) {
-            if (!$this->shouldFallbackToOsrm($exception)) {
+            if (! $this->shouldFallbackToOsrm($exception)) {
                 throw $exception;
             }
 
@@ -312,7 +316,7 @@ class CacheGisRouteDistances extends Command
                 return $route;
             } catch (\Throwable $fallbackException) {
                 throw new \RuntimeException(
-                    $exception->getMessage() . ' OSRM fallback also failed: ' . $fallbackException->getMessage(),
+                    $exception->getMessage().' OSRM fallback also failed: '.$fallbackException->getMessage(),
                     (int) $exception->getCode(),
                     $exception
                 );
@@ -345,15 +349,15 @@ class CacheGisRouteDistances extends Command
                 'instructions' => false,
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new \RuntimeException(
-                'OpenRouteService failed with HTTP ' . $response->status() . ': ' . $this->openRouteServiceErrorMessage($response->json()),
+                'OpenRouteService failed with HTTP '.$response->status().': '.$this->openRouteServiceErrorMessage($response->json()),
                 $response->status()
             );
         }
 
         $summary = $response->json('routes.0.summary');
-        if (!is_array($summary) || !isset($summary['distance'])) {
+        if (! is_array($summary) || ! isset($summary['distance'])) {
             throw new \RuntimeException('OpenRouteService returned no usable route.');
         }
 
@@ -368,8 +372,8 @@ class CacheGisRouteDistances extends Command
     {
         $baseUrl = rtrim((string) config('services.osrm.base_url', 'https://router.project-osrm.org'), '/');
         $coordinates = implode(';', [
-            $origin['lng'] . ',' . $origin['lat'],
-            $destination['lng'] . ',' . $destination['lat'],
+            $origin['lng'].','.$origin['lat'],
+            $destination['lng'].','.$destination['lat'],
         ]);
         $verify = $this->openRouteServiceVerifyOption();
 
@@ -381,12 +385,12 @@ class CacheGisRouteDistances extends Command
                 'overview' => 'false',
             ]);
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('OSRM failed with HTTP ' . $response->status() . '.');
+        if (! $response->successful()) {
+            throw new \RuntimeException('OSRM failed with HTTP '.$response->status().'.');
         }
 
         $route = $response->json('routes.0');
-        if (!is_array($route) || !isset($route['distance'])) {
+        if (! is_array($route) || ! isset($route['distance'])) {
             throw new \RuntimeException('OSRM returned no usable route.');
         }
 
@@ -413,7 +417,7 @@ class CacheGisRouteDistances extends Command
     {
         $caBundle = trim((string) env('OPENROUTESERVICE_CA_BUNDLE', ''));
         if ($caBundle !== '') {
-            if (!is_file($caBundle) || !is_readable($caBundle)) {
+            if (! is_file($caBundle) || ! is_readable($caBundle)) {
                 throw new \RuntimeException("OPENROUTESERVICE_CA_BUNDLE is set but the file does not exist or is not readable: {$caBundle}");
             }
 
@@ -422,6 +426,7 @@ class CacheGisRouteDistances extends Command
 
         if (filter_var(env('OPENROUTESERVICE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) === false) {
             $this->warn('WARNING: OPENROUTESERVICE_VERIFY_SSL=false is enabled. Use this only for local development; production should use SSL verification or OPENROUTESERVICE_CA_BUNDLE.');
+
             return false;
         }
 
@@ -464,10 +469,10 @@ class CacheGisRouteDistances extends Command
         }
 
         if (str_contains($message, 'cURL error')) {
-            return 'OpenRouteService connection failed: ' . mb_strimwidth($message, 0, 220, '...');
+            return 'OpenRouteService connection failed: '.mb_strimwidth($message, 0, 220, '...');
         }
 
-        return 'OpenRouteService request failed: ' . mb_strimwidth($message, 0, 220, '...');
+        return 'OpenRouteService request failed: '.mb_strimwidth($message, 0, 220, '...');
     }
 
     private function isRateLimitOrApiError(\Throwable $exception): bool
@@ -490,7 +495,7 @@ class CacheGisRouteDistances extends Command
         $code = (int) $exception->getCode();
 
         return in_array($code, [400, 404], true)
-            && !$this->isOpenRouteServiceLimitError($exception);
+            && ! $this->isOpenRouteServiceLimitError($exception);
     }
 
     private function storeRouteFailure(

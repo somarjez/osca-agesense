@@ -62,6 +62,7 @@ class ScoreGisProximity extends Command
 
         if ($seniors->isEmpty()) {
             $this->warn('No active seniors with valid stored coordinates matched the selected filters.');
+
             return self::SUCCESS;
         }
 
@@ -78,7 +79,7 @@ class ScoreGisProximity extends Command
             $payload = $this->scoreSenior($senior, $facilities);
             $scorePercent = round(($payload['accessibility_score'] ?? 0) * 100, 2);
 
-            if (!$dryRun) {
+            if (! $dryRun) {
                 SeniorAccessibilityMetric::updateOrCreate(
                     ['senior_citizen_id' => $senior->id],
                     $payload
