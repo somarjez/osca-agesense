@@ -153,6 +153,7 @@ class ScoreGisProximity extends Command
         $payload = [
             'calculated_at' => now(),
         ];
+        $totalWeight = (float) array_sum(array_column(self::CATEGORY_CONFIG, 'weight'));
         $weightedTotal = 0.0;
         $availableWeight = 0.0;
 
@@ -169,7 +170,7 @@ class ScoreGisProximity extends Command
         }
 
         $payload['accessibility_score'] = $availableWeight > 0
-            ? round($weightedTotal / $availableWeight, 4)
+            ? round($weightedTotal / $totalWeight, 4)
             : null;
 
         return $payload;
