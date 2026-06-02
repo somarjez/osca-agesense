@@ -11,11 +11,11 @@
         ['label' => 'Senior Records', 'href' => route('seniors.index')],
         ['label' => $senior->full_name],
     ]" />
-    <x-page-header
-        eyebrow="Senior Profile"
-        :title="$senior->full_name"
-        :subtitle="'OSCA ID: ' . $senior->osca_id . ' · ' . $senior->barangay"
-    />
+    {{-- Eyebrow only — identity card below carries the name --}}
+    <div class="mb-6">
+        <p class="eyebrow mb-1.5">Senior Profile</p>
+        <div class="page-underrule" aria-hidden="true"></div>
+    </div>
 
     {{-- Top action bar --}}
     <div class="flex items-center gap-3 flex-wrap">
@@ -103,7 +103,7 @@
                 <span class="text-lg font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name,0,1).substr($senior->last_name,0,1)) }}</span>
             </div>
             <div class="flex-1 min-w-0">
-                <div class="font-serif text-[20px] font-semibold text-ink-900 leading-tight">{{ $senior->full_name }}</div>
+                <h1 class="font-serif text-[20px] font-semibold text-ink-900 dark:text-[#e4e1d8] leading-tight">{{ $senior->full_name }}</h1>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[12.5px] text-ink-500">
                     <span class="font-mono tnum">{{ $senior->osca_id }}</span>
                     <span class="text-ink-300">·</span>
@@ -171,65 +171,68 @@
     @endif
 
     @if ($ml && !$pendingAnalysis)
-    <div class="card">
-        <div class="card-body">
-            <div class="flex flex-wrap gap-x-8 gap-y-4 items-start">
+    <div class="card overflow-hidden">
+        {{-- Compact assessment strip --}}
+        <div class="px-5 py-3 flex items-center gap-4 flex-wrap">
 
-                {{-- Overall Risk + Cluster --}}
-                <div class="flex gap-6 flex-shrink-0">
-                    <div>
-                        <div class="eyebrow mb-2">Overall Risk</div>
-                        <x-risk-badge :level="$ml->overall_risk_level" />
-                        @if ($ml->priority_flag === 'urgent')
-                            <span class="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">
-                                <x-heroicon-s-exclamation-triangle class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-                                Urgent
-                            </span>
-                        @endif
-                    </div>
-                    <div>
-                        <div class="eyebrow mb-2">Cluster</div>
-                        <x-cluster-badge :id="$ml->cluster_named_id" :label="$ml->cluster_name" />
-                    </div>
-                </div>
-
-                {{-- Domain bars --}}
-                <div class="flex gap-6 flex-1 min-w-0">
-                    @foreach ([
-                        ['Physical Capacity', $ml->ic_risk],
-                        ['Environment',       $ml->env_risk],
-                        ['Daily Functioning', $ml->func_risk],
-                    ] as [$label, $score])
-                    <div class="flex-1 min-w-[90px]">
-                        <div class="eyebrow mb-2">{{ $label }}</div>
-                        <x-risk-bar :value="$score" />
-                    </div>
-                    @endforeach
-                </div>
-
-                {{-- Wellbeing + Prediction Source --}}
-                <div class="text-right flex-shrink-0">
-                    <div class="eyebrow mb-1">Wellbeing</div>
-                    <div class="font-serif text-3xl font-semibold tnum">
-                        {{ number_format($ml->wellbeing_score * 100, 0) }}<span class="text-sm text-ink-400">/100</span>
-                    </div>
-                    <div class="text-[11px] text-ink-400 mt-1">
-                        Scored {{ ($ml->scored_at ?? $ml->processed_at)?->diffForHumans() }}
-                    </div>
-                    <div class="mt-1.5 flex items-center justify-end gap-1 flex-wrap">
-                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded {{ $ml->prediction_source_color }}">
-                            {{ $ml->prediction_source_label }}
-                        </span>
-                        <span class="text-[10px] text-ink-400 font-mono">{{ $ml->model_version }}</span>
-                    </div>
-                </div>
-
+            {{-- Risk + Cluster --}}
+            <div class="flex items-center gap-2.5 flex-shrink-0">
+                <x-risk-badge :level="$ml->overall_risk_level" />
+                @if ($ml->priority_flag === 'urgent')
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 dark:bg-orange-50/10 px-2 py-0.5 rounded-full">
+                    <x-heroicon-s-exclamation-triangle class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                    Urgent
+                </span>
+                @endif
+                <span class="text-paper-rule text-ink-200 dark:text-[#2b3530] select-none">·</span>
+                <x-cluster-badge :id="$ml->cluster_named_id" :label="$ml->cluster_name" />
             </div>
 
-            {{-- Decision-support disclaimer (gov-ready wording) --}}
-            <p class="mt-4 pt-3 border-t border-paper-rule dark:border-[#2b3530] text-[11.5px] text-ink-400 dark:text-[#6b7570] leading-relaxed">
-                These are <strong class="font-semibold text-ink-500 dark:text-[#8a958f]">decision-support indicators</strong> showing a possible risk level and profile group — not a clinical diagnosis. Use them alongside professional assessment and OSCA case knowledge.
-            </p>
+            {{-- Vertical divider --}}
+            <div class="w-px self-stretch bg-paper-rule dark:bg-[#2b3530] flex-shrink-0 hidden sm:block"></div>
+
+            {{-- Domain bars --}}
+            <div class="flex gap-5 flex-1 min-w-0">
+                @foreach ([
+                    ['Physical', $ml->ic_risk],
+                    ['Environment', $ml->env_risk],
+                    ['Functioning', $ml->func_risk],
+                ] as [$label, $score])
+                <div class="flex-1 min-w-[80px]">
+                    <div class="flex justify-between text-[11px] text-ink-500 dark:text-[#6b7570] mb-1">
+                        <span>{{ $label }}</span>
+                        @if ($score !== null)
+                        <span class="font-mono tnum">{{ round($score * 100) }}%</span>
+                        @endif
+                    </div>
+                    <x-risk-bar :value="$score" />
+                </div>
+                @endforeach
+            </div>
+
+            {{-- Vertical divider --}}
+            <div class="w-px self-stretch bg-paper-rule dark:bg-[#2b3530] flex-shrink-0 hidden sm:block"></div>
+
+            {{-- Wellbeing + meta --}}
+            <div class="flex-shrink-0 text-right">
+                <div class="flex items-baseline gap-1 justify-end">
+                    <span class="font-serif text-[32px] leading-none font-semibold tnum text-ink-900 dark:text-[#e4e1d8]">{{ number_format($ml->wellbeing_score * 100, 0) }}</span>
+                    <span class="text-[13px] text-ink-400">/100</span>
+                </div>
+                <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-0.5">wellbeing score</div>
+                <div class="flex items-center justify-end gap-1.5 mt-1 flex-wrap">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded {{ $ml->prediction_source_color }}">
+                        {{ $ml->prediction_source_label }}
+                    </span>
+                    <span class="text-[10px] text-ink-400 font-mono">{{ $ml->model_version }}</span>
+                </div>
+            </div>
+
+        </div>
+
+        {{-- Slim disclaimer --}}
+        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-2 text-[11px] text-ink-400 dark:text-[#6b7570]">
+            <strong class="font-semibold text-ink-500 dark:text-[#8a958f]">Decision-support only</strong> — indicates possible risk level and profile group, not a clinical diagnosis. Use alongside professional assessment and OSCA case knowledge.
         </div>
     </div>
     @elseif (!$ml && !$pendingAnalysis)
@@ -336,182 +339,221 @@
     {{-- Profile + Recommendations --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        <div class="lg:col-span-2 space-y-5">
-
-            <x-card title="I. Identifying Information">
-                <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                    <x-profile-field label="Full Name"          :value="$senior->full_name"/>
-                    <x-profile-field label="OSCA ID"            :value="$senior->osca_id"/>
-                    <x-profile-field label="Date of Birth"      :value="$senior->date_of_birth?->format('F j, Y')"/>
-                    <x-profile-field label="Age"                :value="$senior->age . ' years old'"/>
-                    <x-profile-field label="Place of Birth"     :value="$senior->place_of_birth"/>
-                    <x-profile-field label="Barangay"           :value="$senior->barangay"/>
-                    <x-profile-field label="Gender"             :value="$senior->gender"/>
-                    <x-profile-field label="Marital Status"     :value="$senior->marital_status"/>
-                    <x-profile-field label="Religion"           :value="$senior->religion"/>
-                    <x-profile-field label="Ethnic Origin"      :value="$senior->ethnic_origin"/>
-                    <x-profile-field label="Blood Type"         :value="$senior->blood_type"/>
-                    <x-profile-field label="Contact"            :value="$senior->contact_number"/>
-                    <x-profile-field label="PhilSys / Nat'l ID" :value="$senior->philsys_id"/>
-                    <x-profile-field label="Encoded By"         :value="$senior->encoded_by"/>
-                    <x-profile-field label="Consent"
-                        :value="$senior->consent_given_at
-                            ? 'Given ' . $senior->consent_given_at->format('M d, Y') . ($senior->consent_method ? ' (' . $senior->consent_method . ')' : '')
-                            : null"
-                        empty="Not recorded" />
+        {{-- Left: Tabbed profile sections (I–VI) + Survey History --}}
+        <div class="lg:col-span-2 space-y-5" x-data="{ tab: 'info' }">
+            <div class="card">
+                {{-- Manual header row (no border-b so the tab strip acts as the divider) --}}
+                <div class="px-5 pt-4 pb-0 flex items-center justify-between gap-3">
+                    <div class="font-serif text-[15px] font-semibold tracking-tightish text-ink-900 dark:text-[#e4e1d8]">Profile</div>
                 </div>
-            </x-card>
 
-            <x-card title="II. Family Composition">
-                <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                    <x-profile-field label="No. of Children"         :value="$senior->num_children"/>
-                    <x-profile-field label="Working Children"        :value="$senior->num_working_children"/>
-                    <x-profile-field label="Child Financial Support" :value="$senior->child_financial_support"/>
-                    <x-profile-field label="Spouse/Partner Working"  :value="$senior->spouse_working"/>
-                    <x-profile-field label="Household Size"          :value="$senior->household_size . ' persons'"/>
-                </div>
-            </x-card>
-
-            <x-card title="III. Education / HR Profile">
-                <div class="space-y-3 text-sm">
-                    <x-profile-field label="Educational Attainment" :value="$senior->educational_attainment"/>
-                    @if (!empty($senior->specialization))
-                    <div>
-                        <span class="eyebrow">Areas of Specialization / Technical Skills</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->specialization as $item)
-                                <span class="badge badge-info">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (!empty($senior->community_service))
-                    <div>
-                        <span class="eyebrow">Community Service and Involvement</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->community_service as $item)
-                                <span class="badge badge-info">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                </div>
-            </x-card>
-
-            <x-card title="IV. Dependency Profile">
-                <div class="space-y-3 text-sm">
-                    @if (!empty($senior->living_with))
-                    <div>
-                        <span class="eyebrow">Living / Residing With</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->living_with as $item)
-                                <span class="badge badge-info">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (!empty($senior->household_condition))
-                    <div>
-                        <span class="eyebrow">Household Condition</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->household_condition as $item)
-                                <span class="badge badge-info">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (empty($senior->living_with) && empty($senior->household_condition))
-                        <p class="text-sm text-ink-400">No dependency data recorded.</p>
-                    @endif
-                </div>
-            </x-card>
-
-            <x-card title="V. Economic Profile">
-                <div class="space-y-3 text-sm">
-                    <x-profile-field label="Monthly Income" :value="$senior->monthly_income_range"/>
-                    @if (!empty($senior->income_source))
-                    <div>
-                        <span class="eyebrow">Income Sources</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->income_source as $src)
-                                <span class="badge badge-info">{{ $src }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (!empty($senior->real_assets))
-                    <div>
-                        <span class="eyebrow">Real Assets</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->real_assets as $item)
-                                <span class="badge badge-neutral">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (!empty($senior->movable_assets))
-                    <div>
-                        <span class="eyebrow">Movable Assets</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->movable_assets as $item)
-                                <span class="badge badge-neutral">{{ $item }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                    @if (!empty($senior->problems_needs))
-                    <div>
-                        <span class="eyebrow">Problems / Needs</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($senior->problems_needs as $need)
-                                <span class="badge badge-moderate">{{ $need }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
-                </div>
-            </x-card>
-
-            <x-card title="VI. Health Profile">
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <span class="eyebrow">Medical Concerns</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @forelse ($senior->medical_concern ?? [] as $concern)
-                                <span class="badge {{ $concern === 'Physically Healthy' ? 'badge-low' : 'badge-critical' }}">{{ $concern }}</span>
-                            @empty
-                                <span class="text-ink-400 text-xs">None reported</span>
-                            @endforelse
-                        </div>
-                    </div>
+                {{-- Tab strip --}}
+                <div class="border-b border-paper-rule dark:border-[#2b3530] px-5 mt-3 flex overflow-x-auto gap-0">
                     @foreach ([
-                        ['Dental Concern',               $senior->dental_concern],
-                        ['Optical / Vision',             $senior->optical_concern],
-                        ['Hearing',                      $senior->hearing_concern],
-                        ['Social & Emotional Concerns',  $senior->social_emotional_concern],
-                        ['Healthcare Access Difficulty', $senior->healthcare_difficulty],
-                    ] as [$sectionLabel, $items])
-                    @php $itemsArr = is_array($items) ? $items : (is_string($items) && $items ? [$items] : []); @endphp
-                    @if (!empty($itemsArr))
-                    <div>
-                        <span class="eyebrow">{{ $sectionLabel }}</span>
-                        <div class="mt-1.5 flex flex-wrap gap-1.5">
-                            @foreach ($itemsArr as $item)
-                                <span class="badge badge-info">{{ $item }}</span>
-                            @endforeach
+                        ['info',   'I · Identity'],
+                        ['family', 'II · Family'],
+                        ['edu',    'III · Education'],
+                        ['dep',    'IV · Dependency'],
+                        ['eco',    'V · Economic'],
+                        ['health', 'VI · Health'],
+                    ] as [$key, $label])
+                    <button type="button"
+                            @click="tab = '{{ $key }}'"
+                            :class="tab === '{{ $key }}'
+                                ? 'border-b-2 border-forest-500 text-forest-700 dark:text-forest-400 font-semibold'
+                                : 'border-b-2 border-transparent text-ink-500 dark:text-[#6b7570] hover:text-ink-800 dark:hover:text-[#c8c4bc]'"
+                            class="flex-shrink-0 px-3.5 pb-2.5 pt-0.5 text-[12px] font-medium transition-colors duration-100 whitespace-nowrap -mb-px">
+                        {{ $label }}
+                    </button>
+                    @endforeach
+                </div>
+
+                <div class="card-body">
+
+                    {{-- I. Identifying Information --}}
+                    <div x-show="tab === 'info'">
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                            <x-profile-field label="Full Name"          :value="$senior->full_name"/>
+                            <x-profile-field label="OSCA ID"            :value="$senior->osca_id"/>
+                            <x-profile-field label="Date of Birth"      :value="$senior->date_of_birth?->format('F j, Y')"/>
+                            <x-profile-field label="Age"                :value="$senior->age . ' years old'"/>
+                            <x-profile-field label="Place of Birth"     :value="$senior->place_of_birth"/>
+                            <x-profile-field label="Barangay"           :value="$senior->barangay"/>
+                            <x-profile-field label="Gender"             :value="$senior->gender"/>
+                            <x-profile-field label="Marital Status"     :value="$senior->marital_status"/>
+                            <x-profile-field label="Religion"           :value="$senior->religion"/>
+                            <x-profile-field label="Ethnic Origin"      :value="$senior->ethnic_origin"/>
+                            <x-profile-field label="Blood Type"         :value="$senior->blood_type"/>
+                            <x-profile-field label="Contact"            :value="$senior->contact_number"/>
+                            <x-profile-field label="PhilSys / Nat'l ID" :value="$senior->philsys_id"/>
+                            <x-profile-field label="Encoded By"         :value="$senior->encoded_by"/>
+                            <x-profile-field label="Consent"
+                                :value="$senior->consent_given_at
+                                    ? 'Given ' . $senior->consent_given_at->format('M d, Y') . ($senior->consent_method ? ' (' . $senior->consent_method . ')' : '')
+                                    : null"
+                                empty="Not recorded" />
                         </div>
                     </div>
-                    @endif
-                    @endforeach
-                    <div>
-                        <span class="eyebrow">Medical Check-up</span>
-                        <p class="mt-1 text-sm {{ $senior->has_medical_checkup ? 'text-low-700 font-semibold' : 'text-ink-400' }}">
-                            {{ $senior->has_medical_checkup ? 'Yes — ' . ($senior->checkup_schedule ?? 'schedule not specified') : 'No' }}
-                        </p>
-                    </div>
-                </div>
-            </x-card>
 
+                    {{-- II. Family Composition --}}
+                    <div x-show="tab === 'family'">
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                            <x-profile-field label="No. of Children"         :value="$senior->num_children"/>
+                            <x-profile-field label="Working Children"        :value="$senior->num_working_children"/>
+                            <x-profile-field label="Child Financial Support" :value="$senior->child_financial_support"/>
+                            <x-profile-field label="Spouse/Partner Working"  :value="$senior->spouse_working"/>
+                            <x-profile-field label="Household Size"          :value="$senior->household_size . ' persons'"/>
+                        </div>
+                    </div>
+
+                    {{-- III. Education / HR Profile --}}
+                    <div x-show="tab === 'edu'">
+                        <div class="space-y-3 text-sm">
+                            <x-profile-field label="Educational Attainment" :value="$senior->educational_attainment"/>
+                            @if (!empty($senior->specialization))
+                            <div>
+                                <span class="eyebrow">Areas of Specialization / Technical Skills</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->specialization as $item)
+                                        <span class="badge badge-info">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (!empty($senior->community_service))
+                            <div>
+                                <span class="eyebrow">Community Service and Involvement</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->community_service as $item)
+                                        <span class="badge badge-info">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- IV. Dependency Profile --}}
+                    <div x-show="tab === 'dep'">
+                        <div class="space-y-3 text-sm">
+                            @if (!empty($senior->living_with))
+                            <div>
+                                <span class="eyebrow">Living / Residing With</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->living_with as $item)
+                                        <span class="badge badge-info">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (!empty($senior->household_condition))
+                            <div>
+                                <span class="eyebrow">Household Condition</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->household_condition as $item)
+                                        <span class="badge badge-info">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (empty($senior->living_with) && empty($senior->household_condition))
+                                <p class="text-sm text-ink-400">No dependency data recorded.</p>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- V. Economic Profile --}}
+                    <div x-show="tab === 'eco'">
+                        <div class="space-y-3 text-sm">
+                            <x-profile-field label="Monthly Income" :value="$senior->monthly_income_range"/>
+                            @if (!empty($senior->income_source))
+                            <div>
+                                <span class="eyebrow">Income Sources</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->income_source as $src)
+                                        <span class="badge badge-info">{{ $src }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (!empty($senior->real_assets))
+                            <div>
+                                <span class="eyebrow">Real Assets</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->real_assets as $item)
+                                        <span class="badge badge-neutral">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (!empty($senior->movable_assets))
+                            <div>
+                                <span class="eyebrow">Movable Assets</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->movable_assets as $item)
+                                        <span class="badge badge-neutral">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @if (!empty($senior->problems_needs))
+                            <div>
+                                <span class="eyebrow">Problems / Needs</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($senior->problems_needs as $need)
+                                        <span class="badge badge-moderate">{{ $need }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- VI. Health Profile --}}
+                    <div x-show="tab === 'health'">
+                        <div class="space-y-3 text-sm">
+                            <div>
+                                <span class="eyebrow">Medical Concerns</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @forelse ($senior->medical_concern ?? [] as $concern)
+                                        <span class="badge {{ $concern === 'Physically Healthy' ? 'badge-low' : 'badge-critical' }}">{{ $concern }}</span>
+                                    @empty
+                                        <span class="text-ink-400 text-xs">None reported</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                            @foreach ([
+                                ['Dental Concern',               $senior->dental_concern],
+                                ['Optical / Vision',             $senior->optical_concern],
+                                ['Hearing',                      $senior->hearing_concern],
+                                ['Social & Emotional Concerns',  $senior->social_emotional_concern],
+                                ['Healthcare Access Difficulty', $senior->healthcare_difficulty],
+                            ] as [$sectionLabel, $items])
+                            @php $itemsArr = is_array($items) ? $items : (is_string($items) && $items ? [$items] : []); @endphp
+                            @if (!empty($itemsArr))
+                            <div>
+                                <span class="eyebrow">{{ $sectionLabel }}</span>
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($itemsArr as $item)
+                                        <span class="badge badge-info">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                            @endforeach
+                            <div>
+                                <span class="eyebrow">Medical Check-up</span>
+                                <p class="mt-1 text-sm {{ $senior->has_medical_checkup ? 'text-low-700 font-semibold' : 'text-ink-400' }}">
+                                    {{ $senior->has_medical_checkup ? 'Yes — ' . ($senior->checkup_schedule ?? 'schedule not specified') : 'No' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {{-- QoL Survey History — bottom of left column --}}
             @if ($senior->qolSurveys->isNotEmpty())
             <x-card title="QoL Survey History">
                 <x-slot name="actions">
@@ -575,14 +617,58 @@
                 </table>
             </x-card>
             @endif
+
+            {{-- Section Scores — paired with profile sections I–VI --}}
+            @if ($ml?->section_scores)
+            <x-card title="Section Scores">
+                <div class="grid grid-cols-2 gap-x-8 gap-y-3">
+                    @php
+                    $scoreLabels = [
+                        'sec1_age_risk'        => 'Age Risk',
+                        'sec2_family_support'  => 'Family Support',
+                        'sec3_hr_score'        => 'HR / Skills',
+                        'sec4_dependency_risk' => 'Dependency Risk',
+                        'sec5_eco_stability'   => 'Economic Stability',
+                        'sec6_health_score'    => 'Health Score',
+                        'overall_wellbeing'    => 'Overall Wellbeing',
+                    ];
+                    @endphp
+                    @foreach ($scoreLabels as $key => $label)
+                    @php $val = $ml->section_scores[$key] ?? null; @endphp
+                    @if ($val !== null)
+                    <div>
+                        <div class="flex justify-between text-[11.5px] mb-1">
+                            <span class="text-ink-500">{{ $label }}</span>
+                            <span class="font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ number_format($val * 100, 0) }}%</span>
+                        </div>
+                        <div class="bar">
+                            <div class="bar-fill {{ in_array($key, ['sec1_age_risk','sec4_dependency_risk']) ? 'bar-fill-critical' : 'bar-fill-forest' }}"
+                                 style="width: {{ $val * 100 }}%"></div>
+                        </div>
+                    </div>
+                    @endif
+                    @endforeach
+                </div>
+            </x-card>
+            @endif
         </div>
 
-        {{-- Right: Recommendations (collapsible) + Section Scores --}}
+        {{-- Right: Recommendations --}}
         <div class="space-y-5">
 
+            {{-- Recommendations --}}
             <x-card title="Recommendations">
                 <x-slot name="actions">
-                    <span class="text-[11px] text-ink-500 tnum">{{ $ml?->recommendations->count() ?? 0 }} total</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-ink-500 tnum">{{ $ml?->recommendations->count() ?? 0 }} total</span>
+                        @if ($ml?->recommendations->count())
+                        <a href="{{ route('recommendations.show', $senior) }}"
+                           class="btn btn-ghost text-[11px] px-2.5 py-1 gap-1">
+                            <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3" />
+                            View all
+                        </a>
+                        @endif
+                    </div>
                 </x-slot>
                 <x-slot name="noPadding">true</x-slot>
 
@@ -670,39 +756,6 @@
                 <div class="p-8 text-center text-sm text-ink-400">No recommendations yet. Run the assessment first.</div>
                 @endforelse
             </x-card>
-
-            @if ($ml?->section_scores)
-            <x-card title="Section Scores">
-                <div class="space-y-3">
-                    @php
-                    $scoreLabels = [
-                        'sec1_age_risk'        => 'Age Risk',
-                        'sec2_family_support'  => 'Family Support',
-                        'sec3_hr_score'        => 'HR / Skills',
-                        'sec4_dependency_risk' => 'Dependency Risk',
-                        'sec5_eco_stability'   => 'Economic Stability',
-                        'sec6_health_score'    => 'Health Score',
-                        'overall_wellbeing'    => 'Overall Wellbeing',
-                    ];
-                    @endphp
-                    @foreach ($scoreLabels as $key => $label)
-                    @php $val = $ml->section_scores[$key] ?? null; @endphp
-                    @if ($val !== null)
-                    <div>
-                        <div class="flex justify-between text-[11.5px] mb-1">
-                            <span class="text-ink-500">{{ $label }}</span>
-                            <span class="font-mono font-semibold text-ink-900 tnum">{{ number_format($val * 100, 0) }}%</span>
-                        </div>
-                        <div class="bar">
-                            <div class="bar-fill {{ in_array($key, ['sec1_age_risk','sec4_dependency_risk']) ? 'bar-fill-critical' : 'bar-fill-forest' }}"
-                                 style="width: {{ $val * 100 }}%"></div>
-                        </div>
-                    </div>
-                    @endif
-                    @endforeach
-                </div>
-            </x-card>
-            @endif
 
         </div>
     </div>

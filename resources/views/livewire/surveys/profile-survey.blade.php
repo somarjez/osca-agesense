@@ -458,14 +458,14 @@
                 </div>
                 <div class="p-4 bg-paper rounded-xl border border-paper-rule">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" wire:model="hasMedicalCheckup" class="accent-forest-700 w-4 h-4 rounded">
+                        <input type="checkbox" wire:model.live="hasMedicalCheckup" class="accent-forest-700 w-4 h-4 rounded">
                         <span class="text-sm font-medium text-ink-700">Has scheduled medical / physical check-up</span>
                     </label>
                     @if ($hasMedicalCheckup)
                     <div class="mt-3 ml-7">
                         <label class="block text-xs text-ink-500 mb-2">How often?</label>
                         <div class="flex flex-wrap gap-4">
-                            @foreach (['Every 3 months', 'Every 6 months', 'Others'] as $sch)
+                            @foreach (['Every Month', 'Every 3 months', 'Every 6 months', 'Others'] as $sch)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="radio" wire:model="checkupSchedule" value="{{ $sch }}" class="accent-forest-700">
                                 <span class="text-sm text-ink-700">{{ $sch }}</span>

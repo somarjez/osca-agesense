@@ -15,9 +15,14 @@
         :title="$senior->full_name"
         :subtitle="$senior->barangay . ' · ' . $recommendations->count() . ' recommendation' . ($recommendations->count() !== 1 ? 's' : '')"
     />
-    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
-        <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to profile
-    </a>
+    <div class="flex items-center gap-3">
+        <a href="{{ route('recommendations.index') }}" class="btn btn-ghost gap-1.5 pl-1.5">
+            <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Recommendations list
+        </a>
+        <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5">
+            <x-heroicon-o-user class="w-3.5 h-3.5" /> Back to profile
+        </a>
+    </div>
 
     {{-- Decision-support disclaimer --}}
     <div class="flex items-start gap-3 bg-info-50 dark:bg-info-50/10 border border-info-100 dark:border-info-700/30 rounded-xl px-4 py-3">

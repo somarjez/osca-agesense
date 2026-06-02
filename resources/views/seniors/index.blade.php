@@ -14,39 +14,27 @@
         :subtitle="number_format($stats['total']) . ' active seniors · Pagsanjan, Laguna'"
     />
 
-    {{-- Stats strip --}}
-    <div class="grid grid-cols-2 gap-4">
-        {{-- Total Active KPI --}}
-        <div class="kpi relative overflow-hidden">
-            <div class="kpi-rule bg-forest-500"></div>
-            <div class="kpi-label">Total Active Seniors</div>
-            <div class="kpi-value">{{ number_format($stats['total']) }}</div>
-            <div class="kpi-delta">
-                <x-heroicon-o-map-pin class="w-3 h-3" />
-                Active records · Pagsanjan, Laguna
-            </div>
+    {{-- Stats strip — compact inline row --}}
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 px-0.5 text-[13px]">
+        <div class="flex items-center gap-2.5">
+            <span class="font-mono font-bold text-[22px] leading-none text-ink-900 dark:text-[#e4e1d8] tnum">{{ number_format($stats['total']) }}</span>
+            <span class="text-ink-500 dark:text-[#8a9087]">active seniors</span>
         </div>
-
-        {{-- High Risk + Urgent --}}
-        <div class="kpi relative overflow-hidden">
-            <div class="kpi-rule bg-high-500"></div>
-            <div class="kpi-label">High Risk</div>
-            <div class="flex items-baseline gap-3 mt-1">
-                <div class="kpi-value text-high-700">{{ number_format($stats['high']) }}</div>
-                @if (($stats['urgent'] ?? 0) > 0)
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-100 px-2 py-0.5 rounded-full">
-                    <span class="w-1.5 h-1.5 rounded-full bg-high-500 animate-pulse flex-shrink-0"></span>
-                    {{ $stats['urgent'] }} urgent
-                </span>
-                @endif
-            </div>
-            <div class="kpi-delta">
-                <x-heroicon-o-exclamation-triangle class="w-3 h-3 text-high-500" />
-                Need priority action
-                @if (($stats['urgent'] ?? 0) > 0)
-                · <span class="font-semibold text-high-700">{{ $stats['urgent'] }}</span> score ≥ 0.70
-                @endif
-            </div>
+        <span class="text-ink-200 dark:text-[#2b3530] select-none">·</span>
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-high-500 flex-shrink-0"></span>
+            <span class="font-mono font-semibold text-high-700 tnum">{{ number_format($stats['high']) }}</span>
+            <span class="text-ink-500 dark:text-[#8a9087]">high risk</span>
+            @if (($stats['urgent'] ?? 0) > 0)
+            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-100 px-2 py-0.5 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-high-500 animate-pulse flex-shrink-0"></span>
+                {{ $stats['urgent'] }} urgent
+            </span>
+            @endif
+        </div>
+        <div class="ml-auto flex items-center gap-1 text-[12px] text-ink-400 dark:text-[#6b7570]">
+            <x-heroicon-o-map-pin class="w-3 h-3" />
+            <span>Pagsanjan, Laguna</span>
         </div>
     </div>
 

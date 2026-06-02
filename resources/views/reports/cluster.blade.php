@@ -178,85 +178,94 @@
         </div>
     </div>
 
-    {{-- ── Model Insights (XAI global feature importance) ── --}}
+    {{-- ── Secondary analysis: tabbed card (Model Insights / Explorer / Snapshots) ── --}}
     <div x-data="{
-        tab: 'ic',
+        section: 'insights',
+        insightsTab: 'ic',
         insights: null,
         labels: { ic: 'Physical Capacity (IC)', env: 'Environment', func: 'Daily Functioning' },
-        async load() {
+        async loadInsights() {
+            if (this.insights !== null) return;
             try {
                 const r = await fetch('{{ route('reports.xai.model-insights') }}');
                 if (!r.ok) { this.insights = false; return; }
                 this.insights = await r.json();
             } catch(e) { this.insights = false; }
         }
-    }" x-init="load()" class="card overflow-hidden mt-2">
-        <div class="card-head flex-wrap gap-3">
-            <div>
-                <div class="card-title">Model Insights</div>
+    }" x-init="loadInsights()" class="card overflow-hidden">
+
+        {{-- Section tab strip --}}
+        <div class="border-b border-paper-rule dark:border-[#2b3530] px-5 flex overflow-x-auto gap-0">
+            @foreach ([
+                ['insights',  'Model Insights'],
+                ['explorer',  'Cluster Explorer'],
+                ['snapshots', 'Snapshot History'],
+            ] as [$key, $label])
+            <button type="button"
+                    @click="section = '{{ $key }}'"
+                    :class="section === '{{ $key }}'
+                        ? 'border-b-2 border-forest-500 text-forest-700 dark:text-forest-400 font-semibold'
+                        : 'border-b-2 border-transparent text-ink-500 dark:text-[#6b7570] hover:text-ink-800 dark:hover:text-[#c8c4bc]'"
+                    class="flex-shrink-0 px-4 pb-2.5 pt-3 text-[12px] font-medium transition-colors duration-100 whitespace-nowrap -mb-px">
+                {{ $label }}
+            </button>
+            @endforeach
+        </div>
+
+        {{-- Model Insights panel --}}
+        <div x-show="section === 'insights'">
+            <div class="card-head flex-wrap gap-3 border-b-0">
                 <div class="card-sub">Feature importance across <span x-text="insights && insights.n_seniors ? insights.n_seniors : '283'">283</span> seniors · top 15 per domain</div>
+                <div class="segmented" role="tablist" aria-label="Domain">
+                    <template x-for="[key, label] in Object.entries(labels)" :key="key">
+                        <button type="button" @click="insightsTab = key" :class="{ 'on': insightsTab === key }"
+                                :aria-selected="insightsTab === key" x-text="label"></button>
+                    </template>
+                </div>
             </div>
-            <div class="segmented" role="tablist" aria-label="Domain">
-                <template x-for="[key, label] in Object.entries(labels)" :key="key">
-                    <button type="button" @click="tab = key" :class="{ 'on': tab === key }"
-                            :aria-selected="tab === key" x-text="label"></button>
+            <div class="card-body pt-2">
+                <template x-if="insights === null">
+                    <div class="space-y-2.5 py-1" aria-hidden="true">
+                        <template x-for="i in 6" :key="i">
+                            <div class="flex items-center gap-3">
+                                <span class="w-44 h-3 rounded bg-paper-2 dark:bg-[#222a27] flex-shrink-0 animate-pulse"></span>
+                                <span class="flex-1 h-2.5 rounded-full bg-paper-2 dark:bg-[#222a27] animate-pulse"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="insights === false">
+                    <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
+                </template>
+                <template x-if="insights && insights[insightsTab]">
+                    <div class="space-y-0.5">
+                        <template x-for="item in insights[insightsTab]" :key="item.feature">
+                            <div class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
+                                <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
+                                <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5 overflow-hidden">
+                                    <div class="bg-forest-500 h-2.5 rounded-full transition-all duration-500"
+                                         :style="'width: ' + Math.min(100, (item.importance / insights[insightsTab][0].importance) * 100) + '%'"></div>
+                                </div>
+                                <span class="text-[11px] font-mono tnum text-ink-500 dark:text-[#8a9087] w-12 text-right"
+                                      x-text="(item.importance * 100).toFixed(1) + '%'"></span>
+                            </div>
+                        </template>
+                    </div>
                 </template>
             </div>
         </div>
-        <div class="card-body">
-            {{-- Skeleton while loading --}}
-            <template x-if="insights === null">
-                <div class="space-y-2.5 py-1" aria-hidden="true">
-                    <template x-for="i in 6" :key="i">
-                        <div class="flex items-center gap-3">
-                            <span class="w-44 h-3 rounded bg-paper-2 dark:bg-[#222a27] flex-shrink-0 animate-pulse"></span>
-                            <span class="flex-1 h-2.5 rounded-full bg-paper-2 dark:bg-[#222a27] animate-pulse"></span>
-                        </div>
-                    </template>
-                </div>
-            </template>
-            <template x-if="insights === false">
-                <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
-            </template>
-            <template x-if="insights && insights[tab]">
-                <div class="space-y-0.5">
-                    <template x-for="item in insights[tab]" :key="item.feature">
-                        <div class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
-                            <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
-                            <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5 overflow-hidden">
-                                <div class="bg-forest-500 h-2.5 rounded-full transition-all duration-500"
-                                     :style="'width: ' + Math.min(100, (item.importance / insights[tab][0].importance) * 100) + '%'"></div>
-                            </div>
-                            <span class="text-[11px] font-mono tnum text-ink-500 dark:text-[#8a9087] w-12 text-right"
-                                  x-text="(item.importance * 100).toFixed(1) + '%'"></span>
-                        </div>
-                    </template>
-                </div>
-            </template>
+
+        {{-- Cluster Explorer panel --}}
+        <div x-show="section === 'explorer'" class="p-5">
+            <livewire:reports.cluster-analysis />
         </div>
-    </div>
 
-    {{-- ── Interactive Livewire Drill-Down ── --}}
-    <div class="mt-2">
-        <h3 class="font-serif text-[15px] font-semibold text-ink-900 dark:text-[#e4e1d8] mb-3">Interactive Cluster Explorer</h3>
-        <livewire:reports.cluster-analysis />
-    </div>
-
-    {{-- ── Snapshot History ── --}}
-    <div class="mt-6">
-        <div class="bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-paper-rule dark:border-[#2b3530]">
-                <div>
-                    <h3 class="font-semibold text-sm text-ink-900 dark:text-[#e4e1d8]">Snapshot History</h3>
-                    <p class="text-xs text-ink-500 dark:text-[#4a5550] mt-0.5">Daily cluster composition records — last 30 snapshots</p>
-                </div>
-                <span class="text-xs text-ink-400 dark:text-[#4a5550]">{{ $snapshots->count() }} snapshot(s)</span>
-            </div>
-
+        {{-- Snapshot History panel --}}
+        <div x-show="section === 'snapshots'">
             @if ($snapshots->isEmpty())
-            <div class="px-5 py-8 text-center text-sm text-ink-400 dark:text-[#4a5550]">
+            <div class="px-5 py-10 text-center text-sm text-ink-400 dark:text-[#4a5550]">
                 No snapshots yet. Click <strong>Take Snapshot</strong> above to record today's cluster composition.
-                <br>Snapshots are also taken automatically at 23:55 daily (requires Laravel scheduler running).
+                <br class="mb-1">Snapshots are also taken automatically at 23:55 daily.
             </div>
             @else
             <div class="overflow-x-auto">
@@ -303,6 +312,7 @@
             </div>
             @endif
         </div>
+
     </div>
 
 </div>
