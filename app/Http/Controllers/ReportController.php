@@ -477,8 +477,8 @@ class ReportController extends Controller
             fputcsv($file, [
                 'Anonymized Senior ID',
                 'Barangay',
-                'Latitude',
-                'Longitude',
+                'Latitude (approx, 3dp)',
+                'Longitude (approx, 3dp)',
                 'Location Source',
                 'Location Accuracy',
                 'Nearest Health Center Distance (m)',
@@ -502,8 +502,8 @@ class ReportController extends Controller
                     fputcsv($file, [
                         $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
                         $senior->barangay,
-                        $senior->latitude,
-                        $senior->longitude,
+                        $senior->latitude !== null ? round((float) $senior->latitude, 3) : null,
+                        $senior->longitude !== null ? round((float) $senior->longitude, 3) : null,
                         $senior->location_source,
                         $senior->location_accuracy,
                         $metric?->distance_to_health_center_m,
