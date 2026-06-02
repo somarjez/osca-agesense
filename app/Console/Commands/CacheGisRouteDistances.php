@@ -376,6 +376,7 @@ class CacheGisRouteDistances extends Command
         $verify = $this->openRouteServiceVerifyOption();
 
         $response = Http::acceptJson()
+            ->withHeaders(['User-Agent' => 'AgeSense-OSCA/1.0 (osca-agesense)'])
             ->withOptions(['verify' => $verify])
             ->connectTimeout((int) config('services.osrm.connect_timeout', 10))
             ->timeout((int) config('services.osrm.timeout', 30))
@@ -474,27 +475,35 @@ class CacheGisRouteDistances extends Command
         return 'OpenRouteService request failed: '.mb_strimwidth($message, 0, 220, '...');
     }
 
-    private function isRateLimitOrApiError(\Throwable $exception): bool
-    {
-        $code = (int) $exception->getCode();
-
-        return $code === 429
-            || ($code >= 400 && $code <= 599)
-            || str_contains($exception->getMessage(), 'OpenRouteService failed');
-    }
-
     private function isOpenRouteServiceLimitError(\Throwable $exception): bool
     {
-        return (int) $exception->getCode() === 429
-            || str_contains(strtolower($exception->getMessage()), 'rate limit');
+        $code = (int) $exception->getCode();
+        $message = strtolower($exception->getMessage());
+
+        return in_array($code, [429, 401, 403], true)
+            || str_contains($message, 'rate limit')
+            || str_contains($message, 'unauthorized')
+            || str_contains($message, 'forbidden');
     }
 
     private function isPermanentRouteFailure(\Throwable $exception): bool
     {
         $code = (int) $exception->getCode();
+        $message = strtolower($exception->getMessage());
 
-        return in_array($code, [400, 404], true)
-            && ! $this->isOpenRouteServiceLimitError($exception);
+        if (in_array($code, [400, 404], true) && ! $this->isOpenRouteServiceLimitError($exception)) {
+            return true;
+        }
+
+        // RuntimeExceptions without an HTTP code (e.g. "no usable route") are also permanent
+        if ($code === 0 && (
+            str_contains($message, 'no usable route')
+            || str_contains($message, 'returned no usable')
+        )) {
+            return true;
+        }
+
+        return false;
     }
 
     private function storeRouteFailure(

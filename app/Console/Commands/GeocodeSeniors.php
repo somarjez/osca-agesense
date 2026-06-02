@@ -47,10 +47,6 @@ class GeocodeSeniors extends Command
             $query->where('barangay', $barangay);
         }
 
-        if ($limit) {
-            $query->limit($limit);
-        }
-
         $stats = [
             'checked' => 0,
             'updated' => 0,

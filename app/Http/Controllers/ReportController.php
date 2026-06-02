@@ -45,13 +45,9 @@ class ReportController extends Controller
      */
     public function runGisGeocode()
     {
-        $exitCode = Artisan::call('gis:geocode');
+        Artisan::queue('gis:geocode');
 
-        if ($exitCode !== 0) {
-            return back()->with('error', 'Bulk geocode failed. Check the command output in logs or run php artisan gis:geocode manually.');
-        }
-
-        return back()->with('success', 'Bulk geocode completed. Senior map coordinates remain barangay-level approximations only.');
+        return back()->with('success', 'Geocoding job queued. Coordinates will update within a few minutes — refresh the GIS map to see the results.');
     }
 
     private function gisGeocodeStatus(): array

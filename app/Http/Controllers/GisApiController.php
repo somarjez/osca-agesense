@@ -8,6 +8,7 @@ use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorFacilityRouteFailure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -54,7 +55,8 @@ class GisApiController extends Controller
             $point = [$coordinates[0], $coordinates[1]];
             $locationStatus = $coordinates[2];
 
-            if (! $point) {
+            if (! is_finite($point[0]) || ! is_finite($point[1])
+                || ($point[0] === 0.0 && $point[1] === 0.0)) {
                 continue;
             }
 
@@ -299,7 +301,7 @@ class GisApiController extends Controller
 
     private function cachedRouteFailure(array $validated): ?array
     {
-        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
             return null;
         }
 
@@ -324,7 +326,7 @@ class GisApiController extends Controller
 
     private function cachedRouteDistance(array $validated): ?array
     {
-        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
             return null;
         }
 
@@ -351,7 +353,7 @@ class GisApiController extends Controller
 
     private function storeRouteDistance(array $validated, array $route): void
     {
-        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
             return;
         }
 
@@ -380,7 +382,7 @@ class GisApiController extends Controller
 
     private function storeRouteFailure(array $validated, ?int $statusCode, string $message): void
     {
-        if (empty($validated['senior_id']) || empty($validated['facility_id'])) {
+        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
             return;
         }
 
@@ -708,17 +710,25 @@ class GisApiController extends Controller
             return $this->barangayBoundaryFeatures;
         }
 
-        $path = 'gis/boundaries/pagsanjan_barangays.geojson';
-        if (! Storage::disk('local')->exists($path)) {
-            return $this->barangayBoundaryFeatures = [];
-        }
+        $this->barangayBoundaryFeatures = Cache::remember(
+            'gis.barangay_boundary_features',
+            now()->addHours(24),
+            function () {
+                $path = 'gis/boundaries/pagsanjan_barangays.geojson';
+                if (! Storage::disk('local')->exists($path)) {
+                    return [];
+                }
 
-        $decoded = json_decode(Storage::disk('local')->get($path), true);
-        if (! is_array($decoded) || ! isset($decoded['features']) || ! is_array($decoded['features'])) {
-            return $this->barangayBoundaryFeatures = [];
-        }
+                $decoded = json_decode(Storage::disk('local')->get($path), true);
+                if (! is_array($decoded) || ! isset($decoded['features']) || ! is_array($decoded['features'])) {
+                    return [];
+                }
 
-        return $this->barangayBoundaryFeatures = $decoded['features'];
+                return $decoded['features'];
+            }
+        );
+
+        return $this->barangayBoundaryFeatures;
     }
 
     private function normalizeBarangayName(string $name): string
