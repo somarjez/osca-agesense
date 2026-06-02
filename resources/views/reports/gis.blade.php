@@ -1107,6 +1107,30 @@
         ) ?? null;
     }
 
+    function dataBarangayBoundaryGeoJson(features) {
+        if (!hasBoundaryFeatures(latestBarangayBoundaryGeoJson) || !Array.isArray(features) || !features.length) {
+            return null;
+        }
+
+        const barangaysWithData = new Set(
+            features
+                .map((feature) => normalizeBarangayName(feature?.properties?.barangay))
+                .filter(Boolean)
+        );
+
+        if (!barangaysWithData.size) {
+            return null;
+        }
+
+        const boundaryFeatures = latestBarangayBoundaryGeoJson.features.filter((feature) =>
+            barangaysWithData.has(normalizeBarangayName(barangayNameFromBoundary(feature)))
+        );
+
+        return boundaryFeatures.length
+            ? { type: 'FeatureCollection', features: boundaryFeatures }
+            : null;
+    }
+
     function featureCollectionFromFeature(feature) {
         return {
             type: 'FeatureCollection',
@@ -3637,6 +3661,9 @@
             ? options.radiusMeters
             : heatmapRadiusMeters(clusterFeatures, 'cluster-heatmap');
         const bounds = primaryBoundaryBounds();
+        const clusterClipBoundary = options.clipBoundary
+            ?? dataBarangayBoundaryGeoJson(clusterFeatures)
+            ?? primaryBoundaryGeoJson();
         const groups = clusterGroups
             .map(([label, groupFeatures]) => ({
                 label,
@@ -3666,9 +3693,9 @@
         const heatmapLayer = createClusterDistributionRasterLayer(groups, {
             bounds,
             radius_meters: radiusMeters,
-            maxRasterSide: options.maxRasterSide ?? 900,
-            minRasterSide: options.minRasterSide ?? 520,
-            pixelRatioCap: options.pixelRatioCap ?? 1.25,
+            maxRasterSide: options.maxRasterSide ?? 680,
+            minRasterSide: options.minRasterSide ?? 380,
+            pixelRatioCap: options.pixelRatioCap ?? 1,
             peak_radius_meters: options.peakRadiusMeters ?? Math.max(110, Math.min(185, radiusMeters * 0.42)),
             point_core_radius_meters: options.pointCoreRadiusMeters ?? Math.max(82, Math.min(142, radiusMeters * 0.32)),
             colorScaleMax,
@@ -3742,7 +3769,7 @@
             contourStep: options.contourStep ?? 3,
             contourLevels: options.contourLevels ?? [0.06, 0.11, 0.17, 0.25, 0.34, 0.45, 0.57, 0.70, 0.84],
             contourLineWidth: options.contourLineWidth ?? 0.58,
-            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+            clipBoundary: clusterClipBoundary,
         });
 
         return {
@@ -3921,7 +3948,6 @@
                     window.cancelAnimationFrame(this._resetFrame);
                     this._resetFrame = null;
                 }
-
                 map.off('moveend zoomend resize', this._scheduleReset, this);
                 if (map.options.zoomAnimation) {
                     map.off('zoomanim', this._animateZoom, this);
@@ -3942,8 +3968,11 @@
             _reset() {
                 const size = this._map.getSize();
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                this._pixelScale = 1;
 
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
+                this._canvas.style.width = '';
+                this._canvas.style.height = '';
                 this._canvas.width = size.x;
                 this._canvas.height = size.y;
                 this._redraw();
@@ -3971,18 +4000,35 @@
                 const context = canvas.getContext('2d');
                 context.globalCompositeOperation = 'lighter';
                 const maxWeight = Math.max(1, ...group.points.map((point) => point[2] || 1));
+                const barangayGroupCounts = group.points.reduce((counts, point) => {
+                    const barangay = point[3] || '';
+                    if (barangay) {
+                        counts.set(barangay, (counts.get(barangay) || 0) + 1);
+                    }
+
+                    return counts;
+                }, new Map());
+                const barangayBoostFor = (barangay) => {
+                    const count = barangayGroupCounts.get(barangay) || 0;
+                    if (count >= 6) return 1.58;
+                    if (count >= 4) return 1.42;
+                    if (count >= 3) return 1.28;
+                    return 1;
+                };
                 const projectedPoints = [];
 
                 group.points.forEach(([lat, lng, weight, barangay]) => {
                     const point = this._map.latLngToContainerPoint([lat, lng]);
-                    const isBuboy = barangay === 'buboy';
-                    const localRadius = radius * (isBuboy ? 1.34 : 1);
+                    point.x *= this._pixelScale;
+                    point.y *= this._pixelScale;
+                    const barangayBoost = barangayBoostFor(barangay);
+                    const localRadius = radius * barangayBoost;
                     if (point.x < -localRadius || point.y < -localRadius || point.x > width + localRadius || point.y > height + localRadius) {
                         return;
                     }
 
-                    const intensity = clampUnit(Math.max(isBuboy ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
-                    projectedPoints.push({ x: point.x, y: point.y, intensity, barangay });
+                    const intensity = clampUnit(Math.max(barangayBoost > 1 ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
+                    projectedPoints.push({ x: point.x, y: point.y, intensity, barangay, barangayBoost });
                     const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, localRadius);
                     gradient.addColorStop(0.00, `rgba(0,0,0,${0.96 * intensity})`);
                     gradient.addColorStop(0.14, `rgba(0,0,0,${0.86 * intensity})`);
@@ -4009,11 +4055,12 @@
                     const first = projectedPoints[firstIndex];
                     for (let secondIndex = firstIndex + 1; secondIndex < projectedPoints.length; secondIndex += 1) {
                         const second = projectedPoints[secondIndex];
-                        const buboyPair = first.barangay === 'buboy' && second.barangay === 'buboy';
+                        const sameBoostedBarangayPair = first.barangay && first.barangay === second.barangay && Math.max(first.barangayBoost, second.barangayBoost) > 1;
+                        const pairBoost = sameBoostedBarangayPair ? Math.max(first.barangayBoost, second.barangayBoost) : 1;
                         const dx = second.x - first.x;
                         const dy = second.y - first.y;
                         const distanceSquared = (dx * dx) + (dy * dy);
-                        const pairBridgeDistance = bridgeDistance * (buboyPair ? 1.32 : 1);
+                        const pairBridgeDistance = bridgeDistance * pairBoost;
                         const pairBridgeDistanceSquared = pairBridgeDistance * pairBridgeDistance;
                         if (distanceSquared > pairBridgeDistanceSquared) {
                             continue;
@@ -4021,13 +4068,13 @@
 
                         const distance = Math.sqrt(distanceSquared);
                         const closeness = clampUnit(1 - (distance / pairBridgeDistance));
-                        const bridgeAlphaCap = buboyPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
-                        const bridgeAlphaBase = buboyPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
-                        const bridgeAlphaRange = buboyPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
+                        const bridgeAlphaCap = sameBoostedBarangayPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
+                        const bridgeAlphaBase = sameBoostedBarangayPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
+                        const bridgeAlphaRange = sameBoostedBarangayPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
                         const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity));
                         const midpointX = (first.x + second.x) / 2;
                         const midpointY = (first.y + second.y) / 2;
-                        const blobCount = buboyPair ? 4 : (compactGroup ? 3 : 2);
+                        const blobCount = sameBoostedBarangayPair ? 4 : (compactGroup ? 3 : 2);
 
                         for (let blobIndex = 1; blobIndex <= blobCount; blobIndex += 1) {
                             const t = blobIndex / (blobCount + 1);
@@ -4041,7 +4088,7 @@
                             const blobY = blobIndex === Math.ceil(blobCount / 2)
                                 ? midpointY
                                 : centerY + Math.sin(angle) * wobble;
-                            const kernelRadius = bridgeKernelRadius * (buboyPair ? 1.22 : 1) * (0.74 + (closeness * 0.34));
+                            const kernelRadius = bridgeKernelRadius * (sameBoostedBarangayPair ? 1.22 : 1) * (0.74 + (closeness * 0.34));
                             const gradient = context.createRadialGradient(blobX, blobY, 0, blobX, blobY, kernelRadius);
 
                             gradient.addColorStop(0.00, `rgba(0,0,0,${bridgeAlpha * 0.78})`);
@@ -4080,11 +4127,13 @@
                                 return;
                             }
 
-                            const buboyPair = candidate.barangay === 'buboy' && current.barangay === 'buboy';
+                            const sameBoostedBarangayPair = candidate.barangay
+                                && candidate.barangay === current.barangay
+                                && Math.max(candidate.barangayBoost, current.barangayBoost) > 1;
                             const dx = candidate.x - current.x;
                             const dy = candidate.y - current.y;
                             const distanceSquared = (dx * dx) + (dy * dy);
-                            const localComponentDistance = componentDistance * (buboyPair ? 1.34 : 1);
+                            const localComponentDistance = componentDistance * (sameBoostedBarangayPair ? Math.max(candidate.barangayBoost, current.barangayBoost) : 1);
                             if (distanceSquared > localComponentDistance * localComponentDistance) {
                                 return;
                             }
@@ -4099,8 +4148,19 @@
                     }
 
                     const component = componentIndexes.map((index) => projectedPoints[index]);
-                    const buboyPointCount = component.filter((point) => point.barangay === 'buboy').length;
-                    const isBuboyComponent = buboyPointCount >= Math.max(2, Math.ceil(component.length * 0.5));
+                    const componentBarangays = component.reduce((counts, point) => {
+                        if (point.barangay) {
+                            counts.set(point.barangay, (counts.get(point.barangay) || 0) + 1);
+                        }
+
+                        return counts;
+                    }, new Map());
+                    const strongestBarangay = [...componentBarangays.entries()].sort((a, b) => b[1] - a[1])[0];
+                    const componentBarangayBoost = strongestBarangay
+                        ? barangayBoostFor(strongestBarangay[0])
+                        : 1;
+                    const isBoostedBarangayComponent = componentBarangayBoost > 1
+                        && strongestBarangay[1] >= Math.max(2, Math.ceil(component.length * 0.5));
                     const centerX = component.reduce((total, point) => total + point.x, 0) / component.length;
                     const centerY = component.reduce((total, point) => total + point.y, 0) / component.length;
                     const extent = component.reduce((max, point) => {
@@ -4109,12 +4169,12 @@
                         return Math.max(max, Math.sqrt((dx * dx) + (dy * dy)));
                     }, 0);
                     const cloudRadius = Math.max(
-                        radius * (isBuboyComponent ? 1.72 : (component.length >= 3 ? 1.28 : 1.06)),
-                        extent + (radius * (isBuboyComponent ? 1.08 : 0.78))
+                        radius * (isBoostedBarangayComponent ? 1.72 : (component.length >= 3 ? 1.28 : 1.06)),
+                        extent + (radius * (isBoostedBarangayComponent ? 1.08 : 0.78))
                     );
                     const cloudAlpha = Math.min(
-                        isBuboyComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
-                        (isBuboyComponent ? 0.13 : 0.08) + (component.length * (isBuboyComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
+                        isBoostedBarangayComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
+                        (isBoostedBarangayComponent ? 0.13 : 0.08) + (component.length * (isBoostedBarangayComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
                     );
                     const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, cloudRadius);
 
@@ -4136,11 +4196,13 @@
                 const width = this._canvas.width;
                 const height = this._canvas.height;
                 const radiusMeters = this._options.radiusMeters ?? 230;
+                const pixelScale = this._pixelScale || 1;
                 const rawRadius = metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters);
                 const zoom = this._map.getZoom();
-                const minScreenRadius = zoom <= 11 ? 30 : (zoom <= 13 ? 38 : 3);
-                const maxScreenRadius = zoom <= 11 ? 54 : (zoom <= 13 ? 72 : 260);
-                const radius = Math.round(Math.max(minScreenRadius, Math.min(maxScreenRadius, rawRadius)));
+                const minScreenRadius = zoom <= 11 ? 4 : (zoom <= 13 ? 8 : 3);
+                const maxScreenRadius = zoom <= 11 ? 18 : (zoom <= 13 ? 42 : 260);
+                const screenRadius = Math.max(minScreenRadius, Math.min(maxScreenRadius, rawRadius));
+                const radius = Math.max(2, Math.round(screenRadius * pixelScale));
                 const groupImages = this._groups.map((group) => ({
                     ...group,
                     data: this._densityForGroup(group, width, height, radius),
@@ -4154,6 +4216,8 @@
                 groupImages.forEach((group, groupIndex) => {
                     group.points.forEach(([lat, lng]) => {
                         const point = this._map.latLngToContainerPoint([lat, lng]);
+                        point.x *= pixelScale;
+                        point.y *= pixelScale;
                         const startX = Math.max(0, Math.floor(point.x - protectedRadius));
                         const endX = Math.min(width - 1, Math.ceil(point.x + protectedRadius));
                         const startY = Math.max(0, Math.floor(point.y - protectedRadius));
@@ -4223,7 +4287,10 @@
                         continue;
                     }
 
-                    if (!canvasPixelInsideBoundary(this._map, x, y, this._options.clipBoundary)) {
+                    const screenX = x / pixelScale;
+                    const screenY = y / pixelScale;
+
+                    if (!canvasPixelInsideBoundary(this._map, screenX, screenY, this._options.clipBoundary)) {
                         continue;
                     }
 
@@ -4254,64 +4321,6 @@
         });
 
         return new PointRampLayer();
-    }
-
-    function buildBarangayMajorityClusterBlobLayer(features) {
-        if (!hasBoundaryFeatures(latestBarangayBoundaryGeoJson)) {
-            return null;
-        }
-
-        const selected = selectedBarangay();
-        const selectedNormalized = normalizeBarangayName(selected);
-        const barangayGroups = new Map();
-
-        features.forEach((feature) => {
-            const props = feature.properties || {};
-            const barangay = normalizeBarangayName(props.barangay);
-            const groupNumber = featureClusterNumber(feature);
-            if (!barangay || groupNumber === null) {
-                return;
-            }
-
-            if (!barangayGroups.has(barangay)) {
-                barangayGroups.set(barangay, {
-                    total: 0,
-                    counts: new Map(),
-                });
-            }
-
-            const stat = barangayGroups.get(barangay);
-            stat.total += 1;
-            stat.counts.set(groupNumber, (stat.counts.get(groupNumber) || 0) + 1);
-        });
-
-        return window.L.geoJSON(latestBarangayBoundaryGeoJson, {
-            pane: 'gis-heat-pane',
-            interactive: false,
-            filter(feature) {
-                const barangay = normalizeBarangayName(barangayNameFromBoundary(feature));
-                return barangayGroups.has(barangay)
-                    && (selected === 'all' || barangay === selectedNormalized);
-            },
-            style(feature) {
-                const barangay = normalizeBarangayName(barangayNameFromBoundary(feature));
-                const stat = barangayGroups.get(barangay);
-                const winner = [...(stat?.counts || new Map()).entries()]
-                    .sort((a, b) => b[1] - a[1])[0];
-                const groupNumber = winner?.[0] ?? null;
-                const winnerCount = winner?.[1] ?? 0;
-                const share = stat?.total ? winnerCount / stat.total : 0;
-
-                return {
-                    color: 'transparent',
-                    weight: 0,
-                    opacity: 0,
-                    fillColor: groupNumber ? clusterColorForLabel(`Group ${groupNumber}`) : '#64748b',
-                    fillOpacity: Math.max(0.20, Math.min(0.38, 0.14 + (share * 0.24))),
-                    smoothFactor: 1.6,
-                };
-            },
-        });
     }
 
     function buildClusterIdentityHaloLayer(features) {
