@@ -28,13 +28,36 @@
         <p>Generated: {{ now()->format('F j, Y') }} · OSCA AgeSense System</p>
     </div>
 
-    <x-page-header title="Risk Report" subtitle="Senior citizen risk level distribution and domain breakdown" />
+    {{-- ── Compact stat + filter strip ── --}}
+    <div class="card overflow-hidden">
+        <div class="px-5 py-3 flex flex-wrap items-center gap-4">
+            {{-- Stat strip --}}
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-high-500 flex-shrink-0"></span>
+                    <span class="font-mono font-bold text-[20px] leading-none text-high-700 dark:text-[#e08070] tnum">{{ number_format($riskDist['HIGH'] ?? 0) }}</span>
+                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">high risk</span>
+                </div>
+                <span class="text-ink-200 dark:text-[#2b3530] select-none">·</span>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-moderate-500 flex-shrink-0"></span>
+                    <span class="font-mono font-bold text-[20px] leading-none text-moderate-700 dark:text-[#d4a830] tnum">{{ number_format($riskDist['MODERATE'] ?? 0) }}</span>
+                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">moderate</span>
+                </div>
+                <span class="text-ink-200 dark:text-[#2b3530] select-none">·</span>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-low-500 flex-shrink-0"></span>
+                    <span class="font-mono font-bold text-[20px] leading-none text-low-700 dark:text-[#4a8a68] tnum">{{ number_format($riskDist['LOW'] ?? 0) }}</span>
+                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">low risk</span>
+                </div>
+            </div>
 
-    {{-- ── Filter Bar ── --}}
-    <div class="card">
-        <div class="card-body flex flex-wrap items-center gap-3 py-3">
-            <x-heroicon-o-funnel class="w-4 h-4 text-ink-400 flex-shrink-0" />
-            <form method="GET" class="flex gap-2 flex-wrap flex-1">
+            {{-- Vertical divider --}}
+            <div class="w-px self-stretch bg-paper-rule dark:bg-[#2b3530] flex-shrink-0 hidden sm:block"></div>
+
+            {{-- Filter form --}}
+            <form method="GET" class="flex gap-2 flex-wrap flex-1 items-center">
+                <x-heroicon-o-funnel class="w-4 h-4 text-ink-400 flex-shrink-0" />
                 <select name="barangay" class="form-select max-w-[200px]">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $b)
@@ -47,26 +70,11 @@
                 </select>
                 <button type="submit" class="btn btn-primary">Filter</button>
             </form>
-            <a href="{{ route('reports.risk.export') }}" class="btn ml-auto">
+
+            <a href="{{ route('reports.risk.export') }}" class="btn flex-shrink-0">
                 <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
             </a>
         </div>
-    </div>
-
-    {{-- ── Risk Overview Cards ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        @foreach ([
-            ['HIGH',     $riskDist['HIGH']     ?? 0, 'high'],
-            ['MODERATE', $riskDist['MODERATE'] ?? 0, 'moderate'],
-            ['LOW',      $riskDist['LOW']      ?? 0, 'low'],
-        ] as [$level, $count, $accent])
-        <div class="kpi">
-            <div class="kpi-rule bg-{{ $accent }}-500"></div>
-            <div class="kpi-label">{{ $level }} Risk</div>
-            <div class="kpi-value text-{{ $accent }}-700">{{ number_format($count) }}</div>
-            <div class="kpi-delta">senior citizens</div>
-        </div>
-        @endforeach
     </div>
 
     {{-- ── Domain Averages + Rec Categories ── --}}
@@ -241,9 +249,16 @@
     </div>
 
     {{-- ── Interactive Risk Explorer ── --}}
-    <div>
-        <div class="eyebrow px-1 mb-3">Interactive Risk Explorer</div>
-        <livewire:reports.risk-report />
+    <div class="card overflow-hidden">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Interactive Risk Explorer</div>
+                <div class="card-sub">Filter and drill down by barangay, risk level, and domain scores</div>
+            </div>
+        </div>
+        <div class="card-body pt-0">
+            <livewire:reports.risk-report />
+        </div>
     </div>
 
     <x-doc-footer signatory="OSCA Officer / Reviewer" />

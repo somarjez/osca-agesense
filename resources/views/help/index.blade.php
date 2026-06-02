@@ -3,305 +3,214 @@
 @section('page-subtitle', 'Frequently asked questions and system guide')
 
 @section('content')
-<div class="space-y-8 max-w-4xl" x-data="{ open: null }">
+<div class="space-y-6" x-data="helpCentre()">
 
-    {{-- ── Quick nav ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <x-page-header title="Help Centre" subtitle="Frequently asked questions and system guide" />
+
+    {{-- ── Search ── --}}
+    <div class="relative">
+        <x-heroicon-o-magnifying-glass class="w-4 h-4 text-ink-400 dark:text-[#6b7570] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input type="text"
+               x-model.debounce.150ms="search"
+               @keydown.escape="search = ''; activeTopic = 'all'"
+               placeholder="Search for help or type a question…"
+               autocomplete="off"
+               class="w-full pl-11 pr-10 py-3 text-[13.5px] bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-2xl focus:border-forest-400 dark:focus:border-forest-600 focus:ring-2 focus:ring-forest-400/20 outline-none transition-all placeholder:text-ink-300 dark:placeholder:text-[#4a5550] text-ink-900 dark:text-[#e4e1d8] shadow-sm">
+        <button x-show="search" x-cloak
+                @click="search = ''"
+                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 dark:hover:text-[#c8c4bc] transition-colors p-1">
+            <x-heroicon-o-x-mark class="w-4 h-4" />
+        </button>
+    </div>
+
+    {{-- ── Topic pills ── --}}
+    <div class="flex flex-wrap gap-2">
         @foreach ([
-            ['#getting-started', 'heroicon-o-play-circle',     'Getting Started'],
-            ['#senior-records',  'heroicon-o-users',            'Senior Records'],
-            ['#surveys',         'heroicon-o-clipboard-document-list', 'QoL Surveys'],
-            ['#risk',            'heroicon-o-shield-check',     'Risk & Assessments'],
-            ['#groups',          'heroicon-o-squares-2x2',      'Health Groups'],
-            ['#recommendations', 'heroicon-o-light-bulb',       'Recommendations'],
-            ['#batch',           'heroicon-o-arrow-path',       'Batch Assessment'],
-            ['#faq',             'heroicon-o-question-mark-circle', 'FAQs'],
-        ] as [$href, $icon, $label])
-        <a href="{{ $href }}"
-           class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530] rounded-xl text-sm font-medium text-ink-700 dark:text-[#c8c4bc] hover:bg-forest-50/40 dark:hover:bg-forest-900/10 hover:border-forest-300 dark:hover:border-forest-800/40 transition-colors">
-            <x-dynamic-component :component="$icon" class="w-4 h-4 text-forest-600 flex-shrink-0" />
+            ['all',             'All Topics'],
+            ['getting-started', 'Getting Started'],
+            ['senior-records',  'Senior Records'],
+            ['surveys',         'QoL Surveys'],
+            ['risk',            'Risk & Assessments'],
+            ['groups',          'Health Groups'],
+            ['recommendations', 'Recommendations'],
+            ['batch',           'Batch Assessment'],
+            ['general',         'FAQs'],
+        ] as [$key, $label])
+        <button type="button"
+                @click="activeTopic = '{{ $key }}'; search = ''"
+                :class="activeTopic === '{{ $key }}'
+                    ? 'bg-navy-800 dark:bg-navy-700 text-paper border-navy-800 dark:border-navy-700'
+                    : 'bg-white dark:bg-[#1a201d] text-ink-600 dark:text-[#8a9087] border-paper-rule dark:border-[#2b3530] hover:border-ink-300 dark:hover:border-[#4a5550]'"
+                class="px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-colors duration-100">
             {{ $label }}
-        </a>
+        </button>
         @endforeach
     </div>
 
-    {{-- ── Getting Started ── --}}
-    <section id="getting-started" class="card scroll-mt-6">
-        <div class="card-head">
-            <div>
-                <div class="card-title">Getting Started</div>
-                <div class="card-sub">Overview of the OSCA AgeSense system</div>
-            </div>
-        </div>
-        <div class="card-body prose prose-sm max-w-none text-ink-700 space-y-4">
-            <p>
-                The OSCA AgeSense system helps barangay health workers manage senior citizen records,
-                track Quality of Life (QoL) surveys, and identify seniors who need care or intervention.
-            </p>
-            <p>The system works in three steps:</p>
-            <ol class="list-decimal list-inside space-y-1.5 text-sm">
-                <li><strong>Register</strong> a senior citizen and fill in their profile.</li>
-                <li><strong>Conduct</strong> a QoL survey to capture their current health and living situation.</li>
-                <li><strong>Run the assessment</strong> to automatically assign a risk level and generate care recommendations.</li>
-            </ol>
-            <div class="bg-forest-50 border border-forest-200 rounded-xl px-4 py-3 text-sm text-forest-800">
-                <strong>Tip:</strong> Start from <strong>Senior Records → New Profile</strong> to register a senior, then go to their profile page to add a QoL survey.
-            </div>
-        </div>
-    </section>
+    {{-- ── Result count ── --}}
+    <div x-show="search.trim() || activeTopic !== 'all'" x-cloak
+         class="flex items-center gap-2 text-[12px] text-ink-400 dark:text-[#6b7570]">
+        <span><span x-text="totalFiltered"></span> <span x-text="totalFiltered === 1 ? 'result' : 'results'"></span><template x-if="search.trim()"> for &ldquo;<span class="text-ink-700 dark:text-[#c8c4bc]" x-text="search.trim()"></span>&rdquo;</template></span>
+        <button @click="search = ''; activeTopic = 'all'"
+                class="text-forest-600 dark:text-forest-400 hover:underline">Clear</button>
+    </div>
 
-    {{-- ── Senior Records ── --}}
-    <section id="senior-records" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Senior Records</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I add a new senior citizen?</p>
-                <p>Go to <strong>Senior Records → New Profile</strong> in the sidebar. Fill in all required fields (name, OSCA ID, date of birth, barangay) and submit. The senior's profile page will open automatically.</p>
+    {{-- ── Sections ── --}}
+    <template x-for="sec in visibleSections" :key="sec.key">
+        <section class="card scroll-mt-6">
+            <div class="card-head">
+                <div>
+                    <div class="card-title" x-text="sec.title"></div>
+                    <div class="card-sub" x-show="sec.sub" x-text="sec.sub"></div>
+                </div>
             </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I edit a senior's information?</p>
-                <p>Open the senior's profile and click the <strong>Edit</strong> button in the top-right corner.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What does archiving a senior do?</p>
-                <p>Archiving hides a senior from active lists and reports without permanently deleting their records. Archived seniors can be restored at any time from the <strong>Archives</strong> section. Their past assessment results are preserved but excluded from group analysis.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I restore an archived senior?</p>
-                <p>Go to <strong>Archives</strong> in the sidebar, find the senior, and click <strong>Restore</strong>.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What is the OSCA ID?</p>
-                <p>The OSCA ID is the official identification number assigned by your local Office for Senior Citizens Affairs. It must be unique for each senior in the system.</p>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── QoL Surveys ── --}}
-    <section id="surveys" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Quality of Life (QoL) Surveys</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What is a QoL survey?</p>
-                <p>A Quality of Life survey captures a senior's current health, social, financial, and environmental situation. It is the main input used to assess their risk level and generate recommendations.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I conduct a QoL survey?</p>
-                <ol class="list-decimal list-inside space-y-1">
-                    <li>Open the senior's profile page.</li>
-                    <li>Click <strong>+ New QoL Survey</strong>.</li>
-                    <li>Fill in each section — you can navigate between sections using the Next button.</li>
-                    <li>On the last section, click <strong>Submit &amp; Run Assessment</strong>.</li>
-                </ol>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What are the survey sections?</p>
-                <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Physical Health</strong> — mobility, chronic illness, sensory concerns</li>
-                    <li><strong>Psychological</strong> — emotional wellbeing, memory, mood</li>
-                    <li><strong>Social</strong> — relationships, community participation</li>
-                    <li><strong>Financial</strong> — income sources, economic stability</li>
-                    <li><strong>Environment</strong> — housing, access to services</li>
-                    <li><strong>Spirituality &amp; Independence</strong> — sense of purpose, daily activity levels</li>
-                </ul>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">Can I submit multiple surveys for one senior?</p>
-                <p>Yes. Each survey is a snapshot in time. The most recent survey is always used for the senior's current risk assessment. You can view all past surveys from the senior's profile.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">Can I delete a survey?</p>
-                <p>Yes. Open the senior's profile, go to the QoL Survey History section, and click <strong>Delete</strong> next to the survey. This also removes the associated assessment results. This action cannot be undone.</p>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── Risk & Assessments ── --}}
-    <section id="risk" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Risk Levels &amp; Assessments</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-2">What do the risk levels mean?</p>
-                <div class="space-y-2">
-                    @foreach ([
-                        ['HIGH',     'badge-high',     'Significant concerns present across multiple domains. Priority action or intervention required. Seniors with scores ≥ 0.70 are flagged as urgent-priority.'],
-                        ['MODERATE', 'badge-moderate', 'Some risk factors present. Planned monitoring and targeted support recommended.'],
-                        ['LOW',      'badge-low',      'Senior is generally well. Continue routine check-ins and maintenance programs.'],
-                    ] as [$level, $badge, $desc])
-                    <div class="flex items-start gap-3">
-                        <span class="badge {{ $badge }} flex-shrink-0 mt-0.5">{{ $level }}</span>
-                        <span>{{ $desc }}</span>
+            <div class="card-body divide-y divide-paper-rule dark:divide-[#2b3530] -mt-1">
+                <template x-for="item in itemsForSection(sec.key)" :key="item.q">
+                    <div class="pt-4 first:pt-0 pb-1 last:pb-0 space-y-1.5 text-sm text-ink-700 dark:text-[#c8c4bc]">
+                        <p class="font-semibold text-ink-900 dark:text-[#e4e1d8]" x-html="hl(item.q)"></p>
+                        <p class="leading-relaxed" x-html="hl(item.a)"></p>
                     </div>
-                    @endforeach
-                </div>
+                </template>
             </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What are the three risk areas?</p>
-                <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Physical Capacity</strong> — intrinsic health and bodily function</li>
-                    <li><strong>Environment</strong> — living conditions and access to support</li>
-                    <li><strong>Daily Functioning</strong> — ability to carry out day-to-day activities independently</li>
-                </ul>
-                <p class="mt-2">Each area gets its own risk score. The <strong>Overall Risk</strong> combines all three.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I run or re-run an assessment?</p>
-                <p>Open the senior's profile and click <strong>Re-run Assessment</strong>. The system will process the latest survey and update the risk scores and recommendations. This takes a few seconds.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What does "Wellbeing Score" mean?</p>
-                <p>The Wellbeing Score (shown as a percentage out of 100) summarises the senior's overall positive health status. A higher score means better wellbeing. It is the inverse of overall risk.</p>
-            </div>
-        </div>
-    </section>
+        </section>
+    </template>
 
-    {{-- ── Health Groups ── --}}
-    <section id="groups" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Health Groups</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What are health groups?</p>
-                <p>Health groups automatically sort seniors into four categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed in the same group. This helps identify which seniors share similar needs so resources can be planned more efficiently.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-2">What does each group mean?</p>
-                <div class="space-y-2">
-                    @foreach ([
-                        ['Group 1', 'text-emerald-700 bg-emerald-50 border-emerald-200', 'High Functioning',  'Seniors who are relatively independent with low risk across all areas.'],
-                        ['Group 2', 'text-amber-700 bg-amber-50 border-amber-200',       'Moderate / Mixed',  'Seniors with some areas of concern. Targeted support is recommended.'],
-                        ['Group 3', 'text-rose-700 bg-rose-50 border-rose-200',          'Low Functioning',   'Seniors with multiple high-risk areas who need the most support.'],
-                    ] as [$grp, $cls, $name, $desc])
-                    <div class="flex items-start gap-3">
-                        <span class="text-xs font-bold px-2 py-0.5 rounded-lg border flex-shrink-0 mt-0.5 {{ $cls }}">{{ $grp }}</span>
-                        <span><strong>{{ $name }}</strong> — {{ $desc }}</span>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">Where can I see the health group breakdown?</p>
-                <p>Go to <strong>Health Groups</strong> in the sidebar. You can filter by barangay, see per-group risk distributions, and export the data as a CSV file.</p>
+    {{-- ── Empty state ── --}}
+    <template x-if="visibleSections.length === 0">
+        <div class="card">
+            <div class="card-body py-16 text-center">
+                <x-heroicon-o-magnifying-glass class="w-8 h-8 text-ink-200 dark:text-[#2b3530] mx-auto mb-3" />
+                <p class="text-[13.5px] font-semibold text-ink-500 dark:text-[#6b7570]">
+                    No results for &ldquo;<span x-text="search"></span>&rdquo;
+                </p>
+                <p class="text-[12.5px] text-ink-400 dark:text-[#4a5550] mt-1">
+                    Try a shorter term, or
+                    <button @click="search = ''; activeTopic = 'all'"
+                            class="text-forest-600 dark:text-forest-400 hover:underline">browse all topics</button>.
+                </p>
             </div>
         </div>
-    </section>
-
-    {{-- ── Recommendations ── --}}
-    <section id="recommendations" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Recommendations</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">Where do recommendations come from?</p>
-                <p>Recommendations are automatically generated each time an assessment is run. They are based on the senior's specific risk scores across physical, environmental, and functional areas.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What do the urgency levels mean?</p>
-                <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Immediate</strong> — act as soon as possible</li>
-                    <li><strong>Urgent</strong> — schedule within the week</li>
-                    <li><strong>Planned</strong> — include in the next regular visit</li>
-                </ul>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I mark a recommendation as done?</p>
-                <p>Go to <strong>Recommendations</strong> in the sidebar or open the senior's profile. Find the recommendation and update its status. Completed recommendations are kept for record purposes.</p>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── Batch Assessment ── --}}
-    <section id="batch" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Batch Assessment</div>
-        </div>
-        <div class="card-body space-y-5 text-sm text-ink-700">
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What is batch assessment?</p>
-                <p>Batch assessment runs the health assessment for all seniors who have a QoL survey but have not been assessed yet (or need re-assessment). Instead of running them one by one, batch mode processes everyone at once.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How do I run a batch assessment?</p>
-                <ol class="list-decimal list-inside space-y-1">
-                    <li>Go to <strong>Assessment Tools → Batch Analysis</strong> in the sidebar.</li>
-                    <li>Review the list of eligible seniors.</li>
-                    <li>Click <strong>Run Full Batch</strong> and confirm.</li>
-                    <li>Wait for the page to refresh — do not close the tab while it is running.</li>
-                </ol>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">How long does it take?</p>
-                <p>Typically 1–3 minutes depending on the number of seniors. A progress indicator is shown while it runs.</p>
-            </div>
-            <div>
-                <p class="font-semibold text-ink-900 mb-1">What if the analysis service is offline?</p>
-                <p>Go to <strong>Assessment Tools → Service Status</strong>. If the service shows as offline, click <strong>Start Services</strong>. If the problem persists, contact your system administrator.</p>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── FAQs ── --}}
-    <section id="faq" class="card scroll-mt-6">
-        <div class="card-head">
-            <div class="card-title">Frequently Asked Questions</div>
-        </div>
-        <div class="card-body divide-y divide-paper-rule">
-            @foreach ([
-                [
-                    "Q: A senior's name shows as \"—\" in the Health Groups table.",
-                    "This means the senior has been archived. Archived seniors are excluded from group analysis. If you need them included, restore them from the Archives section.",
-                ],
-                [
-                    "Q: The risk score did not change after I updated the survey.",
-                    "You need to re-run the assessment after editing a survey. Open the senior's profile and click Re-run Assessment.",
-                ],
-                [
-                    "Q: I cannot find a senior in the records list.",
-                    "They may have been archived. Check the Archives section in the sidebar. You can restore them from there.",
-                ],
-                [
-                    "Q: The assessment service shows as \"Offline\".",
-                    "Go to Assessment Tools → Service Status and click Start Services. If it does not come online, ask your administrator to restart the analysis services on the server.",
-                ],
-                [
-                    "Q: Can two seniors share the same OSCA ID?",
-                    "No. OSCA IDs must be unique. The system will reject a duplicate OSCA ID when you try to save the profile.",
-                ],
-                [
-                    "Q: How often should QoL surveys be conducted?",
-                    "It is recommended to conduct a QoL survey at least once every six months, or whenever there is a significant change in a senior's health or living situation.",
-                ],
-                [
-                    "Q: Can I export data?",
-                    "Yes. The Health Groups report has an Export CSV button. Individual senior profiles can be exported as a PDF using the Export PDF button on their profile page.",
-                ],
-                [
-                    "Q: Who can access the system?",
-                    "Access requires a login. User accounts are managed by the system administrator. Contact your administrator to add or remove users.",
-                ],
-            ] as [$question, $answer])
-            <div x-data="{ open: false }" class="py-3">
-                <button @click="open = !open"
-                        class="w-full flex items-center justify-between text-left gap-4 text-sm font-semibold text-ink-900 hover:text-forest-700 transition-colors">
-                    <span>{{ $question }}</span>
-                    <x-heroicon-o-chevron-down class="w-4 h-4 flex-shrink-0 transition-transform duration-200"
-                                               ::class="open ? 'rotate-180' : ''" />
-                </button>
-                <div x-show="open" x-transition class="mt-2 text-sm text-ink-600 leading-relaxed pr-6">
-                    {{ $answer }}
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </section>
+    </template>
 
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function helpCentre() {
+    const sections = [
+        { key: 'getting-started', title: 'Getting Started',               sub: 'Overview of the OSCA AgeSense system' },
+        { key: 'senior-records',  title: 'Senior Records',                sub: null },
+        { key: 'surveys',         title: 'Quality of Life (QoL) Surveys', sub: null },
+        { key: 'risk',            title: 'Risk Levels & Assessments',      sub: null },
+        { key: 'groups',          title: 'Health Groups',                  sub: null },
+        { key: 'recommendations', title: 'Recommendations',                sub: null },
+        { key: 'batch',           title: 'Batch Assessment',               sub: null },
+        { key: 'general',         title: 'Frequently Asked Questions',     sub: null },
+    ];
+
+    const items = [
+        // Getting Started
+        { topic: 'getting-started', q: 'What is AgeSense?', a: 'AgeSense is a decision-support system for OSCA Pagsanjan staff. It helps manage senior citizen records, track Quality of Life surveys, identify seniors at risk, and generate care recommendations — all based on the WHO Healthy Ageing framework. Results are decision-support indicators, not clinical diagnoses.' },
+        { topic: 'getting-started', q: 'What is the standard workflow?', a: 'Three steps: (1) Register a senior and fill in their profile. (2) Conduct a QoL survey to capture their current health and living situation. (3) Run the assessment to get a risk level, health group assignment, and care recommendations. Repeat the survey at least every six months or after a significant health change.' },
+        { topic: 'getting-started', q: 'Who can use the system?', a: 'Three roles exist. Administrators manage everything — profiles, assessments, user accounts, and exports. Encoders can capture and edit senior profiles and surveys, and run assessments. Viewers can read dashboards and reports but cannot make changes. Accounts are managed by your system administrator.' },
+        { topic: 'getting-started', q: 'How do I switch to dark mode?', a: 'Click the moon icon in the top-right corner of the screen. The system remembers your preference per device.' },
+        { topic: 'getting-started', q: 'Where do I start if this is my first time?', a: 'Go to Senior Records → New Profile to register your first senior. Once their profile is saved, open it and click New QoL Survey. After submitting the survey, click Re-run Assessment to generate risk scores and recommendations.' },
+
+        // Senior Records
+        { topic: 'senior-records', q: 'How do I add a new senior citizen?', a: 'Go to Senior Records → New Profile in the sidebar. Fill in all required fields — name, OSCA ID, date of birth, barangay — and submit. The senior\'s profile page opens automatically.' },
+        { topic: 'senior-records', q: 'How do I edit a senior\'s information?', a: 'Open the senior\'s profile and click Edit in the top-right action bar. Make your changes and save. If you edit information that affects the risk score, re-run the assessment afterwards so the scores stay current.' },
+        { topic: 'senior-records', q: 'What does archiving a senior do?', a: 'Archiving hides a senior from active lists and reports without permanently deleting their data. Their past assessment results are preserved but excluded from group analysis. Archived seniors can be restored at any time from the Archives section.' },
+        { topic: 'senior-records', q: 'How do I restore an archived senior?', a: 'Go to Archives in the sidebar, find the senior, and click Restore. Their profile returns to the active records list with all historical data intact.' },
+        { topic: 'senior-records', q: 'What is the OSCA ID?', a: 'The OSCA ID is the official identification number assigned by your local Office for Senior Citizens Affairs. It must be unique across the system — the system will reject a duplicate OSCA ID when saving a profile.' },
+        { topic: 'senior-records', q: 'How do I export a senior\'s profile as PDF?', a: 'Open the senior\'s profile and click Export PDF in the top-right action bar. The PDF includes identifying information, health profile, risk assessment results, and recommendations — formatted as an official OSCA document with a control number and signatory line.' },
+        { topic: 'senior-records', q: 'How does bulk upload work?', a: 'Go to Senior Records and click Bulk Upload. Download the CSV template, fill in the required columns (first_name, last_name, barangay, dob, gender), then upload the file. Rows with missing required fields are skipped. The system automatically runs assessments for all imported seniors within a minute.' },
+
+        // QoL Surveys
+        { topic: 'surveys', q: 'What is a QoL survey?', a: 'A Quality of Life survey captures a senior\'s current health, social, financial, and environmental situation across six domains. It is the main input for the risk assessment — without a completed survey, no risk score can be generated.' },
+        { topic: 'surveys', q: 'How do I conduct a QoL survey?', a: 'Open the senior\'s profile and click New QoL Survey. Fill in each section and use Next to move forward. On the last section, click Submit & Run Assessment. Risk scores appear on the profile within a few seconds.' },
+        { topic: 'surveys', q: 'What are the QoL survey sections?', a: 'The survey covers six domains: Physical Health (mobility, chronic illness, sensory concerns), Psychological (emotional wellbeing, memory, mood), Social (relationships, community participation), Financial (income sources, economic stability), Environment (housing, access to services), and Spirituality & Independence (sense of purpose, daily activity levels).' },
+        { topic: 'surveys', q: 'Can I submit multiple surveys for one senior?', a: 'Yes. Each survey is a timestamped snapshot. The most recent survey always drives the current risk assessment. All past surveys remain visible in the QoL Survey History section of the senior\'s profile.' },
+        { topic: 'surveys', q: 'Can I delete a QoL survey?', a: 'Yes. Open the senior\'s profile, go to QoL Survey History, and click Delete next to the survey. This permanently removes the survey and its associated assessment results. This action cannot be undone.' },
+        { topic: 'surveys', q: 'What is the Consent field in the profile form?', a: 'Records whether the senior has given informed consent for their data to be used in the system. You can record the date and method (verbal or written). This is required for data governance and is printed on exported PDF records.' },
+
+        // Risk & Assessments
+        { topic: 'risk', q: 'What do the risk levels mean?', a: 'HIGH means significant concerns across multiple domains — priority action required. Seniors with a composite score of 70% or above are additionally flagged urgent-priority. MODERATE means some risk factors are present — planned monitoring and targeted support are recommended. LOW means the senior is generally well — routine check-ins are appropriate.' },
+        { topic: 'risk', q: 'What are the three risk domains?', a: 'Physical Capacity covers intrinsic health and bodily function. Environment covers living conditions and access to support and services. Daily Functioning covers the ability to carry out day-to-day activities independently. Each domain gets its own risk score, and the Overall Risk combines all three.' },
+        { topic: 'risk', q: 'How do I run or re-run an assessment?', a: 'Open the senior\'s profile and click Re-run Assessment. The system processes the latest QoL survey and updates risk scores, health group assignment, and recommendations. This takes a few seconds and the page reloads automatically when complete.' },
+        { topic: 'risk', q: 'What does the Wellbeing Score mean?', a: 'The Wellbeing Score (0–100) summarises the senior\'s overall positive health status — roughly the inverse of the composite risk score. A score of 67 means reasonable overall wellbeing across the assessed domains. Higher is better.' },
+        { topic: 'risk', q: 'What does "Results may be outdated" mean?', a: 'This banner appears when the senior\'s profile or survey was modified after the last assessment ran. The displayed scores may no longer reflect current data. Click Re-run Assessment to get accurate, up-to-date results.' },
+        { topic: 'risk', q: 'What is the urgent-priority threshold?', a: 'Seniors with a composite risk score of 70% or higher are automatically flagged urgent-priority. This appears as a pulsing orange badge next to their HIGH risk label on the Senior Records list and their profile, and they appear at the top of the Risk Reports at-risk table.' },
+
+        // Health Groups
+        { topic: 'groups', q: 'What are health groups?', a: 'Health groups automatically sort seniors into four categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed together. This helps OSCA staff identify which seniors share similar needs so resources can be planned more efficiently.' },
+        { topic: 'groups', q: 'What does each health group mean?', a: 'Group 1 (High Functioning) — relatively independent, low risk across all domains. Group 2 (Stable / Moderate) — some areas of concern; targeted support recommended. Group 3 (Env / Financial Vulnerable) — good intrinsic capacity but environmental and financial stressors are significant. Group 4 (Multi-Domain Priority) — vulnerability across multiple domains; requires coordinated intervention.' },
+        { topic: 'groups', q: 'Where can I see the health group breakdown?', a: 'Go to Health Groups in the sidebar. You can see per-group risk averages, WHO domain charts, barangay distribution, model insights, and snapshot history. Use Export CSV to download the data for reporting.' },
+
+        // Recommendations
+        { topic: 'recommendations', q: 'Where do recommendations come from?', a: 'Recommendations are automatically generated each time an assessment runs, based on the senior\'s specific risk scores. They are decision-support outputs — not clinical prescriptions — and should be used alongside professional assessment and OSCA case knowledge.' },
+        { topic: 'recommendations', q: 'What do the urgency levels mean?', a: 'Immediate — act as soon as possible, typically for urgent-priority seniors. Urgent — schedule action within the week. Planned — include in the next regular visit or care review.' },
+        { topic: 'recommendations', q: 'How do I mark a recommendation as done?', a: 'Go to Recommendations in the sidebar or open the senior\'s profile. Find the recommendation and use the status dropdown to update it to Completed. Completed recommendations are kept for record purposes.' },
+        { topic: 'recommendations', q: 'Can I see all recommendations for a senior in one place?', a: 'Yes. Open the senior\'s profile and click the View all button in the Recommendations card header. This opens the full recommendations page for that senior, where you can update statuses and see every category at once.' },
+
+        // Batch Assessment
+        { topic: 'batch', q: 'What is batch assessment?', a: 'Batch assessment runs the health assessment for all eligible seniors at once — those who have a QoL survey but have not yet been assessed, or whose results are stale. Instead of running them one by one, batch mode processes everyone in a single operation.' },
+        { topic: 'batch', q: 'How do I run a batch assessment?', a: 'Go to Assessment Tools → Batch Analysis in the sidebar. Review the list of eligible seniors. Click Run Full Batch and confirm. Keep the tab open while it runs — a progress indicator shows the current status. The page refreshes automatically when complete.' },
+        { topic: 'batch', q: 'How long does a batch assessment take?', a: 'Typically 1–3 minutes depending on the number of seniors with pending assessments. A progress bar is shown throughout. Do not close the tab while it is running.' },
+        { topic: 'batch', q: 'What if the analysis service is offline?', a: 'Go to Assessment Tools → Service Status. If the service shows as offline, click Start Services and wait about 60 seconds for the model to load. If it does not come online, ask your administrator to check the server.' },
+
+        // General / FAQs
+        { topic: 'general', q: 'A senior\'s name shows as "—" in the Health Groups table.', a: 'This means the senior has been archived. Archived seniors are excluded from group analysis. If you need them included, restore them from the Archives section in the sidebar.' },
+        { topic: 'general', q: 'The risk score did not change after I updated the survey.', a: 'You need to re-run the assessment after editing a survey. Open the senior\'s profile and click Re-run Assessment. Scores update within a few seconds.' },
+        { topic: 'general', q: 'I cannot find a senior in the records list.', a: 'They may have been archived. Check the Archives section in the sidebar. If they appear there, click Restore to bring them back to the active list.' },
+        { topic: 'general', q: 'The assessment service shows as "Offline".', a: 'Go to Assessment Tools → Service Status and click Start Services. Wait about 60 seconds for the model to load. If it does not come online, ask your administrator to restart the analysis services on the server.' },
+        { topic: 'general', q: 'Can two seniors share the same OSCA ID?', a: 'No. OSCA IDs must be unique across the entire system. The system will reject a duplicate OSCA ID when saving a profile and display an error message.' },
+        { topic: 'general', q: 'How often should QoL surveys be conducted?', a: 'At least once every six months, or whenever there is a significant change in a senior\'s health or living situation — such as a hospitalisation, a change in living arrangement, or a major illness.' },
+        { topic: 'general', q: 'Can I export data?', a: 'Yes. Individual senior profiles can be exported as PDF from their profile page. The Health Groups and Risk Reports pages each have an Export CSV button. The Senior Records list also supports bulk CSV export.' },
+        { topic: 'general', q: 'Who can access the system?', a: 'Access requires a login. User accounts and role assignments are managed by the system administrator. Contact your administrator to add or remove users or to change permissions.' },
+    ];
+
+    return {
+        search: '',
+        activeTopic: 'all',
+        sections,
+        items,
+
+        get filtered() {
+            const q = this.search.toLowerCase().trim();
+            return this.items.filter(item => {
+                const topicMatch = this.activeTopic === 'all' || item.topic === this.activeTopic;
+                const textMatch  = !q ||
+                    item.q.toLowerCase().includes(q) ||
+                    item.a.toLowerCase().includes(q);
+                return topicMatch && textMatch;
+            });
+        },
+
+        get totalFiltered() { return this.filtered.length; },
+
+        get visibleSections() {
+            const f = this.filtered;
+            return this.sections.filter(sec => f.some(i => i.topic === sec.key));
+        },
+
+        itemsForSection(key) {
+            return this.filtered.filter(i => i.topic === key);
+        },
+
+        esc(t) {
+            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        },
+
+        hl(text) {
+            const e = this.esc(text);
+            const q = this.search.trim();
+            if (!q) return e;
+            const s = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+            return e.replace(new RegExp('('+s+')','gi'),
+                '<mark style="background:rgba(193,154,59,0.18);color:#7a5a00;border-radius:3px;padding:0 2px;">$1</mark>');
+        },
+    };
+}
+</script>
+@endpush
