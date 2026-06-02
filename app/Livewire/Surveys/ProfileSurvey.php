@@ -4,8 +4,6 @@ namespace App\Livewire\Surveys;
 
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
 
@@ -49,12 +47,6 @@ class ProfileSurvey extends Component
     public string $ethnicOrigin = '';
 
     public string $bloodType = '';
-
-    public ?string $latitude = null;
-
-    public ?string $longitude = null;
-
-    public bool $locationPinTouched = false;
 
     // ── II. Family Composition ────────────────────────────────────────────────
     public int $numChildren = 0;
