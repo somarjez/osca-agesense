@@ -19,6 +19,7 @@ class Facility extends Model
         'longitude',
         'source',
         'is_active',
+        'osm_id',
     ];
 
     protected $casts = [
