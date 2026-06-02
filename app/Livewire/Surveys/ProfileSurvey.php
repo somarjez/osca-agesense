@@ -142,7 +142,6 @@ class ProfileSurvey extends Component
         abort_unless(auth()->user()?->hasAnyRole(['admin', 'encoder']), 403);
 
         $this->validateCurrentStep();
-        $this->validateLocationPin();
 
         $data = [
             'first_name' => $this->firstName,
@@ -185,23 +184,6 @@ class ProfileSurvey extends Component
             'consent_given_at' => $this->consentGivenAt ?: null,
             'consent_method' => $this->consentMethod ?: null,
         ];
-
-        if ($this->hasUsableLocationPin()) {
-            $data['latitude'] = round((float) $this->latitude, 7);
-            $data['longitude'] = round((float) $this->longitude, 7);
-
-            if ($this->locationPinTouched || ! $this->senior?->location_source) {
-                $data['location_source'] = 'manual_pin';
-                $data['location_accuracy'] = 'verified/manual';
-                $data['location_verified_at'] = now();
-            }
-        } else {
-            $data['latitude'] = null;
-            $data['longitude'] = null;
-            $data['location_source'] = null;
-            $data['location_accuracy'] = null;
-            $data['location_verified_at'] = null;
-        }
 
         if ($this->senior) {
             $this->senior->update($data);
