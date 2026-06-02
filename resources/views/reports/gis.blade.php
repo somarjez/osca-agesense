@@ -336,6 +336,15 @@
     ];
     const routeDistanceCache = new Map();
     const warnedInvalidClusterValues = new Set();
+
+    function debounce(fn, ms) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), ms);
+        };
+    }
+
     let latestRequestId = 0;
     let latestSeniorGeoJson = null;
     let latestFacilityGeoJson = null;
@@ -5171,9 +5180,10 @@
             });
     }
 
+    const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
         if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
-            refreshRenderedLayer();
+            debouncedRefresh();
         }
     });
     document.addEventListener('DOMContentLoaded', renderMap);
