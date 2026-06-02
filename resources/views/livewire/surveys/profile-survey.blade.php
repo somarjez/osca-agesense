@@ -97,7 +97,6 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Barangay <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <select wire:model="barangay"
-                            data-location-barangay
                             class="form-select {{ $errors->has('barangay') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         <option value="">Select barangay…</option>
                         @foreach (\App\Models\SeniorCitizen::barangayList() as $b)
