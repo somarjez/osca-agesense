@@ -84,6 +84,9 @@ storage/app/ml_models/*.json
 # ML validation output — may contain senior PII (names, barangay), never commit
 storage/app/ml_validation/
 
+# Runtime GIS artifacts (geocoding status, cached files)
+/storage/app/gis/
+
 # Laravel runtime directories — generated at startup, never commit
 storage/framework/cache/
 storage/framework/sessions/
