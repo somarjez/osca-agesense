@@ -243,16 +243,11 @@
         1.00: '#b91c1c',
     };
     const CLUSTER_HEATMAP_GRADIENT = {
-        0.00: '#253494',
-        0.10: '#2166ac',
-        0.22: '#1d91c0',
-        0.34: '#41b6c4',
-        0.46: '#35d07f',
-        0.58: '#a6e22e',
-        0.70: '#fff238',
-        0.80: '#fdae21',
-        0.90: '#f46d43',
-        1.00: '#d7191c',
+        0.00: '#e8f4f8',
+        0.25: '#74c2e8',
+        0.50: '#f0e442',
+        0.75: '#e67e22',
+        1.00: '#c0392b',
     };
     const CLUSTER_HEATMAP_COLORS = {
         'Group 1': '#0ea5e9',
@@ -1358,13 +1353,11 @@
         const rawRadius = metersToPixelsAtLatLng(map, reference, meters);
 
         if (mode === 'cluster-heatmap') {
-            // Floor at 6px so the kernel never inflates beyond its geographic radius
-            // when zoomed out, preventing false cluster color in empty areas.
-            const radius = Math.round(Math.max(6, Math.min(42, rawRadius)));
+            const radius = Math.round(Math.max(6, Math.min(52, rawRadius)));
 
             return {
                 radius,
-                blur: Math.round(Math.max(4, Math.min(24, radius * 0.52))),
+                blur: Math.round(Math.max(4, Math.min(32, radius * 0.72))),
                 radius_meters: Math.round(meters),
             };
         }
@@ -2540,7 +2533,7 @@
                 blur: pixelOptions.blur,
                 radius_meters: pixelOptions.radius_meters,
                 maxZoom: map?.getZoom?.() ?? 17,
-                minOpacity: 0.22,
+                minOpacity: 0.30,
                 max: maxIntensity,
                 colorScaleMax,
                 outputMaxAlpha: options.outputMaxAlpha ?? renderOptions.outputMaxAlpha,
