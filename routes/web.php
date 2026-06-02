@@ -40,7 +40,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/facilities', [GisApiController::class, 'facilities'])->name('facilities');
             Route::get('/boundary/pagsanjan', [GisApiController::class, 'pagsanjanBoundary'])->name('boundary.pagsanjan');
             Route::get('/boundary/barangays', [GisApiController::class, 'barangayBoundaries'])->name('boundary.barangays');
-            Route::get('/route-distance', [GisApiController::class, 'routeDistance'])->name('route-distance');
+            Route::get('/route-distance', [GisApiController::class, 'routeDistance'])
+                ->middleware('throttle:60,1')
+                ->name('route-distance');
         });
 });
 
