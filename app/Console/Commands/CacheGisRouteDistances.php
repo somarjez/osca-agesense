@@ -33,7 +33,7 @@ class CacheGisRouteDistances extends Command
 
     public function handle(): int
     {
-        $apiKey = env('OPENROUTESERVICE_API_KEY');
+        $apiKey = config('services.openrouteservice.api_key');
         if (! $apiKey && ! $this->option('dry-run')) {
             $this->error('OPENROUTESERVICE_API_KEY is not configured.');
 
@@ -415,7 +415,7 @@ class CacheGisRouteDistances extends Command
 
     private function openRouteServiceVerifyOption(): bool|string
     {
-        $caBundle = trim((string) env('OPENROUTESERVICE_CA_BUNDLE', ''));
+        $caBundle = trim((string) config('services.openrouteservice.ca_bundle', ''));
         if ($caBundle !== '') {
             if (! is_file($caBundle) || ! is_readable($caBundle)) {
                 throw new \RuntimeException("OPENROUTESERVICE_CA_BUNDLE is set but the file does not exist or is not readable: {$caBundle}");
@@ -424,7 +424,7 @@ class CacheGisRouteDistances extends Command
             return $caBundle;
         }
 
-        if (filter_var(env('OPENROUTESERVICE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN) === false) {
+        if (filter_var(config('services.openrouteservice.verify_ssl', true), FILTER_VALIDATE_BOOLEAN) === false) {
             $this->warn('WARNING: OPENROUTESERVICE_VERIFY_SSL=false is enabled. Use this only for local development; production should use SSL verification or OPENROUTESERVICE_CA_BUNDLE.');
 
             return false;
@@ -435,7 +435,7 @@ class CacheGisRouteDistances extends Command
 
     private function openRouteServiceRadiuses(): array
     {
-        $configuredRadius = (int) env('OPENROUTESERVICE_SNAP_RADIUS_METERS', -1);
+        $configuredRadius = (int) config('services.openrouteservice.snap_radius_meters', -1);
         if ($configuredRadius === -1) {
             return [-1, -1];
         }
