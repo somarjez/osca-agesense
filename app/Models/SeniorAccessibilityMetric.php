@@ -14,6 +14,10 @@ class SeniorAccessibilityMetric extends Model
         'senior_citizen_id',
         'nearest_health_center_id',
         'distance_to_health_center_m',
+        'nearest_hospital_id',
+        'distance_to_hospital_m',
+        'nearest_pharmacy_id',
+        'distance_to_pharmacy_m',
         'nearest_barangay_hall_id',
         'distance_to_barangay_hall_m',
         'nearest_market_id',
@@ -24,6 +28,8 @@ class SeniorAccessibilityMetric extends Model
 
     protected $casts = [
         'distance_to_health_center_m' => 'decimal:2',
+        'distance_to_hospital_m' => 'decimal:2',
+        'distance_to_pharmacy_m' => 'decimal:2',
         'distance_to_barangay_hall_m' => 'decimal:2',
         'distance_to_market_m' => 'decimal:2',
         'accessibility_score' => 'decimal:4',
@@ -43,6 +49,16 @@ class SeniorAccessibilityMetric extends Model
     public function nearestBarangayHall(): BelongsTo
     {
         return $this->belongsTo(Facility::class, 'nearest_barangay_hall_id');
+    }
+
+    public function nearestHospital(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class, 'nearest_hospital_id');
+    }
+
+    public function nearestPharmacy(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class, 'nearest_pharmacy_id');
     }
 
     public function nearestMarket(): BelongsTo
