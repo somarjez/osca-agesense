@@ -64,9 +64,9 @@ class ImportOsmFacilities extends Command
                 if ($isNew) {
                     Facility::create(array_merge($data, ['source' => 'openstreetmap', 'is_active' => true]));
                 } else {
-                    // --force: update name/type/coordinates/address only; never restore is_active
+                    // --force: update core fields only; never restore is_active
                     $existing->update(array_intersect_key($data, array_flip([
-                        'name', 'type', 'address', 'latitude', 'longitude',
+                        'name', 'type', 'barangay', 'address', 'latitude', 'longitude',
                     ])));
                 }
             }
@@ -237,8 +237,10 @@ class ImportOsmFacilities extends Command
             if ($this->pointInsideFeature([$lon, $lat], $feature)) {
                 $p = $feature['properties'] ?? [];
 
-                return (string) ($p['name'] ?? $p['NAME'] ?? $p['barangay'] ?? $p['BARANGAY']
-                    ?? $p['brgy_name'] ?? $p['BRGY_NAME'] ?? $p['ADM4_EN'] ?? $p['adm4_en'] ?? '');
+                $name = $p['name'] ?? $p['NAME'] ?? $p['barangay'] ?? $p['BARANGAY']
+                    ?? $p['brgy_name'] ?? $p['BRGY_NAME'] ?? $p['ADM4_EN'] ?? $p['adm4_en'] ?? null;
+
+                return ($name !== null && (string) $name !== '') ? (string) $name : null;
             }
         }
 
@@ -320,7 +322,7 @@ class ImportOsmFacilities extends Command
             $largestArea    = -1.0;
 
             foreach ($coordinates as $polygon) {
-                if (! is_array($polygon) || ! isset($polygon[0])) {
+                if (! is_array($polygon) || ! isset($polygon[0]) || ! is_array($polygon[0])) {
                     continue;
                 }
 
