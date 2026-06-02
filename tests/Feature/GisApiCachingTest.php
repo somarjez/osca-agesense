@@ -60,4 +60,39 @@ class GisApiCachingTest extends TestCase
 
         $this->assertTrue(Cache::has($key));
     }
+
+    #[Test]
+    public function seniors_geojson_second_request_served_from_cache_without_db_queries(): void
+    {
+        Cache::forget('gis.seniors_geojson');
+
+        // First request — populates cache
+        $this->actingAs($this->admin)
+            ->getJson('/api/gis/seniors')
+            ->assertStatus(200);
+
+        $this->assertTrue(Cache::has('gis.seniors_geojson'));
+
+        // Second request — must be served from cache (no DB queries)
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        $this->actingAs($this->admin)
+            ->getJson('/api/gis/seniors')
+            ->assertStatus(200)
+            ->assertJsonStructure(['type', 'features']);
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        // Filter out any permission/auth queries — we only care that the seniors
+        // GeoJSON build (the expensive part) did not hit the DB.
+        $seniorQueries = array_filter($queries, fn($q) =>
+            str_contains(strtolower($q['query']), 'senior_citizens')
+        );
+
+        $this->assertEmpty($seniorQueries,
+            'Second request should not query senior_citizens — it should be served from cache. Queries fired: '
+            . implode('; ', array_column($seniorQueries, 'query'))
+        );
+    }
 }
