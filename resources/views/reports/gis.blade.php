@@ -4977,11 +4977,14 @@
 
     function refreshRenderedLayer() {
         const el = document.getElementById(MAP_ID);
-        const map = el?._leaflet_map_instance;
-        if (!el || !map || !latestSeniorGeoJson) return;
+        if (!el || !el._leaflet_map_instance || !latestSeniorGeoJson) return;
 
         setStatus('Rendering...', 'neutral');
         setTimeout(() => {
+            // Re-fetch the map inside the timeout: a Livewire navigation could
+            // have torn down and recreated the map in the event-loop gap.
+            const map = el._leaflet_map_instance;
+            if (!map) return;
             renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
         }, 0);
     }
