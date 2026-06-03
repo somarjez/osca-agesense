@@ -5060,7 +5060,10 @@
         }
 
         if (mode === 'markers') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            const showDensityFill = document.getElementById(SHOW_BARANGAY_DENSITY_TOGGLE_ID)?.checked !== false;
+            if (showDensityFill) {
+                layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            }
         }
 
         if (mode === 'barangay-density') {
@@ -5112,24 +5115,27 @@
                 },
             });
 
-            if (shouldClusterMarkers()) {
-                const markerClusterLayer = window.L.markerClusterGroup({
-                    showCoverageOnHover: false,
-                    spiderfyOnMaxZoom: true,
-                    disableClusteringAtZoom: 16,
-                    maxClusterRadius: 26,
-                    iconCreateFunction(cluster) {
-                        const markers = cluster.getAllChildMarkers();
-                        const tone = clusterTone(markers);
+            const showSeniorPoints = document.getElementById(SHOW_SENIOR_POINTS_TOGGLE_ID)?.checked !== false;
+            if (showSeniorPoints) {
+                if (shouldClusterMarkers()) {
+                    const markerClusterLayer = window.L.markerClusterGroup({
+                        showCoverageOnHover: false,
+                        spiderfyOnMaxZoom: true,
+                        disableClusteringAtZoom: 16,
+                        maxClusterRadius: 26,
+                        iconCreateFunction(cluster) {
+                            const markers = cluster.getAllChildMarkers();
+                            const tone = clusterTone(markers);
 
-                        return makeClusterDivIcon(tone, cluster.getChildCount());
-                    },
-                });
+                            return makeClusterDivIcon(tone, cluster.getChildCount());
+                        },
+                    });
 
-                markerClusterLayer.addLayer(markerLayer);
-                layers.seniors.addLayer(markerClusterLayer);
-            } else {
-                layers.seniors.addLayer(markerLayer);
+                    markerClusterLayer.addLayer(markerLayer);
+                    layers.seniors.addLayer(markerClusterLayer);
+                } else {
+                    layers.seniors.addLayer(markerLayer);
+                }
             }
 
             focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
