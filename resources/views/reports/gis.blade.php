@@ -5103,7 +5103,7 @@
 
         createTileLayer().addTo(map);
 
-        map.on('zoomend moveend', () => refreshHeatmapLayersForZoom(map));
+        map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
         map.on('click', (event) => {
             openBarangayPopupAt(map, event.latlng);
         });
