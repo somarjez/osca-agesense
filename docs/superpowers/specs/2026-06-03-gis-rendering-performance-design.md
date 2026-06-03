@@ -28,17 +28,17 @@ Three targeted changes to `resources/views/reports/gis.blade.php`. No new files,
 
 **Fix:** Add a shared `L.canvas()` renderer at module level. In the `pointToLayer` callback (line 4894–4909), replace `L.marker` + `createMarkerIcon()` with `L.circleMarker` drawn on the canvas renderer.
 
-### New canvas renderer constant (add near module-level variables, ~line 340)
+### New canvas renderer helper (add near module-level variables, ~line 340)
+
+The renderer is cached **on the map instance**, not in a module-level singleton. The map is destroyed and recreated in `renderMap()` on every Livewire navigation, so a module singleton would hold a stale reference to the old map's pane after navigating away and back. Caching on `map._gisCanvasRenderer` gives each map its own renderer that is garbage-collected with the old map.
 
 ```js
-let gisCanvasRenderer = null;
-
-function getCanvasRenderer() {
-    if (!gisCanvasRenderer) {
+function getCanvasRenderer(map) {
+    if (!map._gisCanvasRenderer) {
         // pane: 'gis-senior-pane' preserves z-index ordering (zIndex 620, above tiles, below facility markers)
-        gisCanvasRenderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
+        map._gisCanvasRenderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
     }
-    return gisCanvasRenderer;
+    return map._gisCanvasRenderer;
 }
 ```
 
@@ -77,7 +77,7 @@ With:
                     const color = barangayColor(feature.properties?.barangay);
                     const isFallback = kind === 'fallback';
                     const marker = window.L.circleMarker(latlng, {
-                        renderer: getCanvasRenderer(),
+                        renderer: getCanvasRenderer(map),
                         radius: isFallback ? 5 : 7,
                         fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
                         fillOpacity: isFallback ? 0.6 : 0.9,
