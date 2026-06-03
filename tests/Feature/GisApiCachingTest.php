@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -49,7 +50,7 @@ class GisApiCachingTest extends TestCase
     #[Test]
     public function barangay_filter_stores_separate_cache_key(): void
     {
-        $key = 'gis.seniors_geojson.' . md5('Sabang');
+        $key = 'gis.seniors_geojson.'.md5('Sabang');
         Cache::forget($key);
         $this->assertFalse(Cache::has($key));
 
@@ -74,25 +75,24 @@ class GisApiCachingTest extends TestCase
         $this->assertTrue(Cache::has('gis.seniors_geojson'));
 
         // Second request — must be served from cache (no DB queries)
-        \Illuminate\Support\Facades\DB::enableQueryLog();
+        DB::enableQueryLog();
 
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
             ->assertStatus(200)
             ->assertJsonStructure(['type', 'features']);
 
-        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
-        \Illuminate\Support\Facades\DB::disableQueryLog();
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
 
         // Filter out any permission/auth queries — we only care that the seniors
         // GeoJSON build (the expensive part) did not hit the DB.
-        $seniorQueries = array_filter($queries, fn($q) =>
-            str_contains(strtolower($q['query']), 'senior_citizens')
+        $seniorQueries = array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'senior_citizens')
         );
 
         $this->assertEmpty($seniorQueries,
             'Second request should not query senior_citizens — it should be served from cache. Queries fired: '
-            . implode('; ', array_column($seniorQueries, 'query'))
+            .implode('; ', array_column($seniorQueries, 'query'))
         );
     }
 

@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Facility;
-use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -139,7 +138,7 @@ class ImportOsmFacilitiesTest extends TestCase
                 // Coordinates confirmed inside Sabang barangay polygon
                 $this->osmNode(44444444, 14.2540, 121.4330, [
                     'amenity' => 'place_of_worship',
-                    'name'    => 'Sabang Chapel',
+                    'name' => 'Sabang Chapel',
                 ]),
             ]), 200),
         ]);
@@ -160,7 +159,7 @@ class ImportOsmFacilitiesTest extends TestCase
                 // Coordinates well outside Pagsanjan
                 $this->osmNode(55555555, 14.0000, 121.0000, [
                     'amenity' => 'hospital',
-                    'name'    => 'Far Away Hospital',
+                    'name' => 'Far Away Hospital',
                 ]),
             ]), 200),
         ]);
@@ -184,7 +183,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(66666661, 14.2717, 121.4554, [
                     'amenity' => 'hospital',
-                    'name'    => 'Dry Run Hospital',
+                    'name' => 'Dry Run Hospital',
                 ]),
             ]), 200),
         ]);
@@ -198,14 +197,14 @@ class ImportOsmFacilitiesTest extends TestCase
     public function force_flag_updates_existing_osm_facility(): void
     {
         Facility::create([
-            'osm_id'    => 'node:77777771',
-            'name'      => 'Old Name',
-            'type'      => 'Hospital',
-            'barangay'  => null,
-            'address'   => 'Old Address',
-            'latitude'  => 14.2700,
+            'osm_id' => 'node:77777771',
+            'name' => 'Old Name',
+            'type' => 'Hospital',
+            'barangay' => null,
+            'address' => 'Old Address',
+            'latitude' => 14.2700,
             'longitude' => 121.4550,
-            'source'    => 'openstreetmap',
+            'source' => 'openstreetmap',
             'is_active' => true,
         ]);
 
@@ -213,7 +212,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(77777771, 14.2717, 121.4554, [
                     'amenity' => 'hospital',
-                    'name'    => 'Updated Name',
+                    'name' => 'Updated Name',
                 ]),
             ]), 200),
         ]);
@@ -229,14 +228,14 @@ class ImportOsmFacilitiesTest extends TestCase
     public function without_force_existing_osm_facility_is_skipped(): void
     {
         Facility::create([
-            'osm_id'    => 'node:88888881',
-            'name'      => 'Existing Name',
-            'type'      => 'Hospital',
-            'barangay'  => null,
-            'address'   => 'Existing Address',
-            'latitude'  => 14.2700,
+            'osm_id' => 'node:88888881',
+            'name' => 'Existing Name',
+            'type' => 'Hospital',
+            'barangay' => null,
+            'address' => 'Existing Address',
+            'latitude' => 14.2700,
             'longitude' => 121.4550,
-            'source'    => 'openstreetmap',
+            'source' => 'openstreetmap',
             'is_active' => true,
         ]);
 
@@ -244,7 +243,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(88888881, 14.2717, 121.4554, [
                     'amenity' => 'hospital',
-                    'name'    => 'Would-Be Updated Name',
+                    'name' => 'Would-Be Updated Name',
                 ]),
             ]), 200),
         ]);
@@ -264,13 +263,13 @@ class ImportOsmFacilitiesTest extends TestCase
     {
         // ~22m from the OSM node at 14.2753, 121.4527
         $approximate = Facility::create([
-            'name'      => 'Approximate Health Post',
-            'type'      => 'Health Center',
-            'barangay'  => null,
-            'address'   => 'Approx, Pagsanjan',
-            'latitude'  => 14.2755,
+            'name' => 'Approximate Health Post',
+            'type' => 'Health Center',
+            'barangay' => null,
+            'address' => 'Approx, Pagsanjan',
+            'latitude' => 14.2755,
             'longitude' => 121.4527,
-            'source'    => 'sample_prototype_approximate',
+            'source' => 'sample_prototype_approximate',
             'is_active' => true,
         ]);
 
@@ -278,7 +277,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(99999991, 14.2753, 121.4527, [
                     'amenity' => 'health_centre',
-                    'name'    => 'Sabang RHU',
+                    'name' => 'Sabang RHU',
                 ]),
             ]), 200),
         ]);
@@ -295,13 +294,13 @@ class ImportOsmFacilitiesTest extends TestCase
     {
         // ~222m away from the OSM node at 14.2753, 121.4527
         $farApproximate = Facility::create([
-            'name'      => 'Far Health Post',
-            'type'      => 'Health Center',
-            'barangay'  => null,
-            'address'   => 'Far, Pagsanjan',
-            'latitude'  => 14.2773,
+            'name' => 'Far Health Post',
+            'type' => 'Health Center',
+            'barangay' => null,
+            'address' => 'Far, Pagsanjan',
+            'latitude' => 14.2773,
             'longitude' => 121.4527,
-            'source'    => 'sample_prototype_approximate',
+            'source' => 'sample_prototype_approximate',
             'is_active' => true,
         ]);
 
@@ -309,7 +308,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(99999992, 14.2753, 121.4527, [
                     'amenity' => 'health_centre',
-                    'name'    => 'Sabang RHU',
+                    'name' => 'Sabang RHU',
                 ]),
             ]), 200),
         ]);
@@ -325,13 +324,13 @@ class ImportOsmFacilitiesTest extends TestCase
     public function no_supersede_flag_skips_deactivation(): void
     {
         $approximate = Facility::create([
-            'name'      => 'Protected Approximate',
-            'type'      => 'Health Center',
-            'barangay'  => null,
-            'address'   => 'Approx, Pagsanjan',
-            'latitude'  => 14.2754,
+            'name' => 'Protected Approximate',
+            'type' => 'Health Center',
+            'barangay' => null,
+            'address' => 'Approx, Pagsanjan',
+            'latitude' => 14.2754,
             'longitude' => 121.4527,
-            'source'    => 'sample_prototype_approximate',
+            'source' => 'sample_prototype_approximate',
             'is_active' => true,
         ]);
 
@@ -339,7 +338,7 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response($this->overpassResponse([
                 $this->osmNode(99999993, 14.2753, 121.4527, [
                     'amenity' => 'health_centre',
-                    'name'    => 'Sabang RHU',
+                    'name' => 'Sabang RHU',
                 ]),
             ]), 200),
         ]);

@@ -196,21 +196,21 @@ class PagsanjanFacilitySeeder extends Seeder
             // Lambac (had Hall only)
             ['name' => 'Lambac Health Post',             'type' => 'Health Center', 'barangay' => 'Lambac',            'address' => 'Approximate health post, Lambac, Pagsanjan',         'latitude' => 14.2692, 'longitude' => 121.4592, 'source' => 'sample_prototype_approximate', 'is_active' => true],
             ['name' => 'Lambac Community Church',         'type' => 'Church',        'barangay' => 'Lambac',            'address' => 'Approximate church, Lambac, Pagsanjan',              'latitude' => 14.2689, 'longitude' => 121.4595, 'source' => 'sample_prototype_approximate', 'is_active' => true],
-            ['name' => 'Lambac Community Store',          'type' => 'Community Store','barangay' => 'Lambac',           'address' => 'Approximate community store, Lambac, Pagsanjan',     'latitude' => 14.2686, 'longitude' => 121.4592, 'source' => 'sample_prototype_approximate', 'is_active' => true],
+            ['name' => 'Lambac Community Store',          'type' => 'Community Store', 'barangay' => 'Lambac',           'address' => 'Approximate community store, Lambac, Pagsanjan',     'latitude' => 14.2686, 'longitude' => 121.4592, 'source' => 'sample_prototype_approximate', 'is_active' => true],
 
             // Maulawin (had Hall only)
             ['name' => 'Maulawin Health Post',           'type' => 'Health Center', 'barangay' => 'Maulawin',          'address' => 'Approximate health post, Maulawin, Pagsanjan',       'latitude' => 14.2740, 'longitude' => 121.4625, 'source' => 'sample_prototype_approximate', 'is_active' => true],
             ['name' => 'Maulawin Community Church',       'type' => 'Church',        'barangay' => 'Maulawin',          'address' => 'Approximate church, Maulawin, Pagsanjan',            'latitude' => 14.2737, 'longitude' => 121.4628, 'source' => 'sample_prototype_approximate', 'is_active' => true],
-            ['name' => 'Maulawin Community Store',        'type' => 'Community Store','barangay' => 'Maulawin',         'address' => 'Approximate community store, Maulawin, Pagsanjan',   'latitude' => 14.2734, 'longitude' => 121.4625, 'source' => 'sample_prototype_approximate', 'is_active' => true],
+            ['name' => 'Maulawin Community Store',        'type' => 'Community Store', 'barangay' => 'Maulawin',         'address' => 'Approximate community store, Maulawin, Pagsanjan',   'latitude' => 14.2734, 'longitude' => 121.4625, 'source' => 'sample_prototype_approximate', 'is_active' => true],
 
             // Pinagsanjan (had Hall only)
             ['name' => 'Pinagsanjan Health Post',        'type' => 'Health Center', 'barangay' => 'Pinagsanjan',       'address' => 'Approximate health post, Pinagsanjan, Pagsanjan',    'latitude' => 14.2662, 'longitude' => 121.4513, 'source' => 'sample_prototype_approximate', 'is_active' => true],
             ['name' => 'Pinagsanjan Community Church',    'type' => 'Church',        'barangay' => 'Pinagsanjan',       'address' => 'Approximate church, Pinagsanjan, Pagsanjan',         'latitude' => 14.2659, 'longitude' => 121.4516, 'source' => 'sample_prototype_approximate', 'is_active' => true],
-            ['name' => 'Pinagsanjan Community Store',     'type' => 'Community Store','barangay' => 'Pinagsanjan',      'address' => 'Approximate community store, Pinagsanjan, Pagsanjan','latitude' => 14.2656, 'longitude' => 121.4513, 'source' => 'sample_prototype_approximate', 'is_active' => true],
+            ['name' => 'Pinagsanjan Community Store',     'type' => 'Community Store', 'barangay' => 'Pinagsanjan',      'address' => 'Approximate community store, Pinagsanjan, Pagsanjan', 'latitude' => 14.2656, 'longitude' => 121.4513, 'source' => 'sample_prototype_approximate', 'is_active' => true],
 
             // Sabang (had Hall + Church, needs Health Center + Store)
             ['name' => 'Sabang Health Post',             'type' => 'Health Center', 'barangay' => 'Sabang',            'address' => 'Approximate health post, Sabang, Pagsanjan',         'latitude' => 14.2753, 'longitude' => 121.4527, 'source' => 'sample_prototype_approximate', 'is_active' => true],
-            ['name' => 'Sabang Community Store',          'type' => 'Community Store','barangay' => 'Sabang',           'address' => 'Approximate community store, Sabang, Pagsanjan',     'latitude' => 14.2750, 'longitude' => 121.4524, 'source' => 'sample_prototype_approximate', 'is_active' => true],
+            ['name' => 'Sabang Community Store',          'type' => 'Community Store', 'barangay' => 'Sabang',           'address' => 'Approximate community store, Sabang, Pagsanjan',     'latitude' => 14.2750, 'longitude' => 121.4524, 'source' => 'sample_prototype_approximate', 'is_active' => true],
 
             // Barangay I (Poblacion) — has many, add distinct Health Center
             ['name' => 'Barangay I Health Center',       'type' => 'Health Center', 'barangay' => 'Barangay I (Poblacion)', 'address' => 'Approximate barangay health center, Barangay I, Pagsanjan', 'latitude' => 14.2720, 'longitude' => 121.4554, 'source' => 'sample_prototype_approximate', 'is_active' => true],

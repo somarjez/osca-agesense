@@ -47,6 +47,7 @@ class ImportOsmFacilities extends Command
 
             if ($data === null) {
                 $stats['skipped']++;
+
                 continue;
             }
 
@@ -55,6 +56,7 @@ class ImportOsmFacilities extends Command
 
             if ($existing && ! $force) {
                 $stats['skipped']++;
+
                 continue;
             }
 
@@ -100,7 +102,7 @@ class ImportOsmFacilities extends Command
 
     private function queryOverpass(): ?array
     {
-        $url    = config('services.overpass.url', 'https://overpass-api.de/api/interpreter');
+        $url = config('services.overpass.url', 'https://overpass-api.de/api/interpreter');
         $verify = config('services.overpass.ca_bundle') ?: (bool) config('services.overpass.verify_ssl', true);
 
         try {
@@ -113,12 +115,14 @@ class ImportOsmFacilities extends Command
 
             if (! $response->successful()) {
                 $this->error("Overpass API returned HTTP {$response->status()}. Aborting — no data changed.");
+
                 return null;
             }
 
             return $response->json('elements', []);
         } catch (\Exception $e) {
             $this->error('Overpass API request failed: '.$e->getMessage());
+
             return null;
         }
     }
@@ -166,12 +170,12 @@ class ImportOsmFacilities extends Command
         $barangay = $this->assignBarangay($lat, $lon);
 
         return [
-            'osm_id'    => $osmId,
-            'name'      => $this->resolveName($tags, $type, $barangay),
-            'type'      => $type,
-            'barangay'  => $barangay,
-            'address'   => $this->resolveAddress($tags, $barangay),
-            'latitude'  => round($lat, 7),
+            'osm_id' => $osmId,
+            'name' => $this->resolveName($tags, $type, $barangay),
+            'type' => $type,
+            'barangay' => $barangay,
+            'address' => $this->resolveAddress($tags, $barangay),
+            'latitude' => round($lat, 7),
             'longitude' => round($lon, 7),
         ];
     }
@@ -179,21 +183,38 @@ class ImportOsmFacilities extends Command
     private function mapOsmType(array $tags): ?string
     {
         $amenity = $tags['amenity'] ?? null;
-        $office  = $tags['office'] ?? null;
-        $shop    = $tags['shop'] ?? null;
+        $office = $tags['office'] ?? null;
+        $shop = $tags['shop'] ?? null;
         $highway = $tags['highway'] ?? null;
-        $name    = strtolower($tags['name'] ?? '');
+        $name = strtolower($tags['name'] ?? '');
 
-        if ($amenity === 'hospital') return 'Hospital';
-        if (in_array($amenity, ['clinic', 'doctors', 'health_centre', 'nursing_home'], true)) return 'Health Center';
-        if ($amenity === 'pharmacy' || $shop === 'chemist') return 'Pharmacy';
-        if ($amenity === 'place_of_worship') return 'Church';
-        if ($amenity === 'marketplace' || $shop === 'market') return 'Public Market';
-        if ($shop === 'supermarket') return 'Supermarket';
-        if (in_array($shop, ['convenience', 'general'], true)) return 'Community Store';
+        if ($amenity === 'hospital') {
+            return 'Hospital';
+        }
+        if (in_array($amenity, ['clinic', 'doctors', 'health_centre', 'nursing_home'], true)) {
+            return 'Health Center';
+        }
+        if ($amenity === 'pharmacy' || $shop === 'chemist') {
+            return 'Pharmacy';
+        }
+        if ($amenity === 'place_of_worship') {
+            return 'Church';
+        }
+        if ($amenity === 'marketplace' || $shop === 'market') {
+            return 'Public Market';
+        }
+        if ($shop === 'supermarket') {
+            return 'Supermarket';
+        }
+        if (in_array($shop, ['convenience', 'general'], true)) {
+            return 'Community Store';
+        }
 
         if ($amenity === 'townhall' || $office === 'government') {
-            if (str_contains($name, 'municipal')) return 'Municipal Hall';
+            if (str_contains($name, 'municipal')) {
+                return 'Municipal Hall';
+            }
+
             return 'Barangay Hall';
         }
 
@@ -201,8 +222,12 @@ class ImportOsmFacilities extends Command
             return str_contains($name, 'senior') ? 'Senior Center' : 'Community Store';
         }
 
-        if ($amenity === 'social_facility') return 'Community Store';
-        if ($amenity === 'bus_station') return 'Transport Hub';
+        if ($amenity === 'social_facility') {
+            return 'Community Store';
+        }
+        if ($amenity === 'bus_station') {
+            return 'Transport Hub';
+        }
 
         if ($highway === 'bus_stop' || $amenity === 'taxi') {
             return str_contains($name, 'jeepney') ? 'Jeepney Terminal' : 'Transport Hub';
@@ -265,7 +290,7 @@ class ImportOsmFacilities extends Command
             if ($distance <= self::SUPERSEDE_RADIUS_METERS) {
                 $candidate->update([
                     'is_active' => false,
-                    'source'    => 'sample_prototype_approximate_superseded',
+                    'source' => 'sample_prototype_approximate_superseded',
                 ]);
                 $count++;
             }
@@ -276,10 +301,10 @@ class ImportOsmFacilities extends Command
 
     private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
     {
-        $r    = 6371000;
+        $r = 6371000;
         $dLat = deg2rad($lat2 - $lat1);
         $dLng = deg2rad($lng2 - $lng1);
-        $a    = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
 
         return $r * 2 * asin(sqrt($a));
     }
@@ -311,8 +336,8 @@ class ImportOsmFacilities extends Command
 
     private function polygonRings(array $feature): array
     {
-        $geometry    = $feature['geometry'] ?? null;
-        $type        = $geometry['type'] ?? null;
+        $geometry = $feature['geometry'] ?? null;
+        $type = $geometry['type'] ?? null;
         $coordinates = $geometry['coordinates'] ?? null;
 
         if ($type === 'Polygon' && is_array($coordinates)) {
@@ -321,7 +346,7 @@ class ImportOsmFacilities extends Command
 
         if ($type === 'MultiPolygon' && is_array($coordinates)) {
             $largestPolygon = [];
-            $largestArea    = -1.0;
+            $largestArea = -1.0;
 
             foreach ($coordinates as $polygon) {
                 if (! is_array($polygon) || ! isset($polygon[0]) || ! is_array($polygon[0])) {
@@ -331,7 +356,7 @@ class ImportOsmFacilities extends Command
                 $area = abs($this->ringSignedArea($polygon[0]));
                 if ($area > $largestArea) {
                     $largestPolygon = $polygon;
-                    $largestArea    = $area;
+                    $largestArea = $area;
                 }
             }
 
@@ -358,10 +383,10 @@ class ImportOsmFacilities extends Command
 
     private function pointInsideRing(array $point, array $ring): bool
     {
-        $x      = (float) $point[0];
-        $y      = (float) $point[1];
+        $x = (float) $point[0];
+        $y = (float) $point[1];
         $inside = false;
-        $count  = count($ring);
+        $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
             if (! is_array($ring[$i]) || ! is_array($ring[$j])
@@ -387,7 +412,7 @@ class ImportOsmFacilities extends Command
 
     private function ringSignedArea(array $ring): float
     {
-        $area  = 0.0;
+        $area = 0.0;
         $count = count($ring);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
