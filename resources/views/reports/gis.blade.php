@@ -2140,9 +2140,18 @@
         const peakRadius = rasterRadiusPixels(bounds, width, height, peakRadiusMeters);
         const pointCoreRadiusMeters = options.point_core_radius_meters ?? Math.max(80, Math.min(130, options.radius_meters * 0.34));
         const pointCoreRadius = rasterRadiusPixels(bounds, width, height, pointCoreRadiusMeters);
-        const smoothingPixels = Math.max(14, Math.min(36, radius * 0.34));
-        const peakSmoothingPixels = Math.max(8, Math.min(22, peakRadius * 0.24));
-        const pointCoreSmoothingPixels = Math.max(5, Math.min(14, pointCoreRadius * 0.16));
+        const smoothingPixels = Math.max(
+            options.smoothingPixelMin ?? 14,
+            Math.min(options.smoothingPixelMax ?? 36, radius * (options.smoothingPixelRatio ?? 0.34))
+        );
+        const peakSmoothingPixels = Math.max(
+            options.peakSmoothingPixelMin ?? 8,
+            Math.min(options.peakSmoothingPixelMax ?? 22, peakRadius * (options.peakSmoothingPixelRatio ?? 0.24))
+        );
+        const pointCoreSmoothingPixels = Math.max(
+            options.pointCoreSmoothingPixelMin ?? 5,
+            Math.min(options.pointCoreSmoothingPixelMax ?? 14, pointCoreRadius * (options.pointCoreSmoothingPixelRatio ?? 0.16))
+        );
         const groupImages = groups.map((group) => {
             const canvas = document.createElement('canvas');
             canvas.width = width;
@@ -4257,15 +4266,16 @@
                         return;
                     }
 
+                    const pointAlphaScale = this._options.pointAlphaScale ?? 0.72;
                     const intensity = clampUnit(Math.max(barangayBoost > 1 ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
                     projectedPoints.push({ x: point.x, y: point.y, intensity, barangay, barangayBoost });
                     const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, localRadius);
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${0.96 * intensity})`);
-                    gradient.addColorStop(0.14, `rgba(0,0,0,${0.86 * intensity})`);
-                    gradient.addColorStop(0.30, `rgba(0,0,0,${0.58 * intensity})`);
-                    gradient.addColorStop(0.50, `rgba(0,0,0,${0.30 * intensity})`);
-                    gradient.addColorStop(0.72, `rgba(0,0,0,${0.11 * intensity})`);
-                    gradient.addColorStop(0.90, `rgba(0,0,0,${0.026 * intensity})`);
+                    gradient.addColorStop(0.00, `rgba(0,0,0,${0.90 * intensity * pointAlphaScale})`);
+                    gradient.addColorStop(0.12, `rgba(0,0,0,${0.82 * intensity * pointAlphaScale})`);
+                    gradient.addColorStop(0.28, `rgba(0,0,0,${0.60 * intensity * pointAlphaScale})`);
+                    gradient.addColorStop(0.50, `rgba(0,0,0,${0.34 * intensity * pointAlphaScale})`);
+                    gradient.addColorStop(0.72, `rgba(0,0,0,${0.13 * intensity * pointAlphaScale})`);
+                    gradient.addColorStop(0.92, `rgba(0,0,0,${0.028 * intensity * pointAlphaScale})`);
                     gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
 
                     context.fillStyle = gradient;
@@ -4301,7 +4311,7 @@
                         const bridgeAlphaCap = sameBoostedBarangayPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
                         const bridgeAlphaBase = sameBoostedBarangayPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
                         const bridgeAlphaRange = sameBoostedBarangayPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
-                        const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity));
+                        const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity)) * (this._options.bridgeAlphaScale ?? 0.78);
                         const midpointX = (first.x + second.x) / 2;
                         const midpointY = (first.y + second.y) / 2;
                         const blobCount = sameBoostedBarangayPair ? 4 : (compactGroup ? 3 : 2);
@@ -4405,7 +4415,7 @@
                     const cloudAlpha = Math.min(
                         isBoostedBarangayComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
                         (isBoostedBarangayComponent ? 0.13 : 0.08) + (component.length * (isBoostedBarangayComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
-                    );
+                    ) * (this._options.cloudAlphaScale ?? 0.78);
                     const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, cloudRadius);
 
                     gradient.addColorStop(0.00, `rgba(0,0,0,${cloudAlpha})`);
@@ -4524,24 +4534,40 @@
                         continue;
                     }
 
+                    const competition = secondAlpha > 0
+                        ? clampUnit((winningAlpha - secondAlpha) / Math.max(winningAlpha, 1))
+                        : 1;
                     const fixedRampFloor = this._options.fixedRampFloor ?? 0.004;
                     const rampDensity = clampUnit((normalized - fixedRampFloor) / (1 - fixedRampFloor));
+                    const centerStart = this._options.darkCenterStart ?? 0.68;
+                    const centerRange = Math.max(0.01, 1 - centerStart);
+                    const centerIntensity = clampUnit((rampDensity - centerStart) / centerRange);
+                    const centerDensity = (this._options.mediumDensityCap ?? 0.68)
+                        + (Math.pow(centerIntensity, this._options.darkCenterPower ?? 2.7) * ((this._options.darkDensityCap ?? 0.90) - (this._options.mediumDensityCap ?? 0.68)));
+                    const boundaryLightDensity = this._options.boundaryLightDensity ?? 0.18;
+                    const boundaryBandStrength = secondAlpha > 0
+                        ? Math.pow(1 - competition, this._options.boundaryLightPower ?? 0.62)
+                        : 0;
+                    const densityWithoutBoundary = rampDensity >= centerStart
+                        ? centerDensity
+                        : Math.min(rampDensity, this._options.mediumDensityCap ?? 0.68);
+                    const colorDensity = clampUnit(
+                        (densityWithoutBoundary * (1 - boundaryBandStrength)) +
+                        (boundaryLightDensity * boundaryBandStrength)
+                    );
                     const [red, green, blue] = colorForGradientValue(
-                        Math.pow(rampDensity, this._options.dominancePower ?? 0.86),
+                        Math.pow(colorDensity, this._options.dominancePower ?? 0.86),
                         winningGroup.ramp
                     );
 
                     outputImage.data[index] = red;
                     outputImage.data[index + 1] = green;
                     outputImage.data[index + 2] = blue;
-                    const competition = secondAlpha > 0
-                        ? clampUnit((winningAlpha - secondAlpha) / Math.max(winningAlpha, 1))
-                        : 1;
                     const supportFeather = zoom <= 13 ? clampUnit((supportDensity - minSupportDensity) / Math.max(0.18, 1 - minSupportDensity)) : 1;
-                    const edgeFeather = (0.58 + (Math.pow(competition, 0.42) * 0.42)) * (0.52 + (supportFeather * 0.48));
+                    const edgeFeather = (0.74 + (Math.pow(competition, 0.42) * 0.26)) * (0.52 + (supportFeather * 0.48));
                     outputImage.data[index + 3] = Math.round(Math.min(
                         this._options.outputMaxAlpha ?? 255,
-                        (this._options.outputAlphaBase ?? 255) * Math.pow(rampDensity, this._options.outputAlphaPower ?? 0.58) * edgeFeather
+                        (this._options.outputAlphaBase ?? 255) * Math.pow(rampDensity, this._options.outputAlphaPower ?? 0.58) * edgeFeather * (this._options.outputAlphaScale ?? 0.92)
                     ));
                 }
 
