@@ -104,12 +104,10 @@
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
-                        <option value="markers">Senior Distribution Points</option>
-                        <option value="accessibility-heatmap">Accessibility Heatmap</option>
-                        <option value="barangay-density">Barangay Density View</option>
+                        <option value="markers">Senior Population Overview</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
                         <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
-                        <option value="senior-distribution-accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
+                        <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -117,6 +115,10 @@
                     <select id="gis-barangay-filter" class="form-select">
                         <option value="all">All Barangays</option>
                     </select>
+                    <button id="gis-recenter-btn" type="button"
+                        class="mt-1 text-[11px] text-ink-500 dark:text-[#7a8580] hover:text-forest-700 dark:hover:text-forest-400 underline underline-offset-2 transition-colors">
+                        ↺ Re-center map
+                    </button>
                 </label>
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Risk Level</span>
@@ -135,25 +137,28 @@
                 </label>
             </div>
 
-            <div class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
-                <div class="eyebrow mb-2">KDE Heatmap Overlays</div>
-                <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="risk-indicator-heatmap">
-                        <span>Risk Distribution Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="cluster-heatmap">
-                        <span>Health Group / Cluster Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="accessibility-heatmap">
-                        <span>Accessibility / Facility Proximity Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                        <span>Show senior distribution points</span>
-                    </label>
+            <div id="gis-layer-options" class="hidden">
+                <div id="gis-layer-options-markers" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-senior-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior points</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-barangay-density-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show barangay density fill</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="gis-layer-options-cluster" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior distribution points</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -189,6 +194,35 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.gis-recenter-control {
+    background: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    color: #333;
+    padding: 0;
+}
+.gis-recenter-control:hover {
+    background: #f4f4f4;
+    color: #000;
+}
+.dark .gis-recenter-control {
+    background: #2b3530;
+    color: #b0b5b2;
+}
+.dark .gis-recenter-control:hover {
+    background: #3a4540;
+    color: #fff;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
@@ -199,9 +233,11 @@
     const RISK_FILTER_ID = 'gis-risk-filter';
     const CLUSTER_FILTER_ID = 'gis-cluster-filter';
     const CLUSTER_POINTS_TOGGLE_ID = 'gis-cluster-points-toggle';
+    const SHOW_SENIOR_POINTS_TOGGLE_ID = 'gis-show-senior-points-toggle';
+    const SHOW_BARANGAY_DENSITY_TOGGLE_ID = 'gis-show-barangay-density-toggle';
+    const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
-    const KDE_OVERLAY_SELECTOR = '[data-gis-kde-overlay]';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
@@ -209,15 +245,15 @@
     const SOURCE_STAT_ID = 'gis-stat-source';
     const PAGSANJAN_CENTER = [14.2708, 121.4560];
     const DEFAULT_ZOOM = 15;
-    const MIN_ZOOM = 8;
+    const MIN_ZOOM = 13;
     const MAX_ZOOM = 18;
     const DEFAULT_FOCUS_BOUNDS_COORDS = [
         [14.2598, 121.4442],
         [14.2824, 121.4668],
     ];
     const NAVIGATION_BOUNDS_COORDS = [
-        [14.2555, 121.4395],
-        [14.2868, 121.4715],
+        [14.2580, 121.4410],
+        [14.2840, 121.4700],
     ];
     const MAP_FIT_OPTIONS = {
         padding: [18, 18],
@@ -227,7 +263,6 @@
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
     const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
     const HEATMAP_MODES = new Set([
-        'accessibility-heatmap',
         'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
@@ -635,8 +670,7 @@
         }
 
         const heatmapLabels = {
-            'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
-            'senior-distribution-accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'senior-distribution-accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
             'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
@@ -682,20 +716,6 @@
                     <span>${heatmapLabel[1]}</span>
                     <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:${gradient};"></span>
                     <span>${heatmapLabel[2]}</span>
-                </span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
-                ${boundaryLegend}
-            `;
-            return;
-        }
-
-        if (mode === 'barangay-density') {
-            legendEl.innerHTML = `
-                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">Barangay Density View</span>
-                <span class="inline-flex items-center gap-2 min-w-[260px]">
-                    <span>Lower count</span>
-                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
-                    <span>Higher count</span>
                 </span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 ${boundaryLegend}
@@ -826,18 +846,28 @@
         return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
     }
 
+    function syncLayerOptionsPanel() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const wrapper = document.getElementById(LAYER_OPTIONS_ID);
+        const markersPanel = document.getElementById('gis-layer-options-markers');
+        const clusterPanel = document.getElementById('gis-layer-options-cluster');
+
+        if (!wrapper) return;
+
+        const showMarkers = mode === 'markers';
+        const showCluster = mode === 'cluster-heatmap';
+
+        wrapper.classList.toggle('hidden', !showMarkers && !showCluster);
+        markersPanel?.classList.toggle('hidden', !showMarkers);
+        clusterPanel?.classList.toggle('hidden', !showCluster);
+    }
+
     function syncAccessibilityPointDisplay() {
         const control = document.getElementById(ACCESSIBILITY_POINT_DISPLAY_ID);
         if (!control) return;
 
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
-    }
-
-    function selectedKdeOverlayModes() {
-        return [...document.querySelectorAll(`${KDE_OVERLAY_SELECTOR}:checked`)]
-            .map((input) => input.value)
-            .filter((mode) => ['risk-indicator-heatmap', 'cluster-heatmap', 'accessibility-heatmap'].includes(mode));
     }
 
     function selectedClusterGroup() {
@@ -3657,9 +3687,6 @@
             municipalBoundary: window.L.layerGroup().addTo(map),
             municipalMask: window.L.layerGroup().addTo(map),
             heatmap: window.L.layerGroup().addTo(map),
-            kdeRiskHeatmap: window.L.layerGroup().addTo(map),
-            kdeClusterHeatmap: window.L.layerGroup().addTo(map),
-            kdeAccessibilityHeatmap: window.L.layerGroup().addTo(map),
             barangayDensity: window.L.layerGroup().addTo(map),
             riskOverlay: window.L.layerGroup().addTo(map),
             facilities: window.L.layerGroup().addTo(map),
@@ -3675,7 +3702,6 @@
         const layers = ensureLayerRegistry(map);
         map._gisActiveHeatmap = null;
         layers.heatmap.clearLayers();
-        clearKdeOverlayLayers(map);
         layers.barangayDensity.clearLayers();
         layers.riskOverlay.clearLayers();
         layers.facilities.clearLayers();
@@ -3689,32 +3715,6 @@
         layers.riskOverlay.clearLayers();
     }
 
-    function kdeLayerForMode(map, mode) {
-        const layers = ensureLayerRegistry(map);
-
-        if (mode === 'risk-indicator-heatmap') {
-            return layers.kdeRiskHeatmap;
-        }
-
-        if (mode === 'cluster-heatmap') {
-            return layers.kdeClusterHeatmap;
-        }
-
-        if (mode === 'accessibility-heatmap') {
-            return layers.kdeAccessibilityHeatmap;
-        }
-
-        return null;
-    }
-
-    function clearKdeOverlayLayers(map) {
-        const layers = ensureLayerRegistry(map);
-        map._gisKdeOverlayContexts = {};
-        layers.kdeRiskHeatmap.clearLayers();
-        layers.kdeClusterHeatmap.clearLayers();
-        layers.kdeAccessibilityHeatmap.clearLayers();
-    }
-
     function heatmapFeaturesForMode(features, mode) {
         if (mode === 'cluster-heatmap') {
             const selectedCluster = selectedClusterGroup();
@@ -3724,7 +3724,7 @@
             });
         }
 
-        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
+        if (mode === 'senior-distribution-accessibility-heatmap') {
             return features.filter((feature) => accessibilityNeedWeight(feature.properties || {}) !== null);
         }
 
@@ -4508,116 +4508,8 @@
         }
     }
 
-    function setKdeOverlayContext(map, mode, features, options = {}) {
-        map._gisKdeOverlayContexts = map._gisKdeOverlayContexts || {};
-        map._gisKdeOverlayContexts[mode] = {
-            mode,
-            features: [...features],
-            radiusMeters: options.radiusMeters,
-            colorScaleMax: options.colorScaleMax,
-        };
-    }
-
-    function renderKdeOverlayHeatmap(map, mode, features) {
-        const layerGroup = kdeLayerForMode(map, mode);
-        if (!layerGroup) {
-            return null;
-        }
-
-        layerGroup.clearLayers();
-
-        if (mode === 'cluster-heatmap') {
-            const result = buildClusterDistributionHeatmapLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            const clusterFeatures = heatmapFeaturesForMode(features, 'cluster-heatmap');
-            layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
-                radiusMeters: result.radiusMeters,
-                clipBoundary: primaryBoundaryGeoJson(),
-            });
-            if (pointRampLayer) {
-                layerGroup.addLayer(pointRampLayer);
-            }
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        if (mode === 'risk-indicator-heatmap') {
-            // Same smooth raster-KDE engine as the cluster overlay so the
-            // "Risk Distribution Heatmap" checkbox matches the typhoon style.
-            const result = buildRiskDistributionRasterLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            layerGroup.addLayer(result.layer);
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        const heatmapFeatures = heatmapFeaturesForMode(features, mode);
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, heatmapFeatures, mode);
-
-        if (!points.length || !heatLayer) {
-            return null;
-        }
-
-        layerGroup.addLayer(heatLayer);
-        setKdeOverlayContext(map, mode, heatmapFeatures);
-
-        return { points, radiusMeters };
-    }
-
-    function renderKdeOverlayHeatmaps(map, features) {
-        clearKdeOverlayLayers(map);
-
-        const modes = selectedKdeOverlayModes();
-        const results = modes
-            .map((mode) => renderKdeOverlayHeatmap(map, mode, features))
-            .filter(Boolean);
-
-        return results;
-    }
-
-    function refreshKdeOverlayHeatmaps(map) {
-        const contexts = map?._gisKdeOverlayContexts || {};
-
-        Object.values(contexts).forEach((context) => {
-            const layerGroup = kdeLayerForMode(map, context.mode);
-            if (!layerGroup) return;
-
-            // Raster-KDE overlays (cluster + risk) are zoom-stable image overlays
-            // and must not be rebuilt as canvas layers on zoom.
-            if (context.mode === 'cluster-heatmap' || context.mode === 'risk-indicator-heatmap') {
-                return;
-            }
-
-            layerGroup.clearLayers();
-
-            const refreshOptions = {
-                radiusMeters: context.radiusMeters,
-                colorScaleMax: context.colorScaleMax,
-            };
-
-            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode, refreshOptions);
-
-            if (points.length && heatLayer) {
-                layerGroup.addLayer(heatLayer);
-                context.radiusMeters = context.radiusMeters ?? radiusMeters;
-            }
-        });
-    }
-
     function refreshHeatmapLayersForZoom(map) {
         refreshActiveHeatmapRadius(map);
-        refreshKdeOverlayHeatmaps(map);
     }
 
     function renderRiskHeatmap(map, features) {
@@ -4854,6 +4746,24 @@
         return isDarkMode() ? '#131917' : '#ffffff';
     }
 
+    function createRecenterControl(map) {
+        const RecenterControl = window.L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd() {
+                const btn = window.L.DomUtil.create('button', 'leaflet-bar leaflet-control gis-recenter-control');
+                btn.type = 'button';
+                btn.title = 'Re-center map on Pagsanjan';
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+                window.L.DomEvent.on(btn, 'click', (e) => {
+                    window.L.DomEvent.stopPropagation(e);
+                    focusMapOnPagsanjan(map);
+                });
+                return btn;
+            },
+        });
+        return new RecenterControl();
+    }
+
     function createTileLayer() {
         return window.L.tileLayer(TILE_LIGHT_URL, {
             maxZoom: 19,
@@ -5026,8 +4936,9 @@
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         syncAccessibilityPointDisplay();
+        syncLayerOptionsPanel();
         updateLegend(mode);
-        updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
+        updateSummaryCards(seniorGeoJson, renderStats.visible);
 
         if (!activeFeatures.length) {
             focusMapOnPagsanjan(map);
@@ -5041,17 +4952,12 @@
         }
 
         if (mode === 'markers') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            const showDensityFill = document.getElementById(SHOW_BARANGAY_DENSITY_TOGGLE_ID)?.checked !== false;
+            if (showDensityFill) {
+                layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            }
         }
 
-        if (mode === 'barangay-density') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
-            const kdeOverlayResults = renderKdeOverlayHeatmaps(map, markerStats.visible);
-            focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)} Barangay density uses backend senior counts.${overlayText}`, 'success');
-            return;
-        }
 
         if (mode !== 'markers' && !markerStats.visible.length) {
             focusMapOnActiveLayer(map, activeFeatures);
@@ -5065,9 +4971,6 @@
                 ? markerStats.visible.filter((feature) => seniorCount(feature) > 0)
                 : markerStats.visible,
         };
-        const kdeOverlayResults = mode === 'cluster-heatmap'
-            ? []
-            : renderKdeOverlayHeatmaps(map, markerStats.visible);
 
         if (mode === 'markers') {
             const markerLayer = window.L.geoJSON(featureCollection, {
@@ -5093,29 +4996,31 @@
                 },
             });
 
-            if (shouldClusterMarkers()) {
-                const markerClusterLayer = window.L.markerClusterGroup({
-                    showCoverageOnHover: false,
-                    spiderfyOnMaxZoom: true,
-                    disableClusteringAtZoom: 16,
-                    maxClusterRadius: 26,
-                    iconCreateFunction(cluster) {
-                        const markers = cluster.getAllChildMarkers();
-                        const tone = clusterTone(markers);
+            const showSeniorPoints = document.getElementById(SHOW_SENIOR_POINTS_TOGGLE_ID)?.checked !== false;
+            if (showSeniorPoints) {
+                if (shouldClusterMarkers()) {
+                    const markerClusterLayer = window.L.markerClusterGroup({
+                        showCoverageOnHover: false,
+                        spiderfyOnMaxZoom: true,
+                        disableClusteringAtZoom: 16,
+                        maxClusterRadius: 26,
+                        iconCreateFunction(cluster) {
+                            const markers = cluster.getAllChildMarkers();
+                            const tone = clusterTone(markers);
 
-                        return makeClusterDivIcon(tone, cluster.getChildCount());
-                    },
-                });
+                            return makeClusterDivIcon(tone, cluster.getChildCount());
+                        },
+                    });
 
-                markerClusterLayer.addLayer(markerLayer);
-                layers.seniors.addLayer(markerClusterLayer);
-            } else {
-                layers.seniors.addLayer(markerLayer);
+                    markerClusterLayer.addLayer(markerLayer);
+                    layers.seniors.addLayer(markerClusterLayer);
+                } else {
+                    layers.seniors.addLayer(markerLayer);
+                }
             }
 
             focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}${overlayText}`, 'success');
+            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}`, 'success');
             return;
         }
 
@@ -5142,8 +5047,7 @@
             layers.heatmap.addLayer(heatLayer);
             setActiveHeatmapContext(map, mode, markerStats.visible);
             focusMapOnActiveLayer(map, markerStats.visible);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) also active.` : '';
-            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).${overlayText}`, 'success');
+            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).`, 'success');
             return;
         }
 
@@ -5154,8 +5058,7 @@
         }
         layers.seniors.addLayer(pointLayer);
         focusMapOnActiveLayer(map, markerStats.visible);
-        const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).${overlayText}`, 'success');
+        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).`, 'success');
     }
 
     function refreshRenderedLayer() {
@@ -5288,6 +5191,10 @@
         applyMapZoomConstraints(map);
 
         createTileLayer().addTo(map);
+        createRecenterControl(map).addTo(map);
+        document.getElementById('gis-recenter-btn')?.addEventListener('click', () => {
+            focusMapOnPagsanjan(map);
+        });
 
         map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
         map.on('click', (event) => {
@@ -5328,7 +5235,7 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
             debouncedRefresh();
         }
     });
