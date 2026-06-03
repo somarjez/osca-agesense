@@ -4165,7 +4165,8 @@
                 this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-flow-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('moveend zoomend resize', this._reset, this);
+                map.on('zoomend resize', this._reset, this);
+                map.on('moveend', this._reposition, this);
                 this._reset();
             },
 
@@ -4173,7 +4174,8 @@
                 if (this._canvas?.parentNode) {
                     this._canvas.parentNode.removeChild(this._canvas);
                 }
-                map.off('moveend zoomend resize', this._reset, this);
+                map.off('zoomend resize', this._reset, this);
+                map.off('moveend', this._reposition, this);
             },
 
             _reset() {
@@ -4187,6 +4189,14 @@
                 this._canvas.height = Math.round(size.y * ratio);
                 this._ratio = ratio;
                 this._redraw();
+            },
+
+            // Pan: reposition the canvas only (content is frozen until the next
+            // zoom/resize redraw). Avoids the per-pan radial-gradient redraw that caused jank.
+            _reposition() {
+                if (!this._canvas) return;
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
             },
 
             _redraw() {
