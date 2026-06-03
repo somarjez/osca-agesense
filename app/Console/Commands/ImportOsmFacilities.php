@@ -100,10 +100,12 @@ class ImportOsmFacilities extends Command
 
     private function queryOverpass(): ?array
     {
-        $url = config('services.overpass.url', 'https://overpass-api.de/api/interpreter');
+        $url    = config('services.overpass.url', 'https://overpass-api.de/api/interpreter');
+        $verify = config('services.overpass.ca_bundle') ?: (bool) config('services.overpass.verify_ssl', true);
 
         try {
             $response = Http::withHeaders(['User-Agent' => 'AgeSense-OSCA/1.0 (osca-agesense)'])
+                ->withOptions(['verify' => $verify])
                 ->timeout(40)
                 ->retry(2, 3000)
                 ->asForm()

@@ -40,7 +40,9 @@ return [
     ],
 
     'overpass' => [
-        'url' => env('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter'),
+        'url'        => env('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter'),
+        'ca_bundle'  => env('OVERPASS_CA_BUNDLE', ''),
+        'verify_ssl' => env('OVERPASS_VERIFY_SSL', true),
     ],
 
     'openrouteservice' => [
