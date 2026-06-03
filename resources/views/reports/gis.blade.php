@@ -115,6 +115,10 @@
                     <select id="gis-barangay-filter" class="form-select">
                         <option value="all">All Barangays</option>
                     </select>
+                    <button id="gis-recenter-btn" type="button"
+                        class="mt-1 text-[11px] text-ink-500 dark:text-[#7a8580] hover:text-forest-700 dark:hover:text-forest-400 underline underline-offset-2 transition-colors">
+                        ↺ Re-center map
+                    </button>
                 </label>
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Risk Level</span>
@@ -190,6 +194,35 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.gis-recenter-control {
+    background: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    color: #333;
+    padding: 0;
+}
+.gis-recenter-control:hover {
+    background: #f4f4f4;
+    color: #000;
+}
+.dark .gis-recenter-control {
+    background: #2b3530;
+    color: #b0b5b2;
+}
+.dark .gis-recenter-control:hover {
+    background: #3a4540;
+    color: #fff;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
@@ -212,15 +245,15 @@
     const SOURCE_STAT_ID = 'gis-stat-source';
     const PAGSANJAN_CENTER = [14.2708, 121.4560];
     const DEFAULT_ZOOM = 15;
-    const MIN_ZOOM = 8;
+    const MIN_ZOOM = 13;
     const MAX_ZOOM = 18;
     const DEFAULT_FOCUS_BOUNDS_COORDS = [
         [14.2598, 121.4442],
         [14.2824, 121.4668],
     ];
     const NAVIGATION_BOUNDS_COORDS = [
-        [14.2555, 121.4395],
-        [14.2868, 121.4715],
+        [14.2580, 121.4410],
+        [14.2840, 121.4700],
     ];
     const MAP_FIT_OPTIONS = {
         padding: [18, 18],
@@ -4713,6 +4746,24 @@
         return isDarkMode() ? '#131917' : '#ffffff';
     }
 
+    function createRecenterControl(map) {
+        const RecenterControl = window.L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd() {
+                const btn = window.L.DomUtil.create('button', 'leaflet-bar leaflet-control gis-recenter-control');
+                btn.type = 'button';
+                btn.title = 'Re-center map on Pagsanjan';
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+                window.L.DomEvent.on(btn, 'click', (e) => {
+                    window.L.DomEvent.stopPropagation(e);
+                    focusMapOnPagsanjan(map);
+                });
+                return btn;
+            },
+        });
+        return new RecenterControl();
+    }
+
     function createTileLayer() {
         return window.L.tileLayer(TILE_LIGHT_URL, {
             maxZoom: 19,
@@ -5140,6 +5191,10 @@
         applyMapZoomConstraints(map);
 
         createTileLayer().addTo(map);
+        createRecenterControl(map).addTo(map);
+        document.getElementById('gis-recenter-btn')?.addEventListener('click', () => {
+            focusMapOnPagsanjan(map);
+        });
 
         map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
         map.on('click', (event) => {
