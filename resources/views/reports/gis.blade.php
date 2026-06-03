@@ -1024,7 +1024,7 @@
 
         const range = stats.max - stats.min;
         const score = range > 0 ? clampUnit((distance - stats.min) / range) : 0.5;
-        let level = 'Priority';
+        let level = 'Farthest';
 
         if (distance <= stats.q25) {
             level = 'Nearest';
@@ -2119,7 +2119,6 @@
                 }
             }
 
-            const opacity = 0.18 + levelFrac * 0.26;
             context.shadowColor = 'transparent';
             context.shadowBlur = 0;
             const haloLineWidth = options.haloLineWidth ?? 0.25;
@@ -2129,8 +2128,6 @@
                 context.stroke();
             }
             context.lineWidth = lineWidth;
-            context.shadowColor = 'transparent';
-            context.shadowBlur = 0;
             context.strokeStyle = `rgba(255,255,255,${Math.min(options.maxOpacity ?? 0.88, (options.opacityBase ?? 0.48) + (levelFrac * (options.opacityRange ?? 0.30)))})`;
             context.stroke();
         });
@@ -4036,8 +4033,6 @@
 
                 const radiusMeters = this._options.radiusMeters ?? 620;
                 const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
-                const contourDensityGrid = new Float32Array(width * height);
-
                 this._points
                     .slice()
                     .sort((a, b) => a[2] - b[2])
@@ -4065,8 +4060,16 @@
                         context.fill();
                     });
 
+                const currentZoom = this._map.getZoom();
+                const needContour = !this._contourCache
+                    || this._contourCache.zoom !== currentZoom
+                    || this._contourCache.canvas.width !== width
+                    || this._contourCache.canvas.height !== height;
+
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
+                const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
+
                 for (let index = 0; index < image.data.length; index += 4) {
                     if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
@@ -4077,17 +4080,29 @@
                         image.data[index + 3] = 0;
                         continue;
                     }
-
-                    contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                    if (contourDensityGrid) {
+                        contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                    }
                 }
                 context.putImageData(image, 0, 0);
 
-                const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
-                drawKdeContours(context, contourSourceGrid, width, height, {
-                    step: Math.max(3, Math.round(4 * ratio)),
-                    levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
-                    lineWidth: 1.05 * ratio,
-                });
+                if (needContour && contourDensityGrid) {
+                    const offscreen = document.createElement('canvas');
+                    offscreen.width = width;
+                    offscreen.height = height;
+                    const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
+                    drawKdeContours(offscreen.getContext('2d'), contourSourceGrid, width, height, {
+                        step: Math.max(3, Math.round(4 * ratio)),
+                        levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+                        lineWidth: 1.05 * ratio,
+                        haloLineWidth: 0,
+                    });
+                    this._contourCache = { canvas: offscreen, zoom: currentZoom };
+                }
+
+                if (this._contourCache) {
+                    context.drawImage(this._contourCache.canvas, 0, 0);
+                }
             },
         });
 
@@ -4142,6 +4157,7 @@
             initialize() {
                 this._points = points;
                 this._options = options;
+                this._contourCache = null;
             },
 
             onAdd(map) {
@@ -4279,540 +4295,12 @@
         return overlay;
     }
 
-    function buildClusterPointRampLayer(features, options = {}) {
-        const groups = groupFeaturesByCluster(features)
-            .map(([label, groupFeatures]) => {
-                const groupNumber = featureClusterNumber(groupFeatures[0]);
-                const resolvedLabel = groupNumber ? `Group ${groupNumber}` : label;
-
-                return {
-                    label: resolvedLabel,
-                    color: clusterColorForLabel(resolvedLabel, groupFeatures[0]),
-                    ramp: gradientStopsFromStops(clusterGradientForLabel(resolvedLabel, groupFeatures[0])),
-                    points: groupFeatures
-                        .map((feature) => {
-                            const latlng = featureLatLng(feature);
-                            return latlng
-                                ? [latlng.lat, latlng.lng, Math.max(1, seniorCount(feature)), normalizeBarangayName(feature.properties?.barangay)]
-                                : null;
-                        })
-                        .filter(Boolean),
-                };
-            })
-            .filter((group) => group.points.length);
-
-        if (!groups.length) {
-            return null;
-        }
-
-        const PointRampLayer = window.L.Layer.extend({
-            initialize() {
-                this._groups = groups;
-                this._options = options;
-            },
-
-            onAdd(map) {
-                this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-point-ramp');
-                this._canvas.style.pointerEvents = 'none';
-
-                const pane = map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane;
-                pane.appendChild(this._canvas);
-
-                map.on('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation && window.L.Browser.any3d) {
-                    map.on('zoomanim', this._animateZoom, this);
-                }
-
-                this._reset();
-            },
-
-            onRemove(map) {
-                if (this._canvas?.parentNode) {
-                    this._canvas.parentNode.removeChild(this._canvas);
-                }
-
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                    this._resetFrame = null;
-                }
-                map.off('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation) {
-                    map.off('zoomanim', this._animateZoom, this);
-                }
-            },
-
-            _scheduleReset() {
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                }
-
-                this._resetFrame = window.requestAnimationFrame(() => {
-                    this._resetFrame = null;
-                    this._reset();
-                });
-            },
-
-            _reset() {
-                const size = this._map.getSize();
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                const pixelCount = size.x * size.y;
-                const renderScale = this._options.renderScale
-                    ?? (pixelCount > 1000000 ? 0.50 : (pixelCount > 650000 ? 0.58 : 0.68));
-                this._pixelScale = Math.max(0.45, Math.min(1, renderScale));
-
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-                this._canvas.style.width = `${size.x}px`;
-                this._canvas.style.height = `${size.y}px`;
-                this._canvas.style.imageRendering = 'auto';
-                this._canvas.width = Math.max(1, Math.round(size.x * this._pixelScale));
-                this._canvas.height = Math.max(1, Math.round(size.y * this._pixelScale));
-                this._redraw();
-            },
-
-            _animateZoom(event) {
-                const scale = this._map.getZoomScale(event.zoom);
-                const offset = this._map
-                    ._getCenterOffset(event.center)
-                    ._multiplyBy(-scale)
-                    .subtract(this._map._getMapPanePos());
-
-                if (window.L.DomUtil.setTransform) {
-                    window.L.DomUtil.setTransform(this._canvas, offset, scale);
-                    return;
-                }
-
-                this._canvas.style[window.L.DomUtil.TRANSFORM] = `${window.L.DomUtil.getTranslateString(offset)} scale(${scale})`;
-            },
-
-            _densityForGroup(group, width, height, radius) {
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const context = canvas.getContext('2d');
-                context.globalCompositeOperation = 'lighter';
-                const maxWeight = Math.max(1, ...group.points.map((point) => point[2] || 1));
-                const barangayGroupCounts = group.points.reduce((counts, point) => {
-                    const barangay = point[3] || '';
-                    if (barangay) {
-                        counts.set(barangay, (counts.get(barangay) || 0) + 1);
-                    }
-
-                    return counts;
-                }, new Map());
-                const barangayBoostFor = (barangay) => {
-                    const count = barangayGroupCounts.get(barangay) || 0;
-                    if (count >= 6) return 1.58;
-                    if (count >= 4) return 1.42;
-                    if (count >= 3) return 1.28;
-                    return 1;
-                };
-                const projectedPoints = [];
-
-                group.points.forEach(([lat, lng, weight, barangay]) => {
-                    const point = this._map.latLngToContainerPoint([lat, lng]);
-                    point.x *= this._pixelScale;
-                    point.y *= this._pixelScale;
-                    const barangayBoost = barangayBoostFor(barangay);
-                    const localRadius = radius * barangayBoost;
-                    if (point.x < -localRadius || point.y < -localRadius || point.x > width + localRadius || point.y > height + localRadius) {
-                        return;
-                    }
-
-                    const pointAlphaScale = this._options.pointAlphaScale ?? 0.68;
-                    const intensity = clampUnit(Math.max(barangayBoost > 1 ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
-                    projectedPoints.push({ x: point.x, y: point.y, intensity, barangay, barangayBoost });
-                    const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, localRadius);
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${0.78 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(0.05, `rgba(0,0,0,${0.66 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(0.16, `rgba(0,0,0,${0.42 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(0.38, `rgba(0,0,0,${0.22 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(0.70, `rgba(0,0,0,${0.08 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(0.92, `rgba(0,0,0,${0.028 * intensity * pointAlphaScale})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(point.x, point.y, localRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                const groupNumber = clusterNumber(group.label);
-                const compactGroup = projectedPoints.length >= 3;
-                const bridgeBoost = compactGroup ? 1.34 : 1;
-                const bridgeDistance = radius * 1.65 * bridgeBoost;
-                const bridgeDistanceSquared = bridgeDistance * bridgeDistance;
-                const bridgeKernelRadius = Math.max(10, radius * (compactGroup ? 0.62 : 0.48));
-
-                for (let firstIndex = 0; firstIndex < projectedPoints.length; firstIndex += 1) {
-                    const first = projectedPoints[firstIndex];
-                    for (let secondIndex = firstIndex + 1; secondIndex < projectedPoints.length; secondIndex += 1) {
-                        const second = projectedPoints[secondIndex];
-                        const sameBoostedBarangayPair = first.barangay && first.barangay === second.barangay && Math.max(first.barangayBoost, second.barangayBoost) > 1;
-                        const pairBoost = sameBoostedBarangayPair ? Math.max(first.barangayBoost, second.barangayBoost) : 1;
-                        const dx = second.x - first.x;
-                        const dy = second.y - first.y;
-                        const distanceSquared = (dx * dx) + (dy * dy);
-                        const pairBridgeDistance = bridgeDistance * pairBoost;
-                        const pairBridgeDistanceSquared = pairBridgeDistance * pairBridgeDistance;
-                        if (distanceSquared > pairBridgeDistanceSquared) {
-                            continue;
-                        }
-
-                        const distance = Math.sqrt(distanceSquared);
-                        const closeness = clampUnit(1 - (distance / pairBridgeDistance));
-                        const bridgeAlphaCap = sameBoostedBarangayPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
-                        const bridgeAlphaBase = sameBoostedBarangayPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
-                        const bridgeAlphaRange = sameBoostedBarangayPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
-                        const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity)) * (this._options.bridgeAlphaScale ?? 0.78);
-                        const midpointX = (first.x + second.x) / 2;
-                        const midpointY = (first.y + second.y) / 2;
-                        const blobCount = sameBoostedBarangayPair ? 5 : (compactGroup ? 4 : 3);
-
-                        for (let blobIndex = 1; blobIndex <= blobCount; blobIndex += 1) {
-                            const t = blobIndex / (blobCount + 1);
-                            const centerX = first.x + (dx * t);
-                            const centerY = first.y + (dy * t);
-                            const blobX = blobIndex === Math.ceil(blobCount / 2) ? midpointX : centerX;
-                            const blobY = blobIndex === Math.ceil(blobCount / 2) ? midpointY : centerY;
-                            const kernelRadius = bridgeKernelRadius * (sameBoostedBarangayPair ? 1.28 : 1.08) * (0.82 + (closeness * 0.30));
-                            const gradient = context.createRadialGradient(blobX, blobY, 0, blobX, blobY, kernelRadius);
-
-                            gradient.addColorStop(0.00, `rgba(0,0,0,${bridgeAlpha * 0.78})`);
-                            gradient.addColorStop(0.34, `rgba(0,0,0,${bridgeAlpha * 0.42})`);
-                            gradient.addColorStop(0.68, `rgba(0,0,0,${bridgeAlpha * 0.12})`);
-                            gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                            context.fillStyle = gradient;
-                            context.beginPath();
-                            context.arc(blobX, blobY, kernelRadius, 0, Math.PI * 2);
-                            context.fill();
-                        }
-                    }
-                }
-
-                const componentDistance = radius * (compactGroup ? 2.35 : 1.95);
-                const componentDistanceSquared = componentDistance * componentDistance;
-                const visited = new Set();
-
-                projectedPoints.forEach((startPoint, startIndex) => {
-                    if (visited.has(startIndex)) {
-                        return;
-                    }
-
-                    const queue = [startIndex];
-                    const componentIndexes = [];
-                    visited.add(startIndex);
-
-                    while (queue.length) {
-                        const currentIndex = queue.shift();
-                        const current = projectedPoints[currentIndex];
-                        componentIndexes.push(currentIndex);
-
-                        projectedPoints.forEach((candidate, candidateIndex) => {
-                            if (visited.has(candidateIndex)) {
-                                return;
-                            }
-
-                            const sameBoostedBarangayPair = candidate.barangay
-                                && candidate.barangay === current.barangay
-                                && Math.max(candidate.barangayBoost, current.barangayBoost) > 1;
-                            const dx = candidate.x - current.x;
-                            const dy = candidate.y - current.y;
-                            const distanceSquared = (dx * dx) + (dy * dy);
-                            const localComponentDistance = componentDistance * (sameBoostedBarangayPair ? Math.max(candidate.barangayBoost, current.barangayBoost) : 1);
-                            if (distanceSquared > localComponentDistance * localComponentDistance) {
-                                return;
-                            }
-
-                            visited.add(candidateIndex);
-                            queue.push(candidateIndex);
-                        });
-                    }
-
-                    if (componentIndexes.length < 2) {
-                        return;
-                    }
-
-                    const component = componentIndexes.map((index) => projectedPoints[index]);
-                    const componentBarangays = component.reduce((counts, point) => {
-                        if (point.barangay) {
-                            counts.set(point.barangay, (counts.get(point.barangay) || 0) + 1);
-                        }
-
-                        return counts;
-                    }, new Map());
-                    const strongestBarangay = [...componentBarangays.entries()].sort((a, b) => b[1] - a[1])[0];
-                    const componentBarangayBoost = strongestBarangay
-                        ? barangayBoostFor(strongestBarangay[0])
-                        : 1;
-                    const isBoostedBarangayComponent = componentBarangayBoost > 1
-                        && strongestBarangay[1] >= Math.max(2, Math.ceil(component.length * 0.5));
-                    const centerX = component.reduce((total, point) => total + point.x, 0) / component.length;
-                    const centerY = component.reduce((total, point) => total + point.y, 0) / component.length;
-                    const extent = component.reduce((max, point) => {
-                        const dx = point.x - centerX;
-                        const dy = point.y - centerY;
-                        return Math.max(max, Math.sqrt((dx * dx) + (dy * dy)));
-                    }, 0);
-                    const cloudRadius = Math.max(
-                        radius * (isBoostedBarangayComponent ? 1.72 : (component.length >= 3 ? 1.28 : 1.06)),
-                        extent + (radius * (isBoostedBarangayComponent ? 1.08 : 0.78))
-                    );
-                    const cloudAlpha = Math.min(
-                        isBoostedBarangayComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
-                        (isBoostedBarangayComponent ? 0.13 : 0.08) + (component.length * (isBoostedBarangayComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
-                    ) * (this._options.cloudAlphaScale ?? 0.78);
-                    const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, cloudRadius);
-
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${cloudAlpha})`);
-                    gradient.addColorStop(0.34, `rgba(0,0,0,${cloudAlpha * 0.52})`);
-                    gradient.addColorStop(0.66, `rgba(0,0,0,${cloudAlpha * 0.18})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(centerX, centerY, cloudRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                const blurPixels = Math.max(
-                    this._options.pointRampBlurMin ?? 4,
-                    Math.min(this._options.pointRampBlurMax ?? 22, radius * (this._options.pointRampBlurRatio ?? 0.30))
-                );
-
-                return smoothedRasterData(canvas, blurPixels);
-            },
-
-            _redraw() {
-                const width = this._canvas.width;
-                const height = this._canvas.height;
-                const radiusMeters = this._options.radiusMeters ?? 230;
-                const pixelScale = this._pixelScale || 1;
-                const rawRadius = metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters);
-                const zoom = this._map.getZoom();
-                const minScreenRadius = zoom <= 11 ? 4 : (zoom <= 13 ? 8 : 3);
-                const maxScreenRadius = zoom <= 11 ? 18 : (zoom <= 13 ? 42 : 260);
-                const screenRadius = Math.max(minScreenRadius, Math.min(maxScreenRadius, rawRadius));
-                const radius = Math.max(2, Math.round(screenRadius * pixelScale));
-                const groupImages = this._groups.map((group) => ({
-                    ...group,
-                    data: this._densityForGroup(group, width, height, radius),
-                }));
-                const c1Group = groupImages.find((group) => clusterNumber(group.label) === 1);
-                const c1ProjectedY = (c1Group?.points || [])
-                    .map(([lat, lng]) => this._map.latLngToContainerPoint([lat, lng]).y * pixelScale)
-                    .filter((value) => Number.isFinite(value));
-                const c1SouthVisibilityY = c1ProjectedY.length
-                    ? Math.min(...c1ProjectedY) + ((Math.max(...c1ProjectedY) - Math.min(...c1ProjectedY)) * 0.50)
-                    : Number.POSITIVE_INFINITY;
-                const anchorGroupIndexes = new Int16Array(width * height);
-                const anchorScores = new Float32Array(width * height);
-                anchorGroupIndexes.fill(-1);
-                const protectedRadius = Math.round(Math.max(3, Math.min(90, radius * 0.46)));
-                const protectedRadiusSquared = protectedRadius * protectedRadius;
-
-                groupImages.forEach((group, groupIndex) => {
-                    group.points.forEach(([lat, lng]) => {
-                        const point = this._map.latLngToContainerPoint([lat, lng]);
-                        point.x *= pixelScale;
-                        point.y *= pixelScale;
-                        const startX = Math.max(0, Math.floor(point.x - protectedRadius));
-                        const endX = Math.min(width - 1, Math.ceil(point.x + protectedRadius));
-                        const startY = Math.max(0, Math.floor(point.y - protectedRadius));
-                        const endY = Math.min(height - 1, Math.ceil(point.y + protectedRadius));
-
-                        for (let y = startY; y <= endY; y += 1) {
-                            const dy = y - point.y;
-                            for (let x = startX; x <= endX; x += 1) {
-                                const dx = x - point.x;
-                                const distanceSquared = (dx * dx) + (dy * dy);
-                                if (distanceSquared > protectedRadiusSquared) {
-                                    continue;
-                                }
-
-                                const pixel = (y * width) + x;
-                                const score = Math.pow(1 - Math.sqrt(distanceSquared) / protectedRadius, 2.20);
-                                if (score > anchorScores[pixel]) {
-                                    anchorScores[pixel] = score;
-                                    anchorGroupIndexes[pixel] = groupIndex;
-                                }
-                            }
-                        }
-                    });
-                });
-                const outputContext = this._canvas.getContext('2d');
-                const outputImage = outputContext.createImageData(width, height);
-                const contourDensityGrid = new Float32Array(width * height);
-
-                for (let index = 0; index < outputImage.data.length; index += 4) {
-                    const pixel = index / 4;
-                    const x = pixel % width;
-                    const y = Math.floor(pixel / width);
-
-                    let winningGroup = null;
-                    let winningAlpha = 0;
-                    let secondAlpha = 0;
-
-                    for (const group of groupImages) {
-                        const alpha = group.data[index + 3];
-                        if (alpha > winningAlpha) {
-                            secondAlpha = winningAlpha;
-                            winningAlpha = alpha;
-                            winningGroup = group;
-                        } else if (alpha > secondAlpha) {
-                            secondAlpha = alpha;
-                        }
-                    }
-
-                    const rawWinningAlpha = winningAlpha;
-                    const anchorGroupIndex = anchorGroupIndexes[pixel];
-                    if (anchorGroupIndex >= 0 && anchorScores[pixel] >= 0.08) {
-                        winningGroup = groupImages[anchorGroupIndex];
-                        winningAlpha = Math.max(
-                            winningAlpha,
-                            255 * (0.12 + (anchorScores[pixel] * 0.84))
-                        );
-                    }
-
-                    const normalized = clampUnit(winningAlpha / 255);
-                    const supportAlpha = groupImages.reduce((total, group) => total + group.data[index + 3], 0);
-                    const supportDensity = clampUnit(supportAlpha / 255);
-                    const minVisibleDensity = zoom <= 11 ? 0.115 : (zoom <= 13 ? 0.062 : (this._options.minVisibleDensity ?? 0.004));
-                    const minSupportDensity = zoom <= 11 ? 0.34 : (zoom <= 13 ? 0.24 : 0);
-                    if (!winningGroup || normalized < minVisibleDensity) {
-                        continue;
-                    }
-
-                    if (supportDensity < minSupportDensity) {
-                        continue;
-                    }
-
-                    const screenX = x / pixelScale;
-                    const screenY = y / pixelScale;
-
-                    if (!canvasPixelInsideBoundary(this._map, screenX, screenY, this._options.clipBoundary)) {
-                        continue;
-                    }
-
-                    const competition = secondAlpha > 0
-                        ? clampUnit((winningAlpha - secondAlpha) / Math.max(winningAlpha, 1))
-                        : 1;
-                    const boundaryCompetition = secondAlpha > 0
-                        ? clampUnit((rawWinningAlpha - secondAlpha) / Math.max(rawWinningAlpha, 1))
-                        : 1;
-                    const fixedRampFloor = this._options.fixedRampFloor ?? 0.004;
-                    const rampDensity = clampUnit((normalized - fixedRampFloor) / (1 - fixedRampFloor));
-                    const centerStart = this._options.darkCenterStart ?? 0.84;
-                    const centerRange = Math.max(0.01, 1 - centerStart);
-                    const centerIntensity = clampUnit((rampDensity - centerStart) / centerRange);
-                    const centerDensity = (this._options.mediumDensityCap ?? 0.52)
-                        + (Math.pow(centerIntensity, this._options.darkCenterPower ?? 4.8) * ((this._options.darkDensityCap ?? 0.82) - (this._options.mediumDensityCap ?? 0.52)));
-                    const boundaryLightDensity = this._options.boundaryLightDensity ?? 0.018;
-                    const densityCoreProtection = Math.pow(centerIntensity, this._options.centerBoundaryProtectionPower ?? 4.4)
-                        * (this._options.centerBoundaryProtectionScale ?? 0.45);
-                    const pointCoreProtection = Math.pow(anchorScores[pixel] || 0, this._options.anchorBoundaryProtectionPower ?? 2.3)
-                        * (this._options.anchorBoundaryProtectionScale ?? 0.82);
-                    const centerProtection = Math.min(0.92, Math.max(densityCoreProtection, pointCoreProtection));
-                    const boundaryBandStrength = secondAlpha > 0
-                        ? Math.pow(1 - boundaryCompetition, this._options.boundaryLightPower ?? 0.23) * (1 - centerProtection)
-                        : 0;
-                    const densityWithoutBoundary = rampDensity >= centerStart
-                        ? centerDensity
-                        : Math.min(rampDensity, this._options.mediumDensityCap ?? 0.52);
-                    const winningCoreBoost = 1 + (
-                        Math.pow(centerIntensity, this._options.winningCoreBoostPower ?? 2.2) *
-                        (this._options.winningCoreBoost ?? 0.02) *
-                        (1 - boundaryBandStrength)
-                    );
-                    const winningGroupNumber = clusterNumber(winningGroup.label);
-                    const southernC1VisibilityBoost = winningGroupNumber === 1 && y >= c1SouthVisibilityY
-                        ? clampUnit((y - c1SouthVisibilityY) / Math.max(radius * 2.2, height - c1SouthVisibilityY))
-                        : 0;
-                    let colorDensity = clampUnit(
-                        (Math.min(densityWithoutBoundary * winningCoreBoost, this._options.winningCoreDensityCap ?? 0.80) * (1 - boundaryBandStrength)) +
-                        (boundaryLightDensity * boundaryBandStrength)
-                    );
-                    if (southernC1VisibilityBoost > 0) {
-                        const c1LiftBoundaryFade = 1 - (boundaryBandStrength * (this._options.southernC1BoundaryFade ?? 0.88));
-                        colorDensity = Math.max(
-                            colorDensity,
-                            ((this._options.southernC1DensityFloor ?? 0.42) + (southernC1VisibilityBoost * (this._options.southernC1DensityLift ?? 0.08))) * c1LiftBoundaryFade
-                        );
-                    }
-                    const centerCore = Math.max(
-                        Math.pow(centerIntensity, this._options.densityCenterCorePower ?? 2.2),
-                        Math.pow(anchorScores[pixel] || 0, this._options.pointCenterCorePower ?? 3.1)
-                    );
-                    if (centerCore > 0) {
-                        const centerBoundaryFade = 1 - (boundaryBandStrength * (this._options.centerDarkBoundaryFade ?? 0.72));
-                        colorDensity = Math.max(
-                            colorDensity,
-                            ((this._options.centerDarkDensityFloor ?? 0.66) + (centerCore * (this._options.centerDarkDensityLift ?? 0.12))) * centerBoundaryFade
-                        );
-                    }
-                    const [red, green, blue] = colorForGradientValue(
-                        Math.pow(colorDensity, this._options.dominancePower ?? 0.86),
-                        winningGroup.ramp
-                    );
-
-                    outputImage.data[index] = red;
-                    outputImage.data[index + 1] = green;
-                    outputImage.data[index + 2] = blue;
-                    contourDensityGrid[pixel] = clampUnit(Math.max(
-                        rampDensity * (this._options.pointRampContourDensityWeight ?? 0.86),
-                        supportDensity * (this._options.pointRampContourSupportWeight ?? 0.18)
-                    ));
-                    const supportFeather = zoom <= 13 ? clampUnit((supportDensity - minSupportDensity) / Math.max(0.18, 1 - minSupportDensity)) : 1;
-                    const edgeFeather = (0.74 + (Math.pow(competition, 0.42) * 0.26)) * (0.52 + (supportFeather * 0.48));
-                    const southernC1AlphaBoost = 1 + (southernC1VisibilityBoost * (this._options.southernC1AlphaBoost ?? 0.14));
-                    outputImage.data[index + 3] = Math.round(Math.min(
-                        this._options.outputMaxAlpha ?? 255,
-                        (this._options.outputAlphaBase ?? 255) * Math.pow(rampDensity, this._options.outputAlphaPower ?? 0.58) * edgeFeather * southernC1AlphaBoost * (this._options.outputAlphaScale ?? 0.92)
-                    ));
-                }
-
-                outputContext.clearRect(0, 0, width, height);
-                const edgeSmoothPixels = Math.max(
-                    this._options.pointRampEdgeBlurMin ?? 1.2,
-                    Math.min(this._options.pointRampEdgeBlurMax ?? 3.2, radius * (this._options.pointRampEdgeBlurRatio ?? 0.055))
-                );
-
-                if (edgeSmoothPixels > 0) {
-                    const rawCanvas = document.createElement('canvas');
-                    rawCanvas.width = width;
-                    rawCanvas.height = height;
-                    rawCanvas.getContext('2d').putImageData(outputImage, 0, 0);
-                    outputContext.save();
-                    outputContext.imageSmoothingEnabled = true;
-                    outputContext.imageSmoothingQuality = 'high';
-                    outputContext.filter = `blur(${edgeSmoothPixels}px)`;
-                    outputContext.drawImage(rawCanvas, 0, 0);
-                    outputContext.restore();
-                } else {
-                    outputContext.putImageData(outputImage, 0, 0);
-                }
-
-                const contourSourceGrid = smoothScalarGrid(
-                    contourDensityGrid,
-                    width,
-                    height,
-                    this._options.pointRampContourSmoothPasses ?? 5
-                );
-                drawKdeContours(outputContext, contourSourceGrid, width, height, {
-                    step: this._options.pointRampContourStep ?? 4,
-                    levels: this._options.pointRampContourLevels ?? [0.16, 0.28, 0.42, 0.58, 0.76],
-                    lineWidth: this._options.pointRampContourLineWidth ?? 0.58,
-                    haloLineWidth: this._options.pointRampContourHaloLineWidth ?? 0.18,
-                    haloOpacity: this._options.pointRampContourHaloOpacity ?? 0.04,
-                    opacityBase: this._options.pointRampContourOpacityBase ?? 0.58,
-                    opacityRange: this._options.pointRampContourOpacityRange ?? 0.28,
-                    maxOpacity: this._options.pointRampContourMaxOpacity ?? 0.90,
-                });
-            },
+    function makeClusterDivIcon(tone, count) {
+        return window.L.divIcon({
+            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${count}</div>`,
+            className: 'gis-cluster-icon',
+            iconSize: [34, 34],
         });
-
-        return new PointRampLayer();
     }
 
     function buildClusterDistributionPointLayer(map, features) {
@@ -4831,6 +4319,7 @@
                     radius: isFallback ? 5 : 7.5,
                     color: '#ffffff',
                     weight: isFallback ? 1 : 2,
+                    opacity: 0.82,
                     fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
                     fillOpacity: isFallback ? 0.58 : 0.9,
                     interactive: true,
@@ -4871,11 +4360,7 @@
                 const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0];
                 const tone = majority ? clusterColorForLabel(majority.label) : '#64748b';
 
-                return window.L.divIcon({
-                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                    className: 'gis-cluster-icon',
-                    iconSize: [34, 34],
-                });
+                return makeClusterDivIcon(tone, cluster.getChildCount());
             },
         });
 
@@ -4973,11 +4458,7 @@
                 const markers = cluster.getAllChildMarkers();
                 const tone = accessibilityClusterTone(markers);
 
-                return window.L.divIcon({
-                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                    className: 'gis-cluster-icon',
-                    iconSize: [34, 34],
-                });
+                return makeClusterDivIcon(tone, cluster.getChildCount());
             },
         });
 
@@ -5622,11 +5103,7 @@
                         const markers = cluster.getAllChildMarkers();
                         const tone = clusterTone(markers);
 
-                        return window.L.divIcon({
-                            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                            className: 'gis-cluster-icon',
-                            iconSize: [34, 34],
-                        });
+                        return makeClusterDivIcon(tone, cluster.getChildCount());
                     },
                 });
 
