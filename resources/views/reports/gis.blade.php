@@ -152,7 +152,7 @@
                     </label>
                     <label class="inline-flex items-center gap-2">
                         <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                        <span>Show cluster senior points</span>
+                        <span>Show senior distribution points</span>
                     </label>
                 </div>
             </div>
@@ -818,7 +818,7 @@
         return getSelectedValue(BARANGAY_FILTER_ID) === 'all';
     }
 
-    function shouldShowClusterSeniorPoints() {
+    function shouldShowClusterDistributionPoints() {
         return document.getElementById(CLUSTER_POINTS_TOGGLE_ID)?.checked !== false;
     }
 
@@ -4676,29 +4676,73 @@
         return new PointRampLayer();
     }
 
-    function buildClusterIdentityHaloLayer(features) {
-        return window.L.geoJSON({
+    function buildClusterDistributionPointLayer(map, features) {
+        const markerLayer = window.L.geoJSON({
             type: 'FeatureCollection',
             features,
         }, {
             pointToLayer(feature, latlng) {
+                const kind = coordinateKind(feature);
                 const color = clusterColorForLabel(clusterLabel(feature), feature);
+                const isFallback = kind === 'fallback';
 
                 return window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
                     pane: 'gis-senior-pane',
-                    radius: 3.5,
+                    radius: isFallback ? 5 : 7.5,
                     color: '#ffffff',
-                    weight: 1,
-                    opacity: 0.82,
-                    fillColor: color,
-                    fillOpacity: 0.68,
+                    weight: isFallback ? 1 : 2,
+                    fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
+                    fillOpacity: isFallback ? 0.58 : 0.9,
                     interactive: true,
+                    gisRiskLevel: feature.properties?.risk_level,
+                    gisBarangay: feature.properties?.barangay,
+                    gisCoordinateKind: kind,
+                    gisCluster: clusterLabel(feature),
                 });
             },
             onEachFeature(feature, layer) {
                 attachSeniorPopup(layer, feature);
             },
         });
+
+        if (! shouldClusterMarkers()) {
+            return markerLayer;
+        }
+
+        const markerClusterLayer = window.L.markerClusterGroup({
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+            maxClusterRadius: 26,
+            iconCreateFunction(cluster) {
+                const markers = cluster.getAllChildMarkers();
+                const counts = new Map();
+
+                markers.forEach((marker) => {
+                    const label = marker.options.gisCluster;
+                    if (!label) return;
+
+                    const key = clusterNumber(label) ?? label;
+                    const current = counts.get(key) ?? { label, count: 0 };
+                    current.count++;
+                    counts.set(key, current);
+                });
+
+                const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0];
+                const tone = majority ? clusterColorForLabel(majority.label) : '#64748b';
+
+                return window.L.divIcon({
+                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
+                    className: 'gis-cluster-icon',
+                    iconSize: [34, 34],
+                });
+            },
+        });
+
+        markerClusterLayer.addLayer(markerLayer);
+
+        return markerClusterLayer;
     }
 
     function buildRiskIdentityHaloLayer(features) {
@@ -5052,8 +5096,8 @@
             if (pointRampLayer) {
                 layerGroup.addLayer(pointRampLayer);
             }
-            if (shouldShowClusterSeniorPoints()) {
-                ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+            if (shouldShowClusterDistributionPoints()) {
+                ensureLayerRegistry(map).seniors.addLayer(buildClusterDistributionPointLayer(map, clusterFeatures));
             }
             setActiveHeatmapContext(map, 'cluster-heatmap', features, {
                 radiusMeters: result.radiusMeters,
@@ -5085,8 +5129,8 @@
         if (pointRampLayer) {
             ensureLayerRegistry(map).heatmap.addLayer(pointRampLayer);
         }
-        if (shouldShowClusterSeniorPoints()) {
-            ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+        if (shouldShowClusterDistributionPoints()) {
+            ensureLayerRegistry(map).seniors.addLayer(buildClusterDistributionPointLayer(map, clusterFeatures));
         }
         setActiveHeatmapContext(map, 'cluster-heatmap', clusterFeatures, {
             radiusMeters: result.radiusMeters,
