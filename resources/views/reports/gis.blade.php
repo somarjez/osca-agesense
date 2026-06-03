@@ -2179,15 +2179,15 @@
         const pointCoreRadius = rasterRadiusPixels(bounds, width, height, pointCoreRadiusMeters);
         const smoothingPixels = Math.max(
             options.smoothingPixelMin ?? 14,
-            Math.min(options.smoothingPixelMax ?? 36, radius * (options.smoothingPixelRatio ?? 0.34))
+            Math.min(options.smoothingPixelMax ?? 36, radius * (options.smoothingPixelRatio ?? 0.52))
         );
         const peakSmoothingPixels = Math.max(
             options.peakSmoothingPixelMin ?? 8,
-            Math.min(options.peakSmoothingPixelMax ?? 22, peakRadius * (options.peakSmoothingPixelRatio ?? 0.24))
+            Math.min(options.peakSmoothingPixelMax ?? 22, peakRadius * (options.peakSmoothingPixelRatio ?? 0.38))
         );
         const pointCoreSmoothingPixels = Math.max(
             options.pointCoreSmoothingPixelMin ?? 5,
-            Math.min(options.pointCoreSmoothingPixelMax ?? 14, pointCoreRadius * (options.pointCoreSmoothingPixelRatio ?? 0.16))
+            Math.min(options.pointCoreSmoothingPixelMax ?? 14, pointCoreRadius * (options.pointCoreSmoothingPixelRatio ?? 0.26))
         );
         const groupImages = groups.map((group) => {
             const canvas = document.createElement('canvas');
@@ -2590,7 +2590,14 @@
             lineWidth: options.contourLineWidth ?? 0.95,
         });
 
-        return createSmoothHeatmapImageOverlay(outputCanvas.toDataURL('image/png'), bounds, {
+        const blurredCanvas = document.createElement('canvas');
+        blurredCanvas.width = width;
+        blurredCanvas.height = height;
+        const blurCtx = blurredCanvas.getContext('2d');
+        blurCtx.filter = 'blur(5px)';
+        blurCtx.drawImage(outputCanvas, 0, 0);
+
+        return createSmoothHeatmapImageOverlay(blurredCanvas.toDataURL('image/png'), bounds, {
             pane: 'gis-heat-pane',
             opacity: 1,
             interactive: false,
@@ -4165,7 +4172,8 @@
                 this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-flow-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('moveend zoomend resize', this._reset, this);
+                map.on('zoomend resize', this._reset, this);
+                map.on('moveend', this._reposition, this);
                 this._reset();
             },
 
@@ -4173,7 +4181,8 @@
                 if (this._canvas?.parentNode) {
                     this._canvas.parentNode.removeChild(this._canvas);
                 }
-                map.off('moveend zoomend resize', this._reset, this);
+                map.off('zoomend resize', this._reset, this);
+                map.off('moveend', this._reposition, this);
             },
 
             _reset() {
@@ -4187,6 +4196,14 @@
                 this._canvas.height = Math.round(size.y * ratio);
                 this._ratio = ratio;
                 this._redraw();
+            },
+
+            // Pan: reposition the canvas only (content is frozen until the next
+            // zoom/resize redraw). Avoids the per-pan radial-gradient redraw that caused jank.
+            _reposition() {
+                if (!this._canvas) return;
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
             },
 
             _redraw() {
