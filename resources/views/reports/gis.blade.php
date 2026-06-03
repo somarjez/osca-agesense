@@ -200,6 +200,9 @@
     const RISK_FILTER_ID = 'gis-risk-filter';
     const CLUSTER_FILTER_ID = 'gis-cluster-filter';
     const CLUSTER_POINTS_TOGGLE_ID = 'gis-cluster-points-toggle';
+    const SHOW_SENIOR_POINTS_TOGGLE_ID = 'gis-show-senior-points-toggle';
+    const SHOW_BARANGAY_DENSITY_TOGGLE_ID = 'gis-show-barangay-density-toggle';
+    const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
     const KDE_OVERLAY_SELECTOR = '[data-gis-kde-overlay]';
@@ -823,6 +826,22 @@
 
     function shouldShowAccessibilitySeniorPoints() {
         return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
+    function syncLayerOptionsPanel() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const wrapper = document.getElementById(LAYER_OPTIONS_ID);
+        const markersPanel = document.getElementById('gis-layer-options-markers');
+        const clusterPanel = document.getElementById('gis-layer-options-cluster');
+
+        if (!wrapper) return;
+
+        const showMarkers = mode === 'markers';
+        const showCluster = mode === 'cluster-heatmap';
+
+        wrapper.classList.toggle('hidden', !showMarkers && !showCluster);
+        markersPanel?.classList.toggle('hidden', !showMarkers);
+        clusterPanel?.classList.toggle('hidden', !showCluster);
     }
 
     function syncAccessibilityPointDisplay() {
@@ -5025,6 +5044,7 @@
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         syncAccessibilityPointDisplay();
+        syncLayerOptionsPanel();
         updateLegend(mode);
         updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
 
