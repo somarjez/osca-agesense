@@ -1024,7 +1024,7 @@
 
         const range = stats.max - stats.min;
         const score = range > 0 ? clampUnit((distance - stats.min) / range) : 0.5;
-        let level = 'Priority';
+        let level = 'Farthest';
 
         if (distance <= stats.q25) {
             level = 'Nearest';
