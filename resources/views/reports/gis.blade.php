@@ -4831,6 +4831,7 @@
                     radius: isFallback ? 5 : 7.5,
                     color: '#ffffff',
                     weight: isFallback ? 1 : 2,
+                    opacity: 0.82,
                     fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
                     fillOpacity: isFallback ? 0.58 : 0.9,
                     interactive: true,
