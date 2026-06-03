@@ -337,6 +337,13 @@
     let latestBarangayBoundaryGeoJson = null;
     let latestRouteDistanceUrl = null;
 
+    function getCanvasRenderer(map) {
+        if (!map._gisCanvasRenderer) {
+            map._gisCanvasRenderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
+        }
+        return map._gisCanvasRenderer;
+    }
+
     function riskColor(level) {
         switch ((level || '').toUpperCase()) {
             case 'HIGH':
@@ -3129,21 +3136,6 @@
         return { overlayGroup, pointLayer };
     }
 
-    function createMarkerIcon(color, kind = 'verified') {
-        const isFallback = kind === 'fallback';
-        const background = isFallback ? colorWithAlpha(color, 0.16) : color;
-        const border = isFallback ? `2px dashed ${color}` : '2px solid #ffffff';
-        const size = isFallback ? 13 : 14;
-
-        return window.L.divIcon({
-            className: 'gis-marker-icon',
-            html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:${background};border:${border};box-shadow:0 4px 10px rgba(15,23,42,0.18);"></span>`,
-            iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
-            popupAnchor: [0, -8],
-        });
-    }
-
     function createFacilityIcon() {
         return window.L.divIcon({
             className: 'gis-facility-icon',
@@ -4895,12 +4887,17 @@
                 pointToLayer(feature, latlng) {
                     const kind = coordinateKind(feature);
                     const color = barangayColor(feature.properties?.barangay);
-                    const marker = window.L.marker(latlng, {
-                        icon: createMarkerIcon(color, kind),
+                    const isFallback = kind === 'fallback';
+                    const marker = window.L.circleMarker(latlng, {
+                        renderer: getCanvasRenderer(map),
+                        radius: isFallback ? 5 : 7,
+                        fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
+                        fillOpacity: isFallback ? 0.6 : 0.9,
+                        color: '#ffffff',
+                        weight: isFallback ? 1 : 2,
                         gisRiskLevel: feature.properties?.risk_level,
                         gisBarangay: feature.properties?.barangay,
                         gisCoordinateKind: kind,
-                        pane: 'gis-senior-pane',
                     });
 
                     attachSeniorPopup(marker, feature);
