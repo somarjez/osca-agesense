@@ -64,6 +64,11 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": {
+                "CVE-2026-48019": "No patch for Laravel 11; mitigated by using email:filter rule. Upgrade to Laravel 12.60+ planned."
+            }
         }
     },
     "minimum-stability": "stable",
