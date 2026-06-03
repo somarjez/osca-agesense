@@ -691,20 +691,6 @@
             return;
         }
 
-        if (mode === 'barangay-density') {
-            legendEl.innerHTML = `
-                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">Barangay Density View</span>
-                <span class="inline-flex items-center gap-2 min-w-[260px]">
-                    <span>Lower count</span>
-                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
-                    <span>Higher count</span>
-                </span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
-                ${boundaryLegend}
-            `;
-            return;
-        }
-
         legendEl.innerHTML = `
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
@@ -5046,7 +5032,7 @@
         syncAccessibilityPointDisplay();
         syncLayerOptionsPanel();
         updateLegend(mode);
-        updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
+        updateSummaryCards(seniorGeoJson, renderStats.visible);
 
         if (!activeFeatures.length) {
             focusMapOnPagsanjan(map);
