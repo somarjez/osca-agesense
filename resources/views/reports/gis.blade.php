@@ -4119,6 +4119,145 @@
         };
     }
 
+    function clusterFlowPoints(features) {
+        return features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const ramp = gradientStopsFromStops(clusterGradientForLabel(clusterLabel(feature), feature));
+
+                if (!latlng || !ramp?.length) {
+                    return null;
+                }
+
+                const groupNumber = featureClusterNumber(feature) ?? clusterNumber(clusterLabel(feature)) ?? 0;
+                const color = colorForGradientValue(0.70, ramp);
+
+                return [latlng.lat, latlng.lng, color, groupNumber];
+            })
+            .filter(Boolean);
+    }
+
+    function createClusterFlowHeatmapLayer(points, options = {}) {
+        const HeatLayer = window.L.Layer.extend({
+            initialize() {
+                this._points = points;
+                this._options = options;
+            },
+
+            onAdd(map) {
+                this._map = map;
+                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-flow-heat-canvas');
+                this._canvas.style.pointerEvents = 'none';
+                (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
+                map.on('moveend zoomend resize', this._reset, this);
+                this._reset();
+            },
+
+            onRemove(map) {
+                if (this._canvas?.parentNode) {
+                    this._canvas.parentNode.removeChild(this._canvas);
+                }
+                map.off('moveend zoomend resize', this._reset, this);
+            },
+
+            _reset() {
+                const size = this._map.getSize();
+                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
+                this._canvas.style.width = `${size.x}px`;
+                this._canvas.style.height = `${size.y}px`;
+                this._canvas.width = Math.round(size.x * ratio);
+                this._canvas.height = Math.round(size.y * ratio);
+                this._ratio = ratio;
+                this._redraw();
+            },
+
+            _redraw() {
+                const width = this._canvas.width;
+                const height = this._canvas.height;
+                const ratio = this._ratio || 1;
+                const cssWidth = width / ratio;
+                const cssHeight = height / ratio;
+                const context = this._canvas.getContext('2d');
+                context.clearRect(0, 0, width, height);
+
+                const radiusMeters = this._options.radiusMeters ?? 620;
+                const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
+                const contourDensityGrid = new Float32Array(width * height);
+
+                this._points
+                    .slice()
+                    .sort((a, b) => a[3] - b[3])
+                    .forEach(([lat, lng, color]) => {
+                        const mapPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        const point = {
+                            x: mapPoint.x * ratio,
+                            y: mapPoint.y * ratio,
+                        };
+
+                        if (mapPoint.x < -(radius / ratio) || mapPoint.y < -(radius / ratio) || mapPoint.x > cssWidth + (radius / ratio) || mapPoint.y > cssHeight + (radius / ratio)) {
+                            return;
+                        }
+
+                        const [red, green, blue] = color;
+                        const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                        gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
+                        gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
+                        gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
+                        gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
+                        gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+                        context.fillStyle = gradient;
+                        context.beginPath();
+                        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                        context.fill();
+                    });
+
+                const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
+                const image = context.getImageData(0, 0, width, height);
+                for (let index = 0; index < image.data.length; index += 4) {
+                    if (!image.data[index + 3]) continue;
+                    const pixel = index / 4;
+                    const cssX = (pixel % width) / ratio;
+                    const cssY = Math.floor(pixel / width) / ratio;
+
+                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                        image.data[index + 3] = 0;
+                        continue;
+                    }
+
+                    contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                }
+                context.putImageData(image, 0, 0);
+
+                const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
+                drawKdeContours(context, contourSourceGrid, width, height, {
+                    step: Math.max(3, Math.round(4 * ratio)),
+                    levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+                    lineWidth: 1.05 * ratio,
+                });
+            },
+        });
+
+        return new HeatLayer();
+    }
+
+    function buildClusterFlowHeatmapLayer(map, features, options = {}) {
+        const points = clusterFlowPoints(features);
+        const radiusMeters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : Math.max(520, Math.min(760, heatmapRadiusMeters(features, 'cluster-heatmap') * 1.35));
+
+        if (!points.length) {
+            return null;
+        }
+
+        return createClusterFlowHeatmapLayer(points, {
+            radiusMeters,
+            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+        });
+    }
+
     function createSmoothHeatmapImageOverlay(dataUrl, bounds, options = {}) {
         const overlay = window.L.imageOverlay(dataUrl, bounds, {
             ...options,
@@ -4912,7 +5051,8 @@
 
             const clusterFeatures = heatmapFeaturesForMode(features, 'cluster-heatmap');
             layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
+            const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
+                radiusMeters: result.radiusMeters,
                 clipBoundary: primaryBoundaryGeoJson(),
             });
             if (pointRampLayer) {
@@ -5090,7 +5230,8 @@
             }
 
             layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
+            const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
+                radiusMeters: result.radiusMeters,
                 clipBoundary: primaryBoundaryGeoJson(),
             });
             if (pointRampLayer) {
@@ -5123,7 +5264,8 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
+        const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
+            radiusMeters: result.radiusMeters,
             clipBoundary: primaryBoundaryGeoJson(),
         });
         if (pointRampLayer) {
