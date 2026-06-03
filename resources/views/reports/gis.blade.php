@@ -4295,6 +4295,14 @@
         return overlay;
     }
 
+    function makeClusterDivIcon(tone, count) {
+        return window.L.divIcon({
+            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${count}</div>`,
+            className: 'gis-cluster-icon',
+            iconSize: [34, 34],
+        });
+    }
+
     function buildClusterDistributionPointLayer(map, features) {
         const markerLayer = window.L.geoJSON({
             type: 'FeatureCollection',
@@ -4352,11 +4360,7 @@
                 const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0];
                 const tone = majority ? clusterColorForLabel(majority.label) : '#64748b';
 
-                return window.L.divIcon({
-                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                    className: 'gis-cluster-icon',
-                    iconSize: [34, 34],
-                });
+                return makeClusterDivIcon(tone, cluster.getChildCount());
             },
         });
 
@@ -4454,11 +4458,7 @@
                 const markers = cluster.getAllChildMarkers();
                 const tone = accessibilityClusterTone(markers);
 
-                return window.L.divIcon({
-                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                    className: 'gis-cluster-icon',
-                    iconSize: [34, 34],
-                });
+                return makeClusterDivIcon(tone, cluster.getChildCount());
             },
         });
 
@@ -5103,11 +5103,7 @@
                         const markers = cluster.getAllChildMarkers();
                         const tone = clusterTone(markers);
 
-                        return window.L.divIcon({
-                            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                            className: 'gis-cluster-icon',
-                            iconSize: [34, 34],
-                        });
+                        return makeClusterDivIcon(tone, cluster.getChildCount());
                     },
                 });
 
