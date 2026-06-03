@@ -4036,8 +4036,6 @@
 
                 const radiusMeters = this._options.radiusMeters ?? 620;
                 const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
-                const contourDensityGrid = new Float32Array(width * height);
-
                 this._points
                     .slice()
                     .sort((a, b) => a[2] - b[2])
@@ -4065,8 +4063,16 @@
                         context.fill();
                     });
 
+                const currentZoom = this._map.getZoom();
+                const needContour = !this._contourCache
+                    || this._contourCache.zoom !== currentZoom
+                    || this._contourCache.canvas.width !== width
+                    || this._contourCache.canvas.height !== height;
+
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
+                const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
+
                 for (let index = 0; index < image.data.length; index += 4) {
                     if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
@@ -4077,17 +4083,29 @@
                         image.data[index + 3] = 0;
                         continue;
                     }
-
-                    contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                    if (contourDensityGrid) {
+                        contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                    }
                 }
                 context.putImageData(image, 0, 0);
 
-                const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
-                drawKdeContours(context, contourSourceGrid, width, height, {
-                    step: Math.max(3, Math.round(4 * ratio)),
-                    levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
-                    lineWidth: 1.05 * ratio,
-                });
+                if (needContour && contourDensityGrid) {
+                    const offscreen = document.createElement('canvas');
+                    offscreen.width = width;
+                    offscreen.height = height;
+                    const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
+                    drawKdeContours(offscreen.getContext('2d'), contourSourceGrid, width, height, {
+                        step: Math.max(3, Math.round(4 * ratio)),
+                        levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+                        lineWidth: 1.05 * ratio,
+                        haloLineWidth: 0,
+                    });
+                    this._contourCache = { canvas: offscreen, zoom: currentZoom };
+                }
+
+                if (this._contourCache) {
+                    context.drawImage(this._contourCache.canvas, 0, 0);
+                }
             },
         });
 
@@ -4142,6 +4160,7 @@
             initialize() {
                 this._points = points;
                 this._options = options;
+                this._contourCache = null;
             },
 
             onAdd(map) {
