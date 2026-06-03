@@ -2119,7 +2119,6 @@
                 }
             }
 
-            const opacity = 0.18 + levelFrac * 0.26;
             context.shadowColor = 'transparent';
             context.shadowBlur = 0;
             const haloLineWidth = options.haloLineWidth ?? 0.25;
