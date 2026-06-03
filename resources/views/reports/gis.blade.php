@@ -109,6 +109,7 @@
                         <option value="barangay-density">Barangay Density View</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
                         <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
+                        <option value="senior-distribution-accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -156,6 +157,14 @@
                 </div>
             </div>
 
+            <div id="gis-accessibility-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
+                <div class="eyebrow mb-2">Accessibility Point Display</div>
+                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                    <input id="gis-show-heatmap-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                    <span>Show senior points on accessibility heatmap</span>
+                </label>
+            </div>
+
             <div id="gis-map"
                  class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
@@ -190,6 +199,8 @@
     const RISK_FILTER_ID = 'gis-risk-filter';
     const CLUSTER_FILTER_ID = 'gis-cluster-filter';
     const CLUSTER_POINTS_TOGGLE_ID = 'gis-cluster-points-toggle';
+    const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
+    const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
     const KDE_OVERLAY_SELECTOR = '[data-gis-kde-overlay]';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
@@ -217,6 +228,7 @@
     const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
     const HEATMAP_MODES = new Set([
         'accessibility-heatmap',
+        'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
     ]);
@@ -231,6 +243,14 @@
         0.72: '#fb923c',
         0.88: '#ef4444',
         1.00: '#b91c1c',
+    };
+    const ACCESSIBILITY_DISTRIBUTION_RAMP = {
+        0.00: '#22c55e',
+        0.25: '#84cc16',
+        0.45: '#facc15',
+        0.68: '#fb923c',
+        0.85: '#ef4444',
+        1.00: '#991b1b',
     };
     const CLUSTER_HEATMAP_GRADIENT = {
         0.00: '#e8f4f8',
@@ -616,6 +636,7 @@
 
         const heatmapLabels = {
             'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'senior-distribution-accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
             'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
@@ -801,6 +822,18 @@
         return document.getElementById(CLUSTER_POINTS_TOGGLE_ID)?.checked !== false;
     }
 
+    function shouldShowAccessibilitySeniorPoints() {
+        return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
+    function syncAccessibilityPointDisplay() {
+        const control = document.getElementById(ACCESSIBILITY_POINT_DISPLAY_ID);
+        if (!control) return;
+
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
+    }
+
     function selectedKdeOverlayModes() {
         return [...document.querySelectorAll(`${KDE_OVERLAY_SELECTOR}:checked`)]
             .map((input) => input.value)
@@ -912,7 +945,22 @@
         return Math.max(0, Math.min(1, value));
     }
 
-    function accessibilityNeedWeight(properties) {
+    function accessibilityNeedWeight(properties, options = {}) {
+        const concernScore = numericValue(properties?.accessibility_concern_score);
+        if (concernScore !== null) {
+            return clampUnit(concernScore <= 1 ? concernScore : concernScore / 100);
+        }
+
+        const surfaceWeight = numericValue(properties?.accessibility_surface_weight);
+        if (surfaceWeight !== null) {
+            return clampUnit(surfaceWeight <= 1 ? surfaceWeight : surfaceWeight / 100);
+        }
+
+        const backendNeedScore = numericValue(properties?.accessibility_need_score);
+        if (backendNeedScore !== null) {
+            return clampUnit(backendNeedScore <= 1 ? backendNeedScore : backendNeedScore / 100);
+        }
+
         const proximityScore = numericValue(properties?.gis_proximity_score);
         if (proximityScore !== null) {
             return clampUnit(1 - (proximityScore / 100));
@@ -924,12 +972,89 @@
             return clampUnit(1 - normalizedScore);
         }
 
+        if (options.allowDistance === false) {
+            return null;
+        }
+
         const nearestDistance = numericValue(properties?.nearest_facility_distance_m);
         if (nearestDistance !== null) {
             return clampUnit(nearestDistance / ACCESSIBILITY_DISTANCE_CAP_METERS);
         }
 
         return null;
+    }
+
+    function accessibilityDistanceMeters(properties) {
+        return numericValue(properties?.accessibility_distance_m ?? properties?.nearest_facility_distance_m);
+    }
+
+    function quantile(sortedValues, percentile) {
+        if (!sortedValues.length) return null;
+        const position = (sortedValues.length - 1) * percentile;
+        const lower = Math.floor(position);
+        const upper = Math.ceil(position);
+        if (lower === upper) return sortedValues[lower];
+
+        return sortedValues[lower] + ((sortedValues[upper] - sortedValues[lower]) * (position - lower));
+    }
+
+    function accessibilityConcernStats(features) {
+        const distances = features
+            .map((feature) => accessibilityDistanceMeters(feature.properties || {}))
+            .filter((distance) => distance !== null)
+            .sort((a, b) => a - b);
+
+        if (!distances.length) {
+            return null;
+        }
+
+        return {
+            min: distances[0],
+            max: distances[distances.length - 1],
+            q25: quantile(distances, 0.25),
+            q60: quantile(distances, 0.60),
+            q85: quantile(distances, 0.85),
+        };
+    }
+
+    function accessibilityConcernFromDistance(distance, stats = null) {
+        if (distance === null || !stats) {
+            return null;
+        }
+
+        const range = stats.max - stats.min;
+        const score = range > 0 ? clampUnit((distance - stats.min) / range) : 0.5;
+        let level = 'Priority';
+
+        if (distance <= stats.q25) {
+            level = 'Nearest';
+        } else if (distance <= stats.q60) {
+            level = 'Mid';
+        } else if (distance <= stats.q85) {
+            level = 'Far';
+        }
+
+        return { score, level };
+    }
+
+    function backendAccessibilityConcern(properties, stats = null) {
+        const score = accessibilityNeedWeight(properties, { allowDistance: false });
+        if (score === null) {
+            const distanceConcern = accessibilityConcernFromDistance(accessibilityDistanceMeters(properties), stats);
+            if (distanceConcern) {
+                return distanceConcern;
+            }
+
+            const fallbackScore = accessibilityNeedWeight(properties);
+            return fallbackScore === null
+                ? null
+                : { score: fallbackScore, level: properties?.accessibility_level || null };
+        }
+
+        return {
+            score,
+            level: properties?.accessibility_level || null,
+        };
     }
 
     function accessibilityStatus(score) {
@@ -946,7 +1071,7 @@
     function heatmapWeight(feature, mode) {
         const props = feature.properties || {};
 
-        if (mode === 'accessibility-heatmap') {
+        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
             return accessibilityNeedWeight(props);
         }
 
@@ -1054,22 +1179,17 @@
         return BARANGAY_COLORS[Math.abs(hash) % BARANGAY_COLORS.length];
     }
 
-    function hexToRgb(hex) {
-        const normalized = String(hex || '').replace('#', '');
-        if (!/^[0-9a-f]{6}$/i.test(normalized)) {
-            return [100, 116, 139];
-        }
-
-        return [
-            parseInt(normalized.slice(0, 2), 16),
-            parseInt(normalized.slice(2, 4), 16),
-            parseInt(normalized.slice(4, 6), 16),
-        ];
-    }
-
     function colorWithAlpha(hex, alpha) {
         const [r, g, b] = hexToRgb(hex);
         return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    function rgbString(channels) {
+        return `rgb(${channels.map((channel) => Math.round(channel)).join(',')})`;
+    }
+
+    function rgbaString(channels, alpha) {
+        return `rgba(${channels.map((channel) => Math.round(channel)).join(',')},${alpha})`;
     }
 
     function selectedBarangayBoundaryFeature() {
@@ -1315,7 +1435,7 @@
         const fallbackRadius = mode === 'cluster-heatmap' ? 300 : 260;
         const derivedRadius = median([spacingRadius ? spacingRadius * 1.35 : null, boundaryRadius, fallbackRadius]);
 
-        if (mode === 'accessibility-heatmap') {
+        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
             return Math.max(180, Math.min(560, derivedRadius ?? fallbackRadius));
         }
 
@@ -3588,7 +3708,7 @@
             });
         }
 
-        if (mode === 'accessibility-heatmap') {
+        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
             return features.filter((feature) => accessibilityNeedWeight(feature.properties || {}) !== null);
         }
 
@@ -3819,6 +3939,156 @@
             outputAlphaBase: options.outputAlphaBase ?? 230,
             outputAlphaPower: options.outputAlphaPower ?? 0.95,
             dominancePower: options.dominancePower ?? 0.82,
+            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+        });
+
+        return {
+            layer,
+            points: { length: points.length },
+            radiusMeters: Math.round(radiusMeters),
+            colorScaleMax: options.colorScaleMax ?? 255,
+        };
+    }
+
+    function accessibilityDistributionPoints(features, referenceFeatures = null) {
+        const stats = accessibilityConcernStats(referenceFeatures || features);
+
+        return features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const concern = backendAccessibilityConcern(feature.properties || {}, stats);
+
+                if (!latlng || !concern) {
+                    return null;
+                }
+
+                // Color/intensity is based on backend-provided accessibility
+                // fields from the senior GIS data; distance is only a fallback.
+                return [latlng.lat, latlng.lng, clampUnit(0.05 + (concern.score * 0.95))];
+            })
+            .filter(Boolean);
+    }
+
+    function createAccessibilityPointHeatmapLayer(points, options = {}) {
+        const HeatLayer = window.L.Layer.extend({
+            initialize() {
+                this._points = points;
+                this._options = options;
+                this._stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
+            },
+
+            onAdd(map) {
+                this._map = map;
+                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
+                this._canvas.style.pointerEvents = 'none';
+                (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
+                map.on('moveend zoomend resize', this._reset, this);
+                this._reset();
+            },
+
+            onRemove(map) {
+                if (this._canvas?.parentNode) {
+                    this._canvas.parentNode.removeChild(this._canvas);
+                }
+                map.off('moveend zoomend resize', this._reset, this);
+            },
+
+            _reset() {
+                const size = this._map.getSize();
+                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
+                this._canvas.style.width = `${size.x}px`;
+                this._canvas.style.height = `${size.y}px`;
+                this._canvas.width = Math.round(size.x * ratio);
+                this._canvas.height = Math.round(size.y * ratio);
+                this._ratio = ratio;
+                this._redraw();
+            },
+
+            _redraw() {
+                const width = this._canvas.width;
+                const height = this._canvas.height;
+                const ratio = this._ratio || 1;
+                const cssWidth = width / ratio;
+                const cssHeight = height / ratio;
+                const context = this._canvas.getContext('2d');
+                context.clearRect(0, 0, width, height);
+
+                const radiusMeters = this._options.radiusMeters ?? 620;
+                const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
+                const contourDensityGrid = new Float32Array(width * height);
+
+                this._points
+                    .slice()
+                    .sort((a, b) => a[2] - b[2])
+                    .forEach(([lat, lng, score]) => {
+                        const mapPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        const point = {
+                            x: mapPoint.x * ratio,
+                            y: mapPoint.y * ratio,
+                        };
+
+                        if (mapPoint.x < -(radius / ratio) || mapPoint.y < -(radius / ratio) || mapPoint.x > cssWidth + (radius / ratio) || mapPoint.y > cssHeight + (radius / ratio)) {
+                            return;
+                        }
+
+                        const [red, green, blue] = colorForGradientValue(score, this._stops);
+                        const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                        gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
+                        gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
+                        gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
+                        gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
+                        gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+                        context.fillStyle = gradient;
+                        context.beginPath();
+                        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                        context.fill();
+                    });
+
+                const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
+                const image = context.getImageData(0, 0, width, height);
+                for (let index = 0; index < image.data.length; index += 4) {
+                    if (!image.data[index + 3]) continue;
+                    const pixel = index / 4;
+                    const cssX = (pixel % width) / ratio;
+                    const cssY = Math.floor(pixel / width) / ratio;
+
+                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                        image.data[index + 3] = 0;
+                        continue;
+                    }
+
+                    contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+                }
+                context.putImageData(image, 0, 0);
+
+                const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
+                drawKdeContours(context, contourSourceGrid, width, height, {
+                    step: Math.max(3, Math.round(4 * ratio)),
+                    levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+                    lineWidth: 1.05 * ratio,
+                });
+            },
+        });
+
+        return new HeatLayer();
+    }
+
+    function buildAccessibilityDistributionRasterLayer(map, features, options = {}) {
+        const referenceFeatures = options.referenceFeatures || latestSeniorGeoJson?.features || features;
+        const points = accessibilityDistributionPoints(features, referenceFeatures);
+        const bounds = primaryBoundaryBounds();
+        const radiusMeters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : Math.max(520, Math.min(760, heatmapRadiusMeters(features, 'accessibility-heatmap') * 1.35));
+
+        if (!points.length || !bounds?.isValid?.()) {
+            return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
+        }
+
+        const layer = createAccessibilityPointHeatmapLayer(points, {
+            radiusMeters,
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
 
@@ -4335,6 +4605,81 @@
         });
     }
 
+    function accessibilityConcernColor(score) {
+        return rgbString(colorForGradientValue(clampUnit(score ?? 0), gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP)));
+    }
+
+    function accessibilityClusterTone(markers) {
+        const scores = markers
+            .map((marker) => numericValue(marker.options.gisAccessibilityConcernScore))
+            .filter((score) => score !== null);
+
+        if (!scores.length) {
+            return '#64748b';
+        }
+
+        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        return accessibilityConcernColor(average);
+    }
+
+    function buildAccessibilitySeniorPointLayer(map, featureCollection) {
+        const stats = accessibilityConcernStats(featureCollection.features || []);
+        const markerLayer = window.L.geoJSON(featureCollection, {
+            pointToLayer(feature, latlng) {
+                const kind = coordinateKind(feature);
+                const concern = backendAccessibilityConcern(feature.properties || {}, stats);
+                const colorChannels = concern
+                    ? colorForGradientValue(concern.score, gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP))
+                    : hexToRgb(barangayColor(feature.properties?.barangay));
+                const color = rgbString(colorChannels);
+                const isFallback = kind === 'fallback';
+                const marker = window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
+                    pane: 'gis-senior-pane',
+                    radius: isFallback ? 5 : 7.5,
+                    fillColor: isFallback ? rgbaString(colorChannels, 0.5) : color,
+                    fillOpacity: isFallback ? 0.58 : 0.9,
+                    color: '#ffffff',
+                    weight: isFallback ? 1 : 2,
+                    gisRiskLevel: feature.properties?.risk_level,
+                    gisBarangay: feature.properties?.barangay,
+                    gisCoordinateKind: kind,
+                    gisAccessibilityConcernScore: concern?.score ?? null,
+                    gisAccessibilityConcernLevel: concern?.level ?? null,
+                });
+
+                attachSeniorPopup(marker, feature);
+
+                return marker;
+            },
+        });
+
+        if (! shouldClusterMarkers()) {
+            return markerLayer;
+        }
+
+        const markerClusterLayer = window.L.markerClusterGroup({
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+            maxClusterRadius: 26,
+            iconCreateFunction(cluster) {
+                const markers = cluster.getAllChildMarkers();
+                const tone = accessibilityClusterTone(markers);
+
+                return window.L.divIcon({
+                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
+                    className: 'gis-cluster-icon',
+                    iconSize: [34, 34],
+                });
+            },
+        });
+
+        markerClusterLayer.addLayer(markerLayer);
+
+        return markerClusterLayer;
+    }
+
     function setActiveHeatmapContext(map, mode, features, options = {}) {
         map._gisActiveHeatmap = {
             mode,
@@ -4356,7 +4701,7 @@
 
         // Raster-KDE modes use a zoom-stable L.imageOverlay; rebuilding them as a
         // canvas layer on every zoom would both flicker and overwrite the raster.
-        if (context.mode === 'risk-indicator-heatmap') {
+        if (context.mode === 'risk-indicator-heatmap' || context.mode === 'senior-distribution-accessibility-heatmap') {
             return;
         }
 
@@ -4514,6 +4859,52 @@
         setStatus(`Risk Indicator Distribution renders ${result.points.length} senior GIS point(s) as a continuous KDE risk surface, weighted by composite risk score (falling back to risk level), clipped to Pagsanjan (${result.radiusMeters}m radius).`, 'success');
     }
 
+    function renderSeniorDistributionAccessibilityHeatmap(map, features) {
+        clearHeatmapLayers(map);
+
+        if (!window.L.Layer) {
+            focusMapOnActiveLayer(map, features);
+            setStatus('Leaflet is unavailable. Rebuild frontend assets to enable GIS heatmaps.', 'error');
+            return;
+        }
+
+        const heatmapFeatures = heatmapFeaturesForMode(features, 'senior-distribution-accessibility-heatmap');
+        const result = buildAccessibilityDistributionRasterLayer(map, heatmapFeatures);
+
+        if (!result.layer || !result.points.length) {
+            focusMapOnActiveLayer(map, features);
+            setStatus('No senior records had nearest-facility distance data for the selected filters.', 'neutral');
+            return;
+        }
+
+        const featureCollection = {
+            type: 'FeatureCollection',
+            features: heatmapFeatures,
+        };
+
+        const layers = ensureLayerRegistry(map);
+        layers.heatmap.addLayer(result.layer);
+
+        if (shouldShowAccessibilitySeniorPoints()) {
+            layers.seniors.addLayer(buildAccessibilitySeniorPointLayer(map, featureCollection));
+        }
+
+        setActiveHeatmapContext(map, 'senior-distribution-accessibility-heatmap', heatmapFeatures, {
+            radiusMeters: result.radiusMeters,
+            colorScaleMax: result.colorScaleMax,
+        });
+        focusMapOnActiveLayer(map, heatmapFeatures);
+
+        const clusterText = shouldShowAccessibilitySeniorPoints() && shouldClusterMarkers()
+            ? ' Points are visually clustered when zoomed out, without changing the underlying senior coordinates.'
+            : '';
+        const pointText = shouldShowAccessibilitySeniorPoints()
+            ? ` Senior distribution points are shown above the heatmap using the same barangay-level coordinates as Senior Distribution Points.${clusterText}`
+            : ' Senior distribution points are hidden.';
+
+        setStatus(`Senior Distribution and Accessibility Heatmap renders ${result.points.length} senior distribution point(s).${pointText} Heatmap color comes from backend accessibility/proximity data; points follow the senior GIS data available in the database.`, 'success');
+    }
+
     function renderClusterHeatmap(map, features) {
         clearHeatmapLayers(map);
 
@@ -4590,6 +4981,11 @@
 
         if (mode === 'cluster-heatmap') {
             renderClusterHeatmap(map, features);
+            return true;
+        }
+
+        if (mode === 'senior-distribution-accessibility-heatmap') {
+            renderSeniorDistributionAccessibilityHeatmap(map, features);
             return true;
         }
 
@@ -4839,6 +5235,7 @@
         const layers = ensureLayerRegistry(map);
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
+        syncAccessibilityPointDisplay();
         updateLegend(mode);
         updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
 
@@ -4960,7 +5357,7 @@
             setActiveHeatmapContext(map, mode, markerStats.visible);
             focusMapOnActiveLayer(map, markerStats.visible);
             const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) also active.` : '';
-            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend senior counts. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).${overlayText}`, 'success');
+            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).${overlayText}`, 'success');
             return;
         }
 
@@ -5145,7 +5542,7 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
             debouncedRefresh();
         }
     });

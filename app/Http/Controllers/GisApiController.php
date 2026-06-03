@@ -53,6 +53,8 @@ class GisApiController extends Controller
                 ));
 
             $groups = $this->groupSeniorsByBarangay($seniors);
+            $accessibilityFacilities = $this->accessibilityDistanceFacilities();
+            $accessibilityThresholds = $this->accessibilityConcernThresholds($seniors, $accessibilityFacilities);
             $features = [];
             $matchedSeniorCount = 0;
 
@@ -90,6 +92,7 @@ class GisApiController extends Controller
                     ? (float) $accessibilityMetric->accessibility_score
                     : null;
                 $accessibilityScorePercent = $this->accessibilityScorePercent($accessibilityScore);
+                $accessibilityConcern = $this->accessibilityConcernPayload($senior, $accessibilityMetric, $accessibilityThresholds, $accessibilityScore, $accessibilityFacilities);
 
                 $matchedSeniorCount++;
 
@@ -121,6 +124,12 @@ class GisApiController extends Controller
                         'health_group' => $cluster,
                         'gis_proximity_score' => $accessibilityScorePercent,
                         'accessibility_score' => $accessibilityScore,
+                        'accessibility_distance_m' => $accessibilityConcern['distance_m'],
+                        'nearest_facility_distance_m' => $accessibilityConcern['distance_m'],
+                        'accessibility_concern_score' => $accessibilityConcern['score'],
+                        'accessibility_surface_weight' => $accessibilityConcern['score'],
+                        'accessibility_level' => $accessibilityConcern['level'],
+                        'accessibility_group' => $accessibilityConcern['level'],
                         'accessibility_status' => $this->accessibilityStatus($accessibilityScorePercent),
                         'coordinate_mode' => $locationStatus,
                         'location_source' => $locationStatus === 'generalized'
@@ -1028,28 +1037,163 @@ class GisApiController extends Controller
         return round(max(0, min(100, $value)), 2);
     }
 
-    private function nearestFacilityDistance(mixed $metric): ?float
+    private function accessibilityDistanceFacilities()
     {
-        if (! $metric) {
+        return Facility::query()
+            ->where('is_active', true)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get(['id', 'name', 'type', 'latitude', 'longitude'])
+            ->filter(fn (Facility $facility) => $this->isAccessibilityDistanceFacility($facility))
+            ->values();
+    }
+
+    private function isAccessibilityDistanceFacility(Facility $facility): bool
+    {
+        $text = strtolower(trim($facility->type.' '.$facility->name));
+
+        foreach (['health center', 'rural health', 'rhu', 'hospital', 'pharmacy', 'botika', 'drugstore', 'drug store', 'market', 'public market', 'barangay hall', 'senior center'] as $needle) {
+            if (str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function accessibilityConcernThresholds($seniors, $facilities): ?array
+    {
+        $distances = $seniors
+            ->map(fn ($senior) => $this->nearestFacilityDistance($senior->latestAccessibilityMetric, $senior, $facilities))
+            ->filter(fn ($distance) => $distance !== null)
+            ->sort()
+            ->values();
+
+        if ($distances->isEmpty()) {
             return null;
         }
 
-        $distances = [
-            $metric->distance_to_health_center_m,
-            $metric->distance_to_barangay_hall_m,
-            $metric->distance_to_market_m,
+        return [
+            'min' => (float) $distances->first(),
+            'max' => (float) $distances->last(),
+            'q25' => $this->quantile($distances->all(), 0.25),
+            'q60' => $this->quantile($distances->all(), 0.60),
+            'q85' => $this->quantile($distances->all(), 0.85),
         ];
+    }
+
+    private function quantile(array $sortedValues, float $percentile): ?float
+    {
+        if (! $sortedValues) {
+            return null;
+        }
+
+        $position = (count($sortedValues) - 1) * $percentile;
+        $lower = (int) floor($position);
+        $upper = (int) ceil($position);
+
+        if ($lower === $upper) {
+            return (float) $sortedValues[$lower];
+        }
+
+        return (float) $sortedValues[$lower]
+            + (((float) $sortedValues[$upper] - (float) $sortedValues[$lower]) * ($position - $lower));
+    }
+
+    private function accessibilityConcernPayload(SeniorCitizen $senior, mixed $metric, ?array $thresholds, ?float $accessibilityScore, $facilities): array
+    {
+        $distance = $this->nearestFacilityDistance($metric, $senior, $facilities);
+
+        if ($distance !== null && $thresholds) {
+            $level = 'Farthest';
+            $score = 0.95;
+
+            if ($distance <= (float) $thresholds['q25']) {
+                $level = 'Nearest';
+                $score = 0.05;
+            } elseif ($distance <= (float) $thresholds['q60']) {
+                $level = 'Mid';
+                $score = 0.45;
+            } elseif ($distance <= (float) $thresholds['q85']) {
+                $level = 'Far';
+                $score = 0.68;
+            }
+
+            return [
+                'distance_m' => $distance,
+                'score' => $score,
+                'level' => $level,
+            ];
+        }
+
+        if ($accessibilityScore !== null) {
+            return [
+                'distance_m' => null,
+                'score' => round(max(0.0, min(1.0, 1 - $accessibilityScore)), 4),
+                'level' => null,
+            ];
+        }
+
+        return [
+            'distance_m' => null,
+            'score' => null,
+            'level' => null,
+        ];
+    }
+
+    private function nearestFacilityDistance(mixed $metric, ?SeniorCitizen $senior = null, $facilities = null): ?float
+    {
+        $distances = $metric
+            ? [
+                $metric->distance_to_health_center_m,
+                $metric->distance_to_barangay_hall_m,
+                $metric->distance_to_market_m,
+                $metric->distance_to_hospital_m,
+                $metric->distance_to_pharmacy_m,
+            ]
+            : [];
 
         $validDistances = array_values(array_filter(
             $distances,
             fn ($distance) => $distance !== null && is_numeric($distance)
         ));
 
-        if (! $validDistances) {
+        if ($validDistances) {
+            return round((float) min($validDistances), 2);
+        }
+
+        if (! $senior || ! $facilities || $facilities->isEmpty()
+            || $senior->latitude === null || $senior->longitude === null) {
             return null;
         }
 
-        return round((float) min($validDistances), 2);
+        $seniorLat = (float) $senior->latitude;
+        $seniorLng = (float) $senior->longitude;
+        $nearest = null;
+
+        foreach ($facilities as $facility) {
+            $distance = $this->haversineMeters(
+                $seniorLat,
+                $seniorLng,
+                (float) $facility->latitude,
+                (float) $facility->longitude
+            );
+
+            $nearest = $nearest === null ? $distance : min($nearest, $distance);
+        }
+
+        return $nearest !== null ? round($nearest, 2) : null;
+    }
+
+    private function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadiusM = 6371000;
+        $latDelta = deg2rad($lat2 - $lat1);
+        $lngDelta = deg2rad($lng2 - $lng1);
+        $a = sin($latDelta / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($lngDelta / 2) ** 2;
+
+        return $earthRadiusM * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     private function barangayAnchors(): array

@@ -39,6 +39,7 @@ If you are a teammate contributing code, also read:
 | Create a branch, commit, and open a PR | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) |
 | Know what has been built and what is planned | [ROADMAP.md](ROADMAP.md) |
 | Understand every feature in the system | [SYSTEM_FUNCTIONALITY.md](SYSTEM_FUNCTIONALITY.md) |
+| Review the GIS senior distribution/accessibility heatmap changes | [GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md) |
 | Explain why results are identical across devices | [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md) |
 | Make defensible claims about the model in the defense | [model-validation-defensible-statements.md](model-validation-defensible-statements.md) |
 | Give the LGU a plain-language validation summary | [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md) |
