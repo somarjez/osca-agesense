@@ -2128,8 +2128,6 @@
                 context.stroke();
             }
             context.lineWidth = lineWidth;
-            context.shadowColor = 'transparent';
-            context.shadowBlur = 0;
             context.strokeStyle = `rgba(255,255,255,${Math.min(options.maxOpacity ?? 0.88, (options.opacityBase ?? 0.48) + (levelFrac * (options.opacityRange ?? 0.30)))})`;
             context.stroke();
         });
