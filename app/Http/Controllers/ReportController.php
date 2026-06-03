@@ -13,6 +13,7 @@ use App\Support\DbHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -46,6 +47,7 @@ class ReportController extends Controller
     public function runGisGeocode()
     {
         Artisan::queue('gis:geocode');
+        Cache::forget('gis.seniors_geojson');
 
         return back()->with('success', 'Geocoding job queued. Coordinates will update within a few minutes — refresh the GIS map to see the results.');
     }

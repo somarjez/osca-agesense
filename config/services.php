@@ -39,6 +39,12 @@ return [
         'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 120),
     ],
 
+    'overpass' => [
+        'url' => env('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter'),
+        'ca_bundle' => env('OVERPASS_CA_BUNDLE', ''),
+        'verify_ssl' => env('OVERPASS_VERIFY_SSL', true),
+    ],
+
     'openrouteservice' => [
         'api_key' => env('OPENROUTESERVICE_API_KEY'),
         'base_url' => env('OPENROUTESERVICE_BASE_URL', 'https://api.heigit.org/openrouteservice'),

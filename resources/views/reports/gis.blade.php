@@ -105,12 +105,10 @@
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
                         <option value="markers">Senior Distribution Points</option>
-                        <option value="density-heatmap">Barangay-Level Senior Heatmap</option>
-                        <option value="risk-heatmap">Generalized Barangay-Based Heatmap</option>
-                        <option value="accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
+                        <option value="accessibility-heatmap">Accessibility Heatmap</option>
                         <option value="barangay-density">Barangay Density View</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
-                        <option value="cluster-heatmap">Health Group Cluster Distribution</option>
+                        <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -218,18 +216,10 @@
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
     const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
     const HEATMAP_MODES = new Set([
-        'density-heatmap',
-        'risk-heatmap',
         'accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
     ]);
-    const RISK_HEATMAP_GRADIENT = {
-        0.12: '#22c55e',
-        0.48: '#facc15',
-        0.76: '#fb923c',
-        1.00: '#ef4444',
-    };
     // Rich sequential ramp for the Risk Distribution raster-KDE surface so it
     // renders with the same smooth typhoon look as the cluster heatmap:
     // green (low risk) -> lime -> yellow -> orange -> red -> deep red (highest).
@@ -243,16 +233,11 @@
         1.00: '#b91c1c',
     };
     const CLUSTER_HEATMAP_GRADIENT = {
-        0.00: '#253494',
-        0.10: '#2166ac',
-        0.22: '#1d91c0',
-        0.34: '#41b6c4',
-        0.46: '#35d07f',
-        0.58: '#a6e22e',
-        0.70: '#fff238',
-        0.80: '#fdae21',
-        0.90: '#f46d43',
-        1.00: '#d7191c',
+        0.00: '#e8f4f8',
+        0.25: '#74c2e8',
+        0.50: '#f0e442',
+        0.75: '#e67e22',
+        1.00: '#c0392b',
     };
     const CLUSTER_HEATMAP_COLORS = {
         'Group 1': '#0ea5e9',
@@ -336,12 +321,28 @@
     ];
     const routeDistanceCache = new Map();
     const warnedInvalidClusterValues = new Set();
+
+    function debounce(fn, ms) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), ms);
+        };
+    }
+
     let latestRequestId = 0;
     let latestSeniorGeoJson = null;
     let latestFacilityGeoJson = null;
     let latestMunicipalBoundaryGeoJson = null;
     let latestBarangayBoundaryGeoJson = null;
     let latestRouteDistanceUrl = null;
+
+    function getCanvasRenderer(map) {
+        if (!map._gisCanvasRenderer) {
+            map._gisCanvasRenderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
+        }
+        return map._gisCanvasRenderer;
+    }
 
     function riskColor(level) {
         switch ((level || '').toUpperCase()) {
@@ -614,11 +615,9 @@
         }
 
         const heatmapLabels = {
-            'density-heatmap': ['Barangay-Level Senior Heatmap', 'Low concentration', 'High concentration'],
-            'risk-heatmap': ['Generalized Barangay-Based Heatmap', 'Low risk intensity', 'High risk intensity'],
-            'accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
-            'cluster-heatmap': ['Health Group Cluster Distribution', 'Assigned group color', 'Stronger local concentration'],
+            'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
         const heatmapLabel = heatmapLabels[mode];
         const gradient = 'linear-gradient(90deg,#22c55e 0%,#facc15 48%,#fb923c 76%,#ef4444 100%)';
@@ -946,15 +945,6 @@
 
     function heatmapWeight(feature, mode) {
         const props = feature.properties || {};
-
-        if (mode === 'density-heatmap') {
-            return seniorCount(feature);
-        }
-
-        if (mode === 'risk-heatmap') {
-            const count = seniorCount(feature);
-            return count > 0 ? clampUnit((numericValue(props.high_risk_count) ?? 0) / count) : null;
-        }
 
         if (mode === 'accessibility-heatmap') {
             return accessibilityNeedWeight(props);
@@ -1322,12 +1312,8 @@
     function heatmapRadiusMeters(features, mode) {
         const spacingRadius = nearestNeighborDistanceMeters(features);
         const boundaryRadius = boundaryRadiusMeters();
-        const fallbackRadius = mode === 'density-heatmap' ? 360 : (mode === 'cluster-heatmap' ? 300 : 260);
+        const fallbackRadius = mode === 'cluster-heatmap' ? 300 : 260;
         const derivedRadius = median([spacingRadius ? spacingRadius * 1.35 : null, boundaryRadius, fallbackRadius]);
-
-        if (mode === 'density-heatmap') {
-            return Math.max(220, Math.min(720, derivedRadius ?? fallbackRadius));
-        }
 
         if (mode === 'accessibility-heatmap') {
             return Math.max(180, Math.min(560, derivedRadius ?? fallbackRadius));
@@ -1349,13 +1335,11 @@
         const rawRadius = metersToPixelsAtLatLng(map, reference, meters);
 
         if (mode === 'cluster-heatmap') {
-            // Floor at 6px so the kernel never inflates beyond its geographic radius
-            // when zoomed out, preventing false cluster color in empty areas.
-            const radius = Math.round(Math.max(6, Math.min(42, rawRadius)));
+            const radius = Math.round(Math.max(6, Math.min(52, rawRadius)));
 
             return {
                 radius,
-                blur: Math.round(Math.max(4, Math.min(24, radius * 0.52))),
+                blur: Math.round(Math.max(4, Math.min(32, radius * 0.72))),
                 radius_meters: Math.round(meters),
             };
         }
@@ -1373,10 +1357,6 @@
     }
 
     function heatmapMaxIntensity(points, mode) {
-        if (mode === 'density-heatmap') {
-            return Math.max(1, ...points.map((point) => Number(point[2]) || 0));
-        }
-
         return 1;
     }
 
@@ -2456,16 +2436,12 @@
             return CLUSTER_HEATMAP_GRADIENT;
         }
 
-        if (mode === 'accessibility-heatmap') {
-            return {
-                0.15: '#10b981',
-                0.45: '#facc15',
-                0.72: '#fb923c',
-                1.00: '#ef4444',
-            };
-        }
-
-        return RISK_HEATMAP_GRADIENT;
+        return {
+            0.15: '#10b981',
+            0.45: '#facc15',
+            0.72: '#fb923c',
+            1.00: '#ef4444',
+        };
     }
 
     function singleColorGradient(color) {
@@ -2531,7 +2507,7 @@
                 blur: pixelOptions.blur,
                 radius_meters: pixelOptions.radius_meters,
                 maxZoom: map?.getZoom?.() ?? 17,
-                minOpacity: 0.22,
+                minOpacity: 0.30,
                 max: maxIntensity,
                 colorScaleMax,
                 outputMaxAlpha: options.outputMaxAlpha ?? renderOptions.outputMaxAlpha,
@@ -3158,21 +3134,6 @@
         });
 
         return { overlayGroup, pointLayer };
-    }
-
-    function createMarkerIcon(color, kind = 'verified') {
-        const isFallback = kind === 'fallback';
-        const background = isFallback ? colorWithAlpha(color, 0.16) : color;
-        const border = isFallback ? `2px dashed ${color}` : '2px solid #ffffff';
-        const size = isFallback ? 13 : 14;
-
-        return window.L.divIcon({
-            className: 'gis-marker-icon',
-            html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:${background};border:${border};box-shadow:0 4px 10px rgba(15,23,42,0.18);"></span>`,
-            iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
-            popupAnchor: [0, -8],
-        });
     }
 
     function createFacilityIcon() {
@@ -4926,12 +4887,17 @@
                 pointToLayer(feature, latlng) {
                     const kind = coordinateKind(feature);
                     const color = barangayColor(feature.properties?.barangay);
-                    const marker = window.L.marker(latlng, {
-                        icon: createMarkerIcon(color, kind),
+                    const isFallback = kind === 'fallback';
+                    const marker = window.L.circleMarker(latlng, {
+                        renderer: getCanvasRenderer(map),
+                        radius: isFallback ? 5 : 7,
+                        fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
+                        fillOpacity: isFallback ? 0.6 : 0.9,
+                        color: '#ffffff',
+                        weight: isFallback ? 1 : 2,
                         gisRiskLevel: feature.properties?.risk_level,
                         gisBarangay: feature.properties?.barangay,
                         gisCoordinateKind: kind,
-                        pane: 'gis-senior-pane',
                     });
 
                     attachSeniorPopup(marker, feature);
@@ -5011,10 +4977,16 @@
 
     function refreshRenderedLayer() {
         const el = document.getElementById(MAP_ID);
-        const map = el?._leaflet_map_instance;
-        if (!el || !map || !latestSeniorGeoJson) return;
+        if (!el || !el._leaflet_map_instance || !latestSeniorGeoJson) return;
 
-        renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+        setStatus('Rendering...', 'neutral');
+        setTimeout(() => {
+            // Re-fetch the map inside the timeout: a Livewire navigation could
+            // have torn down and recreated the map in the event-loop gap.
+            const map = el._leaflet_map_instance;
+            if (!map) return;
+            renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+        }, 0);
     }
 
     function syncMapSize(map) {
@@ -5134,7 +5106,7 @@
 
         createTileLayer().addTo(map);
 
-        map.on('zoomend moveend', () => refreshHeatmapLayersForZoom(map));
+        map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
         map.on('click', (event) => {
             openBarangayPopupAt(map, event.latlng);
         });
@@ -5171,9 +5143,10 @@
             });
     }
 
+    const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
         if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
-            refreshRenderedLayer();
+            debouncedRefresh();
         }
     });
     document.addEventListener('DOMContentLoaded', renderMap);

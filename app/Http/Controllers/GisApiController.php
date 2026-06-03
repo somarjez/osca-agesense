@@ -19,119 +19,142 @@ class GisApiController extends Controller
 
     public function seniors(Request $request): JsonResponse
     {
-        $seniors = SeniorCitizen::active()
-            ->with(['latestMlResult', 'latestAccessibilityMetric'])
-            ->orderBy('id')
-            ->get([
-                'id',
-                'osca_id',
-                'first_name',
-                'middle_name',
-                'last_name',
-                'name_extension',
-                'barangay',
-                'date_of_birth',
-                'latitude',
-                'longitude',
-                'location_source',
-                'location_accuracy',
+        $barangayFilter = $request->query('barangay');
+        $cacheKey = ($barangayFilter && $barangayFilter !== 'all')
+            ? 'gis.seniors_geojson.'.md5($barangayFilter)
+            : 'gis.seniors_geojson';
+
+        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($barangayFilter) {
+            $query = SeniorCitizen::active()
+                ->with(['latestMlResult', 'latestAccessibilityMetric'])
+                ->orderBy('id');
+
+            if ($barangayFilter && $barangayFilter !== 'all') {
+                $query->where('barangay', $barangayFilter);
+            }
+
+            $seniors = $query->get([
+                'id', 'osca_id', 'first_name', 'middle_name', 'last_name',
+                'name_extension', 'barangay', 'date_of_birth', 'latitude',
+                'longitude', 'location_source', 'location_accuracy',
             ]);
 
-        $groups = $this->groupSeniorsByBarangay($seniors);
-        $features = [];
-        $matchedSeniorCount = 0;
+            $boundaryMap = collect($this->barangayBoundaryFeatures())
+                ->keyBy(fn ($f) => $this->normalizeBarangayName(
+                    (string) ($f['properties']['name']
+                        ?? $f['properties']['NAME']
+                        ?? $f['properties']['barangay']
+                        ?? $f['properties']['BARANGAY']
+                        ?? $f['properties']['brgy_name']
+                        ?? $f['properties']['BRGY_NAME']
+                        ?? $f['properties']['ADM4_EN']
+                        ?? $f['properties']['adm4_en']
+                        ?? '')
+                ));
 
-        foreach ($seniors as $senior) {
-            $boundaryFeature = $this->barangayBoundaryFeature((string) $senior->barangay);
+            $groups = $this->groupSeniorsByBarangay($seniors);
+            $features = [];
+            $matchedSeniorCount = 0;
 
-            if (! $boundaryFeature) {
-                continue;
+            foreach ($seniors as $senior) {
+                $normalizedBarangay = $this->normalizeBarangayName((string) $senior->barangay);
+                $boundaryFeature = $boundaryMap[$normalizedBarangay] ?? null;
+
+                if (! $boundaryFeature) {
+                    continue;
+                }
+
+                $barangay = $this->boundaryFeatureName($boundaryFeature);
+                $normalized = $this->normalizeBarangayName($barangay);
+                $stats = $groups[$normalized] ?? $this->emptyBarangayStats($barangay);
+                $coordinates = $this->coordinatesForSenior($senior);
+                $point = [$coordinates[0], $coordinates[1]];
+                $locationStatus = $coordinates[2];
+
+                if (! is_finite($point[0]) || ! is_finite($point[1])
+                    || ($point[0] === 0.0 && $point[1] === 0.0)) {
+                    continue;
+                }
+
+                $latestResult = $senior->latestMlResult;
+                $accessibilityMetric = $senior->latestAccessibilityMetric;
+                $riskScore = $latestResult?->composite_risk ?? $latestResult?->rule_composite;
+                $risk = $latestResult?->overall_risk_level
+                    ? ucfirst(strtolower($latestResult->overall_risk_level))
+                    : 'Unknown';
+                $clusterId = $latestResult?->cluster_named_id ?? $latestResult?->cluster_id;
+                $cluster = $latestResult?->cluster_named_id
+                    ? 'Group '.$latestResult->cluster_named_id
+                    : ($latestResult?->cluster_name ?: 'Unassigned');
+                $accessibilityScore = $accessibilityMetric?->accessibility_score !== null
+                    ? (float) $accessibilityMetric->accessibility_score
+                    : null;
+                $accessibilityScorePercent = $this->accessibilityScorePercent($accessibilityScore);
+
+                $matchedSeniorCount++;
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'geometry' => [
+                        'type' => 'Point',
+                        'coordinates' => [$point[1], $point[0]],
+                    ],
+                    'properties' => [
+                        'anonymized_id' => $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
+                        'age' => $senior->age,
+                        'composite_risk' => $latestResult?->composite_risk,
+                        'senior_id' => $senior->id,
+                        'senior_name' => $senior->full_name,
+                        'osca_id' => $senior->osca_id,
+                        'barangay' => $barangay,
+                        'senior_count' => 1,
+                        'total_seniors' => $stats['count'],
+                        'high_risk_count' => strtoupper($risk) === 'HIGH' ? 1 : 0,
+                        'barangay_total_seniors' => $stats['count'],
+                        'barangay_accessibility_status' => $this->accessibilityStatus($stats['accessibility_score_percent']),
+                        'risk_score' => $riskScore !== null ? round((float) $riskScore, 4) : null,
+                        'risk_level' => $risk,
+                        'cluster_id' => $clusterId,
+                        'cluster_label' => $cluster,
+                        'cluster' => $cluster,
+                        'health_group_id' => $clusterId,
+                        'health_group' => $cluster,
+                        'gis_proximity_score' => $accessibilityScorePercent,
+                        'accessibility_score' => $accessibilityScore,
+                        'accessibility_status' => $this->accessibilityStatus($accessibilityScorePercent),
+                        'coordinate_mode' => $locationStatus,
+                        'location_source' => $locationStatus === 'generalized'
+                            ? 'generalized_barangay_point'
+                            : ($senior->location_source ?: $locationStatus),
+                        'location_accuracy' => $locationStatus === 'generalized'
+                            ? 'barangay_level_generalized'
+                            : ($senior->location_accuracy ?: 'stored_coordinate'),
+                        'location_status' => $locationStatus,
+                        'is_generalized_senior_point' => $locationStatus === 'generalized',
+                    ],
+                ];
             }
 
-            $barangay = $this->boundaryFeatureName($boundaryFeature);
-            $normalized = $this->normalizeBarangayName($barangay);
-            $stats = $groups[$normalized] ?? $this->emptyBarangayStats($barangay);
-            $coordinates = $this->coordinatesForSenior($senior);
-            $point = [$coordinates[0], $coordinates[1]];
-            $locationStatus = $coordinates[2];
-
-            if (! is_finite($point[0]) || ! is_finite($point[1])
-                || ($point[0] === 0.0 && $point[1] === 0.0)) {
-                continue;
-            }
-
-            $latestResult = $senior->latestMlResult;
-            $accessibilityMetric = $senior->latestAccessibilityMetric;
-            $riskScore = $latestResult?->composite_risk ?? $latestResult?->rule_composite;
-            $risk = $latestResult?->overall_risk_level
-                ? ucfirst(strtolower($latestResult->overall_risk_level))
-                : 'Unknown';
-            $clusterId = $latestResult?->cluster_named_id ?? $latestResult?->cluster_id;
-            $cluster = $latestResult?->cluster_named_id
-                ? 'Group '.$latestResult->cluster_named_id
-                : ($latestResult?->cluster_name ?: 'Unassigned');
-            $accessibilityScore = $accessibilityMetric?->accessibility_score !== null
-                ? (float) $accessibilityMetric->accessibility_score
-                : null;
-            $accessibilityScorePercent = $this->accessibilityScorePercent($accessibilityScore);
-
-            $matchedSeniorCount++;
-
-            $features[] = [
-                'type' => 'Feature',
-                'geometry' => [
-                    'type' => 'Point',
-                    'coordinates' => [$point[1], $point[0]],
-                ],
-                'properties' => [
-                    'anonymized_id' => $senior->osca_id ?: 'SEN-'.str_pad((string) $senior->id, 4, '0', STR_PAD_LEFT),
-                    'age' => $senior->age,
-                    'composite_risk' => $latestResult?->composite_risk,
-                    'senior_id' => $senior->id,
-                    'senior_name' => $senior->full_name,
-                    'osca_id' => $senior->osca_id,
-                    'barangay' => $barangay,
-                    'senior_count' => 1,
-                    'total_seniors' => $stats['count'],
-                    'high_risk_count' => strtoupper($risk) === 'HIGH' ? 1 : 0,
-                    'barangay_total_seniors' => $stats['count'],
-                    'barangay_accessibility_status' => $this->accessibilityStatus($stats['accessibility_score_percent']),
-                    'risk_score' => $riskScore !== null ? round((float) $riskScore, 4) : null,
-                    'risk_level' => $risk,
-                    'cluster_id' => $clusterId,
-                    'cluster_label' => $cluster,
-                    'cluster' => $cluster,
-                    'health_group_id' => $clusterId,
-                    'health_group' => $cluster,
-                    'gis_proximity_score' => $accessibilityScorePercent,
-                    'accessibility_score' => $accessibilityScore,
-                    'accessibility_status' => $this->accessibilityStatus($accessibilityScorePercent),
-                    'coordinate_mode' => $locationStatus,
-                    'location_source' => $locationStatus === 'generalized'
-                        ? 'generalized_barangay_point'
-                        : ($senior->location_source ?: $locationStatus),
-                    'location_accuracy' => $locationStatus === 'generalized'
-                        ? 'barangay_level_generalized'
-                        : ($senior->location_accuracy ?: 'stored_coordinate'),
-                    'location_status' => $locationStatus,
-                    'is_generalized_senior_point' => $locationStatus === 'generalized',
-                ],
+            return [
+                'features' => $features,
+                'total' => $seniors->count(),
+                'barangay_count' => count($groups),
+                'matched_senior_count' => $matchedSeniorCount,
+                'unmatched_senior_count' => max(0, $seniors->count() - $matchedSeniorCount),
             ];
-        }
-
-        $unmatchedSeniorCount = max(0, $seniors->count() - $matchedSeniorCount);
+        });
 
         return $this->geoJsonResponse(
-            $features,
+            $payload['features'],
             'database',
             'Database-backed senior GIS records loaded as generalized barangay-level points.',
             [
                 'placement' => 'generalized_senior_points_by_barangay',
-                'total' => $seniors->count(),
+                'total' => $payload['total'],
                 'metadata' => [
-                    'barangay_count' => count($groups),
-                    'matched_senior_count' => $matchedSeniorCount,
-                    'unmatched_senior_count' => $unmatchedSeniorCount,
+                    'barangay_count' => $payload['barangay_count'],
+                    'matched_senior_count' => $payload['matched_senior_count'],
+                    'unmatched_senior_count' => $payload['unmatched_senior_count'],
                     'aggregation' => 'per_senior_generalized_by_barangay',
                 ],
             ]
