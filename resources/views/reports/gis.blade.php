@@ -104,12 +104,10 @@
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
-                        <option value="markers">Senior Distribution Points</option>
-                        <option value="accessibility-heatmap">Accessibility Heatmap</option>
-                        <option value="barangay-density">Barangay Density View</option>
+                        <option value="markers">Senior Population Overview</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
                         <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
-                        <option value="senior-distribution-accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
+                        <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -227,7 +225,6 @@
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
     const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
     const HEATMAP_MODES = new Set([
-        'accessibility-heatmap',
         'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
@@ -635,8 +632,7 @@
         }
 
         const heatmapLabels = {
-            'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
-            'senior-distribution-accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'senior-distribution-accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
             'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
@@ -3724,7 +3720,7 @@
             });
         }
 
-        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
+        if (mode === 'senior-distribution-accessibility-heatmap') {
             return features.filter((feature) => accessibilityNeedWeight(feature.properties || {}) !== null);
         }
 
