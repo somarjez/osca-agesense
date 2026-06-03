@@ -117,9 +117,14 @@ class ImportOsmFacilitiesTest extends TestCase
             '*overpass*' => Http::response('Service Unavailable', 503),
         ]);
 
+        // Baseline rather than absolute zero — the dev DB may already contain
+        // real osm_id facilities from a genuine import run. On API failure the
+        // command must add nothing, so the count stays unchanged.
+        $countBefore = Facility::whereNotNull('osm_id')->count();
+
         $this->artisan('facilities:import-osm')->assertFailed();
 
-        $this->assertSame(0, Facility::whereNotNull('osm_id')->count());
+        $this->assertSame($countBefore, Facility::whereNotNull('osm_id')->count());
     }
 
     // -------------------------------------------------------------------------
