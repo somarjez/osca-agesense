@@ -133,25 +133,28 @@
                 </label>
             </div>
 
-            <div class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
-                <div class="eyebrow mb-2">KDE Heatmap Overlays</div>
-                <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="risk-indicator-heatmap">
-                        <span>Risk Distribution Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="cluster-heatmap">
-                        <span>Health Group / Cluster Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="accessibility-heatmap">
-                        <span>Accessibility / Facility Proximity Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                        <span>Show senior distribution points</span>
-                    </label>
+            <div id="gis-layer-options" class="hidden">
+                <div id="gis-layer-options-markers" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-senior-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior points</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-barangay-density-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show barangay density fill</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="gis-layer-options-cluster" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior distribution points</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
