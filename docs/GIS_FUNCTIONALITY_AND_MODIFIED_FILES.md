@@ -40,6 +40,16 @@ The map supports several visualization modes:
 
 Users can filter the map by barangay, risk level, and health group / cluster. The map also supports optional KDE heatmap overlays for risk, cluster, and accessibility analysis.
 
+### Recent Health Cluster Heatmap UI Changes
+
+The Cluster / Health Groups Heatmap was adjusted to make the map easier to read during GIS review:
+
+- The cluster point toggle now reads `Show senior distribution points`.
+- The senior points shown on top of the cluster heatmap use the same point behavior as the senior/accessibility heatmap point layer, including clustered point display when zoomed out.
+- Those points still use health group / cluster colors so they remain consistent with the cluster heatmap.
+- Cluster heatmap contours were made clearer with fewer contour levels, whiter line color, and less blur.
+- Cluster heatmap rendering was tuned for smoother blob edges, softer group boundaries, and better performance during pan/zoom.
+
 ### 2. Senior GIS GeoJSON API
 
 Endpoint:
@@ -332,7 +342,7 @@ The following files were changed on the GIS branch compared with `origin/main`.
 
 | File | Change Description |
 | --- | --- |
-| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, and geocode status controls. |
+| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. |
 | `resources/views/reports/gis.blade.backup.php` | Backup copy of the GIS Blade view from development. |
 | `resources/views/livewire/surveys/profile-survey.blade.php` | Added manual location pin UI, map interaction, boundary validation, and coordinate capture fields. |
 | `resources/js/app.js` | Updated frontend bootstrap/import behavior to support GIS page assets/plugins. |
