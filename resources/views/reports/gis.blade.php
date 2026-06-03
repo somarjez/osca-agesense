@@ -205,7 +205,6 @@
     const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
-    const KDE_OVERLAY_SELECTOR = '[data-gis-kde-overlay]';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
@@ -836,12 +835,6 @@
 
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
-    }
-
-    function selectedKdeOverlayModes() {
-        return [...document.querySelectorAll(`${KDE_OVERLAY_SELECTOR}:checked`)]
-            .map((input) => input.value)
-            .filter((mode) => ['risk-indicator-heatmap', 'cluster-heatmap', 'accessibility-heatmap'].includes(mode));
     }
 
     function selectedClusterGroup() {
@@ -3661,9 +3654,6 @@
             municipalBoundary: window.L.layerGroup().addTo(map),
             municipalMask: window.L.layerGroup().addTo(map),
             heatmap: window.L.layerGroup().addTo(map),
-            kdeRiskHeatmap: window.L.layerGroup().addTo(map),
-            kdeClusterHeatmap: window.L.layerGroup().addTo(map),
-            kdeAccessibilityHeatmap: window.L.layerGroup().addTo(map),
             barangayDensity: window.L.layerGroup().addTo(map),
             riskOverlay: window.L.layerGroup().addTo(map),
             facilities: window.L.layerGroup().addTo(map),
@@ -3679,7 +3669,6 @@
         const layers = ensureLayerRegistry(map);
         map._gisActiveHeatmap = null;
         layers.heatmap.clearLayers();
-        clearKdeOverlayLayers(map);
         layers.barangayDensity.clearLayers();
         layers.riskOverlay.clearLayers();
         layers.facilities.clearLayers();
@@ -3691,32 +3680,6 @@
         map._gisActiveHeatmap = null;
         layers.heatmap.clearLayers();
         layers.riskOverlay.clearLayers();
-    }
-
-    function kdeLayerForMode(map, mode) {
-        const layers = ensureLayerRegistry(map);
-
-        if (mode === 'risk-indicator-heatmap') {
-            return layers.kdeRiskHeatmap;
-        }
-
-        if (mode === 'cluster-heatmap') {
-            return layers.kdeClusterHeatmap;
-        }
-
-        if (mode === 'accessibility-heatmap') {
-            return layers.kdeAccessibilityHeatmap;
-        }
-
-        return null;
-    }
-
-    function clearKdeOverlayLayers(map) {
-        const layers = ensureLayerRegistry(map);
-        map._gisKdeOverlayContexts = {};
-        layers.kdeRiskHeatmap.clearLayers();
-        layers.kdeClusterHeatmap.clearLayers();
-        layers.kdeAccessibilityHeatmap.clearLayers();
     }
 
     function heatmapFeaturesForMode(features, mode) {
@@ -4512,116 +4475,8 @@
         }
     }
 
-    function setKdeOverlayContext(map, mode, features, options = {}) {
-        map._gisKdeOverlayContexts = map._gisKdeOverlayContexts || {};
-        map._gisKdeOverlayContexts[mode] = {
-            mode,
-            features: [...features],
-            radiusMeters: options.radiusMeters,
-            colorScaleMax: options.colorScaleMax,
-        };
-    }
-
-    function renderKdeOverlayHeatmap(map, mode, features) {
-        const layerGroup = kdeLayerForMode(map, mode);
-        if (!layerGroup) {
-            return null;
-        }
-
-        layerGroup.clearLayers();
-
-        if (mode === 'cluster-heatmap') {
-            const result = buildClusterDistributionHeatmapLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            const clusterFeatures = heatmapFeaturesForMode(features, 'cluster-heatmap');
-            layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
-                radiusMeters: result.radiusMeters,
-                clipBoundary: primaryBoundaryGeoJson(),
-            });
-            if (pointRampLayer) {
-                layerGroup.addLayer(pointRampLayer);
-            }
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        if (mode === 'risk-indicator-heatmap') {
-            // Same smooth raster-KDE engine as the cluster overlay so the
-            // "Risk Distribution Heatmap" checkbox matches the typhoon style.
-            const result = buildRiskDistributionRasterLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            layerGroup.addLayer(result.layer);
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        const heatmapFeatures = heatmapFeaturesForMode(features, mode);
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, heatmapFeatures, mode);
-
-        if (!points.length || !heatLayer) {
-            return null;
-        }
-
-        layerGroup.addLayer(heatLayer);
-        setKdeOverlayContext(map, mode, heatmapFeatures);
-
-        return { points, radiusMeters };
-    }
-
-    function renderKdeOverlayHeatmaps(map, features) {
-        clearKdeOverlayLayers(map);
-
-        const modes = selectedKdeOverlayModes();
-        const results = modes
-            .map((mode) => renderKdeOverlayHeatmap(map, mode, features))
-            .filter(Boolean);
-
-        return results;
-    }
-
-    function refreshKdeOverlayHeatmaps(map) {
-        const contexts = map?._gisKdeOverlayContexts || {};
-
-        Object.values(contexts).forEach((context) => {
-            const layerGroup = kdeLayerForMode(map, context.mode);
-            if (!layerGroup) return;
-
-            // Raster-KDE overlays (cluster + risk) are zoom-stable image overlays
-            // and must not be rebuilt as canvas layers on zoom.
-            if (context.mode === 'cluster-heatmap' || context.mode === 'risk-indicator-heatmap') {
-                return;
-            }
-
-            layerGroup.clearLayers();
-
-            const refreshOptions = {
-                radiusMeters: context.radiusMeters,
-                colorScaleMax: context.colorScaleMax,
-            };
-
-            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode, refreshOptions);
-
-            if (points.length && heatLayer) {
-                layerGroup.addLayer(heatLayer);
-                context.radiusMeters = context.radiusMeters ?? radiusMeters;
-            }
-        });
-    }
-
     function refreshHeatmapLayersForZoom(map) {
         refreshActiveHeatmapRadius(map);
-        refreshKdeOverlayHeatmaps(map);
     }
 
     function renderRiskHeatmap(map, features) {
