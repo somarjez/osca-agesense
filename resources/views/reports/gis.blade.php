@@ -4980,7 +4980,10 @@
         const map = el?._leaflet_map_instance;
         if (!el || !map || !latestSeniorGeoJson) return;
 
-        renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+        setStatus('Rendering...', 'neutral');
+        setTimeout(() => {
+            renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+        }, 0);
     }
 
     function syncMapSize(map) {
