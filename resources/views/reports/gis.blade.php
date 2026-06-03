@@ -5066,14 +5066,6 @@
             }
         }
 
-        if (mode === 'barangay-density') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
-            const kdeOverlayResults = renderKdeOverlayHeatmaps(map, markerStats.visible);
-            focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)} Barangay density uses backend senior counts.${overlayText}`, 'success');
-            return;
-        }
 
         if (mode !== 'markers' && !markerStats.visible.length) {
             focusMapOnActiveLayer(map, activeFeatures);
@@ -5087,9 +5079,6 @@
                 ? markerStats.visible.filter((feature) => seniorCount(feature) > 0)
                 : markerStats.visible,
         };
-        const kdeOverlayResults = mode === 'cluster-heatmap'
-            ? []
-            : renderKdeOverlayHeatmaps(map, markerStats.visible);
 
         if (mode === 'markers') {
             const markerLayer = window.L.geoJSON(featureCollection, {
@@ -5139,8 +5128,7 @@
             }
 
             focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}${overlayText}`, 'success');
+            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}`, 'success');
             return;
         }
 
@@ -5167,8 +5155,7 @@
             layers.heatmap.addLayer(heatLayer);
             setActiveHeatmapContext(map, mode, markerStats.visible);
             focusMapOnActiveLayer(map, markerStats.visible);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) also active.` : '';
-            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).${overlayText}`, 'success');
+            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).`, 'success');
             return;
         }
 
@@ -5179,8 +5166,7 @@
         }
         layers.seniors.addLayer(pointLayer);
         focusMapOnActiveLayer(map, markerStats.visible);
-        const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).${overlayText}`, 'success');
+        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).`, 'success');
     }
 
     function refreshRenderedLayer() {
@@ -5353,7 +5339,7 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
             debouncedRefresh();
         }
     });
