@@ -29,7 +29,12 @@ class SurveyController extends Controller
 
     public function qolCreate(SeniorCitizen $senior)
     {
-        return view('surveys.qol.create', compact('senior'));
+        $draft = $senior->qolSurveys()->where('status', 'draft')->latest()->first();
+
+        return view('surveys.qol.create', [
+            'senior' => $senior,
+            'surveyId' => $draft?->id,
+        ]);
     }
 
     public function qolEdit(QolSurvey $survey)

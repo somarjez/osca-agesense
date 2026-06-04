@@ -67,4 +67,32 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->assertSee('ANI-'.now()->format('Y').'-')
             ->assertSee('Take QoL Survey');
     }
+
+    #[Test]
+    public function opening_new_survey_for_a_senior_with_a_draft_resumes_that_draft(): void
+    {
+        $senior = $this->makeSenior();
+        $draft = QolSurvey::create([
+            'senior_citizen_id' => $senior->id,
+            'survey_date' => now()->format('Y-m-d'),
+            'status' => 'draft',
+            'a1_enjoy_life' => 3,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('surveys.qol.create', $senior))
+            ->assertOk()
+            ->assertViewHas('surveyId', $draft->id);
+    }
+
+    #[Test]
+    public function opening_new_survey_for_a_senior_without_a_draft_starts_blank(): void
+    {
+        $senior = $this->makeSenior();
+
+        $this->actingAs($this->admin)
+            ->get(route('surveys.qol.create', $senior))
+            ->assertOk()
+            ->assertViewHas('surveyId', null);
+    }
 }
