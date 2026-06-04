@@ -35,7 +35,7 @@
     {{-- Success modal — forces an explicit next action --}}
     @if ($saved && $senior)
     <div x-data="{ open: true }">
-        <x-modal show="open" max-width="max-w-md" :closeable="false">
+        <x-modal show="open" max-width="max-w-md" :closeable="false" aria-label="Profile saved confirmation">
             <div class="text-center">
                 <div class="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3
                             bg-forest-50 dark:bg-forest-900/40 text-forest-700 dark:text-forest-300">

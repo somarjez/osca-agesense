@@ -23,6 +23,7 @@ class Batch1RegistrationSurveysTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
@@ -63,7 +64,7 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->call('save')
             ->assertSet('saved', true)
             ->assertSee('Profile Saved')
-            ->assertSee('ANI-')
+            ->assertSee('ANI-'.now()->format('Y').'-')
             ->assertSee('Take QoL Survey');
     }
 }

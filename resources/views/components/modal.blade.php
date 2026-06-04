@@ -2,6 +2,7 @@
     'show',                  // REQUIRED: an assignable Alpine expression that controls visibility,
                              //           e.g. show="deleteOpen" (declared on a parent x-data)
     'title'    => null,
+    'ariaLabel' => null,
     'maxWidth' => 'max-w-sm',
     'closeable' => true,
 ])
@@ -18,6 +19,7 @@
      role="dialog"
      aria-modal="true"
      @if($title) aria-labelledby="{{ $titleId }}" @endif
+     @if($ariaLabel) aria-label="{{ $ariaLabel }}" @endif
      class="fixed inset-0 z-50 flex items-center justify-center p-4"
      @if($closeable) @keydown.escape.window="{{ $show }} = false" @endif
      x-effect="document.body.classList.toggle('overflow-hidden', !!({{ $show }}))"
