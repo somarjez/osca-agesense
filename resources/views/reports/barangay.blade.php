@@ -62,7 +62,7 @@
     </div>
 
     {{-- ── Domain averages + cluster breakdown ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
         {{-- Domain Risk Avg Bars --}}
         <div class="card">
@@ -159,7 +159,13 @@
                 <x-heroicon-o-users class="w-4 h-4 text-ink-400 flex-shrink-0" />
                 <div class="card-title">Senior Citizen Roster — {{ $brgy }}</div>
             </div>
-            <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] tnum">{{ $total }} seniors</span>
+            <div class="flex items-center gap-2">
+                <form method="GET" action="{{ route('reports.barangay', ['brgy' => $brgy]) }}">
+                    <input type="text" name="roster_search" value="{{ request('roster_search') }}"
+                           placeholder="Search roster…" class="form-input text-[12px] max-w-[180px]">
+                </form>
+                <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] tnum">{{ $total }} seniors</span>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
@@ -175,7 +181,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($seniors as $senior)
+                    @forelse ($roster as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
                     <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <td class="td">
@@ -210,6 +216,11 @@
                 </tbody>
             </table>
         </div>
+        @if ($roster->hasPages())
+        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-3">
+            {{ $roster->withQueryString()->links() }}
+        </div>
+        @endif
     </div>
 
     <x-doc-footer signatory="OSCA Officer / Reviewer" />

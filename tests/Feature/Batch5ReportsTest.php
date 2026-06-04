@@ -118,4 +118,17 @@ class Batch5ReportsTest extends TestCase
         $this->assertStringContainsString('Yanni Lowexport', $lowOnly);
         $this->assertStringNotContainsString('Zelda Highexport', $lowOnly);
     }
+
+    #[Test]
+    public function barangay_roster_is_searchable(): void
+    {
+        $this->makeSeniorWithRisk('HIGH', 'Aniceta', 'Rosterhit', 'Anibong');
+        $this->makeSeniorWithRisk('HIGH', 'Bartolome', 'Rostermiss', 'Anibong');
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.barangay', ['brgy' => 'Anibong', 'roster_search' => 'Aniceta']))
+            ->assertOk()
+            ->assertSee('Aniceta Rosterhit')
+            ->assertDontSee('Bartolome Rostermiss');
+    }
 }

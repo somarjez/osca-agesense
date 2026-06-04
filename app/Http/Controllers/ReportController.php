@@ -320,7 +320,7 @@ class ReportController extends Controller
     /**
      * Barangay drill-down report page.
      */
-    public function barangay(string $brgy)
+    public function barangay(Request $request, string $brgy)
     {
         $barangays = SeniorCitizen::barangayList();
 
@@ -334,12 +334,24 @@ class ReportController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
-        // All active seniors in this barangay
+        // All active seniors in this barangay (drives the barangay-wide KPIs/aggregates)
         $seniors = SeniorCitizen::active()
             ->where('barangay', $brgy)
             ->with('latestMlResult')
             ->orderBy('last_name')
             ->get();
+
+        // Roster table — paginated + searchable (independent of the barangay-wide aggregates).
+        $roster = SeniorCitizen::active()
+            ->where('barangay', $brgy)
+            ->with('latestMlResult')
+            ->when($request->roster_search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
+            ->orderBy('last_name')
+            ->paginate(25)
+            ->withQueryString();
 
         // Risk distribution for this barangay
         $riskDist = MlResult::whereIn('id', $latestIds)
@@ -378,7 +390,7 @@ class ReportController extends Controller
             ->get();
 
         return view('reports.barangay', compact(
-            'brgy', 'barangays', 'seniors',
+            'brgy', 'barangays', 'seniors', 'roster',
             'riskDist', 'clusterDist', 'domainAvgs',
             'urgentCount', 'pendingRecs'
         ));
