@@ -156,7 +156,7 @@ class Batch2RecordsRecommendationsTest extends TestCase
             ->assertOk();
 
         // This senior contributes exactly 1 current rec, not 3.
-        $this->assertSame(1, \App\Models\Recommendation::current()
+        $this->assertSame(1, Recommendation::current()
             ->where('senior_citizen_id', $senior->id)->count());
         // Verify the controller's withCount alias returns 1 for this senior
         // (direct query mirrors the controller's withCount logic).
