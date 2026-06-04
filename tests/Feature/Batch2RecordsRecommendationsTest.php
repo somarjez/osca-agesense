@@ -189,4 +189,25 @@ class Batch2RecordsRecommendationsTest extends TestCase
             ->assertSee('Roberto Tan')
             ->assertDontSee('Alicia Reyes');
     }
+
+    #[Test]
+    public function exported_pdf_template_is_formal_and_uses_corrected_labels(): void
+    {
+        $senior = $this->makeSenior();
+        $this->makeMlResult($senior);
+
+        $html = view('seniors.pdf', ['senior' => $senior->fresh()])->render();
+
+        // Formal document elements
+        $this->assertStringContainsString('Office', $html);            // letterhead org line
+        $this->assertStringContainsString('Prepared by', $html);       // signature block
+        $this->assertStringContainsString('Generated on', $html);      // footer timestamp
+        // Corrected WHO labels
+        $this->assertStringContainsString('Intrinsic Capacity', $html);
+        $this->assertStringContainsString('Functional Ability', $html);
+        // No leftover teal palette
+        $this->assertStringNotContainsString('#0f766e', $html);
+        $this->assertStringNotContainsString('#f0fdfa', $html);
+        $this->assertStringNotContainsString('#134e4a', $html);
+    }
 }
