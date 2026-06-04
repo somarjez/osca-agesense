@@ -170,6 +170,14 @@
                 </label>
             </div>
 
+            <div id="gis-risk-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
+                <div class="eyebrow mb-2">Risk Point Display</div>
+                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                    <input id="gis-show-risk-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                    <span>Show senior points on risk heatmap</span>
+                </label>
+            </div>
+
             <div id="gis-map"
                  class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
@@ -238,6 +246,8 @@
     const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
+    const SHOW_RISK_SENIOR_POINTS_ID = 'gis-show-risk-senior-points';
+    const RISK_POINT_DISPLAY_ID = 'gis-risk-point-display';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
@@ -918,6 +928,10 @@
         return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
     }
 
+    function shouldShowRiskSeniorPoints() {
+        return document.getElementById(SHOW_RISK_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
     function syncLayerOptionsPanel() {
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         const wrapper = document.getElementById(LAYER_OPTIONS_ID);
@@ -940,6 +954,14 @@
 
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
+    }
+
+    function syncRiskPointDisplay() {
+        const control = document.getElementById(RISK_POINT_DISPLAY_ID);
+        if (!control) return;
+
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        control.style.display = mode === 'risk-indicator-heatmap' ? '' : 'none';
     }
 
     function selectedClusterGroup() {
@@ -4699,7 +4721,9 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
+        if (shouldShowRiskSeniorPoints()) {
+            ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
+        }
         setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
             radiusMeters: result.radiusMeters,
             colorScaleMax: result.colorScaleMax,
@@ -5113,6 +5137,7 @@
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         syncAccessibilityPointDisplay();
+        syncRiskPointDisplay();
         syncLayerOptionsPanel();
         updateLegend(mode);
         updateSummaryCards(seniorGeoJson, renderStats.visible);
@@ -5415,7 +5440,7 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
             debouncedRefresh();
         }
     });
