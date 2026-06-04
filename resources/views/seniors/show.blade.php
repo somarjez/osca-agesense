@@ -183,6 +183,7 @@
 
             {{-- Risk + Cluster --}}
             <div class="flex items-center gap-2.5 flex-shrink-0">
+                <span class="text-[10.5px] uppercase tracking-wide text-ink-400 dark:text-[#6b7570] font-semibold">Overall risk</span>
                 <x-risk-badge :level="$ml->overall_risk_level" />
                 @if ($ml->priority_flag === 'urgent')
                 <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 dark:bg-orange-50/10 px-2 py-0.5 rounded-full">
@@ -200,9 +201,9 @@
             {{-- Domain bars --}}
             <div class="flex gap-5 flex-1 min-w-0">
                 @foreach ([
-                    ['Physical', $ml->ic_risk],
+                    ['Intrinsic Capacity', $ml->ic_risk],
                     ['Environment', $ml->env_risk],
-                    ['Functioning', $ml->func_risk],
+                    ['Functional Ability', $ml->func_risk],
                 ] as [$label, $score])
                 <div class="flex-1 min-w-[80px]">
                     <div class="flex justify-between text-[11px] text-ink-500 dark:text-[#6b7570] mb-1">
@@ -254,9 +255,9 @@
     @php
         $xai = $ml->xai_data;
         $xaiDomains = [
-            'ic'   => ['label' => 'Physical Capacity',   'risk' => $ml->ic_risk_level],
+            'ic'   => ['label' => 'Intrinsic Capacity',  'risk' => $ml->ic_risk_level],
             'env'  => ['label' => 'Environment',          'risk' => $ml->env_risk_level],
-            'func' => ['label' => 'Daily Functioning',    'risk' => $ml->func_risk_level],
+            'func' => ['label' => 'Functional Ability',   'risk' => $ml->func_risk_level],
         ];
     @endphp
     <div class="card">

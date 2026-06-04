@@ -7,18 +7,12 @@
 body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e293b; background: #fff; }
 .page { padding: 32px 36px; }
 
-/* Header */
-.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2d6a4f; padding-bottom: 12px; margin-bottom: 18px; }
-.org-name { font-size: 13px; font-weight: bold; color: #2d6a4f; }
-.org-sub  { font-size: 10px; color: #64748b; margin-top: 2px; }
-.report-label { text-align: right; }
-.report-label .title { font-size: 15px; font-weight: bold; color: #1e293b; }
-.report-label .date  { font-size: 9px; color: #94a3b8; margin-top: 2px; }
-
 /* Senior name block */
-.senior-name-block { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-.senior-name { font-size: 17px; font-weight: bold; color: #134e4a; }
-.senior-meta { font-size: 10px; color: #0f766e; margin-top: 3px; }
+.senior-name-block { background: #f1f5f2; border: 1px solid #cfe0d6; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: table; width: 100%; }
+.senior-name-block .snb-left { display: table-cell; vertical-align: middle; width: 75%; }
+.senior-name-block .snb-right { display: table-cell; vertical-align: middle; text-align: right; width: 25%; }
+.senior-name { font-size: 17px; font-weight: bold; color: #1b3a2b; }
+.senior-meta { font-size: 10px; color: #2d6a4f; margin-top: 3px; }
 .risk-badge { padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: bold; }
 .risk-HIGH     { background: #ffedd5; color: #ea580c; }
 .risk-MODERATE { background: #fef3c7; color: #d97706; }
@@ -46,7 +40,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 /* Tag list */
 .tags { margin-top: 3px; }
 .tag { display: inline-block; background: #f1f5f9; color: #475569; font-size: 9px; padding: 2px 6px; border-radius: 99px; margin: 1px 2px 1px 0; }
-.tag-teal   { background: #ccfbf1; color: #0f766e; }
+.tag-teal   { background: #e3efe8; color: #2d6a4f; }
 .tag-amber  { background: #fef3c7; color: #92400e; }
 .tag-red    { background: #fee2e2; color: #b91c1c; }
 .tag-sky    { background: #e0f2fe; color: #0369a1; }
@@ -59,19 +53,37 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .score-bar { height: 5px; border-radius: 99px; }
 
 /* Recommendations */
-.rec-item { padding: 5px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: flex-start; }
+.rec-item { padding: 5px 0; border-bottom: 1px solid #f1f5f9; display: table; width: 100%; }
 .rec-item:last-child { border-bottom: none; }
-.rec-num { font-size: 9px; color: #94a3b8; min-width: 16px; margin-top: 1px; }
-.rec-text { font-size: 10px; color: #334155; flex: 1; }
+.rec-num { display: table-cell; font-size: 9px; color: #94a3b8; width: 20px; vertical-align: top; padding-top: 1px; }
+.rec-text { display: table-cell; font-size: 10px; color: #334155; }
+.rec-urg { display: table-cell; width: 80px; text-align: right; vertical-align: top; }
 .urgency { font-size: 8px; font-weight: bold; padding: 1px 5px; border-radius: 99px; white-space: nowrap; }
 .urg-immediate { background: #fee2e2; color: #dc2626; }
 .urg-urgent    { background: #ffedd5; color: #c2410c; }
 .urg-planned   { background: #fef3c7; color: #b45309; }
 .urg-maintenance { background: #dcfce7; color: #15803d; }
 
-/* Footer */
-.footer { border-top: 1px solid #e2e8f0; margin-top: 18px; padding-top: 8px; display: flex; justify-content: space-between; }
-.footer span { font-size: 8px; color: #94a3b8; }
+/* Footer (old simple) */
+.footer { border-top: 1px solid #e2e8f0; margin-top: 8px; padding-top: 8px; display: table; width: 100%; }
+.footer .f-left { display: table-cell; font-size: 8px; color: #94a3b8; }
+.footer .f-right { display: table-cell; font-size: 8px; color: #94a3b8; text-align: right; }
+
+/* Formal letterhead */
+.letterhead { display: table; width: 100%; border-bottom: 2px solid #2d6a4f; padding-bottom: 12px; margin-bottom: 6px; }
+.letterhead .lh-left { display: table-cell; vertical-align: middle; width: 70%; }
+.letterhead .lh-right { display: table-cell; vertical-align: middle; text-align: right; width: 30%; }
+.letterhead .lh-org { font-size: 14px; font-weight: bold; color: #2d6a4f; letter-spacing: 0.02em; }
+.letterhead .lh-sub { font-size: 9.5px; color: #475569; margin-top: 2px; }
+.letterhead .lh-title { font-size: 13px; font-weight: bold; color: #1e293b; }
+.letterhead .lh-meta { font-size: 8.5px; color: #94a3b8; margin-top: 2px; }
+.confidential { font-size: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+/* Signature + footer */
+.signatures { display: table; width: 100%; margin-top: 28px; }
+.signatures .sig { display: table-cell; width: 50%; vertical-align: bottom; padding-right: 24px; }
+.signatures .sig:last-child { padding-right: 0; padding-left: 24px; }
+.sig-line { border-top: 1px solid #475569; margin-top: 32px; padding-top: 4px; font-size: 9px; color: #475569; }
+.doc-footer { margin-top: 18px; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 8px; color: #94a3b8; text-align: center; }
 </style>
 </head>
 <body>
@@ -84,21 +96,23 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     $riskLevel = $ml?->overall_risk_level ?? 'NONE';
 @endphp
 
-{{-- Header --}}
-<div class="header">
-    <div>
-        <div class="org-name">OSCA — Senior Citizen Affairs</div>
-        <div class="org-sub">Office for Senior Citizens Affairs</div>
+{{-- Formal letterhead --}}
+<div class="letterhead">
+    <div class="lh-left">
+        <div class="lh-org">Office for Senior Citizens Affairs (OSCA)</div>
+        <div class="lh-sub">Senior Citizens Welfare and Records Management</div>
     </div>
-    <div class="report-label">
-        <div class="title">Senior Citizen Profile Report</div>
-        <div class="date">Generated: {{ now()->format('F j, Y  H:i') }}</div>
+    <div class="lh-right">
+        <div class="lh-title">Senior Citizen Profile Report</div>
+        <div class="lh-meta">OSCA ID: {{ $senior->osca_id }}</div>
+        <div class="lh-meta">Generated on {{ now()->format('F j, Y') }}</div>
     </div>
 </div>
+<div class="confidential">Confidential — for official OSCA use only</div>
 
 {{-- Name block --}}
 <div class="senior-name-block">
-    <div>
+    <div class="snb-left">
         <div class="senior-name">{{ $senior->full_name }}</div>
         <div class="senior-meta">
             OSCA ID: {{ $senior->osca_id }}
@@ -107,7 +121,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
             @if($senior->gender) &nbsp;·&nbsp; {{ $senior->gender }} @endif
         </div>
     </div>
-    <div>
+    <div class="snb-right">
         <span class="risk-badge risk-{{ $riskLevel }}">
             @if($riskLevel === 'NONE') No ML Data
             @else Risk: {{ $riskLevel }} @endif
@@ -378,7 +392,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     <div class="rec-item">
         <div class="rec-num">{{ $loop->iteration }}.</div>
         <div class="rec-text">{{ $rec->action }}</div>
-        <div><span class="urgency {{ $urgClass }}">{{ strtoupper($rec->urgency ?? 'planned') }}</span></div>
+        <div class="rec-urg"><span class="urgency {{ $urgClass }}">{{ strtoupper($rec->urgency ?? 'planned') }}</span></div>
     </div>
     @endforeach
     @if($recs->count() > 20)
@@ -387,11 +401,17 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 </div>
 @endif
 
-{{-- Footer --}}
-<div class="footer">
-    <span>OSCA Senior Citizen Profile — Confidential &nbsp;·&nbsp; Risk indicators are decision-support outputs, not clinical diagnoses.</span>
-    <span>{{ $senior->osca_id }} &nbsp;·&nbsp; {{ now()->format('Y-m-d') }}</span>
-</div>
+    <div class="signatures">
+        <div class="sig">
+            <div class="sig-line">Prepared by (OSCA Encoder)</div>
+        </div>
+        <div class="sig">
+            <div class="sig-line">Verified by (OSCA Head)</div>
+        </div>
+    </div>
+    <div class="doc-footer">
+        Generated on {{ now()->format('F j, Y g:i A') }} · {{ auth()->user()->name ?? 'OSCA System' }} · AgeSense OSCA Decision-Support System
+    </div>
 
 </div>
 </body>
