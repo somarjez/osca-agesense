@@ -23,6 +23,7 @@ Route::prefix('reports')->name('reports.')->group(function () {
         Route::post('/gis/geocode', [ReportController::class, 'runGisGeocode'])->name('gis.geocode');
         Route::post('/cluster/snapshot', [ReportController::class, 'snapshotClusters'])->name('cluster.snapshot');
         Route::delete('/cluster/snapshot/{date}', [ReportController::class, 'destroySnapshot'])->name('cluster.snapshot.destroy');
+        Route::get('/registry', [ReportController::class, 'registryIndex'])->name('registry');
         Route::get('/registry/export', [ReportController::class, 'exportRegistry'])->name('registry.export');
     });
 });
