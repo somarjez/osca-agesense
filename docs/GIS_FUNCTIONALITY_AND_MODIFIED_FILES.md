@@ -2,7 +2,7 @@
 
 ## Overview
 
-The GIS module gives AgeSense a spatial view of senior citizen distribution, community facility access, and health-risk patterns across Pagsanjan, Laguna. It is designed for OSCA planning and monitoring, not household-level surveillance. Senior locations are displayed either as verified/manual points or as privacy-safe generalized barangay-level points.
+The GIS module gives AgeSense a spatial view of senior citizen distribution, community facility access, and health-risk patterns across Pagsanjan, Laguna. It is designed for OSCA planning and monitoring, not household-level surveillance. Senior locations are displayed as privacy-safe generalized barangay-level points (the manual household-pin capture in the profile form was removed — see §6).
 
 The module supports:
 
@@ -11,7 +11,6 @@ The module supports:
 - Public facility overlays.
 - Risk, cluster, density, and accessibility heatmaps.
 - Bulk barangay-level geocoding for records without coordinates.
-- Manual location pin capture during senior profiling.
 - GIS proximity scoring against important community facilities.
 - Road-network route distance lookup and caching.
 - OpenStreetMap facility import to replace approximate seeded facilities with real coordinates.
@@ -104,7 +103,6 @@ These endpoints serve local GeoJSON boundary files for the Pagsanjan municipal b
 Boundary data supports:
 
 - Clipping map overlays to Pagsanjan.
-- Validating manual pins.
 - Generating barangay-level approximate points.
 - Grouping and labeling barangay-level map data.
 
@@ -141,25 +139,11 @@ Important behavior:
 - A status file is written to `storage/app/gis/geocode_status.json`.
 - Generated locations are marked as approximate, not verified.
 
-### 6. Manual Location Pin in Profile Survey
+### 6. Manual Location Pin in Profile Survey — Removed
 
-The senior profile survey now includes map-based location capture. Encoders/admins can set a manual pin inside Pagsanjan while creating or editing a senior profile.
-
-The form validates:
-
-- Latitude and longitude numeric ranges.
-- Whether the selected point is inside the Pagsanjan municipal boundary.
-- Whether the coordinate pair is usable.
-
-When a valid manual pin is saved, the senior record is updated with:
-
-- Latitude.
-- Longitude.
-- `location_source = manual_pin`.
-- `location_accuracy = verified/manual`.
-- `location_verified_at`.
-
-This provides a pathway to gradually improve GIS accuracy as field staff collect more reliable coordinates.
+> **Removed.** The profile survey previously included a map-based "Verified Location Pin" picker that wrote `location_source = manual_pin` / `location_accuracy = verified/manual`. It was removed because `gis:geocode` already pre-fills approximate barangay-level coordinates, which made the editable lat/lng fields misleading (they looked like real household pins). All senior coordinates now come from `gis:geocode` only.
+>
+> The `latitude` / `longitude` / `location_source` / `location_accuracy` / `location_verified_at` columns remain on `senior_citizens`, and `gis:geocode` still refuses to overwrite any pre-existing `manual_pin` / `gps_capture` rows, but **no part of the UI writes verified pins anymore**. A future address-line-based capture workflow may reintroduce verified coordinates.
 
 ### 7. GIS Proximity Scoring
 
@@ -368,7 +352,7 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | File | Change Description |
 | --- | --- |
 | `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. |
-| `resources/views/livewire/surveys/profile-survey.blade.php` | Added manual location pin UI, map interaction, boundary validation, and coordinate capture fields. |
+| `resources/views/livewire/surveys/profile-survey.blade.php` | Added (then later **removed**) the manual location pin UI, map interaction, boundary validation, and coordinate capture fields. The picker is no longer part of the form. |
 | `resources/js/app.js` | Updated frontend bootstrap/import behavior to support GIS page assets/plugins. |
 
 ### Documentation
@@ -396,9 +380,8 @@ The following files were changed on the GIS branch compared with `origin/main`.
 5. Filter by barangay, risk level, and health group.
 6. Show facility markers and route/accessibility context in senior popups.
 7. Demonstrate the admin-only Run Bulk Geocode button.
-8. Open a senior profile and show the manual location pin workflow.
-9. Explain that proximity scoring can be recalculated with `php artisan gis:score-proximity`.
-10. Explain that road-route distances can be cached with `php artisan gis:cache-route-distances`.
+8. Explain that proximity scoring can be recalculated with `php artisan gis:score-proximity`.
+9. Explain that road-route distances can be cached with `php artisan gis:cache-route-distances`.
 
 ## Suggested One-Sentence Description
 

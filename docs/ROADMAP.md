@@ -2,7 +2,7 @@
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
 > **Last Updated:** 2026-06-04
-> **Status:** Phase 1, Phase 2, and Phase 3 (GIS module) complete — including bulk geocoding, the profile coordinate picker, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. Phase 4 planned.
+> **Status:** Phase 1, Phase 2, and Phase 3 (GIS module) complete — including bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was built then removed; `gis:geocode` is the sole coordinate source.) Phase 4 planned.
 
 ---
 
@@ -80,7 +80,7 @@ Accessibility metrics table             ░░░░ ░░░░ ░░░░ �
 GIS map view — senior pins + POI        ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 GIS API (seniors/facilities/boundary)   ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Bulk geocode (barangay centroids)       ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
-Map coordinate picker in profile form   ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+Map coordinate picker (built, then removed)  ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✗
 Accessibility proximity scoring         ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 GIS CSV export (lat/lng + distances)    ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Field GPS data collection workflow      ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
@@ -178,7 +178,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | Task | Status | Description |
 |---|---|---|
 | Bulk geocode command | ✅ Done | `php artisan gis:geocode` — assigns privacy-safe barangay-level coords to seniors missing GPS data |
-| Map coordinate picker in profile form | ✅ Done | Leaflet pin + boundary validation in the profile survey; writes `manual_pin` / `verified/manual` |
+| Map coordinate picker in profile form | ❌ Removed | Built, then removed — the pre-filled lat/lng fields misled admins into thinking they were editing real households; `gis:geocode` is the sole coordinate source |
 | Accessibility proximity scoring | ✅ Done | `php artisan gis:score-proximity` writes `senior_accessibility_metrics` (nearest health centre, hospital, pharmacy, market, barangay hall) |
 | GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — senior lat/lng + nearest facility distances + accessibility score |
 | Field GPS / geocoding documentation | ✅ Done | [gis-geocoding.md](gis-geocoding.md); the manual-pin workflow is covered in [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
@@ -220,7 +220,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | **M1 — Core Complete** | All Phase 1 deliverables implemented and passing CI checks. ✅ Achieved April 2026. |
 | **M2 — Pilot Ready** | RBAC implemented, audit logging active, default credentials changed, Data Privacy review complete. ✅ Achieved May 2026. |
 | **M3 — GIS MVP** | Map view live with senior pins and POI overlay; basic proximity report available. ✅ Achieved May 2026 (prototype). |
-| **M4 — GIS Full** | Bulk geocoding, coordinate picker, accessibility proximity scoring, GIS CSV export, route distances, and OSM facility import complete. ✅ Achieved June 2026. (Wiring `gis_proximity_score` into the ML pipeline remains a future enhancement requiring a model retrain.) |
+| **M4 — GIS Full** | Bulk geocoding, accessibility proximity scoring, GIS CSV export, route distances, and OSM facility import complete. ✅ Achieved June 2026. (The manual coordinate picker was built then removed; wiring `gis_proximity_score` into the ML pipeline remains a future enhancement requiring a model retrain.) |
 | **M5 — Production** | All Phase 2 and 3 complete; system deployed on a production server with HTTPS and automated backups. Target: June 2026. |
 | **M6 — Advanced** | Longitudinal tracking, model retraining, and mobile UI complete. Target: July 2026. |
 
