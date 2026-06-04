@@ -46,14 +46,21 @@
                     </span>
                 </div>
                 @role('admin')
-                <form method="POST" action="{{ route('reports.gis.geocode') }}"
-                      class="shrink-0 sm:ml-auto"
-                      onsubmit="return confirm('Run bulk barangay-level geocoding now? This will not overwrite verified manual/GPS coordinates.');">
-                    @csrf
-                    <button type="submit" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
+                <div x-data="{ open: false }" class="shrink-0 sm:ml-auto">
+                    <button type="button" @click="open = true" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
                         Run Bulk Geocode
                     </button>
-                </form>
+                    <form x-ref="geocodeForm" method="POST" action="{{ route('reports.gis.geocode') }}" class="hidden">
+                        @csrf
+                    </form>
+                    <x-confirm-modal show="open"
+                                     title="Run bulk geocoding?"
+                                     tone="primary"
+                                     confirm="$refs.geocodeForm.submit()"
+                                     confirm-label="Run geocoding">
+                        <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
+                    </x-confirm-modal>
+                </div>
                 @endrole
             </div>
             <div class="border-t border-paper-rule dark:border-[#2b3530]"></div>
@@ -605,13 +612,16 @@
     }
 
     function riskWeight(level) {
+        // Widen tier separation so the KDE surface reflects risk SEVERITY rather than
+        // population density: a dense cluster of LOW-risk seniors should not out-weigh a
+        // few HIGH-risk seniors. HIGH dominates; LOW contributes only a faint floor.
         switch ((level || '').toUpperCase()) {
             case 'HIGH':
                 return 1.0;
             case 'MODERATE':
-                return 0.6;
+                return 0.4;
             case 'LOW':
-                return 0.3;
+                return 0.12;
             default:
                 return null;
         }
@@ -3585,6 +3595,7 @@
     async function updateRoadNetworkServices(layer, feature) {
         const popup = layer.getPopup?.();
         if (!popup) return;
+        if (!accessibilityComputationEnabled()) return;
 
         const requestId = (layer._gisRouteRequestId || 0) + 1;
         layer._gisRouteRequestId = requestId;
@@ -3671,6 +3682,11 @@
             })));
     }
 
+    function accessibilityComputationEnabled() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        return mode === 'markers' || mode === 'senior-distribution-accessibility-heatmap';
+    }
+
     function popupHtml(featureOrProperties, routedServices = null) {
         const feature = featureOrProperties?.type === 'Feature'
             ? featureOrProperties
@@ -3684,14 +3700,17 @@
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
-        const popupMode = document.getElementById(MODE_ID)?.value ?? 'markers';
-        const accessibilityRow = popupMode === 'risk-indicator-heatmap'
-            ? ''
-            : `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`;
+        const showAccess = accessibilityComputationEnabled();
+        const accessibilityRow = showAccess
+            ? `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`
+            : '';
         const services = routedServices
             ? serviceListHtml(routedServices)
             : routeLoadingListHtml(routeCandidatesForFeature(feature));
         const servicesElementId = escapeHtml(routeServicesElementId(feature));
+        const servicesBlock = showAccess
+            ? `<div><strong>Nearby senior services:</strong><div id="${servicesElementId}">${services}</div></div>`
+            : '';
 
         if (p.is_generalized_senior_point) {
             return `
@@ -3703,10 +3722,7 @@
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                     <div><strong>Health Group:</strong> ${healthGroup}</div>
                     ${accessibilityRow}
-                    <div>
-                        <strong>Nearby senior services:</strong>
-                        <div id="${servicesElementId}">${services}</div>
-                    </div>
+                    ${servicesBlock}
                 </div>
             `;
         }
@@ -3720,10 +3736,7 @@
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                 <div><strong>Health Group:</strong> ${healthGroup}</div>
                 ${accessibilityRow}
-                <div>
-                    <strong>Nearby senior services:</strong>
-                    <div id="${servicesElementId}">${services}</div>
-                </div>
+                ${servicesBlock}
             </div>
         `;
     }
