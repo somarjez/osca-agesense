@@ -20,6 +20,11 @@
                     <option value="processed" {{ request('status')==='processed' ? 'selected' : '' }}>Processed</option>
                 </select>
             </div>
+            <div class="min-w-[200px] flex-1">
+                <label class="eyebrow block mb-1.5">Search</label>
+                <input type="text" name="search" value="{{ request('search') }}"
+                       placeholder="Name or OSCA ID…" class="form-input w-full">
+            </div>
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
                 <select name="barangay" class="form-select">
@@ -33,7 +38,7 @@
                 <button type="submit" class="btn btn-primary">
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
-                @if (request()->hasAny(['status','barangay']))
+                @if (request()->hasAny(['status','barangay','search']))
                 <a href="{{ route('surveys.qol.index') }}" class="btn">Clear</a>
                 @endif
             </div>
@@ -83,12 +88,17 @@
                     </td>
                     <td class="td">
                         <div class="flex justify-center gap-1.5">
-                            @if ($survey->status === 'processed')
-                            <a href="{{ route('surveys.qol.results', $survey) }}"
-                               class="btn btn-ghost text-[11.5px] px-2 py-1">Results</a>
-                            @endif
+                            @if ($survey->status === 'draft')
                             <a href="{{ route('surveys.qol.edit', $survey) }}"
-                               class="btn btn-ghost text-[11.5px] px-2 py-1">Edit</a>
+                               class="btn btn-primary text-[11.5px] px-2.5 py-1">Continue Draft →</a>
+                            @else
+                                @if ($survey->status === 'processed')
+                                <a href="{{ route('surveys.qol.results', $survey) }}"
+                                   class="btn btn-ghost text-[11.5px] px-2 py-1">Results</a>
+                                @endif
+                                <a href="{{ route('surveys.qol.edit', $survey) }}"
+                                   class="btn btn-ghost text-[11.5px] px-2 py-1">Edit</a>
+                            @endif
                             <div x-data="{ open: false }">
                                 <button @click="open = true"
                                         class="btn btn-ghost text-[11.5px] px-2 py-1 text-critical-700 hover:bg-critical-50 hover:text-critical-900">

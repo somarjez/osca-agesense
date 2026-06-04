@@ -32,15 +32,31 @@
         </div>
     </div>
 
-    {{-- Success banner --}}
-    @if ($saved)
-    <x-alert type="success" title="Profile saved" class="mb-4">
-        OSCA ID: <strong>{{ $senior?->osca_id }}</strong>
-        <a href="{{ $senior ? route('surveys.qol.create', $senior->id) : '#' }}"
-           class="btn btn-primary ml-4 text-sm">
-            + Take QoL Survey →
-        </a>
-    </x-alert>
+    {{-- Success modal — forces an explicit next action --}}
+    @if ($saved && $senior)
+    <div x-data="{ open: true }">
+        <x-modal show="open" max-width="max-w-md" :closeable="false" aria-label="Profile saved confirmation">
+            <div class="text-center">
+                <div class="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3
+                            bg-forest-50 dark:bg-forest-900/40 text-forest-700 dark:text-forest-300">
+                    <x-heroicon-o-check-circle class="w-7 h-7" aria-hidden="true" />
+                </div>
+                <h2 class="font-display text-xl text-ink-900 dark:text-[#e4e1d8] mb-1">Profile Saved</h2>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] mb-1">OSCA ID</p>
+                <p class="font-mono text-lg font-bold tracking-wide text-forest-700 dark:text-forest-300 mb-5">
+                    {{ $senior->osca_id }}
+                </p>
+                <div class="flex flex-col gap-2">
+                    <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary justify-center">
+                        + Take QoL Survey →
+                    </a>
+                    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-secondary justify-center">
+                        ← Back to Profile
+                    </a>
+                </div>
+            </div>
+        </x-modal>
+    </div>
     @endif
 
     {{-- ── Form Card ── --}}
