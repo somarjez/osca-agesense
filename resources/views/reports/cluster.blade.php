@@ -183,7 +183,7 @@
         section: 'insights',
         insightsTab: 'ic',
         insights: null,
-        labels: { ic: 'Physical Capacity (IC)', env: 'Environment', func: 'Daily Functioning' },
+        labels: { ic: 'Intrinsic Capacity (IC)', env: 'Environment', func: 'Functional Ability' },
         async loadInsights() {
             if (this.insights !== null) return;
             try {
@@ -194,22 +194,24 @@
         }
     }" x-init="loadInsights()" class="card overflow-hidden">
 
-        {{-- Section tab strip --}}
-        <div class="border-b border-paper-rule dark:border-[#2b3530] px-5 flex overflow-x-auto gap-0">
-            @foreach ([
-                ['insights',  'Model Insights'],
-                ['explorer',  'Cluster Explorer'],
-                ['snapshots', 'Snapshot History'],
-            ] as [$key, $label])
-            <button type="button"
-                    @click="section = '{{ $key }}'"
-                    :class="section === '{{ $key }}'
-                        ? 'border-b-2 border-forest-500 text-forest-700 dark:text-forest-400 font-semibold'
-                        : 'border-b-2 border-transparent text-ink-500 dark:text-[#6b7570] hover:text-ink-800 dark:hover:text-[#c8c4bc]'"
-                    class="flex-shrink-0 px-4 pb-2.5 pt-3 text-[12px] font-medium transition-colors duration-100 whitespace-nowrap -mb-px">
-                {{ $label }}
-            </button>
-            @endforeach
+        {{-- Section switcher — prominent segmented pills --}}
+        <div class="px-5 pt-4 pb-3 border-b border-paper-rule dark:border-[#2b3530]">
+            <div class="inline-flex flex-wrap gap-1 bg-paper-2 dark:bg-[#202a26] border border-paper-rule dark:border-[#2b3530] rounded-xl p-1 overflow-x-auto max-w-full">
+                @foreach ([
+                    ['insights',  'Model Insights'],
+                    ['explorer',  'Cluster Explorer'],
+                    ['snapshots', 'Snapshot History'],
+                ] as [$key, $label])
+                <button type="button"
+                        @click="section = '{{ $key }}'"
+                        :class="section === '{{ $key }}'
+                            ? 'bg-forest-600 text-white shadow-sm'
+                            : 'text-ink-600 dark:text-[#9aada5] hover:bg-white/60 dark:hover:bg-white/5'"
+                        class="flex-shrink-0 px-4 py-2 text-[13px] font-semibold rounded-lg transition-colors duration-100 whitespace-nowrap">
+                    {{ $label }}
+                </button>
+                @endforeach
+            </div>
         </div>
 
         {{-- Model Insights panel --}}
@@ -238,19 +240,20 @@
                     <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
                 </template>
                 <template x-if="insights && insights[insightsTab]">
-                    <div class="space-y-0.5">
-                        <template x-for="item in insights[insightsTab]" :key="item.feature">
-                            <div class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
-                                <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
-                                <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5 overflow-hidden">
-                                    <div class="bg-forest-500 h-2.5 rounded-full transition-all duration-500"
+                    <ol class="space-y-1">
+                        <template x-for="(item, idx) in insights[insightsTab]" :key="item.feature">
+                            <li class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1.5 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
+                                <span class="w-5 text-right text-[11px] font-mono tnum text-ink-400 dark:text-[#6b7570] flex-shrink-0" x-text="idx + 1"></span>
+                                <span class="text-[12.5px] text-ink-800 dark:text-[#c8c4bc] w-48 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
+                                <div class="flex-1 bg-paper-rule dark:bg-[#222a27] rounded-full h-3 overflow-hidden">
+                                    <div class="bg-forest-500 h-3 rounded-full transition-all duration-500"
                                          :style="'width: ' + Math.min(100, (item.importance / insights[insightsTab][0].importance) * 100) + '%'"></div>
                                 </div>
-                                <span class="text-[11px] font-mono tnum text-ink-500 dark:text-[#8a9087] w-12 text-right"
+                                <span class="text-[11.5px] font-mono tnum font-semibold text-forest-700 dark:text-forest-400 w-12 text-right"
                                       x-text="(item.importance * 100).toFixed(1) + '%'"></span>
-                            </div>
+                            </li>
                         </template>
-                    </div>
+                    </ol>
                 </template>
             </div>
         </div>
@@ -278,6 +281,7 @@
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 3 — Env / Financial Vulnerable</th>
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 4 — Multi-Domain Priority</th>
                             <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Total</th>
+                            <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-paper-rule dark:divide-[#2b3530]">
@@ -305,6 +309,28 @@
                             </td>
                             @endforeach
                             <td class="px-4 py-2.5 text-right font-medium text-ink-700 dark:text-[#b0b5b2]">{{ $total }}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                @if (auth()->user()?->hasRole('admin'))
+                                <div x-data="{ open: false }" class="inline-block">
+                                    <button type="button" @click="open = true"
+                                            class="btn btn-ghost text-[11px] px-2 py-1 text-critical-700 hover:bg-critical-50 hover:text-critical-900">
+                                        Delete
+                                    </button>
+                                    <form x-ref="delForm" method="POST" action="{{ route('reports.cluster.snapshot.destroy', $date) }}" class="hidden">
+                                        @csrf @method('DELETE')
+                                    </form>
+                                    <x-confirm-modal show="open"
+                                                     title="Delete snapshot?"
+                                                     confirm="$refs.delForm.submit()"
+                                                     confirm-label="Delete permanently">
+                                        <p>The cluster snapshot from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong> will be permanently removed.</p>
+                                        <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
+                                            This cannot be undone.
+                                        </p>
+                                    </x-confirm-modal>
+                                </div>
+                                @endif
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -344,7 +370,7 @@
         upsert('domainByClusterChart', {
             type: 'bar',
             data: {
-                labels: ['Physical Capacity', 'Environment', 'Daily Functioning'],
+                labels: ['Intrinsic Capacity', 'Environment', 'Functional Ability'],
                 datasets: [1,2,3,4].map((cid, i) => ({
                     label: clusterLabels[i],
                     data: [

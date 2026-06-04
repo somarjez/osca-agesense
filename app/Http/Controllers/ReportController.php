@@ -613,6 +613,28 @@ class ReportController extends Controller
     }
 
     /**
+     * Permanently delete all cluster-snapshot rows for a given date (Y-m-d).
+     * ClusterSnapshot has no soft-deletes, so this is irreversible. Admin only.
+     */
+    public function destroySnapshot(string $date)
+    {
+        try {
+            $parsed = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $date)->startOfDay();
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        $deleted = ClusterSnapshot::whereDate('snapshot_date', $parsed->toDateString())->delete();
+
+        return back()->with(
+            $deleted ? 'success' : 'error',
+            $deleted
+                ? "Snapshot for {$parsed->format('M d, Y')} permanently deleted."
+                : 'No snapshot found for that date.'
+        );
+    }
+
+    /**
      * Export risk report as CSV.
      */
     public function exportRisk()
