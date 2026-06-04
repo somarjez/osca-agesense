@@ -3592,6 +3592,7 @@
     async function updateRoadNetworkServices(layer, feature) {
         const popup = layer.getPopup?.();
         if (!popup) return;
+        if (!accessibilityComputationEnabled()) return;
 
         const requestId = (layer._gisRouteRequestId || 0) + 1;
         layer._gisRouteRequestId = requestId;
@@ -3678,6 +3679,11 @@
             })));
     }
 
+    function accessibilityComputationEnabled() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        return mode === 'markers' || mode === 'senior-distribution-accessibility-heatmap';
+    }
+
     function popupHtml(featureOrProperties, routedServices = null) {
         const feature = featureOrProperties?.type === 'Feature'
             ? featureOrProperties
@@ -3691,14 +3697,17 @@
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
-        const popupMode = document.getElementById(MODE_ID)?.value ?? 'markers';
-        const accessibilityRow = popupMode === 'risk-indicator-heatmap'
-            ? ''
-            : `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`;
+        const showAccess = accessibilityComputationEnabled();
+        const accessibilityRow = showAccess
+            ? `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`
+            : '';
         const services = routedServices
             ? serviceListHtml(routedServices)
             : routeLoadingListHtml(routeCandidatesForFeature(feature));
         const servicesElementId = escapeHtml(routeServicesElementId(feature));
+        const servicesBlock = showAccess
+            ? `<div><strong>Nearby senior services:</strong><div id="${servicesElementId}">${services}</div></div>`
+            : '';
 
         if (p.is_generalized_senior_point) {
             return `
@@ -3710,10 +3719,7 @@
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                     <div><strong>Health Group:</strong> ${healthGroup}</div>
                     ${accessibilityRow}
-                    <div>
-                        <strong>Nearby senior services:</strong>
-                        <div id="${servicesElementId}">${services}</div>
-                    </div>
+                    ${servicesBlock}
                 </div>
             `;
         }
@@ -3727,10 +3733,7 @@
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                 <div><strong>Health Group:</strong> ${healthGroup}</div>
                 ${accessibilityRow}
-                <div>
-                    <strong>Nearby senior services:</strong>
-                    <div id="${servicesElementId}">${services}</div>
-                </div>
+                ${servicesBlock}
             </div>
         `;
     }
