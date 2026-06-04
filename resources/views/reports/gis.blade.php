@@ -710,6 +710,10 @@
                 return;
             }
 
+            const riskDotNote = mode === 'risk-indicator-heatmap'
+                ? '<span class="text-ink-400 dark:text-[#6b7570]">Dots are individual seniors; color shows local risk density. A senior in a sparsely populated area may appear as a dot with little surrounding color.</span>'
+                : '';
+
             legendEl.innerHTML = `
                 <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
                 <span class="inline-flex items-center gap-2 min-w-[260px]">
@@ -719,6 +723,7 @@
                 </span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 ${boundaryLegend}
+                ${riskDotNote}
             `;
             return;
         }
@@ -1310,6 +1315,21 @@
         return featureInsideBoundaryFeature(feature, boundaryFeature);
     }
 
+    // Computes each senior's boundary validity + coordinate kind once after data
+    // load. Filter/mode switches then reuse these flags instead of re-running
+    // point-in-polygon geometry for every senior on every interaction.
+    function prevalidateAllFeatures(features) {
+        if (!Array.isArray(features)) return;
+
+        features.forEach((feature) => {
+            feature.__gisValidity = {
+                kind: coordinateKind(feature),
+                insidePrimary: featureInsidePrimaryBoundary(feature),
+                insideAssigned: featureInsideAssignedBarangay(feature),
+            };
+        });
+    }
+
     function validatedFeatureSet(features, options = {}) {
         const exactOnly = Boolean(options.exactOnly);
         const stats = {
@@ -1322,14 +1342,17 @@
         };
 
         features.forEach((feature) => {
-            const kind = coordinateKind(feature);
+            const validity = feature.__gisValidity;
+            const kind = validity ? validity.kind : coordinateKind(feature);
+            const insidePrimary = validity ? validity.insidePrimary : featureInsidePrimaryBoundary(feature);
+            const insideAssigned = validity ? validity.insideAssigned : featureInsideAssignedBarangay(feature);
 
-            if (!featureInsidePrimaryBoundary(feature)) {
+            if (!insidePrimary) {
                 stats.outsidePagsanjan++;
                 return;
             }
 
-            if (!featureInsideAssignedBarangay(feature)) {
+            if (!insideAssigned) {
                 stats.mismatches++;
                 return;
             }
@@ -1896,6 +1919,94 @@
         return new ClusterDistributionLayer();
     }
 
+    // Rasterizes a clip-boundary polygon into a flat inside/outside bitmap.
+    // projectFn maps a (lat, lng) to canvas pixel coords for the target space.
+    // Replaces per-pixel point-in-polygon ray-casting (which ran pixels ×
+    // boundary-vertices times and froze the main thread) with an O(1) lookup.
+    function buildBoundaryMask(width, height, projectFn, boundary) {
+        if (!hasBoundaryFeatures(boundary) || width <= 0 || height <= 0) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000000';
+
+        const tracePolygon = (rings) => {
+            if (!Array.isArray(rings) || !rings.length) return;
+            ctx.beginPath();
+            rings.forEach((ring) => {
+                if (!Array.isArray(ring)) return;
+                ring.forEach(([lng, lat], pointIndex) => {
+                    const point = projectFn(Number(lat), Number(lng));
+                    if (pointIndex === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.closePath();
+            });
+            // even-odd so inner rings (holes) are carved out, matching
+            // pointInsideBoundary's outer-ring / hole semantics.
+            ctx.fill('evenodd');
+        };
+
+        boundary.features.forEach((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+            if (!geometry || !Array.isArray(coordinates)) return;
+
+            if (geometry.type === 'Polygon') {
+                tracePolygon(coordinates);
+            } else if (geometry.type === 'MultiPolygon') {
+                coordinates.forEach((polygon) => tracePolygon(polygon));
+            }
+        });
+
+        const data = ctx.getImageData(0, 0, width, height).data;
+        const mask = new Uint8Array(width * height);
+        for (let pixel = 0; pixel < mask.length; pixel++) {
+            mask[pixel] = data[(pixel * 4) + 3] > 0 ? 1 : 0;
+        }
+
+        return mask;
+    }
+
+    // Raster-space masks are keyed by bounds + size; the municipal bounds are
+    // constant across filters and zoom, so the mask is built at most once.
+    const rasterBoundaryMaskCache = new Map();
+
+    function getRasterBoundaryMask(bounds, width, height, boundary) {
+        if (!hasBoundaryFeatures(boundary) || !bounds?.isValid?.()) {
+            return null;
+        }
+
+        const key = [
+            bounds.getSouth().toFixed(6),
+            bounds.getWest().toFixed(6),
+            bounds.getNorth().toFixed(6),
+            bounds.getEast().toFixed(6),
+            `${width}x${height}`,
+        ].join('|');
+
+        if (rasterBoundaryMaskCache.has(key)) {
+            return rasterBoundaryMaskCache.get(key);
+        }
+
+        const mask = buildBoundaryMask(
+            width,
+            height,
+            (lat, lng) => latLngToRasterPoint(lat, lng, bounds, width, height),
+            boundary
+        );
+        rasterBoundaryMaskCache.set(key, mask);
+
+        return mask;
+    }
+
     function rasterSizeForBounds(bounds, options = {}) {
         if (!bounds?.isValid?.()) {
             return { width: 512, height: 512 };
@@ -1908,9 +2019,9 @@
         const north = window.L.latLng(bounds.getNorth(), center.lng);
         const widthMeters = Math.max(1, west.distanceTo(east));
         const heightMeters = Math.max(1, south.distanceTo(north));
-        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 2, window.devicePixelRatio || 1));
-        const maxSide = Math.round((options.maxRasterSide ?? 1280) * pixelRatio);
-        const minSide = Math.round((options.minRasterSide ?? 720) * pixelRatio);
+        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 1.5, window.devicePixelRatio || 1));
+        const maxSide = Math.round((options.maxRasterSide ?? 900) * pixelRatio);
+        const minSide = Math.round((options.minRasterSide ?? 560) * pixelRatio);
 
         if (widthMeters >= heightMeters) {
             return {
@@ -2313,15 +2424,13 @@
             ? Math.max(42, Math.min(options.colorScaleMax || 255, strongestDensity * 0.82 || 42))
             : Math.max(72, Math.min(options.colorScaleMax || 255, strongestDensity * 1.05 || 72));
         const minVisibleDensity = options.minVisibleDensity ?? 0.22;
+        const boundaryMask = getRasterBoundaryMask(bounds, width, height, options.clipBoundary);
         const rasterPixelInsideBoundary = (x, y) => {
-            if (!hasBoundaryFeatures(options.clipBoundary)) {
+            if (!boundaryMask) {
                 return true;
             }
 
-            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
-            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
-
-            return pointInsideBoundary([lng, lat], options.clipBoundary);
+            return boundaryMask[(y * width) + x] === 1;
         };
 
         for (let index = 0; index < outputImage.data.length; index += 4) {
@@ -4005,7 +4114,8 @@
                 this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('moveend zoomend resize', this._reset, this);
+                map.on('zoomend resize', this._reset, this);
+                map.on('moveend', this._reposition, this);
                 this._reset();
             },
 
@@ -4013,12 +4123,13 @@
                 if (this._canvas?.parentNode) {
                     this._canvas.parentNode.removeChild(this._canvas);
                 }
-                map.off('moveend zoomend resize', this._reset, this);
+                map.off('zoomend resize', this._reset, this);
+                map.off('moveend', this._reposition, this);
             },
 
             _reset() {
                 const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
                 this._canvas.style.width = `${size.x}px`;
@@ -4027,6 +4138,14 @@
                 this._canvas.height = Math.round(size.y * ratio);
                 this._ratio = ratio;
                 this._redraw();
+            },
+
+            // Pan: reposition the canvas only; content is frozen until the next
+            // zoom/resize redraw. Avoids the per-pan full-canvas gradient repaint.
+            _reposition() {
+                if (!this._canvas) return;
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
             },
 
             _redraw() {
@@ -4076,14 +4195,18 @@
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
                 const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
+                const accessibilityMask = hasBoundaryFeatures(boundary)
+                    ? buildBoundaryMask(width, height, (lat, lng) => {
+                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
+                    }, boundary)
+                    : null;
 
                 for (let index = 0; index < image.data.length; index += 4) {
                     if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
-                    const cssX = (pixel % width) / ratio;
-                    const cssY = Math.floor(pixel / width) / ratio;
 
-                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                    if (accessibilityMask && accessibilityMask[pixel] !== 1) {
                         image.data[index + 3] = 0;
                         continue;
                     }
@@ -4187,7 +4310,7 @@
 
             _reset() {
                 const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
                 this._canvas.style.width = `${size.x}px`;
@@ -4248,13 +4371,17 @@
 
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
+                const flowMask = hasBoundaryFeatures(boundary)
+                    ? buildBoundaryMask(width, height, (lat, lng) => {
+                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
+                    }, boundary)
+                    : null;
                 for (let index = 0; index < image.data.length; index += 4) {
                     if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
-                    const cssX = (pixel % width) / ratio;
-                    const cssY = Math.floor(pixel / width) / ratio;
 
-                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                    if (flowMask && flowMask[pixel] !== 1) {
                         image.data[index + 3] = 0;
                         continue;
                     }
@@ -4386,7 +4513,7 @@
         return markerClusterLayer;
     }
 
-    function buildRiskIdentityHaloLayer(features) {
+    function buildRiskIdentityHaloLayer(map, features) {
         // Small senior dots (colored by real risk level) shown above the risk
         // KDE surface so markers stay visible and popups keep working.
         return window.L.geoJSON({
@@ -4397,6 +4524,7 @@
                 const color = riskColor(feature.properties?.risk_level);
 
                 return window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
                     pane: 'gis-senior-pane',
                     radius: 3.5,
                     color: '#ffffff',
@@ -4547,7 +4675,7 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(features));
+        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
         setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
             radiusMeters: result.radiusMeters,
             colorScaleMax: result.colorScaleMax,
@@ -5235,6 +5363,7 @@
                 latestFacilityGeoJson = facilityGeoJson;
                 latestMunicipalBoundaryGeoJson = municipalBoundaryGeoJson;
                 latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
+                prevalidateAllFeatures(seniorGeoJson.features || []);
                 initializeFilters(seniorGeoJson.features || []);
                 renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
                 applyMapBoundaryConstraints(map);
