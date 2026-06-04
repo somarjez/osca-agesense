@@ -281,6 +281,7 @@
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 3 — Env / Financial Vulnerable</th>
                             <th class="px-4 py-2.5 text-left font-semibold text-ink-600 dark:text-[#6b7d76]">Group 4 — Multi-Domain Priority</th>
                             <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Total</th>
+                            <th class="px-4 py-2.5 text-right font-semibold text-ink-600 dark:text-[#6b7d76]">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-paper-rule dark:divide-[#2b3530]">
@@ -308,6 +309,28 @@
                             </td>
                             @endforeach
                             <td class="px-4 py-2.5 text-right font-medium text-ink-700 dark:text-[#b0b5b2]">{{ $total }}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                @if (auth()->user()?->hasRole('admin'))
+                                <div x-data="{ open: false }" class="inline-block">
+                                    <button type="button" @click="open = true"
+                                            class="btn btn-ghost text-[11px] px-2 py-1 text-critical-700 hover:bg-critical-50 hover:text-critical-900">
+                                        Delete
+                                    </button>
+                                    <form x-ref="delForm" method="POST" action="{{ route('reports.cluster.snapshot.destroy', $date) }}" class="hidden">
+                                        @csrf @method('DELETE')
+                                    </form>
+                                    <x-confirm-modal show="open"
+                                                     title="Delete snapshot?"
+                                                     confirm="$refs.delForm.submit()"
+                                                     confirm-label="Delete permanently">
+                                        <p>The cluster snapshot from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong> will be permanently removed.</p>
+                                        <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
+                                            This cannot be undone.
+                                        </p>
+                                    </x-confirm-modal>
+                                </div>
+                                @endif
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>

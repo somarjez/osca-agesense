@@ -77,4 +77,39 @@ class Batch3HealthGroupsTest extends TestCase
             ->assertDontSee('Daily Functioning')
             ->assertDontSee('Physical Capacity (IC)');
     }
+
+    #[Test]
+    public function admin_can_permanently_delete_a_snapshot_by_date(): void
+    {
+        $date = now()->subDay()->toDateString();
+        $this->makeSnapshotForDate($date);
+        $this->assertSame(4, ClusterSnapshot::whereDate('snapshot_date', $date)->count());
+
+        $this->actingAs($this->admin)
+            ->delete(route('reports.cluster.snapshot.destroy', $date))
+            ->assertRedirect();
+
+        $this->assertSame(0, ClusterSnapshot::whereDate('snapshot_date', $date)->count());
+    }
+
+    #[Test]
+    public function encoder_cannot_delete_a_snapshot(): void
+    {
+        $date = now()->subDay()->toDateString();
+        $this->makeSnapshotForDate($date);
+
+        $this->actingAs($this->encoder)
+            ->delete(route('reports.cluster.snapshot.destroy', $date))
+            ->assertForbidden();
+
+        $this->assertSame(4, ClusterSnapshot::whereDate('snapshot_date', $date)->count());
+    }
+
+    #[Test]
+    public function deleting_an_unknown_snapshot_date_reports_no_match(): void
+    {
+        $this->actingAs($this->admin)
+            ->delete(route('reports.cluster.snapshot.destroy', '2099-01-01'))
+            ->assertRedirect();
+    }
 }
