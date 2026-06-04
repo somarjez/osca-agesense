@@ -831,7 +831,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 | GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — lat/lng + nearest facility distances + accessibility score |
 | Road-network route caching | ✅ Done | `php artisan gis:cache-route-distances` (OpenRouteService) |
 | OpenStreetMap facility import | ✅ Done | `php artisan facilities:import-osm` — replaces approximate facilities with real coordinates |
-| Field GPS documentation | ✅ Done | [field-gps-workflow.md](field-gps-workflow.md), [gis-geocoding.md](gis-geocoding.md) |
+| Field GPS / geocoding documentation | ✅ Done | [gis-geocoding.md](gis-geocoding.md); manual-pin workflow covered in [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
 | `gis_proximity_score` as an ML feature | ⏳ Pending | Accessibility scores computed but not yet wired into the GBR/RFR pipeline — requires model retrain |
 
 ### 18.2 Technical Stack

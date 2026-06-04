@@ -181,7 +181,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | Map coordinate picker in profile form | ✅ Done | Leaflet pin + boundary validation in the profile survey; writes `manual_pin` / `verified/manual` |
 | Accessibility proximity scoring | ✅ Done | `php artisan gis:score-proximity` writes `senior_accessibility_metrics` (nearest health centre, hospital, pharmacy, market, barangay hall) |
 | GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — senior lat/lng + nearest facility distances + accessibility score |
-| Field GPS workflow documentation | ✅ Done | [field-gps-workflow.md](field-gps-workflow.md) and [gis-geocoding.md](gis-geocoding.md) |
+| Field GPS / geocoding documentation | ✅ Done | [gis-geocoding.md](gis-geocoding.md); the manual-pin workflow is covered in [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
 
 ### Completed (Sprint 3.3 — Routing & Real Facilities)
 

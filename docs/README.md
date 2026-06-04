@@ -42,7 +42,7 @@ If you are a teammate contributing code, also read:
 | Review the GIS senior distribution/accessibility heatmap changes | [GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md) |
 | Understand the whole GIS module (endpoints, commands, files) | [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
 | Run privacy-safe barangay-level geocoding | [gis-geocoding.md](gis-geocoding.md) |
-| Capture a verified GPS pin for a senior in the field | [field-gps-workflow.md](field-gps-workflow.md) |
+| Capture a verified GPS pin for a senior in the field | [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) (§ Manual Location Pin in Profile Survey) |
 | Explain why results are identical across devices | [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md) |
 | Make defensible claims about the model in the defense | [model-validation-defensible-statements.md](model-validation-defensible-statements.md) |
 | Give the LGU a plain-language validation summary | [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md) |
@@ -116,7 +116,6 @@ Notes on schema migrations and how to apply them when moving between versions.
 - **[GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md)** — Consolidated functional reference for the GIS module: the analytics page, all `/api/gis/*` endpoints, the artisan commands (`gis:geocode`, `gis:score-proximity`, `gis:cache-route-distances`, `facilities:import-osm`), privacy design, and the route/command summaries.
 - **[GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md)** — Original change record for the senior accessibility heatmap, with a current-state note on the consolidated visualization modes.
 - **[gis-geocoding.md](gis-geocoding.md)** — How privacy-safe barangay-level geocoding (`gis:geocode`) works, what it stores, and its safety rules.
-- **[field-gps-workflow.md](field-gps-workflow.md)** — Field workflow for capturing a verified manual GPS pin on a senior profile.
 
 > **Root context files:** [`../PRODUCT.md`](../PRODUCT.md) and [`../DESIGN.md`](../DESIGN.md) live at the project root. They capture the product strategy (users, purpose, principles) and the navy-and-paper "Field Ledger" visual design system — a warm paper-and-ink record framed in institutional navy — for AI design tooling and new contributors.
 
