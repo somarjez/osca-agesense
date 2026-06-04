@@ -213,11 +213,11 @@ class ExportTest extends TestCase
         $this->assertStringContainsString('Risk Level', $body);
         $this->assertStringContainsString('Composite Risk', $body);
 
-        // Risk export only includes HIGH — verify all data rows say HIGH
+        // Risk export now includes ALL risk levels (QA Batch 5 — was HIGH-only).
+        // Verify each data row carries a valid risk level rather than only HIGH.
         $lines = array_values(array_filter(explode("\n", trim($body))));
         foreach (array_slice($lines, 1) as $line) {
-            // "HIGH" must appear in each data row
-            $this->assertStringContainsString('HIGH', $line, "Data row does not contain HIGH: $line");
+            $this->assertMatchesRegularExpression('/\b(HIGH|MODERATE|LOW)\b/', $line, "Data row missing a risk level: $line");
         }
 
         // Age must be non-zero in the risk CSV as well.
