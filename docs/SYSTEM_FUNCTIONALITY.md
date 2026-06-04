@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-06-04 — Reflects the v2.0.0 / K=4 model (four health groups) and the completed GIS module (Phase 3): bulk geocoding, profile coordinate picker, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. Phase 1 and Phase 2 complete (RBAC, user management, audit logging, encryption, Excel export, cluster snapshots). 283 seniors seeded.
+> **Last Updated:** 2026-06-04 — Reflects the v2.0.0 / K=4 model (four health groups) and the completed GIS module (Phase 3): bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was removed — coordinates now come from `gis:geocode` only.) Phase 1 and Phase 2 complete (RBAC, user management, audit logging, encryption, Excel export, cluster snapshots). 283 seniors seeded.
 
 ---
 
@@ -791,7 +791,7 @@ The following features are either partially implemented or explicitly absent fro
 | Export full database to Excel | ✅ Implemented | `/reports/registry/export` — xlsx with all active seniors + latest ML result; sidebar under Administration |
 | GIS / interactive senior location map | ✅ Implemented | Live at `/reports/gis` with 4 visualization modes — see §18 |
 | Accessibility proximity scoring | ✅ Implemented | `gis:score-proximity` writes `senior_accessibility_metrics` |
-| GIS CSV export and coordinate picker | ✅ Implemented | `/reports/gis/export` and the profile-survey Leaflet pin |
+| GIS CSV export | ✅ Implemented | `/reports/gis/export` |
 | `gis_proximity_score` as an ML feature | Pending | Accessibility scores are computed but not yet wired into the GBR/RFR pipeline — requires model retrain |
 
 **Implemented in Phase 2 (May 2026):**
@@ -826,7 +826,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 | GIS map view — `/reports/gis` | ✅ Done | Leaflet map with 4 visualization modes, facility overlay, risk/barangay/health-group filters, KPI + geocode-status panels |
 | Privacy-safe coordinate generalisation | ✅ Done | Deterministic barangay-level points — no exact home addresses exposed |
 | Bulk geocode command | ✅ Done | `php artisan gis:geocode` — privacy-safe barangay-level coords for seniors missing GPS data |
-| Map coordinate picker in profile form | ✅ Done | Leaflet pin + boundary validation in the profile survey; writes `manual_pin` |
+| Map coordinate picker in profile form | ❌ Removed | The Leaflet pin/boundary-validation picker was removed; `gis:geocode` is now the sole coordinate source |
 | Accessibility proximity scoring | ✅ Done | `php artisan gis:score-proximity` — nearest-facility distances + 0–1 accessibility score |
 | GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — lat/lng + nearest facility distances + accessibility score |
 | Road-network route caching | ✅ Done | `php artisan gis:cache-route-distances` (OpenRouteService) |
@@ -871,7 +871,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 
 1. **Wire `gis_proximity_score` into the ML pipeline.** The GIS module is complete (mapping, geocoding, accessibility scoring, route distances, OSM import). The one remaining GIS enhancement is feeding the computed accessibility score into the GBR/RFR preprocessing pipeline as an optional feature — this requires a model retrain. See Section 18.
 
-2. **Continue improving coordinate accuracy.** Bulk geocoding assigns privacy-safe barangay-level coordinates today; iteratively improve accuracy as field workers capture verified GPS pins during visits, and re-run `gis:score-proximity` afterwards.
+2. **A future verified-coordinate workflow.** Bulk geocoding assigns privacy-safe barangay-level coordinates today. The manual pin picker was removed; a future address-line-based capture workflow could reintroduce verified per-senior coordinates, after which `gis:score-proximity` would be re-run.
 
 3. **Model versioning and retraining pipeline.** Add a database field or config entry for the active model version, and create a retraining workflow (even if offline) that updates the artefact files and records version history in `ml_results.model_version`.
 

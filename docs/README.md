@@ -42,7 +42,6 @@ If you are a teammate contributing code, also read:
 | Review the GIS senior distribution/accessibility heatmap changes | [GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md) |
 | Understand the whole GIS module (endpoints, commands, files) | [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
 | Run privacy-safe barangay-level geocoding | [gis-geocoding.md](gis-geocoding.md) |
-| Capture a verified GPS pin for a senior in the field | [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) (§ Manual Location Pin in Profile Survey) |
 | Explain why results are identical across devices | [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md) |
 | Make defensible claims about the model in the defense | [model-validation-defensible-statements.md](model-validation-defensible-statements.md) |
 | Give the LGU a plain-language validation summary | [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md) |
