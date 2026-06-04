@@ -60,10 +60,18 @@
 
                 <div class="border-t border-paper-rule dark:border-[#2b3530] pt-5">
                     <label class="eyebrow block mb-1.5" for="password">Password</label>
-                    <input id="password" type="password" name="password"
-                           class="form-input w-full @error('password') border-critical-400 @enderror"
-                           placeholder="Minimum 8 characters"
-                           required>
+                    <div class="relative" x-data="{ show: false }">
+                        <input id="password" name="password" :type="show ? 'text' : 'password'"
+                               class="form-input w-full pr-10 @error('password') border-critical-400 @enderror"
+                               placeholder="Minimum 8 characters"
+                               required>
+                        <button type="button" @click="show = !show" tabindex="-1"
+                                class="absolute inset-y-0 right-0 px-3 flex items-center text-ink-400 hover:text-ink-700 dark:hover:text-[#c8c4bc]"
+                                :aria-label="show ? 'Hide password' : 'Show password'">
+                            <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                            <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                        </button>
+                    </div>
                     @error('password')
                     <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
@@ -71,10 +79,18 @@
 
                 <div>
                     <label class="eyebrow block mb-1.5" for="password_confirmation">Confirm Password</label>
-                    <input id="password_confirmation" type="password" name="password_confirmation"
-                           class="form-input w-full"
-                           placeholder="Re-enter password"
-                           required>
+                    <div class="relative" x-data="{ show: false }">
+                        <input id="password_confirmation" name="password_confirmation" :type="show ? 'text' : 'password'"
+                               class="form-input w-full pr-10"
+                               placeholder="Re-enter password"
+                               required>
+                        <button type="button" @click="show = !show" tabindex="-1"
+                                class="absolute inset-y-0 right-0 px-3 flex items-center text-ink-400 hover:text-ink-700 dark:hover:text-[#c8c4bc]"
+                                :aria-label="show ? 'Hide password' : 'Show password'">
+                            <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                            <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-2">

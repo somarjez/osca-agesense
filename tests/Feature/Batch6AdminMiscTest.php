@@ -96,4 +96,13 @@ class Batch6AdminMiscTest extends TestCase
             ->get(route('reports.registry'))
             ->assertForbidden();
     }
+
+    #[Test]
+    public function user_create_form_renders_with_password_fields(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('users.create'))
+            ->assertOk()
+            ->assertSee('Confirm Password');
+    }
 }
