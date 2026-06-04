@@ -303,6 +303,7 @@
     const CLUSTER_HEATMAP_RAMPS = {
         1: {
             label: 'C1',
+            title: 'C1 · High Functioning / Well-Supported Seniors',
             name: 'Cluster 1',
             stops: {
                 0.00: '#dff7ff',
@@ -316,6 +317,7 @@
         },
         2: {
             label: 'C2',
+            title: 'C2 · Stable Ageing / Moderate Support Needs',
             name: 'Cluster 2',
             stops: {
                 0.00: '#e5ffe9',
@@ -329,6 +331,7 @@
         },
         3: {
             label: 'C3',
+            title: 'C3 · Environmentally and Financially Vulnerable Seniors',
             name: 'Cluster 3',
             stops: {
                 0.00: '#fff8bf',
@@ -342,6 +345,7 @@
         },
         4: {
             label: 'C4',
+            title: 'C4 · Low Functioning / Multi-Domain Priority Seniors',
             name: 'Cluster 4',
             stops: {
                 0.00: '#ffe2e2',
@@ -553,6 +557,13 @@
         return cluster ? `${cluster.label} higher intensity within selected cluster` : 'Higher intensity within selected cluster';
     }
 
+    function clusterDisplayName(featureOrNumber) {
+        const number = typeof featureOrNumber === 'number'
+            ? featureOrNumber
+            : featureClusterNumber(featureOrNumber);
+        return CLUSTER_HEATMAP_RAMPS[number]?.title ?? 'Unassigned';
+    }
+
     function featureClusterNumber(feature) {
         const number = clusterNumber(clusterLabel(feature), feature);
         if (number === null) {
@@ -730,7 +741,7 @@
             if (mode === 'cluster-heatmap') {
                 const clusterLegend = Object.values(CLUSTER_HEATMAP_RAMPS).map((ramp) => `
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${ramp.label}
+                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${escapeHtml(ramp.title)}
                     </span>
                 `).join('');
                 const selectedCluster = selectedClusterGroup();
@@ -861,23 +872,30 @@
         const select = document.getElementById(selectId);
         if (!select) return;
 
+        const entries = values.map((value) => (value && typeof value === 'object')
+            ? { value: String(value.value), label: String(value.label) }
+            : { value: String(value), label: String(value) });
+
         const currentValue = select.value || 'all';
         select.innerHTML = `<option value="all">${defaultLabel}</option>`;
 
-        values.forEach((value) => {
+        entries.forEach((entry) => {
             const option = document.createElement('option');
-            option.value = String(value);
-            option.textContent = String(value);
+            option.value = entry.value;
+            option.textContent = entry.label;
             select.appendChild(option);
         });
 
-        select.value = values.includes(currentValue) ? currentValue : 'all';
+        select.value = entries.some((entry) => entry.value === currentValue) ? currentValue : 'all';
     }
 
     function initializeFilters(features) {
         setSelectOptions(BARANGAY_FILTER_ID, 'All Barangays', uniqueSortedValues(features, 'barangay'));
         setSelectOptions(RISK_FILTER_ID, 'All Risk Levels', uniqueSortedValues(features, 'risk_level'));
-        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features));
+        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features).map((value) => ({
+            value,
+            label: CLUSTER_HEATMAP_RAMPS[clusterNumber(value, null)]?.title ?? value,
+        })));
     }
 
     function getSelectedValue(selectId) {
@@ -3640,7 +3658,7 @@
         const oscaId = escapeHtml(p.osca_id ?? `#${p.senior_id ?? 'N/A'}`);
         const barangay = escapeHtml(p.barangay ?? 'N/A');
         const riskLevel = escapeHtml(p.risk_level ?? 'Unknown');
-        const healthGroup = escapeHtml(p.cluster_label ?? p.cluster ?? 'Unassigned');
+        const healthGroup = escapeHtml(clusterDisplayName(feature));
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
