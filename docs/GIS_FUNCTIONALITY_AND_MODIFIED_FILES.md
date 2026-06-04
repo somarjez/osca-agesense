@@ -376,7 +376,6 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | File | Change Description |
 | --- | --- |
 | `docs/gis-geocoding.md` | Added operational documentation for bulk barangay-level geocoding. |
-| `docs/field-gps-workflow.md` | Added field workflow documentation for capturing verified/manual GPS pins. |
 | `docs/GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md` | Added this consolidated GIS functionality and modified-files reference. |
 
 ### GIS Data and Runtime Files
