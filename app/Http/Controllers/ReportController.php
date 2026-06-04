@@ -246,35 +246,13 @@ class ReportController extends Controller
     /**
      * Risk Report page.
      */
-    public function risk(Request $request)
+    public function risk()
     {
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
-
-        // Risk level distribution
-        $riskDist = MlResult::whereIn('id', $latestIds)
-            ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
-            ->groupBy('overall_risk_level')
-            ->pluck('count', 'overall_risk_level');
-
-        // At-risk seniors list (HIGH risk only — CRITICAL no longer an official level)
-        $atRiskSeniors = SeniorCitizen::active()
-            ->join('ml_results', function ($join) use ($latestIds) {
-                $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                    ->whereIn('ml_results.id', $latestIds);
-            })
-            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
-            ->select('senior_citizens.*', 'ml_results.overall_risk_level',
-                'ml_results.composite_risk', 'ml_results.cluster_name',
-                'ml_results.ic_risk', 'ml_results.env_risk', 'ml_results.func_risk')
-            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
-            ->when($request->risk_level, fn ($q) => $q->where('ml_results.overall_risk_level', strtoupper($request->risk_level)))
-            ->orderByDesc('ml_results.composite_risk')
-            ->paginate(25)
-            ->withQueryString();
 
         // Barangay × risk breakdown
         $barangayRisk = SeniorCitizen::active()
@@ -299,11 +277,8 @@ class ReportController extends Controller
             ->orderByDesc('count')
             ->get();
 
-        $barangays = SeniorCitizen::barangayList();
-
         return view('reports.risk', compact(
-            'riskDist', 'atRiskSeniors', 'barangayRisk',
-            'domainAvgs', 'recsByCategory', 'barangays'
+            'barangayRisk', 'domainAvgs', 'recsByCategory'
         ));
     }
 

@@ -120,6 +120,19 @@ class Batch5ReportsTest extends TestCase
     }
 
     #[Test]
+    public function risk_report_page_renders_with_explorer_on_top(): void
+    {
+        $this->makeSeniorWithRisk('HIGH', 'Render', 'Check');
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.risk'))
+            ->assertOk()
+            ->assertSee('Interactive Risk Explorer')
+            ->assertSee('Average Domain Risk Scores')
+            ->assertDontSee('At-Risk Seniors (HIGH)');
+    }
+
+    #[Test]
     public function barangay_roster_is_searchable(): void
     {
         $this->makeSeniorWithRisk('HIGH', 'Aniceta', 'Rosterhit', 'Anibong');
