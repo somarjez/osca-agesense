@@ -21,6 +21,10 @@ class SurveyController extends Controller
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->barangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->where('barangay', $request->barangay))
             )
+            ->when($request->search, fn ($q, $term) => $q->whereHas('seniorCitizen', fn ($q) => $q
+                ->where('osca_id', 'like', "%{$term}%")
+                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%'])
+            ))
             ->latest('survey_date')
             ->paginate(20)->withQueryString();
 

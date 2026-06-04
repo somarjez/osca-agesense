@@ -20,6 +20,11 @@
                     <option value="processed" {{ request('status')==='processed' ? 'selected' : '' }}>Processed</option>
                 </select>
             </div>
+            <div class="min-w-[200px] flex-1">
+                <label class="eyebrow block mb-1.5">Search</label>
+                <input type="text" name="search" value="{{ request('search') }}"
+                       placeholder="Name or OSCA ID…" class="form-input w-full">
+            </div>
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
                 <select name="barangay" class="form-select">
@@ -33,7 +38,7 @@
                 <button type="submit" class="btn btn-primary">
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
-                @if (request()->hasAny(['status','barangay']))
+                @if (request()->hasAny(['status','barangay','search']))
                 <a href="{{ route('surveys.qol.index') }}" class="btn">Clear</a>
                 @endif
             </div>

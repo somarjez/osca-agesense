@@ -112,4 +112,32 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->assertSee('Continue draft')
             ->assertSee(route('surveys.qol.edit', $draft), false);
     }
+
+    #[Test]
+    public function qol_index_search_matches_senior_name_and_osca_id(): void
+    {
+        $alice = $this->makeSenior(['first_name' => 'Alice', 'last_name' => 'Reyes']);
+        $bob = $this->makeSenior(['first_name' => 'Bob', 'last_name' => 'Tan']);
+        foreach ([$alice, $bob] as $s) {
+            QolSurvey::create([
+                'senior_citizen_id' => $s->id,
+                'survey_date' => now()->format('Y-m-d'),
+                'status' => 'submitted',
+            ]);
+        }
+
+        // Search by name
+        $this->actingAs($this->admin)
+            ->get(route('surveys.qol.index', ['search' => 'Alice']))
+            ->assertOk()
+            ->assertSee('Alice Reyes')
+            ->assertDontSee('Bob Tan');
+
+        // Search by OSCA ID
+        $this->actingAs($this->admin)
+            ->get(route('surveys.qol.index', ['search' => $bob->osca_id]))
+            ->assertOk()
+            ->assertSee('Bob Tan')
+            ->assertDontSee('Alice Reyes');
+    }
 }
