@@ -370,7 +370,7 @@
         upsert('domainByClusterChart', {
             type: 'bar',
             data: {
-                labels: ['Physical Capacity', 'Environment', 'Daily Functioning'],
+                labels: ['Intrinsic Capacity', 'Environment', 'Functional Ability'],
                 datasets: [1,2,3,4].map((cid, i) => ({
                     label: clusterLabels[i],
                     data: [
