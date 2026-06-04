@@ -183,7 +183,7 @@
         section: 'insights',
         insightsTab: 'ic',
         insights: null,
-        labels: { ic: 'Physical Capacity (IC)', env: 'Environment', func: 'Daily Functioning' },
+        labels: { ic: 'Intrinsic Capacity (IC)', env: 'Environment', func: 'Functional Ability' },
         async loadInsights() {
             if (this.insights !== null) return;
             try {
@@ -240,19 +240,20 @@
                     <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
                 </template>
                 <template x-if="insights && insights[insightsTab]">
-                    <div class="space-y-0.5">
-                        <template x-for="item in insights[insightsTab]" :key="item.feature">
-                            <div class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
-                                <span class="text-[12px] text-ink-700 dark:text-[#b0b5b2] w-44 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
-                                <div class="flex-1 bg-paper-rule dark:bg-[#2b3530] rounded-full h-2.5 overflow-hidden">
-                                    <div class="bg-forest-500 h-2.5 rounded-full transition-all duration-500"
+                    <ol class="space-y-1">
+                        <template x-for="(item, idx) in insights[insightsTab]" :key="item.feature">
+                            <li class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1.5 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
+                                <span class="w-5 text-right text-[11px] font-mono tnum text-ink-400 dark:text-[#6b7570] flex-shrink-0" x-text="idx + 1"></span>
+                                <span class="text-[12.5px] text-ink-800 dark:text-[#c8c4bc] w-48 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
+                                <div class="flex-1 bg-paper-rule dark:bg-[#222a27] rounded-full h-3 overflow-hidden">
+                                    <div class="bg-forest-500 h-3 rounded-full transition-all duration-500"
                                          :style="'width: ' + Math.min(100, (item.importance / insights[insightsTab][0].importance) * 100) + '%'"></div>
                                 </div>
-                                <span class="text-[11px] font-mono tnum text-ink-500 dark:text-[#8a9087] w-12 text-right"
+                                <span class="text-[11.5px] font-mono tnum font-semibold text-forest-700 dark:text-forest-400 w-12 text-right"
                                       x-text="(item.importance * 100).toFixed(1) + '%'"></span>
-                            </div>
+                            </li>
                         </template>
-                    </div>
+                    </ol>
                 </template>
             </div>
         </div>
