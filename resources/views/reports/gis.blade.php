@@ -4184,153 +4184,70 @@
             .filter(Boolean);
     }
 
-    function createAccessibilityPointHeatmapLayer(points, options = {}) {
-        const HeatLayer = window.L.Layer.extend({
-            initialize() {
-                this._points = points;
-                this._options = options;
-                this._stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
-            },
+    function createAccessibilityHeatmapOverlay(points, bounds, options = {}) {
+        if (!points.length || !bounds?.isValid?.()) {
+            return null;
+        }
 
-            onAdd(map) {
-                this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
-                this._canvas.style.pointerEvents = 'none';
-                (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('zoomend resize', this._reset, this);
-                map.on('moveend', this._reposition, this);
-                this._reset();
-            },
+        const stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
+        const { width, height } = rasterSizeForBounds(bounds);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
 
-            onRemove(map) {
-                if (this._canvas?.parentNode) {
-                    this._canvas.parentNode.removeChild(this._canvas);
-                }
-                map.off('zoomend resize', this._reset, this);
-                map.off('moveend', this._reposition, this);
-            },
+        // Radius in raster pixels via the shared helper, which uses the smaller of
+        // the x/y meters-per-pixel so the blob stays circular for non-square bounds.
+        const radiusMeters = options.radiusMeters ?? 620;
+        const radius = Math.round(rasterRadiusPixels(bounds, width, height, radiusMeters));
 
-            _reset() {
-                const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-                this._canvas.style.width = `${size.x}px`;
-                this._canvas.style.height = `${size.y}px`;
-                this._canvas.width = Math.round(size.x * ratio);
-                this._canvas.height = Math.round(size.y * ratio);
-                this._ratio = ratio;
-                this._redraw();
-            },
+        points
+            .slice()
+            .sort((a, b) => a[2] - b[2])
+            .forEach(([lat, lng, score]) => {
+                const point = latLngToRasterPoint(lat, lng, bounds, width, height);
+                const [red, green, blue] = colorForGradientValue(score, stops);
+                const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
+                gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
+                gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
+                gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
+                gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+                context.fillStyle = gradient;
+                context.beginPath();
+                context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                context.fill();
+            });
 
-            // Pan: reposition the canvas only; content is frozen until the next
-            // zoom/resize redraw. Avoids the per-pan full-canvas gradient repaint.
-            _reposition() {
-                if (!this._canvas) return;
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-            },
+        // Clip to the municipal boundary using the precomputed cached mask.
+        const boundary = options.clipBoundary ?? primaryBoundaryGeoJson();
+        const mask = getRasterBoundaryMask(bounds, width, height, boundary);
+        const image = context.getImageData(0, 0, width, height);
+        const contourDensityGrid = new Float32Array(width * height);
+        for (let index = 0; index < image.data.length; index += 4) {
+            const pixel = index / 4;
+            if (mask && mask[pixel] !== 1) {
+                image.data[index + 3] = 0;
+                continue;
+            }
+            contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+        }
+        context.putImageData(image, 0, 0);
 
-            async _redraw() {
-                const myRedraw = (this._redrawToken = (this._redrawToken || 0) + 1);
-                const width = this._canvas.width;
-                const height = this._canvas.height;
-                const ratio = this._ratio || 1;
-                const cssWidth = width / ratio;
-                const cssHeight = height / ratio;
-                const context = this._canvas.getContext('2d');
-                context.clearRect(0, 0, width, height);
-
-                const radiusMeters = this._options.radiusMeters ?? 620;
-                const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
-                this._points
-                    .slice()
-                    .sort((a, b) => a[2] - b[2])
-                    .forEach(([lat, lng, score]) => {
-                        const mapPoint = this._map.latLngToContainerPoint([lat, lng]);
-                        const point = {
-                            x: mapPoint.x * ratio,
-                            y: mapPoint.y * ratio,
-                        };
-
-                        if (mapPoint.x < -(radius / ratio) || mapPoint.y < -(radius / ratio) || mapPoint.x > cssWidth + (radius / ratio) || mapPoint.y > cssHeight + (radius / ratio)) {
-                            return;
-                        }
-
-                        const [red, green, blue] = colorForGradientValue(score, this._stops);
-                        const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-                        gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
-                        gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
-                        gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
-                        gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
-                        gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
-                        context.fillStyle = gradient;
-                        context.beginPath();
-                        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
-                        context.fill();
-                    });
-
-                const currentZoom = this._map.getZoom();
-                const needContour = !this._contourCache
-                    || this._contourCache.zoom !== currentZoom
-                    || this._contourCache.canvas.width !== width
-                    || this._contourCache.canvas.height !== height;
-
-                await yieldToEventLoop();
-                if (myRedraw !== this._redrawToken) return;
-
-                const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
-                const image = context.getImageData(0, 0, width, height);
-                const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
-                const accessibilityMask = hasBoundaryFeatures(boundary)
-                    ? buildBoundaryMask(width, height, (lat, lng) => {
-                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
-                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
-                    }, boundary)
-                    : null;
-
-                const __accSliceBudget = makeSliceBudget(10);
-                for (let index = 0; index < image.data.length; index += 4) {
-                    const pixel = index / 4;
-                    if ((pixel & 8191) === 0 && __accSliceBudget()) {
-                        await yieldToEventLoop();
-                        if (myRedraw !== this._redrawToken) return;
-                    }
-                    if (!image.data[index + 3]) continue;
-
-                    if (accessibilityMask && accessibilityMask[pixel] !== 1) {
-                        image.data[index + 3] = 0;
-                        continue;
-                    }
-                    if (contourDensityGrid) {
-                        contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
-                    }
-                }
-                context.putImageData(image, 0, 0);
-
-                await yieldToEventLoop();
-                if (myRedraw !== this._redrawToken) return;
-                if (needContour && contourDensityGrid) {
-                    const offscreen = document.createElement('canvas');
-                    offscreen.width = width;
-                    offscreen.height = height;
-                    const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
-                    drawKdeContours(offscreen.getContext('2d'), contourSourceGrid, width, height, {
-                        step: Math.max(3, Math.round(4 * ratio)),
-                        levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
-                        lineWidth: 1.05 * ratio,
-                        haloLineWidth: 0,
-                    });
-                    this._contourCache = { canvas: offscreen, zoom: currentZoom };
-                }
-
-                if (this._contourCache) {
-                    context.drawImage(this._contourCache.canvas, 0, 0);
-                }
-            },
+        // KDE contour overlay (same levels/step as the old live layer).
+        const contourSource = smoothScalarGrid(contourDensityGrid, width, height, 5);
+        drawKdeContours(context, contourSource, width, height, {
+            step: 4,
+            levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+            lineWidth: 1.05,
+            haloLineWidth: 0,
         });
 
-        return new HeatLayer();
+        return createSmoothHeatmapImageOverlay(canvas.toDataURL('image/png'), bounds, {
+            pane: 'gis-heat-pane',
+            opacity: 1,
+            interactive: false,
+        });
     }
 
     function buildAccessibilityDistributionRasterLayer(map, features, options = {}) {
@@ -4345,7 +4262,7 @@
             return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
         }
 
-        const layer = createAccessibilityPointHeatmapLayer(points, {
+        const layer = createAccessibilityHeatmapOverlay(points, bounds, {
             radiusMeters,
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
