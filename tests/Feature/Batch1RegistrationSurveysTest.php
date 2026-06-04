@@ -95,4 +95,21 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->assertOk()
             ->assertViewHas('surveyId', null);
     }
+
+    #[Test]
+    public function senior_record_shows_continue_draft_when_a_draft_exists(): void
+    {
+        $senior = $this->makeSenior();
+        $draft = QolSurvey::create([
+            'senior_citizen_id' => $senior->id,
+            'survey_date' => now()->format('Y-m-d'),
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('seniors.show', $senior))
+            ->assertOk()
+            ->assertSee('Continue draft')
+            ->assertSee(route('surveys.qol.edit', $draft), false);
+    }
 }

@@ -66,7 +66,9 @@ class SeniorCitizenController extends Controller
             'mlResults' => fn ($q) => $q->latest()->limit(3),
         ]);
 
-        return view('seniors.show', compact('senior'));
+        $draftSurvey = $senior->qolSurveys()->where('status', 'draft')->latest()->first();
+
+        return view('seniors.show', compact('senior', 'draftSurvey'));
     }
 
     public function edit(SeniorCitizen $senior)

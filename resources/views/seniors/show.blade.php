@@ -23,9 +23,15 @@
             <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to records
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
+            @if (!empty($draftSurvey))
+            <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="btn btn-primary">
+                <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Continue draft
+            </a>
+            @else
             <a href="{{ route('surveys.qol.create', $senior) }}" class="btn">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> New QoL Survey
             </a>
+            @endif
 
             <div x-data="{
                     loading: false, done: false, err: '',
@@ -557,7 +563,11 @@
             @if ($senior->qolSurveys->isNotEmpty())
             <x-card title="QoL Survey History">
                 <x-slot name="actions">
+                    @if (!empty($draftSurvey))
+                    <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
+                    @else
                     <a href="{{ route('surveys.qol.create', $senior) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
+                    @endif
                 </x-slot>
                 <x-slot name="noPadding">true</x-slot>
                 <table class="w-full text-sm">
