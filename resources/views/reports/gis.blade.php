@@ -261,7 +261,7 @@
         animate: false,
     };
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
-    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
+    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 0.15;
     const HEATMAP_MODES = new Set([
         'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
@@ -5025,6 +5025,8 @@
             attribution: TILE_LIGHT_ATTRIBUTION,
             updateWhenIdle: true,
             keepBuffer: 4,
+            noWrap: true,
+            bounds: mapNavigationBounds(),
         });
     }
 
