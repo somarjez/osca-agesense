@@ -46,14 +46,21 @@
                     </span>
                 </div>
                 @role('admin')
-                <form method="POST" action="{{ route('reports.gis.geocode') }}"
-                      class="shrink-0 sm:ml-auto"
-                      onsubmit="return confirm('Run bulk barangay-level geocoding now? This will not overwrite verified manual/GPS coordinates.');">
-                    @csrf
-                    <button type="submit" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
+                <div x-data="{ open: false }" class="shrink-0 sm:ml-auto">
+                    <button type="button" @click="open = true" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
                         Run Bulk Geocode
                     </button>
-                </form>
+                    <form x-ref="geocodeForm" method="POST" action="{{ route('reports.gis.geocode') }}" class="hidden">
+                        @csrf
+                    </form>
+                    <x-confirm-modal show="open"
+                                     title="Run bulk geocoding?"
+                                     tone="primary"
+                                     confirm="$refs.geocodeForm.submit()"
+                                     confirm-label="Run geocoding">
+                        <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
+                    </x-confirm-modal>
+                </div>
                 @endrole
             </div>
             <div class="border-t border-paper-rule dark:border-[#2b3530]"></div>
