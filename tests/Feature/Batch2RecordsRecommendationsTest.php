@@ -167,4 +167,26 @@ class Batch2RecordsRecommendationsTest extends TestCase
         $this->assertNotNull($row, 'Senior should be active and have current recs');
         $this->assertSame(1, (int) $row->recommendations_count);
     }
+
+    #[Test]
+    public function recommendations_index_search_matches_name_and_osca_id(): void
+    {
+        $alice = $this->makeSenior(['first_name' => 'Alicia', 'last_name' => 'Reyes']);
+        $bob = $this->makeSenior(['first_name' => 'Roberto', 'last_name' => 'Tan']);
+        foreach ([$alice, $bob] as $s) {
+            $this->makeRec($this->makeMlResult($s));
+        }
+
+        $this->actingAs($this->admin)
+            ->get(route('recommendations.index', ['search' => 'Alicia']))
+            ->assertOk()
+            ->assertSee('Alicia Reyes')
+            ->assertDontSee('Roberto Tan');
+
+        $this->actingAs($this->admin)
+            ->get(route('recommendations.index', ['search' => $bob->osca_id]))
+            ->assertOk()
+            ->assertSee('Roberto Tan')
+            ->assertDontSee('Alicia Reyes');
+    }
 }

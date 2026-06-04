@@ -30,6 +30,10 @@ class RecommendationController extends Controller
             ->when($request->has_urgent, fn ($q) => $q->whereHas('currentRecommendations', fn ($r) => $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
             )
             )
+            ->when($request->search, fn ($q, $term) => $q
+                ->where('osca_id', 'like', "%{$term}%")
+                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%'])
+            )
             ->orderByDesc('immediate_count')
             ->orderByDesc('pending_count')
             ->paginate(20)

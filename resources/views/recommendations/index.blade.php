@@ -20,6 +20,11 @@
             <div class="card-title">Filter</div>
         </div>
         <div class="card-body flex flex-wrap items-end gap-4">
+            <div class="min-w-[200px] flex-1">
+                <label class="eyebrow block mb-1.5">Search</label>
+                <input type="text" name="search" value="{{ request('search') }}"
+                       placeholder="Name or OSCA ID…" class="form-input w-full">
+            </div>
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
                 <select name="barangay" class="form-select">
@@ -49,7 +54,7 @@
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" />
                     Filter
                 </button>
-                @if (request()->hasAny(['barangay','risk','has_urgent']))
+                @if (request()->hasAny(['barangay','risk','has_urgent','search']))
                 <a href="{{ route('recommendations.index') }}" class="btn">Clear</a>
                 @endif
             </div>
