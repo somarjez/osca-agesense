@@ -42,4 +42,16 @@ class Batch4GisAnalyticsTest extends TestCase
             ->assertDontSee("onsubmit=\"return confirm('Run bulk", false)
             ->assertSee('Run bulk geocoding?');
     }
+
+    #[Test]
+    public function cluster_filter_labels_use_full_cluster_titles(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('reports.gis'))
+            ->assertOk()
+            ->assertSee('C1 · High Functioning / Well-Supported Seniors')
+            ->assertSee('C2 · Stable Ageing / Moderate Support Needs')
+            ->assertSee('C3 · Environmentally and Financially Vulnerable Seniors')
+            ->assertSee('C4 · Low Functioning / Multi-Domain Priority Seniors');
+    }
 }
