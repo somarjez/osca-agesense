@@ -194,22 +194,24 @@
         }
     }" x-init="loadInsights()" class="card overflow-hidden">
 
-        {{-- Section tab strip --}}
-        <div class="border-b border-paper-rule dark:border-[#2b3530] px-5 flex overflow-x-auto gap-0">
-            @foreach ([
-                ['insights',  'Model Insights'],
-                ['explorer',  'Cluster Explorer'],
-                ['snapshots', 'Snapshot History'],
-            ] as [$key, $label])
-            <button type="button"
-                    @click="section = '{{ $key }}'"
-                    :class="section === '{{ $key }}'
-                        ? 'border-b-2 border-forest-500 text-forest-700 dark:text-forest-400 font-semibold'
-                        : 'border-b-2 border-transparent text-ink-500 dark:text-[#6b7570] hover:text-ink-800 dark:hover:text-[#c8c4bc]'"
-                    class="flex-shrink-0 px-4 pb-2.5 pt-3 text-[12px] font-medium transition-colors duration-100 whitespace-nowrap -mb-px">
-                {{ $label }}
-            </button>
-            @endforeach
+        {{-- Section switcher — prominent segmented pills --}}
+        <div class="px-5 pt-4 pb-3 border-b border-paper-rule dark:border-[#2b3530]">
+            <div class="inline-flex flex-wrap gap-1 bg-paper-2 dark:bg-[#202a26] border border-paper-rule dark:border-[#2b3530] rounded-xl p-1 overflow-x-auto max-w-full">
+                @foreach ([
+                    ['insights',  'Model Insights'],
+                    ['explorer',  'Cluster Explorer'],
+                    ['snapshots', 'Snapshot History'],
+                ] as [$key, $label])
+                <button type="button"
+                        @click="section = '{{ $key }}'"
+                        :class="section === '{{ $key }}'
+                            ? 'bg-forest-600 text-white shadow-sm'
+                            : 'text-ink-600 dark:text-[#9aada5] hover:bg-white/60 dark:hover:bg-white/5'"
+                        class="flex-shrink-0 px-4 py-2 text-[13px] font-semibold rounded-lg transition-colors duration-100 whitespace-nowrap">
+                    {{ $label }}
+                </button>
+                @endforeach
+            </div>
         </div>
 
         {{-- Model Insights panel --}}
