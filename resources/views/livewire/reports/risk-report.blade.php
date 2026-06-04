@@ -24,39 +24,64 @@
 
     {{-- ── Filters ── --}}
     <div class="card">
-        <div class="card-body flex flex-wrap items-center gap-3 py-3">
-            <x-heroicon-o-funnel class="w-4 h-4 text-ink-400 flex-shrink-0" />
+        <div class="card-body py-4 space-y-3">
+            {{-- Aligned filter grid: every control shares one column width --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="block">
+                    <span class="eyebrow block mb-1.5">Search</span>
+                    <input type="text" wire:model.live.debounce.300ms="filterSearch"
+                           placeholder="Name or OSCA ID…" class="form-input w-full">
+                </label>
 
-            <select wire:model.live="filterRisk" class="form-select max-w-[160px]">
-                <option value="">All Risk Levels</option>
-                @foreach (['HIGH','MODERATE','LOW'] as $lvl)
-                <option value="{{ strtolower($lvl) }}">{{ $lvl }}</option>
-                @endforeach
-            </select>
+                <label class="block">
+                    <span class="eyebrow block mb-1.5">Risk Level</span>
+                    <select wire:model.live="filterRisk" class="form-select w-full">
+                        <option value="">All Risk Levels</option>
+                        @foreach (['HIGH','MODERATE','LOW'] as $lvl)
+                        <option value="{{ strtolower($lvl) }}">{{ $lvl }}</option>
+                        @endforeach
+                    </select>
+                </label>
 
-            <select wire:model.live="filterBarangay" class="form-select max-w-[180px]">
-                <option value="">All Barangays</option>
-                @foreach (\App\Models\SeniorCitizen::barangayList() as $brgy)
-                <option value="{{ $brgy }}">{{ $brgy }}</option>
-                @endforeach
-            </select>
+                <label class="block">
+                    <span class="eyebrow block mb-1.5">Barangay</span>
+                    <select wire:model.live="filterBarangay" class="form-select w-full">
+                        <option value="">All Barangays</option>
+                        @foreach (\App\Models\SeniorCitizen::barangayList() as $brgy)
+                        <option value="{{ $brgy }}">{{ $brgy }}</option>
+                        @endforeach
+                    </select>
+                </label>
 
-            <select wire:model.live="filterCluster" class="form-select max-w-[200px]">
-                <option value="">All Clusters</option>
-                <option value="1">Cluster 1 — High Functioning</option>
-                <option value="2">Cluster 2 — Moderate / Mixed</option>
-                <option value="3">Cluster 3 — Low Functioning</option>
-            </select>
+                <label class="block">
+                    <span class="eyebrow block mb-1.5">Health Group</span>
+                    <select wire:model.live="filterCluster" class="form-select w-full">
+                        <option value="">All Health Groups</option>
+                        <option value="1">C1 · High Functioning / Well-Supported Seniors</option>
+                        <option value="2">C2 · Stable Ageing / Moderate Support Needs</option>
+                        <option value="3">C3 · Environmentally and Financially Vulnerable Seniors</option>
+                        <option value="4">C4 · Low Functioning / Multi-Domain Priority Seniors</option>
+                    </select>
+                </label>
+            </div>
 
-            @if ($filterRisk || $filterBarangay || $filterCluster)
-            <button wire:click="$set('filterRisk',''); $set('filterBarangay',''); $set('filterCluster','')"
-                    class="btn btn-ghost text-[12.5px] gap-1.5">
-                <x-heroicon-o-x-mark class="w-3.5 h-3.5" /> Clear
-            </button>
-            @endif
-
-            <div class="ml-auto">
-                <a href="{{ route('reports.risk.export') }}" class="btn">
+            <div class="flex items-center justify-between gap-3 pt-1">
+                <div class="min-h-[1.75rem] flex items-center">
+                    @if ($filterRisk || $filterBarangay || $filterCluster || $filterSearch)
+                    <button wire:click="$set('filterRisk',''); $set('filterBarangay',''); $set('filterCluster',''); $set('filterSearch','')"
+                            class="btn btn-ghost text-[12.5px] gap-1.5">
+                        <x-heroicon-o-x-mark class="w-3.5 h-3.5" /> Clear filters
+                    </button>
+                    @endif
+                </div>
+                <a href="{{ route('reports.risk.export', array_filter([
+                        'risk' => $filterRisk,
+                        'barangay' => $filterBarangay,
+                        'cluster' => $filterCluster,
+                        'search' => $filterSearch,
+                        'sort' => $sortBy,
+                        'dir' => $sortDir,
+                    ])) }}" class="btn">
                     <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
                 </a>
             </div>
@@ -77,9 +102,15 @@
                             wire:click="sortColumn('composite_risk')">
                             Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                         </th>
-                        <th class="th text-center">IC</th>
-                        <th class="th text-center">Env</th>
-                        <th class="th text-center">Func</th>
+                        <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('ic_risk')">
+                            IC {{ $sortBy === 'ic_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                        </th>
+                        <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('env_risk')">
+                            Env {{ $sortBy === 'env_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                        </th>
+                        <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('func_risk')">
+                            Func {{ $sortBy === 'func_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                        </th>
                         <th class="th text-center cursor-pointer select-none"
                             wire:click="sortColumn('overall_risk_level')">
                             Overall Risk

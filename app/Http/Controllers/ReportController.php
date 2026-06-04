@@ -246,35 +246,13 @@ class ReportController extends Controller
     /**
      * Risk Report page.
      */
-    public function risk(Request $request)
+    public function risk()
     {
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
             ->groupBy('senior_citizen_id')
             ->pluck('id');
-
-        // Risk level distribution
-        $riskDist = MlResult::whereIn('id', $latestIds)
-            ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
-            ->groupBy('overall_risk_level')
-            ->pluck('count', 'overall_risk_level');
-
-        // At-risk seniors list (HIGH risk only — CRITICAL no longer an official level)
-        $atRiskSeniors = SeniorCitizen::active()
-            ->join('ml_results', function ($join) use ($latestIds) {
-                $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                    ->whereIn('ml_results.id', $latestIds);
-            })
-            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
-            ->select('senior_citizens.*', 'ml_results.overall_risk_level',
-                'ml_results.composite_risk', 'ml_results.cluster_name',
-                'ml_results.ic_risk', 'ml_results.env_risk', 'ml_results.func_risk')
-            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
-            ->when($request->risk_level, fn ($q) => $q->where('ml_results.overall_risk_level', strtoupper($request->risk_level)))
-            ->orderByDesc('ml_results.composite_risk')
-            ->paginate(25)
-            ->withQueryString();
 
         // Barangay × risk breakdown
         $barangayRisk = SeniorCitizen::active()
@@ -299,11 +277,8 @@ class ReportController extends Controller
             ->orderByDesc('count')
             ->get();
 
-        $barangays = SeniorCitizen::barangayList();
-
         return view('reports.risk', compact(
-            'riskDist', 'atRiskSeniors', 'barangayRisk',
-            'domainAvgs', 'recsByCategory', 'barangays'
+            'barangayRisk', 'domainAvgs', 'recsByCategory'
         ));
     }
 
@@ -320,7 +295,7 @@ class ReportController extends Controller
     /**
      * Barangay drill-down report page.
      */
-    public function barangay(string $brgy)
+    public function barangay(Request $request, string $brgy)
     {
         $barangays = SeniorCitizen::barangayList();
 
@@ -334,12 +309,24 @@ class ReportController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
-        // All active seniors in this barangay
+        // All active seniors in this barangay (drives the barangay-wide KPIs/aggregates)
         $seniors = SeniorCitizen::active()
             ->where('barangay', $brgy)
             ->with('latestMlResult')
             ->orderBy('last_name')
             ->get();
+
+        // Roster table — paginated + searchable (independent of the barangay-wide aggregates).
+        $roster = SeniorCitizen::active()
+            ->where('barangay', $brgy)
+            ->with('latestMlResult')
+            ->when($request->roster_search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
+            ->orderBy('last_name')
+            ->paginate(25)
+            ->withQueryString();
 
         // Risk distribution for this barangay
         $riskDist = MlResult::whereIn('id', $latestIds)
@@ -378,7 +365,7 @@ class ReportController extends Controller
             ->get();
 
         return view('reports.barangay', compact(
-            'brgy', 'barangays', 'seniors',
+            'brgy', 'barangays', 'seniors', 'roster',
             'riskDist', 'clusterDist', 'domainAvgs',
             'urgentCount', 'pendingRecs'
         ));
@@ -637,7 +624,7 @@ class ReportController extends Controller
     /**
      * Export risk report as CSV.
      */
-    public function exportRisk()
+    public function exportRisk(Request $request)
     {
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
@@ -645,12 +632,22 @@ class ReportController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
+        $allowedSorts = ['composite_risk', 'overall_risk_level', 'ic_risk', 'env_risk', 'func_risk', 'wellbeing_score'];
+        $sortBy = in_array($request->sort, $allowedSorts, true) ? $request->sort : 'composite_risk';
+        $sortDir = $request->dir === 'asc' ? 'asc' : 'desc';
+
         $data = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->whereIn('ml_results.id', $latestIds);
             })
-            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
+            ->when($request->risk, fn ($q, $risk) => $q->where('ml_results.overall_risk_level', strtoupper($risk)))
+            ->when($request->barangay, fn ($q, $b) => $q->where('senior_citizens.barangay', $b))
+            ->when($request->cluster, fn ($q, $c) => $q->where('ml_results.cluster_named_id', $c))
+            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('senior_citizens.osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
             ->select(
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name) as name"),
@@ -663,7 +660,7 @@ class ReportController extends Controller
                 'ml_results.func_risk_level',
                 'ml_results.processed_at'
             )
-            ->orderByDesc('ml_results.composite_risk')
+            ->orderBy("ml_results.{$sortBy}", $sortDir)
             ->get();
 
         $filename = 'osca_risk_report_'.now()->format('Ymd_His').'.csv';

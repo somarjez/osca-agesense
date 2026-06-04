@@ -18,6 +18,8 @@ class RiskReport extends Component
 
     public string $filterCluster = '';
 
+    public string $filterSearch = '';
+
     public string $sortBy = 'composite_risk';
 
     public string $sortDir = 'desc';
@@ -37,6 +39,10 @@ class RiskReport extends Component
             ->when($this->filterCluster, fn ($q) => $q->where('cluster_named_id', $this->filterCluster))
             ->when($this->filterBarangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq->active()->where('barangay', $this->filterBarangay))
             )
+            ->when($this->filterSearch, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq
+                ->where('osca_id', 'like', "%{$this->filterSearch}%")
+                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($this->filterSearch).'%'])
+            ))
             ->orderBy($this->sortBy, $this->sortDir);
 
         $records = $query->paginate(25);
@@ -57,12 +63,18 @@ class RiskReport extends Component
 
     public function sortColumn(string $col): void
     {
-        $this->sortBy = ($this->sortBy === $col) ? $this->sortBy : $col;
-        $this->sortDir = ($this->sortBy === $col && $this->sortDir === 'desc') ? 'asc' : 'desc';
-        if ($this->sortBy !== $col) {
+        $allowed = ['composite_risk', 'overall_risk_level', 'ic_risk', 'env_risk', 'func_risk', 'wellbeing_score'];
+        if (! in_array($col, $allowed, true)) {
+            return;
+        }
+
+        if ($this->sortBy === $col) {
+            $this->sortDir = $this->sortDir === 'desc' ? 'asc' : 'desc';
+        } else {
             $this->sortBy = $col;
             $this->sortDir = 'desc';
         }
+
         $this->resetPage();
     }
 
@@ -77,6 +89,11 @@ class RiskReport extends Component
     }
 
     public function updatedFilterCluster(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterSearch(): void
     {
         $this->resetPage();
     }
