@@ -170,6 +170,14 @@
                 </label>
             </div>
 
+            <div id="gis-risk-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
+                <div class="eyebrow mb-2">Risk Point Display</div>
+                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                    <input id="gis-show-risk-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                    <span>Show senior points on risk heatmap</span>
+                </label>
+            </div>
+
             <div id="gis-map"
                  class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
@@ -238,6 +246,8 @@
     const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
+    const SHOW_RISK_SENIOR_POINTS_ID = 'gis-show-risk-senior-points';
+    const RISK_POINT_DISPLAY_ID = 'gis-risk-point-display';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
@@ -261,7 +271,7 @@
         animate: false,
     };
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
-    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
+    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 0.15;
     const HEATMAP_MODES = new Set([
         'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
@@ -303,6 +313,7 @@
     const CLUSTER_HEATMAP_RAMPS = {
         1: {
             label: 'C1',
+            title: 'C1 · High Functioning / Well-Supported Seniors',
             name: 'Cluster 1',
             stops: {
                 0.00: '#dff7ff',
@@ -316,6 +327,7 @@
         },
         2: {
             label: 'C2',
+            title: 'C2 · Stable Ageing / Moderate Support Needs',
             name: 'Cluster 2',
             stops: {
                 0.00: '#e5ffe9',
@@ -329,6 +341,7 @@
         },
         3: {
             label: 'C3',
+            title: 'C3 · Environmentally and Financially Vulnerable Seniors',
             name: 'Cluster 3',
             stops: {
                 0.00: '#fff8bf',
@@ -342,6 +355,7 @@
         },
         4: {
             label: 'C4',
+            title: 'C4 · Low Functioning / Multi-Domain Priority Seniors',
             name: 'Cluster 4',
             stops: {
                 0.00: '#ffe2e2',
@@ -553,6 +567,13 @@
         return cluster ? `${cluster.label} higher intensity within selected cluster` : 'Higher intensity within selected cluster';
     }
 
+    function clusterDisplayName(featureOrNumber) {
+        const number = typeof featureOrNumber === 'number'
+            ? featureOrNumber
+            : featureClusterNumber(featureOrNumber);
+        return CLUSTER_HEATMAP_RAMPS[number]?.title ?? 'Unassigned';
+    }
+
     function featureClusterNumber(feature) {
         const number = clusterNumber(clusterLabel(feature), feature);
         if (number === null) {
@@ -730,7 +751,7 @@
             if (mode === 'cluster-heatmap') {
                 const clusterLegend = Object.values(CLUSTER_HEATMAP_RAMPS).map((ramp) => `
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${ramp.label}
+                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${escapeHtml(ramp.title)}
                     </span>
                 `).join('');
                 const selectedCluster = selectedClusterGroup();
@@ -861,23 +882,30 @@
         const select = document.getElementById(selectId);
         if (!select) return;
 
+        const entries = values.map((value) => (value && typeof value === 'object')
+            ? { value: String(value.value), label: String(value.label) }
+            : { value: String(value), label: String(value) });
+
         const currentValue = select.value || 'all';
         select.innerHTML = `<option value="all">${defaultLabel}</option>`;
 
-        values.forEach((value) => {
+        entries.forEach((entry) => {
             const option = document.createElement('option');
-            option.value = String(value);
-            option.textContent = String(value);
+            option.value = entry.value;
+            option.textContent = entry.label;
             select.appendChild(option);
         });
 
-        select.value = values.includes(currentValue) ? currentValue : 'all';
+        select.value = entries.some((entry) => entry.value === currentValue) ? currentValue : 'all';
     }
 
     function initializeFilters(features) {
         setSelectOptions(BARANGAY_FILTER_ID, 'All Barangays', uniqueSortedValues(features, 'barangay'));
         setSelectOptions(RISK_FILTER_ID, 'All Risk Levels', uniqueSortedValues(features, 'risk_level'));
-        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features));
+        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features).map((value) => ({
+            value,
+            label: CLUSTER_HEATMAP_RAMPS[clusterNumber(value, null)]?.title ?? value,
+        })));
     }
 
     function getSelectedValue(selectId) {
@@ -898,6 +926,10 @@
 
     function shouldShowAccessibilitySeniorPoints() {
         return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
+    function shouldShowRiskSeniorPoints() {
+        return document.getElementById(SHOW_RISK_SENIOR_POINTS_ID)?.checked !== false;
     }
 
     function syncLayerOptionsPanel() {
@@ -922,6 +954,14 @@
 
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
+    }
+
+    function syncRiskPointDisplay() {
+        const control = document.getElementById(RISK_POINT_DISPLAY_ID);
+        if (!control) return;
+
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        control.style.display = mode === 'risk-indicator-heatmap' ? '' : 'none';
     }
 
     function selectedClusterGroup() {
@@ -3640,10 +3680,14 @@
         const oscaId = escapeHtml(p.osca_id ?? `#${p.senior_id ?? 'N/A'}`);
         const barangay = escapeHtml(p.barangay ?? 'N/A');
         const riskLevel = escapeHtml(p.risk_level ?? 'Unknown');
-        const healthGroup = escapeHtml(p.cluster_label ?? p.cluster ?? 'Unassigned');
+        const healthGroup = escapeHtml(clusterDisplayName(feature));
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
+        const popupMode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const accessibilityRow = popupMode === 'risk-indicator-heatmap'
+            ? ''
+            : `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`;
         const services = routedServices
             ? serviceListHtml(routedServices)
             : routeLoadingListHtml(routeCandidatesForFeature(feature));
@@ -3658,7 +3702,7 @@
                     <div><strong>Point Type:</strong> Generalized senior point</div>
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                     <div><strong>Health Group:</strong> ${healthGroup}</div>
-                    <div><strong>Accessibility Status:</strong> ${accessibility}</div>
+                    ${accessibilityRow}
                     <div>
                         <strong>Nearby senior services:</strong>
                         <div id="${servicesElementId}">${services}</div>
@@ -3675,7 +3719,7 @@
                 <div><strong>Total Seniors:</strong> ${p.senior_count ?? p.total_seniors ?? 0}</div>
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                 <div><strong>Health Group:</strong> ${healthGroup}</div>
-                <div><strong>Accessibility Status:</strong> ${accessibility}</div>
+                ${accessibilityRow}
                 <div>
                     <strong>Nearby senior services:</strong>
                     <div id="${servicesElementId}">${services}</div>
@@ -4166,153 +4210,70 @@
             .filter(Boolean);
     }
 
-    function createAccessibilityPointHeatmapLayer(points, options = {}) {
-        const HeatLayer = window.L.Layer.extend({
-            initialize() {
-                this._points = points;
-                this._options = options;
-                this._stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
-            },
+    function createAccessibilityHeatmapOverlay(points, bounds, options = {}) {
+        if (!points.length || !bounds?.isValid?.()) {
+            return null;
+        }
 
-            onAdd(map) {
-                this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
-                this._canvas.style.pointerEvents = 'none';
-                (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('zoomend resize', this._reset, this);
-                map.on('moveend', this._reposition, this);
-                this._reset();
-            },
+        const stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
+        const { width, height } = rasterSizeForBounds(bounds);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
 
-            onRemove(map) {
-                if (this._canvas?.parentNode) {
-                    this._canvas.parentNode.removeChild(this._canvas);
-                }
-                map.off('zoomend resize', this._reset, this);
-                map.off('moveend', this._reposition, this);
-            },
+        // Radius in raster pixels via the shared helper, which uses the smaller of
+        // the x/y meters-per-pixel so the blob stays circular for non-square bounds.
+        const radiusMeters = options.radiusMeters ?? 620;
+        const radius = Math.round(rasterRadiusPixels(bounds, width, height, radiusMeters));
 
-            _reset() {
-                const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-                this._canvas.style.width = `${size.x}px`;
-                this._canvas.style.height = `${size.y}px`;
-                this._canvas.width = Math.round(size.x * ratio);
-                this._canvas.height = Math.round(size.y * ratio);
-                this._ratio = ratio;
-                this._redraw();
-            },
+        points
+            .slice()
+            .sort((a, b) => a[2] - b[2])
+            .forEach(([lat, lng, score]) => {
+                const point = latLngToRasterPoint(lat, lng, bounds, width, height);
+                const [red, green, blue] = colorForGradientValue(score, stops);
+                const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
+                gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
+                gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
+                gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
+                gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+                context.fillStyle = gradient;
+                context.beginPath();
+                context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                context.fill();
+            });
 
-            // Pan: reposition the canvas only; content is frozen until the next
-            // zoom/resize redraw. Avoids the per-pan full-canvas gradient repaint.
-            _reposition() {
-                if (!this._canvas) return;
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-            },
+        // Clip to the municipal boundary using the precomputed cached mask.
+        const boundary = options.clipBoundary ?? primaryBoundaryGeoJson();
+        const mask = getRasterBoundaryMask(bounds, width, height, boundary);
+        const image = context.getImageData(0, 0, width, height);
+        const contourDensityGrid = new Float32Array(width * height);
+        for (let index = 0; index < image.data.length; index += 4) {
+            const pixel = index / 4;
+            if (mask && mask[pixel] !== 1) {
+                image.data[index + 3] = 0;
+                continue;
+            }
+            contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+        }
+        context.putImageData(image, 0, 0);
 
-            async _redraw() {
-                const myRedraw = (this._redrawToken = (this._redrawToken || 0) + 1);
-                const width = this._canvas.width;
-                const height = this._canvas.height;
-                const ratio = this._ratio || 1;
-                const cssWidth = width / ratio;
-                const cssHeight = height / ratio;
-                const context = this._canvas.getContext('2d');
-                context.clearRect(0, 0, width, height);
-
-                const radiusMeters = this._options.radiusMeters ?? 620;
-                const radius = Math.round(Math.max(18, Math.min(170, metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters))) * ratio);
-                this._points
-                    .slice()
-                    .sort((a, b) => a[2] - b[2])
-                    .forEach(([lat, lng, score]) => {
-                        const mapPoint = this._map.latLngToContainerPoint([lat, lng]);
-                        const point = {
-                            x: mapPoint.x * ratio,
-                            y: mapPoint.y * ratio,
-                        };
-
-                        if (mapPoint.x < -(radius / ratio) || mapPoint.y < -(radius / ratio) || mapPoint.x > cssWidth + (radius / ratio) || mapPoint.y > cssHeight + (radius / ratio)) {
-                            return;
-                        }
-
-                        const [red, green, blue] = colorForGradientValue(score, this._stops);
-                        const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-                        gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
-                        gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
-                        gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
-                        gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
-                        gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
-                        context.fillStyle = gradient;
-                        context.beginPath();
-                        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
-                        context.fill();
-                    });
-
-                const currentZoom = this._map.getZoom();
-                const needContour = !this._contourCache
-                    || this._contourCache.zoom !== currentZoom
-                    || this._contourCache.canvas.width !== width
-                    || this._contourCache.canvas.height !== height;
-
-                await yieldToEventLoop();
-                if (myRedraw !== this._redrawToken) return;
-
-                const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
-                const image = context.getImageData(0, 0, width, height);
-                const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
-                const accessibilityMask = hasBoundaryFeatures(boundary)
-                    ? buildBoundaryMask(width, height, (lat, lng) => {
-                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
-                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
-                    }, boundary)
-                    : null;
-
-                const __accSliceBudget = makeSliceBudget(10);
-                for (let index = 0; index < image.data.length; index += 4) {
-                    const pixel = index / 4;
-                    if ((pixel & 8191) === 0 && __accSliceBudget()) {
-                        await yieldToEventLoop();
-                        if (myRedraw !== this._redrawToken) return;
-                    }
-                    if (!image.data[index + 3]) continue;
-
-                    if (accessibilityMask && accessibilityMask[pixel] !== 1) {
-                        image.data[index + 3] = 0;
-                        continue;
-                    }
-                    if (contourDensityGrid) {
-                        contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
-                    }
-                }
-                context.putImageData(image, 0, 0);
-
-                await yieldToEventLoop();
-                if (myRedraw !== this._redrawToken) return;
-                if (needContour && contourDensityGrid) {
-                    const offscreen = document.createElement('canvas');
-                    offscreen.width = width;
-                    offscreen.height = height;
-                    const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
-                    drawKdeContours(offscreen.getContext('2d'), contourSourceGrid, width, height, {
-                        step: Math.max(3, Math.round(4 * ratio)),
-                        levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
-                        lineWidth: 1.05 * ratio,
-                        haloLineWidth: 0,
-                    });
-                    this._contourCache = { canvas: offscreen, zoom: currentZoom };
-                }
-
-                if (this._contourCache) {
-                    context.drawImage(this._contourCache.canvas, 0, 0);
-                }
-            },
+        // KDE contour overlay (same levels/step as the old live layer).
+        const contourSource = smoothScalarGrid(contourDensityGrid, width, height, 5);
+        drawKdeContours(context, contourSource, width, height, {
+            step: 4,
+            levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+            lineWidth: 1.05,
+            haloLineWidth: 0,
         });
 
-        return new HeatLayer();
+        return createSmoothHeatmapImageOverlay(canvas.toDataURL('image/png'), bounds, {
+            pane: 'gis-heat-pane',
+            opacity: 1,
+            interactive: false,
+        });
     }
 
     function buildAccessibilityDistributionRasterLayer(map, features, options = {}) {
@@ -4327,7 +4288,7 @@
             return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
         }
 
-        const layer = createAccessibilityPointHeatmapLayer(points, {
+        const layer = createAccessibilityHeatmapOverlay(points, bounds, {
             radiusMeters,
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
@@ -4764,7 +4725,9 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
+        if (shouldShowRiskSeniorPoints()) {
+            ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
+        }
         setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
             radiusMeters: result.radiusMeters,
             colorScaleMax: result.colorScaleMax,
@@ -5007,6 +4970,8 @@
             attribution: TILE_LIGHT_ATTRIBUTION,
             updateWhenIdle: true,
             keepBuffer: 4,
+            noWrap: true,
+            bounds: mapNavigationBounds(),
         });
     }
 
@@ -5176,6 +5141,7 @@
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         syncAccessibilityPointDisplay();
+        syncRiskPointDisplay();
         syncLayerOptionsPanel();
         updateLegend(mode);
         updateSummaryCards(seniorGeoJson, renderStats.visible);
@@ -5478,7 +5444,7 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
             debouncedRefresh();
         }
     });
