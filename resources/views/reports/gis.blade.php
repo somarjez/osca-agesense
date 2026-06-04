@@ -3684,6 +3684,10 @@
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
+        const popupMode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const accessibilityRow = popupMode === 'risk-indicator-heatmap'
+            ? ''
+            : `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`;
         const services = routedServices
             ? serviceListHtml(routedServices)
             : routeLoadingListHtml(routeCandidatesForFeature(feature));
@@ -3698,7 +3702,7 @@
                     <div><strong>Point Type:</strong> Generalized senior point</div>
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                     <div><strong>Health Group:</strong> ${healthGroup}</div>
-                    <div><strong>Accessibility Status:</strong> ${accessibility}</div>
+                    ${accessibilityRow}
                     <div>
                         <strong>Nearby senior services:</strong>
                         <div id="${servicesElementId}">${services}</div>
@@ -3715,7 +3719,7 @@
                 <div><strong>Total Seniors:</strong> ${p.senior_count ?? p.total_seniors ?? 0}</div>
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                 <div><strong>Health Group:</strong> ${healthGroup}</div>
-                <div><strong>Accessibility Status:</strong> ${accessibility}</div>
+                ${accessibilityRow}
                 <div>
                     <strong>Nearby senior services:</strong>
                     <div id="${servicesElementId}">${services}</div>
