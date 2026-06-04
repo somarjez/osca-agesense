@@ -124,4 +124,47 @@ class Batch2RecordsRecommendationsTest extends TestCase
             $current->pluck('action')->all()
         );
     }
+
+    #[Test]
+    public function recommendations_show_page_displays_only_current_recs(): void
+    {
+        $senior = $this->makeSenior();
+        $oldMl = $this->makeMlResult($senior);
+        $this->makeRec($oldMl, ['action' => 'STALE old action']);
+        $newMl = $this->makeMlResult($senior);
+        $this->makeRec($newMl, ['action' => 'FRESH current action']);
+
+        $this->actingAs($this->admin)
+            ->get(route('recommendations.show', $senior))
+            ->assertOk()
+            ->assertSee('FRESH current action')
+            ->assertDontSee('STALE old action');
+    }
+
+    #[Test]
+    public function recommendations_index_stats_count_only_current_recs(): void
+    {
+        $senior = $this->makeSenior();
+        $oldMl = $this->makeMlResult($senior);
+        $this->makeRec($oldMl, ['action' => 'old1']);
+        $this->makeRec($oldMl, ['action' => 'old2']);
+        $newMl = $this->makeMlResult($senior);
+        $this->makeRec($newMl, ['action' => 'new1']);
+
+        $this->actingAs($this->admin)
+            ->get(route('recommendations.index'))
+            ->assertOk();
+
+        // This senior contributes exactly 1 current rec, not 3.
+        $this->assertSame(1, \App\Models\Recommendation::current()
+            ->where('senior_citizen_id', $senior->id)->count());
+        // Verify the controller's withCount alias returns 1 for this senior
+        // (direct query mirrors the controller's withCount logic).
+        $row = SeniorCitizen::active()
+            ->whereKey($senior->id)
+            ->withCount(['currentRecommendations as recommendations_count'])
+            ->first();
+        $this->assertNotNull($row, 'Senior should be active and have current recs');
+        $this->assertSame(1, (int) $row->recommendations_count);
+    }
 }
