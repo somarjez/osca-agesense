@@ -385,6 +385,55 @@
         };
     }
 
+    // --- Cooperative time-slicing ---------------------------------------
+    // The KDE raster build is a few hundred ms to ~2s of synchronous canvas
+    // work. To keep the UI responsive (no single long task / "page
+    // unresponsive" dialog), the build yields to the event loop whenever a
+    // time budget is exceeded. MessageChannel yields with ~0ms latency (vs
+    // ~16ms for requestAnimationFrame), so total wall-time overhead is tiny.
+    const __sliceChannel = (typeof MessageChannel !== 'undefined') ? new MessageChannel() : null;
+    const __sliceWaiters = [];
+    if (__sliceChannel) {
+        __sliceChannel.port1.onmessage = () => {
+            const resolve = __sliceWaiters.shift();
+            if (resolve) resolve();
+        };
+    }
+
+    function yieldToEventLoop() {
+        return new Promise((resolve) => {
+            if (!__sliceChannel) {
+                setTimeout(resolve, 0);
+                return;
+            }
+            __sliceWaiters.push(resolve);
+            __sliceChannel.port2.postMessage(0);
+        });
+    }
+
+    function nowMs() {
+        return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    }
+
+    // Returns a predicate that is true once `budgetMs` of wall-time has
+    // elapsed since the last time it returned true (i.e. "time to yield").
+    function makeSliceBudget(budgetMs = 10) {
+        let last = nowMs();
+        return () => {
+            const now = nowMs();
+            if (now - last >= budgetMs) {
+                last = now;
+                return true;
+            }
+            return false;
+        };
+    }
+
+    // Monotonic token: bumped on every renderDataLayers call so an in-flight
+    // async heatmap build from a superseded filter/mode state can detect it is
+    // stale and skip mutating the map.
+    let activeRenderToken = 0;
+
     let latestRequestId = 0;
     let latestSeniorGeoJson = null;
     let latestFacilityGeoJson = null;
@@ -710,6 +759,10 @@
                 return;
             }
 
+            const riskDotNote = mode === 'risk-indicator-heatmap'
+                ? '<span class="text-ink-400 dark:text-[#6b7570]">Dots are individual seniors; color shows local risk density. A senior in a sparsely populated area may appear as a dot with little surrounding color.</span>'
+                : '';
+
             legendEl.innerHTML = `
                 <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
                 <span class="inline-flex items-center gap-2 min-w-[260px]">
@@ -719,6 +772,7 @@
                 </span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 ${boundaryLegend}
+                ${riskDotNote}
             `;
             return;
         }
@@ -1310,6 +1364,21 @@
         return featureInsideBoundaryFeature(feature, boundaryFeature);
     }
 
+    // Computes each senior's boundary validity + coordinate kind once after data
+    // load. Filter/mode switches then reuse these flags instead of re-running
+    // point-in-polygon geometry for every senior on every interaction.
+    function prevalidateAllFeatures(features) {
+        if (!Array.isArray(features)) return;
+
+        features.forEach((feature) => {
+            feature.__gisValidity = {
+                kind: coordinateKind(feature),
+                insidePrimary: featureInsidePrimaryBoundary(feature),
+                insideAssigned: featureInsideAssignedBarangay(feature),
+            };
+        });
+    }
+
     function validatedFeatureSet(features, options = {}) {
         const exactOnly = Boolean(options.exactOnly);
         const stats = {
@@ -1322,14 +1391,17 @@
         };
 
         features.forEach((feature) => {
-            const kind = coordinateKind(feature);
+            const validity = feature.__gisValidity;
+            const kind = validity ? validity.kind : coordinateKind(feature);
+            const insidePrimary = validity ? validity.insidePrimary : featureInsidePrimaryBoundary(feature);
+            const insideAssigned = validity ? validity.insideAssigned : featureInsideAssignedBarangay(feature);
 
-            if (!featureInsidePrimaryBoundary(feature)) {
+            if (!insidePrimary) {
                 stats.outsidePagsanjan++;
                 return;
             }
 
-            if (!featureInsideAssignedBarangay(feature)) {
+            if (!insideAssigned) {
                 stats.mismatches++;
                 return;
             }
@@ -1896,6 +1968,94 @@
         return new ClusterDistributionLayer();
     }
 
+    // Rasterizes a clip-boundary polygon into a flat inside/outside bitmap.
+    // projectFn maps a (lat, lng) to canvas pixel coords for the target space.
+    // Replaces per-pixel point-in-polygon ray-casting (which ran pixels ×
+    // boundary-vertices times and froze the main thread) with an O(1) lookup.
+    function buildBoundaryMask(width, height, projectFn, boundary) {
+        if (!hasBoundaryFeatures(boundary) || width <= 0 || height <= 0) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000000';
+
+        const tracePolygon = (rings) => {
+            if (!Array.isArray(rings) || !rings.length) return;
+            ctx.beginPath();
+            rings.forEach((ring) => {
+                if (!Array.isArray(ring)) return;
+                ring.forEach(([lng, lat], pointIndex) => {
+                    const point = projectFn(Number(lat), Number(lng));
+                    if (pointIndex === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.closePath();
+            });
+            // even-odd so inner rings (holes) are carved out, matching
+            // pointInsideBoundary's outer-ring / hole semantics.
+            ctx.fill('evenodd');
+        };
+
+        boundary.features.forEach((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+            if (!geometry || !Array.isArray(coordinates)) return;
+
+            if (geometry.type === 'Polygon') {
+                tracePolygon(coordinates);
+            } else if (geometry.type === 'MultiPolygon') {
+                coordinates.forEach((polygon) => tracePolygon(polygon));
+            }
+        });
+
+        const data = ctx.getImageData(0, 0, width, height).data;
+        const mask = new Uint8Array(width * height);
+        for (let pixel = 0; pixel < mask.length; pixel++) {
+            mask[pixel] = data[(pixel * 4) + 3] > 0 ? 1 : 0;
+        }
+
+        return mask;
+    }
+
+    // Raster-space masks are keyed by bounds + size; the municipal bounds are
+    // constant across filters and zoom, so the mask is built at most once.
+    const rasterBoundaryMaskCache = new Map();
+
+    function getRasterBoundaryMask(bounds, width, height, boundary) {
+        if (!hasBoundaryFeatures(boundary) || !bounds?.isValid?.()) {
+            return null;
+        }
+
+        const key = [
+            bounds.getSouth().toFixed(6),
+            bounds.getWest().toFixed(6),
+            bounds.getNorth().toFixed(6),
+            bounds.getEast().toFixed(6),
+            `${width}x${height}`,
+        ].join('|');
+
+        if (rasterBoundaryMaskCache.has(key)) {
+            return rasterBoundaryMaskCache.get(key);
+        }
+
+        const mask = buildBoundaryMask(
+            width,
+            height,
+            (lat, lng) => latLngToRasterPoint(lat, lng, bounds, width, height),
+            boundary
+        );
+        rasterBoundaryMaskCache.set(key, mask);
+
+        return mask;
+    }
+
     function rasterSizeForBounds(bounds, options = {}) {
         if (!bounds?.isValid?.()) {
             return { width: 512, height: 512 };
@@ -1908,9 +2068,9 @@
         const north = window.L.latLng(bounds.getNorth(), center.lng);
         const widthMeters = Math.max(1, west.distanceTo(east));
         const heightMeters = Math.max(1, south.distanceTo(north));
-        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 2, window.devicePixelRatio || 1));
-        const maxSide = Math.round((options.maxRasterSide ?? 1280) * pixelRatio);
-        const minSide = Math.round((options.minRasterSide ?? 720) * pixelRatio);
+        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 1.5, window.devicePixelRatio || 1));
+        const maxSide = Math.round((options.maxRasterSide ?? 900) * pixelRatio);
+        const minSide = Math.round((options.minRasterSide ?? 560) * pixelRatio);
 
         if (widthMeters >= heightMeters) {
             return {
@@ -2165,7 +2325,7 @@
         context.restore();
     }
 
-    function createClusterDistributionRasterLayer(groups, options) {
+    async function createClusterDistributionRasterLayer(groups, options) {
         const bounds = options.bounds;
         if (!bounds?.isValid?.()) {
             return null;
@@ -2189,7 +2349,8 @@
             options.pointCoreSmoothingPixelMin ?? 5,
             Math.min(options.pointCoreSmoothingPixelMax ?? 14, pointCoreRadius * (options.pointCoreSmoothingPixelRatio ?? 0.26))
         );
-        const groupImages = groups.map((group) => {
+        const groupImages = [];
+        for (const group of groups) {
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
@@ -2258,10 +2419,13 @@
                 }
             });
 
+            await yieldToEventLoop();
             const data = smoothedRasterData(canvas, smoothingPixels);
+            await yieldToEventLoop();
             const peakData = options.enablePeakSupport === false
                 ? null
                 : smoothedRasterData(peakCanvas, peakSmoothingPixels);
+            await yieldToEventLoop();
             const pointCoreData = options.enablePeakSupport === false
                 ? null
                 : smoothedRasterData(pointCoreCanvas, pointCoreSmoothingPixels);
@@ -2282,7 +2446,7 @@
                 }
             }
 
-            return {
+            groupImages.push({
                 label: group.label,
                 color: hexToRgb(group.color),
                 ramp: gradientStopsFromStops(group.stops),
@@ -2293,8 +2457,9 @@
                 strongestDensity,
                 strongestPeakDensity,
                 strongestPointCoreDensity,
-            };
-        });
+            });
+            await yieldToEventLoop();
+        }
 
         const outputCanvas = document.createElement('canvas');
         outputCanvas.width = width;
@@ -2313,21 +2478,26 @@
             ? Math.max(42, Math.min(options.colorScaleMax || 255, strongestDensity * 0.82 || 42))
             : Math.max(72, Math.min(options.colorScaleMax || 255, strongestDensity * 1.05 || 72));
         const minVisibleDensity = options.minVisibleDensity ?? 0.22;
+        const boundaryMask = getRasterBoundaryMask(bounds, width, height, options.clipBoundary);
         const rasterPixelInsideBoundary = (x, y) => {
-            if (!hasBoundaryFeatures(options.clipBoundary)) {
+            if (!boundaryMask) {
                 return true;
             }
 
-            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
-            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
-
-            return pointInsideBoundary([lng, lat], options.clipBoundary);
+            return boundaryMask[(y * width) + x] === 1;
         };
 
+        const __pixelSliceBudget = makeSliceBudget(10);
         for (let index = 0; index < outputImage.data.length; index += 4) {
             const pixel = index / 4;
             const x = pixel % width;
             const y = Math.floor(pixel / width);
+
+            // Yield to the event loop every ~10ms so the per-pixel colorization
+            // never becomes one multi-second main-thread task.
+            if ((pixel & 8191) === 0 && __pixelSliceBudget()) {
+                await yieldToEventLoop();
+            }
 
             if (options.independentSurfaces === true) {
                 let contourDensity = 0;
@@ -2562,6 +2732,7 @@
             ));
         }
 
+        await yieldToEventLoop();
         if (options.independentSurfaces !== true) {
             smoothRasterColorEdges(
                 outputImage,
@@ -2573,6 +2744,8 @@
             );
         }
         outputContext.putImageData(outputImage, 0, 0);
+
+        await yieldToEventLoop();
 
         // Run marching squares directly on the full-resolution contour density
         // grid (step=4 skips every 4px for speed while keeping contour shape).
@@ -2590,6 +2763,7 @@
             lineWidth: options.contourLineWidth ?? 0.95,
         });
 
+        await yieldToEventLoop();
         const blurredCanvas = document.createElement('canvas');
         blurredCanvas.width = width;
         blurredCanvas.height = height;
@@ -3756,7 +3930,7 @@
         return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
     }
 
-    function buildClusterDistributionHeatmapLayer(map, features, options = {}) {
+    async function buildClusterDistributionHeatmapLayer(map, features, options = {}) {
         const clusterGroups = groupFeaturesByCluster(features);
         const clusterFeatures = clusterGroups.flatMap(([, groupFeatures]) => groupFeatures);
         const selectedClusterMode = selectedClusterGroup() !== 'all' && clusterGroups.length === 1;
@@ -3793,7 +3967,7 @@
         // Renders independent filled-contour KDE surfaces per health group.
         // Hue stays tied to one assigned cluster per pixel; overlapping major
         // and minor groups never average into a blended color.
-        const heatmapLayer = createClusterDistributionRasterLayer(groups, {
+        const heatmapLayer = await createClusterDistributionRasterLayer(groups, {
             bounds,
             radius_meters: radiusMeters,
             maxRasterSide: options.maxRasterSide ?? 680,
@@ -3927,7 +4101,7 @@
     // Reuses the cluster raster-KDE engine with a single risk-weighted surface,
     // so the Risk Distribution heatmap renders with the exact same smooth,
     // contoured, Pagsanjan-clipped look as the health-group heatmap.
-    function buildRiskDistributionRasterLayer(map, features, options = {}) {
+    async function buildRiskDistributionRasterLayer(map, features, options = {}) {
         const points = riskDistributionPoints(features);
         const bounds = primaryBoundaryBounds();
         const radiusMeters = Number.isFinite(options.radiusMeters)
@@ -3944,7 +4118,7 @@
             points,
         };
 
-        const layer = createClusterDistributionRasterLayer([group], {
+        const layer = await createClusterDistributionRasterLayer([group], {
             bounds,
             radius_meters: radiusMeters,
             peak_radius_meters: options.peakRadiusMeters ?? Math.max(90, Math.min(160, radiusMeters * 0.40)),
@@ -4005,7 +4179,8 @@
                 this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('moveend zoomend resize', this._reset, this);
+                map.on('zoomend resize', this._reset, this);
+                map.on('moveend', this._reposition, this);
                 this._reset();
             },
 
@@ -4013,12 +4188,13 @@
                 if (this._canvas?.parentNode) {
                     this._canvas.parentNode.removeChild(this._canvas);
                 }
-                map.off('moveend zoomend resize', this._reset, this);
+                map.off('zoomend resize', this._reset, this);
+                map.off('moveend', this._reposition, this);
             },
 
             _reset() {
                 const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
                 this._canvas.style.width = `${size.x}px`;
@@ -4029,7 +4205,16 @@
                 this._redraw();
             },
 
-            _redraw() {
+            // Pan: reposition the canvas only; content is frozen until the next
+            // zoom/resize redraw. Avoids the per-pan full-canvas gradient repaint.
+            _reposition() {
+                if (!this._canvas) return;
+                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+                window.L.DomUtil.setPosition(this._canvas, topLeft);
+            },
+
+            async _redraw() {
+                const myRedraw = (this._redrawToken = (this._redrawToken || 0) + 1);
                 const width = this._canvas.width;
                 const height = this._canvas.height;
                 const ratio = this._ratio || 1;
@@ -4073,17 +4258,29 @@
                     || this._contourCache.canvas.width !== width
                     || this._contourCache.canvas.height !== height;
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
+
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
                 const contourDensityGrid = needContour ? new Float32Array(width * height) : null;
+                const accessibilityMask = hasBoundaryFeatures(boundary)
+                    ? buildBoundaryMask(width, height, (lat, lng) => {
+                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
+                    }, boundary)
+                    : null;
 
+                const __accSliceBudget = makeSliceBudget(10);
                 for (let index = 0; index < image.data.length; index += 4) {
-                    if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
-                    const cssX = (pixel % width) / ratio;
-                    const cssY = Math.floor(pixel / width) / ratio;
+                    if ((pixel & 8191) === 0 && __accSliceBudget()) {
+                        await yieldToEventLoop();
+                        if (myRedraw !== this._redrawToken) return;
+                    }
+                    if (!image.data[index + 3]) continue;
 
-                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                    if (accessibilityMask && accessibilityMask[pixel] !== 1) {
                         image.data[index + 3] = 0;
                         continue;
                     }
@@ -4093,6 +4290,8 @@
                 }
                 context.putImageData(image, 0, 0);
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
                 if (needContour && contourDensityGrid) {
                     const offscreen = document.createElement('canvas');
                     offscreen.width = width;
@@ -4187,7 +4386,7 @@
 
             _reset() {
                 const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
                 this._canvas.style.width = `${size.x}px`;
@@ -4206,7 +4405,8 @@
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
             },
 
-            _redraw() {
+            async _redraw() {
+                const myRedraw = (this._redrawToken = (this._redrawToken || 0) + 1);
                 const width = this._canvas.width;
                 const height = this._canvas.height;
                 const ratio = this._ratio || 1;
@@ -4246,15 +4446,27 @@
                         context.fill();
                     });
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
+
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
+                const flowMask = hasBoundaryFeatures(boundary)
+                    ? buildBoundaryMask(width, height, (lat, lng) => {
+                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
+                    }, boundary)
+                    : null;
+                const __flowSliceBudget = makeSliceBudget(10);
                 for (let index = 0; index < image.data.length; index += 4) {
-                    if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
-                    const cssX = (pixel % width) / ratio;
-                    const cssY = Math.floor(pixel / width) / ratio;
+                    if ((pixel & 8191) === 0 && __flowSliceBudget()) {
+                        await yieldToEventLoop();
+                        if (myRedraw !== this._redrawToken) return;
+                    }
+                    if (!image.data[index + 3]) continue;
 
-                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                    if (flowMask && flowMask[pixel] !== 1) {
                         image.data[index + 3] = 0;
                         continue;
                     }
@@ -4263,6 +4475,8 @@
                 }
                 context.putImageData(image, 0, 0);
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
                 const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
                 drawKdeContours(context, contourSourceGrid, width, height, {
                     step: Math.max(3, Math.round(4 * ratio)),
@@ -4386,7 +4600,7 @@
         return markerClusterLayer;
     }
 
-    function buildRiskIdentityHaloLayer(features) {
+    function buildRiskIdentityHaloLayer(map, features) {
         // Small senior dots (colored by real risk level) shown above the risk
         // KDE surface so markers stay visible and popups keep working.
         return window.L.geoJSON({
@@ -4397,6 +4611,7 @@
                 const color = riskColor(feature.properties?.risk_level);
 
                 return window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
                     pane: 'gis-senior-pane',
                     radius: 3.5,
                     color: '#ffffff',
@@ -4529,7 +4744,8 @@
         refreshActiveHeatmapRadius(map);
     }
 
-    function renderRiskHeatmap(map, features) {
+    async function renderRiskHeatmap(map, features) {
+        const myToken = activeRenderToken;
         clearHeatmapLayers(map);
 
         if (!window.L.Layer) {
@@ -4538,7 +4754,8 @@
             return;
         }
 
-        const result = buildRiskDistributionRasterLayer(map, features);
+        const result = await buildRiskDistributionRasterLayer(map, features);
+        if (myToken !== activeRenderToken) return;
 
         if (!result.layer || !result.points.length) {
             focusMapOnActiveLayer(map, features);
@@ -4547,7 +4764,7 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(features));
+        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
         setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
             radiusMeters: result.radiusMeters,
             colorScaleMax: result.colorScaleMax,
@@ -4556,7 +4773,7 @@
         setStatus(`Risk Indicator Distribution renders ${result.points.length} senior GIS point(s) as a continuous KDE risk surface, weighted by composite risk score (falling back to risk level), clipped to Pagsanjan (${result.radiusMeters}m radius).`, 'success');
     }
 
-    function renderSeniorDistributionAccessibilityHeatmap(map, features) {
+    async function renderSeniorDistributionAccessibilityHeatmap(map, features) {
         clearHeatmapLayers(map);
 
         if (!window.L.Layer) {
@@ -4602,7 +4819,8 @@
         setStatus(`Senior Distribution and Accessibility Heatmap renders ${result.points.length} senior distribution point(s).${pointText} Heatmap color comes from backend accessibility/proximity data; points follow the senior GIS data available in the database.`, 'success');
     }
 
-    function renderClusterHeatmap(map, features) {
+    async function renderClusterHeatmap(map, features) {
+        const myToken = activeRenderToken;
         clearHeatmapLayers(map);
 
         const selectedCluster = selectedClusterGroup();
@@ -4611,7 +4829,8 @@
         if (selectedCluster === 'all') {
             const layerGroup = ensureLayerRegistry(map).heatmap;
             layerGroup.clearLayers();
-            const result = buildClusterDistributionHeatmapLayer(map, features);
+            const result = await buildClusterDistributionHeatmapLayer(map, features);
+            if (myToken !== activeRenderToken) return;
 
             if (!result.layer || !result.points.length) {
                 focusMapOnActiveLayer(map, features);
@@ -4639,7 +4858,8 @@
             return;
         }
 
-        const result = buildClusterDistributionHeatmapLayer(map, features);
+        const result = await buildClusterDistributionHeatmapLayer(map, features);
+        if (myToken !== activeRenderToken) return;
 
         if (!window.L.Layer) {
             focusMapOnActiveLayer(map, features);
@@ -4672,19 +4892,19 @@
         setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) in ${selectedCluster}, rendered as a clipped geographic KDE raster (${result.radiusMeters}m radius).`, 'success');
     }
 
-    function toggleGisLayer(map, mode, features) {
+    async function toggleGisLayer(map, mode, features) {
         if (mode === 'risk-indicator-heatmap') {
-            renderRiskHeatmap(map, features);
+            await renderRiskHeatmap(map, features);
             return true;
         }
 
         if (mode === 'cluster-heatmap') {
-            renderClusterHeatmap(map, features);
+            await renderClusterHeatmap(map, features);
             return true;
         }
 
         if (mode === 'senior-distribution-accessibility-heatmap') {
-            renderSeniorDistributionAccessibilityHeatmap(map, features);
+            await renderSeniorDistributionAccessibilityHeatmap(map, features);
             return true;
         }
 
@@ -4940,7 +5160,10 @@
         focusMapOnPagsanjan(map);
     }
 
-    function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
+    async function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
+        // Bump the render token so any in-flight async heatmap build from a
+        // previous (now superseded) filter/mode state skips its map mutations.
+        ++activeRenderToken;
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         const activeFeatures = filteredFeatures(seniorGeoJson.features || []);
         const markerStats = validatedFeatureSet(activeFeatures, { exactOnly: false });
@@ -5042,7 +5265,7 @@
         }
 
         if (isHeatmapMode(mode)) {
-            if (toggleGisLayer(map, mode, markerStats.visible)) {
+            if (await toggleGisLayer(map, mode, markerStats.visible)) {
                 return;
             }
 
@@ -5088,7 +5311,8 @@
             // have torn down and recreated the map in the event-loop gap.
             const map = el._leaflet_map_instance;
             if (!map) return;
-            renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+            Promise.resolve(renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection()))
+                .catch((error) => console.error('GIS render failed:', error));
         }, 0);
     }
 
@@ -5235,11 +5459,13 @@
                 latestFacilityGeoJson = facilityGeoJson;
                 latestMunicipalBoundaryGeoJson = municipalBoundaryGeoJson;
                 latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
+                prevalidateAllFeatures(seniorGeoJson.features || []);
                 initializeFilters(seniorGeoJson.features || []);
                 renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
                 applyMapBoundaryConstraints(map);
                 applyMapZoomConstraints(map);
-                renderDataLayers(map, seniorGeoJson, facilityGeoJson);
+                Promise.resolve(renderDataLayers(map, seniorGeoJson, facilityGeoJson))
+                    .catch((error) => console.error('GIS render failed:', error));
                 scheduleMapSizeSync(map);
             })
             .catch((error) => {
