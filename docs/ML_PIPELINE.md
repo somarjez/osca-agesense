@@ -25,7 +25,7 @@ This document covers the full machine learning pipeline in AgeSense: data flow, 
 
 The ML pipeline takes a raw senior citizen profile and QoL survey as input and produces:
 
-- A **cluster assignment** (1 = High Functioning, 2 = Moderate / Mixed Needs, 3 = Low Functioning / Multi-domain Risk)
+- A **cluster assignment** (K=4: 1 = High Functioning / Well-Supported, 2 = Stable Ageing / Moderate Support Needs, 3 = Environmentally & Financially Vulnerable, 4 = Low Functioning / Multi-Domain Priority)
 - **Risk scores** for Intrinsic Capacity (IC), Environment (ENV), Functional Ability (FUNC), and a composite overall score — each in [0, 1]
 - **Risk levels** (HIGH / MODERATE / LOW) for each domain and overall, plus `priority_flag` for urgency within HIGH
 - **Rule-based domain risks** for 7 sub-domains (medical, financial, social, functional, housing, healthcare access, sensory)
@@ -167,25 +167,25 @@ The notebook assigned each senior to one of 4 clusters in 2D UMAP space using `K
 
 **As of model version 1.1.1**, the live inference service uses **nearest-centroid assignment in 31D scaled space** instead of calling UMAP+KMeans at inference time.
 
-**Inference pipeline:** raw features → `scaler.pkl` → 31D scaled vector → nearest centroid from `cluster_centroids_scaled.json` → named ID (1, 2, or 3)
+**Inference pipeline:** raw features → `scaler.pkl` → 31D scaled vector → nearest centroid from `cluster_centroids_scaled.json` → named ID (1, 2, 3, or 4)
 
-The `cluster_centroids_scaled.json` file contains the mean scaled feature vector for each of the 3 notebook clusters, computed by `python/scripts/generate_cluster_centroids.py`. At inference time, the Euclidean distance from the senior's scaled feature vector to each centroid is computed, and the senior is assigned to the nearest cluster.
+The `cluster_centroids_scaled.json` file contains the mean scaled feature vector for each of the 4 notebook clusters, computed by `python/scripts/generate_cluster_centroids.py`. At inference time, the Euclidean distance from the senior's scaled feature vector to each centroid is computed, and the senior is assigned to the nearest cluster.
 
 **Why nearest-centroid instead of UMAP+KMeans:**
 - `sklearn.KMeans.predict()` is mathematically equivalent to nearest-centroid in the KMeans feature space
 - UMAP's `.transform()` is non-deterministic across CPU families and OS versions, causing cluster assignments to differ between devices even for the same input
 - Nearest-centroid in the original 31D scaled space eliminates this hardware-dependency entirely — the same input always produces the same cluster on any device
 
-**Accuracy of nearest-centroid vs notebook:**
+**Accuracy of nearest-centroid vs notebook** (figures below are from the original **v1.1.1 / K=3** validation run; the current build is **v2.0.0 / K=4** — see [model-validation-defensible-statements.md](model-validation-defensible-statements.md) and `python/models/cluster_eval_metrics.json` for the current K=4 cluster-quality metrics):
 
-| Metric | Result |
+| Metric | Result (v1.1.1 / K=3) |
 |---|---|
 | Per-senior cluster match | 272 / 283 (96.1%) |
 | Risk level match | 282 / 283 (99.6%) |
 | Max composite delta | 0.0061 |
-| Risk distribution | HIGH=54, MODERATE=191, LOW=38 — exact notebook match |
+| Risk distribution | HIGH=54, MODERATE=191, LOW=38 |
 
-The 11 borderline-case differences occur because the notebook ran KMeans in 2D UMAP space while the live system uses 31D centroids — different geometric spaces produce marginally different boundaries for seniors who sit between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
+The borderline-case differences occur because the notebook ran KMeans in UMAP space while the live system uses scaled-space centroids — different geometric spaces produce marginally different boundaries for seniors who sit between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
 
 **Generating centroids:**
 
@@ -196,15 +196,15 @@ python\venv\Scripts\python.exe python\scripts\generate_cluster_centroids.py
 
 Expected output: `[OK] Centroids written: 4 clusters from 283 seniors`
 
-The generated file `cluster_centroids_scaled.json` includes metadata:
+The generated file `cluster_centroids_scaled.json` includes top-level metadata alongside the `centroids` object:
 ```json
 {
-  "_meta": {
-    "generated_at": "2026-05-28",
-    "method": "db_ground_truth",
-    "n_seniors_used": 283,
-    "n_clusters": 3
-  }
+  "generated_at": "...",
+  "method": "csv_labels_scaled_features",
+  "model_version": "2.0.0",
+  "n_features": 31,
+  "n_clusters": 4,
+  "n_seniors_used": 283
 }
 ```
 
@@ -212,9 +212,10 @@ The generated file `cluster_centroids_scaled.json` includes metadata:
 
 | Named ID | Name | IC | ENV | FUNC | Typical risk |
 |---|---|---|---|---|---|
-| 1 | High Functioning | High | High | High | LOW |
-| 2 | Moderate / Mixed Needs | Moderate | Moderate | Moderate | MODERATE |
-| 3 | Low Functioning / Multi-domain Risk | Low | Low | Low | HIGH |
+| 1 | High Functioning / Well-Supported Seniors | High | High | High | LOW |
+| 2 | Stable Ageing / Moderate Support Needs | Moderate | Moderate | Moderate | MODERATE |
+| 3 | Environmentally and Financially Vulnerable Seniors | Moderate | Low | Moderate | MODERATE–HIGH |
+| 4 | Low Functioning / Multi-Domain Priority Seniors | Low | Low | Low | HIGH |
 
 Cluster names and descriptions can be overridden at runtime by placing a `cluster_metadata.json` file in the model directory — no code change required.
 
@@ -415,11 +416,12 @@ Override cluster names and descriptions at runtime:
 {
   "1": { "name": "Custom Cluster Name", "ic_level": "High", "env_level": "High", "func_level": "High", "interpretation": "Custom description." },
   "2": { ... },
-  "3": { ... }
+  "3": { ... },
+  "4": { ... }
 }
 ```
 
-All four cluster IDs must be present or the file is ignored and hardcoded defaults are used.
+All four cluster IDs (`1`–`4`) must be present or the file is ignored and hardcoded defaults are used.
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
@@ -430,7 +432,7 @@ Controls which prediction path is used for the 283 original seeded seniors.
 | `true` | **Defense / pilot mode** | Original 283 seeded seniors are served from the `notebook_cache` — their risk scores, clusters, and composite values come directly from the notebook-validated database rows. New or unmatched seniors always use the live model regardless of this setting. |
 | `false` | **Pure live-model mode** | All seniors are processed through the live inference pipeline (preprocess → UMAP → KMeans → GBR/RFR). Useful for validating that model artifacts produce deterministic results across runs. |
 
-**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 notebook-cache seniors exactly match the notebook-validated values. Total dashboard counts will be HIGH=56, MODERATE=192, LOW=38 (includes 3 additional seniors scored via live model).
+**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 notebook-cache seniors exactly match the notebook-validated values: HIGH=55, MODERATE=191, LOW=37 across the 283 seed seniors (plus any new seniors scored via the live model).
 
 **For model validation and determinism testing, set `ENABLE_NOTEBOOK_OVERRIDES=false`.** All seniors run through the live model pipeline, allowing you to verify that repeated runs produce consistent scores.
 
@@ -454,23 +456,25 @@ Because every device clones the same `cluster_centroids_scaled.json`, the Euclid
 1. Each senior's preprocessed feature vector was scaled with `scaler.pkl`
 2. Vectors were grouped by notebook cluster assignment
 3. The mean of each group = the centroid for that cluster
-4. The 3 centroids were stored in `cluster_centroids_scaled.json`
+4. The 4 centroids were stored in `cluster_centroids_scaled.json`
 
 **For new seniors** (added after seeding), the same `cluster_centroids_scaled.json` centroids are used — ensuring new seniors are classified in the same cluster space as the training population.
 
-### Validated cross-device accuracy (v1.1.1)
+### Validated cross-device accuracy
 
-After migration on the primary device:
+> **Note:** The table below records the original **v1.1.1 / K=3** migration validation (three clusters, 75/132/76). The current production build is **v2.0.0 / K=4** — its validated seed distribution is HIGH=55 / MODERATE=191 / LOW=37 and C1/C2/C3/C4 = 60/84/74/65, and its cluster-quality metrics live in `python/models/cluster_eval_metrics.json` (silhouette 0.4487, Davies–Bouldin 0.8038, Calinski–Harabasz 415) and [model-validation-defensible-statements.md](model-validation-defensible-statements.md). The cross-device *mechanism* (committed scaled-space centroids → deterministic nearest-centroid) is unchanged.
 
-| Metric | Result |
+K=3 migration validation (historical):
+
+| Metric | Result (v1.1.1 / K=3) |
 |---|---|
 | Cluster match with notebook (283 seed seniors) | 272 / 283 = 96.1% |
 | Risk level match with notebook | 282 / 283 = 99.6% |
 | Max composite risk delta | 0.0061 |
-| Risk distribution HIGH/MODERATE/LOW | 54 / 191 / 38 — exact notebook match |
-| Cluster distribution C1/C2/C3 | 75 / 132 / 76 — exact notebook match |
+| Risk distribution HIGH/MODERATE/LOW | 54 / 191 / 38 |
+| Cluster distribution C1/C2/C3 | 75 / 132 / 76 |
 
-The 11 per-senior cluster differences (3.9%) occur for borderline seniors whose scaled feature vector sits nearly equidistant between two centroids. Their care plan and risk level are unaffected.
+The per-senior cluster differences occur for borderline seniors whose scaled feature vector sits nearly equidistant between two centroids. Their care plan and risk level are unaffected.
 
 ### Validating cluster labels
 
@@ -492,7 +496,7 @@ This checks seven conditions and exits with `ALL CHECKS PASSED` or lists specifi
 | C1 and C3 similar size (ratio < 1.15) | Both flanking clusters roughly equal |
 | No HIGH risk in C1, no LOW risk in C3 | Cross-tab sanity check |
 
-Validated distribution on Pagsanjan dataset (283 seniors, v1.1.1 post-migration):
+Example distribution from the **v1.1.1 / K=3** build (historical — the current build is K=4 with C1–C4 = 60/84/74/65; `validate_clusters.py` now checks the four-group ordering):
 
 | Cluster | N | %HIGH | %LOW | Avg Risk | Avg Wellbeing |
 |---|---|---|---|---|---|

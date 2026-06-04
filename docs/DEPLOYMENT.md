@@ -362,8 +362,8 @@ Run these steps in order on every device before a demo or defense. Do not skip s
         git pull origin main
 
 [ ] 2. Transfer the python/models artifact bundle (if not already present):
-        - Copy osca_models_v1.1.1.zip from the main laptop via USB
-        - Expand-Archive -Path osca_models_v1.1.1.zip -DestinationPath . -Force
+        - Copy osca_models_v2.0.0.zip from the main laptop via USB
+        - Expand-Archive -Path osca_models_v2.0.0.zip -DestinationPath . -Force
         - Or copy the python/models/ folder directly
 
 [ ] 3. Check .env settings:

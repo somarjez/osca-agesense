@@ -101,7 +101,7 @@ php artisan serve
 
 Open `http://127.0.0.1:8000` and log in with:
 - Email: `admin@osca.local`
-- Password: `password`
+- Password: `Admin@OSCA2026!`
 
 If the page loads, you are ready.
 
