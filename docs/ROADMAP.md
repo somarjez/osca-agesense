@@ -1,8 +1,8 @@
 # Project Roadmap — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-05-15
-> **Status:** Phase 1 and Phase 2 complete. GIS module (Phase 3) in progress — data foundation and map prototype done; proximity scoring and full GIS report pending. Phase 4 planned.
+> **Last Updated:** 2026-06-04
+> **Status:** Phase 1, Phase 2, and Phase 3 (GIS module) complete — including bulk geocoding, the profile coordinate picker, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. Phase 4 planned.
 
 ---
 
@@ -25,7 +25,7 @@
 |---|---|---|---|
 | Phase 1 | Core System | Jan 2026 – Apr 2026 | ✅ Complete |
 | Phase 2 | Production Hardening | May 2026 | ✅ Complete |
-| Phase 3 | GIS Module | May 2026 – Jun 2026 | 🔄 In Progress |
+| Phase 3 | GIS Module | May 2026 – Jun 2026 | ✅ Complete |
 | Phase 4 | Advanced Features | Jun 2026 – Jul 2026 | 📋 Planned |
 
 ---
@@ -72,18 +72,20 @@ Excel export (maatwebsite/excel)        ░░░░ ░░░░ ░░░░ �
 Cluster snapshot generation             ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Linux/macOS ML service startup script  ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 
-PHASE 3 — GIS MODULE  🔄 IN PROGRESS
+PHASE 3 — GIS MODULE  ✅ ALL DONE
 ─────────────────────
-GIS field migration (lat/lng/address)   ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+GIS field migration (lat/lng/source)    ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Facilities table + Pagsanjan seeder     ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Accessibility metrics table             ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
-GIS map view — senior pins + POI        ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓ (prototype)
+GIS map view — senior pins + POI        ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 GIS API (seniors/facilities/boundary)   ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
-Bulk geocode (barangay centroids)       ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Map coordinate picker in profile form   ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Proximity scoring in ML pipeline        ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-GIS CSV export (lat/lng + distances)    ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Field GPS data collection workflow      ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
+Bulk geocode (barangay centroids)       ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+Map coordinate picker in profile form   ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+Accessibility proximity scoring         ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+GIS CSV export (lat/lng + distances)    ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+Field GPS data collection workflow      ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+Road-network route distances (ORS)      ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
+OpenStreetMap facility import           ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 
 PHASE 4 — ADVANCED FEATURES  📋 PLANNED
 ─────────────────────────────
@@ -155,9 +157,9 @@ All security, reliability, and operational gaps identified before pilot deployme
 ## 5. Phase 3 — GIS Module
 
 **Period:** May 2026 – June 2026
-**Status:** 🔄 In Progress
+**Status:** ✅ Complete
 
-The GIS module adds geographic visualisation of senior citizen locations and proximity analysis to essential services. See SYSTEM_FUNCTIONALITY.md §18 for the full technical specification.
+The GIS module adds geographic visualisation of senior citizen locations and proximity analysis to essential services. See SYSTEM_FUNCTIONALITY.md §18 and [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) for the full technical specification.
 
 ### Completed (Sprint 3.1 — Data Foundation)
 
@@ -171,21 +173,27 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | GIS map view (`/reports/gis`) | ✅ Done | Leaflet map prototype with generalised senior pins, facility overlay, risk filters, stats panel |
 | Privacy-safe coordinate generalisation | ✅ Done | Hash-based offset per senior around barangay anchor — no exact home locations exposed |
 
-### Remaining (Sprint 3.2 — Completion)
+### Completed (Sprint 3.2 — Completion)
 
 | Task | Status | Description |
 |---|---|---|
-| Bulk geocode command | ⏳ Pending | `php artisan gis:geocode` — assign barangay centroid coords to all seniors missing GPS data |
-| Map coordinate picker in profile form | ⏳ Pending | Embed small Leaflet map in the senior profile edit form for manual pin placement |
-| Proximity scoring in ML pipeline | ⏳ Pending | `gis_proximity_score` integrated as optional feature in preprocessing; requires model retrain |
-| GIS CSV export | ⏳ Pending | Download senior lat/lng + nearest facility distances |
-| Field GPS workflow documentation | ⏳ Pending | Guide for OSCA staff to capture GPS coordinates using a mobile device |
+| Bulk geocode command | ✅ Done | `php artisan gis:geocode` — assigns privacy-safe barangay-level coords to seniors missing GPS data |
+| Map coordinate picker in profile form | ✅ Done | Leaflet pin + boundary validation in the profile survey; writes `manual_pin` / `verified/manual` |
+| Accessibility proximity scoring | ✅ Done | `php artisan gis:score-proximity` writes `senior_accessibility_metrics` (nearest health centre, hospital, pharmacy, market, barangay hall) |
+| GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — senior lat/lng + nearest facility distances + accessibility score |
+| Field GPS workflow documentation | ✅ Done | [field-gps-workflow.md](field-gps-workflow.md) and [gis-geocoding.md](gis-geocoding.md) |
 
-### Key dependencies
+### Completed (Sprint 3.3 — Routing & Real Facilities)
 
-- Bulk geocode command needed before map pins reflect real distribution (currently uses barangay centroid fallback).
-- Proximity scoring in ML pipeline requires GBR/RFR retraining with the new feature — keep as optional until retraining is feasible.
-- POI data for Pagsanjan should be verified against current on-the-ground reality (OpenStreetMap data may be incomplete for rural barangays).
+| Task | Status | Description |
+|---|---|---|
+| Road-network route distances | ✅ Done | `/api/gis/route-distance` + `php artisan gis:cache-route-distances` (OpenRouteService, cached in `senior_facility_route_distances`) |
+| OpenStreetMap facility import | ✅ Done | `php artisan facilities:import-osm` — replaces approximate seeded facilities with real OSM coordinates |
+
+### Remaining / future
+
+- **`gis_proximity_score` as an ML feature** — accessibility scoring is computed and stored, but is not yet wired into the GBR/RFR risk pipeline; this requires a model retrain and remains a future enhancement.
+- POI data for Pagsanjan should continue to be verified against on-the-ground reality (OSM data may be incomplete for rural barangays).
 
 ---
 
@@ -212,7 +220,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | **M1 — Core Complete** | All Phase 1 deliverables implemented and passing CI checks. ✅ Achieved April 2026. |
 | **M2 — Pilot Ready** | RBAC implemented, audit logging active, default credentials changed, Data Privacy review complete. ✅ Achieved May 2026. |
 | **M3 — GIS MVP** | Map view live with senior pins and POI overlay; basic proximity report available. ✅ Achieved May 2026 (prototype). |
-| **M4 — GIS Full** | Proximity scoring wired into ML pipeline; GIS CSV export and coordinate picker complete. Target: June 2026. |
+| **M4 — GIS Full** | Bulk geocoding, coordinate picker, accessibility proximity scoring, GIS CSV export, route distances, and OSM facility import complete. ✅ Achieved June 2026. (Wiring `gis_proximity_score` into the ML pipeline remains a future enhancement requiring a model retrain.) |
 | **M5 — Production** | All Phase 2 and 3 complete; system deployed on a production server with HTTPS and automated backups. Target: June 2026. |
 | **M6 — Advanced** | Longitudinal tracking, model retraining, and mobile UI complete. Target: July 2026. |
 

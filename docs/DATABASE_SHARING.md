@@ -2,6 +2,8 @@
 
 > **Authoritative guide:** [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) is the current recommended guide with full step-by-step instructions.
 > This file contains supplementary detail on export/import commands, verification queries, and privacy rules.
+>
+> **⚠️ Outdated cluster figures:** The cluster distribution quoted in this file (`C1=75, C2=132, C3=76`) is from the old **K=3 / v1.1.1** build. The current build is **v2.0.0 with K=4** health groups (C1=60, C2=84, C3=74, C4=65; total 283). Use the cluster and model-version figures in the authoritative guide above. The export/import commands and privacy rules in this file remain valid.
 
 This guide covers two approaches for keeping all three team devices in sync:
 

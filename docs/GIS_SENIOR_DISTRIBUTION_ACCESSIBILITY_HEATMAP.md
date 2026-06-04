@@ -4,6 +4,17 @@ Branch: `gis-final-senior-distribution`
 Commit: `df9ebeb2575d3bb600fd2c19598a97675ea7dd3f`  
 Commit message: `Finalize GIS senior accessibility heatmap`
 
+> **Update (2026-06):** This is the original change record for the commit above. The
+> visualization dropdown has since been consolidated. The current GIS page exposes
+> **4** visualization modes — `Senior Population Overview`, `Risk Indicator Distribution`,
+> `Cluster / Health Groups Heatmap`, and `Accessibility Heatmap`. The separate
+> "Senior Distribution and Accessibility Heatmap" mode and the standalone "Accessibility
+> Heatmap" were merged into the single `Accessibility Heatmap` mode (value
+> `senior-distribution-accessibility-heatmap`), and the "Barangay Density View" mode was
+> removed. The backend accessibility fields described below are still produced by
+> `GisApiController`. See [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md)
+> for the current functional reference.
+
 ## Modified Files
 
 1. `app/Http/Controllers/GisApiController.php`
