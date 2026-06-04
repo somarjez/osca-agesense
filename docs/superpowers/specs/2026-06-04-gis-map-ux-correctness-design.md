@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-04
 **Scope file:** `osca-system/resources/views/reports/gis.blade.php` (inline Leaflet map JS, ~5,500 lines)
-**Status:** Approved for planning
+**Status:** Implemented 2026-06-04 (code-complete, build clean, per-task + final code review passed; runtime browser acceptance pending manual verification). Freeze fix and risk legend note were already shipped in `68e05d1` and excluded as out of scope.
 **Related:** Builds on `2026-06-04-gis-map-performance-design.md` — the freeze and drift fixes here are that spec's decisive items (boundary-mask precompute + static overlays). The deeper memoization / raster-cache / full audit from the performance plan is deferred unless lag persists after these fixes.
 
 ---
