@@ -637,7 +637,7 @@ class ReportController extends Controller
     /**
      * Export risk report as CSV.
      */
-    public function exportRisk()
+    public function exportRisk(Request $request)
     {
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
@@ -645,12 +645,22 @@ class ReportController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
+        $allowedSorts = ['composite_risk', 'overall_risk_level', 'ic_risk', 'env_risk', 'func_risk', 'wellbeing_score'];
+        $sortBy = in_array($request->sort, $allowedSorts, true) ? $request->sort : 'composite_risk';
+        $sortDir = $request->dir === 'asc' ? 'asc' : 'desc';
+
         $data = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->whereIn('ml_results.id', $latestIds);
             })
-            ->whereIn('ml_results.overall_risk_level', ['HIGH'])
+            ->when($request->risk, fn ($q, $risk) => $q->where('ml_results.overall_risk_level', strtoupper($risk)))
+            ->when($request->barangay, fn ($q, $b) => $q->where('senior_citizens.barangay', $b))
+            ->when($request->cluster, fn ($q, $c) => $q->where('ml_results.cluster_named_id', $c))
+            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('senior_citizens.osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
             ->select(
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name) as name"),
@@ -663,7 +673,7 @@ class ReportController extends Controller
                 'ml_results.func_risk_level',
                 'ml_results.processed_at'
             )
-            ->orderByDesc('ml_results.composite_risk')
+            ->orderBy("ml_results.{$sortBy}", $sortDir)
             ->get();
 
         $filename = 'osca_risk_report_'.now()->format('Ymd_His').'.csv';

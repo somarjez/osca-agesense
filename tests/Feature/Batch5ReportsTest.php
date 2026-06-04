@@ -97,4 +97,25 @@ class Batch5ReportsTest extends TestCase
             ->call('sortColumn', 'first_name; DROP TABLE')
             ->assertSet('sortBy', 'ic_risk');
     }
+
+    #[Test]
+    public function risk_export_includes_all_levels_by_default_and_respects_risk_filter(): void
+    {
+        $this->makeSeniorWithRisk('HIGH', 'Zelda', 'Highexport');
+        $this->makeSeniorWithRisk('LOW', 'Yanni', 'Lowexport');
+
+        // Default export — both levels present.
+        $all = $this->actingAs($this->admin)
+            ->get(route('reports.risk.export'))
+            ->streamedContent();
+        $this->assertStringContainsString('Zelda Highexport', $all);
+        $this->assertStringContainsString('Yanni Lowexport', $all);
+
+        // Filtered to LOW — only the low-risk senior.
+        $lowOnly = $this->actingAs($this->admin)
+            ->get(route('reports.risk.export', ['risk' => 'low']))
+            ->streamedContent();
+        $this->assertStringContainsString('Yanni Lowexport', $lowOnly);
+        $this->assertStringNotContainsString('Zelda Highexport', $lowOnly);
+    }
 }
