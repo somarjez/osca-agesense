@@ -114,6 +114,15 @@ class SeniorCitizen extends Model
         return $this->hasMany(Recommendation::class);
     }
 
+    /**
+     * Recommendations from the senior's latest ML result only (current assessment).
+     * Reuses Recommendation::scopeCurrent so the "latest" definition lives in one place.
+     */
+    public function currentRecommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class)->current();
+    }
+
     public function accessibilityMetrics(): HasMany
     {
         return $this->hasMany(SeniorAccessibilityMetric::class);

@@ -88,4 +88,40 @@ class Batch2RecordsRecommendationsTest extends TestCase
             ->assertSee('Functional Ability')
             ->assertSee('Overall risk');
     }
+
+    /** Attach a recommendation to a given ML result. */
+    private function makeRec(MlResult $ml, array $overrides = []): Recommendation
+    {
+        return Recommendation::create(array_merge([
+            'ml_result_id' => $ml->id,
+            'senior_citizen_id' => $ml->senior_citizen_id,
+            'priority' => 1,
+            'type' => 'general',
+            'domain' => 'medical',
+            'action' => 'Default action',
+            'urgency' => 'planned',
+            'status' => 'pending',
+        ], $overrides));
+    }
+
+    #[Test]
+    public function current_recommendations_returns_only_latest_ml_results_recs(): void
+    {
+        $senior = $this->makeSenior();
+
+        $oldMl = $this->makeMlResult($senior);
+        $this->makeRec($oldMl, ['action' => 'OLD recommendation']);
+
+        $newMl = $this->makeMlResult($senior);
+        $this->makeRec($newMl, ['action' => 'NEW recommendation A']);
+        $this->makeRec($newMl, ['action' => 'NEW recommendation B']);
+
+        $current = $senior->currentRecommendations()->get();
+
+        $this->assertCount(2, $current);
+        $this->assertEqualsCanonicalizing(
+            ['NEW recommendation A', 'NEW recommendation B'],
+            $current->pluck('action')->all()
+        );
+    }
 }
