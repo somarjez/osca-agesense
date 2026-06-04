@@ -83,12 +83,17 @@
                     </td>
                     <td class="td">
                         <div class="flex justify-center gap-1.5">
-                            @if ($survey->status === 'processed')
-                            <a href="{{ route('surveys.qol.results', $survey) }}"
-                               class="btn btn-ghost text-[11.5px] px-2 py-1">Results</a>
-                            @endif
+                            @if ($survey->status === 'draft')
                             <a href="{{ route('surveys.qol.edit', $survey) }}"
-                               class="btn btn-ghost text-[11.5px] px-2 py-1">Edit</a>
+                               class="btn btn-primary text-[11.5px] px-2.5 py-1">Continue Draft →</a>
+                            @else
+                                @if ($survey->status === 'processed')
+                                <a href="{{ route('surveys.qol.results', $survey) }}"
+                                   class="btn btn-ghost text-[11.5px] px-2 py-1">Results</a>
+                                @endif
+                                <a href="{{ route('surveys.qol.edit', $survey) }}"
+                                   class="btn btn-ghost text-[11.5px] px-2 py-1">Edit</a>
+                            @endif
                             <div x-data="{ open: false }">
                                 <button @click="open = true"
                                         class="btn btn-ghost text-[11.5px] px-2 py-1 text-critical-700 hover:bg-critical-50 hover:text-critical-900">
