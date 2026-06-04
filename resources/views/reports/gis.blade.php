@@ -612,13 +612,16 @@
     }
 
     function riskWeight(level) {
+        // Widen tier separation so the KDE surface reflects risk SEVERITY rather than
+        // population density: a dense cluster of LOW-risk seniors should not out-weigh a
+        // few HIGH-risk seniors. HIGH dominates; LOW contributes only a faint floor.
         switch ((level || '').toUpperCase()) {
             case 'HIGH':
                 return 1.0;
             case 'MODERATE':
-                return 0.6;
+                return 0.4;
             case 'LOW':
-                return 0.3;
+                return 0.12;
             default:
                 return null;
         }
