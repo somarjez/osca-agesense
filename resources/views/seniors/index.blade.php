@@ -53,10 +53,10 @@
                     <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                     Bulk Upload
                 </button>
-                <a href="{{ route('seniors.create') }}" class="btn btn-primary">
+                <button type="button" @click="newProfileOpen = true" class="btn btn-primary">
                     <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
                     New Senior
-                </a>
+                </button>
             </div>
         </div>
         <div class="card-body flex flex-wrap items-end gap-3">
@@ -254,9 +254,9 @@
                     <td colspan="9" class="px-4 py-16 text-center">
                         <p class="font-serif text-base text-ink-500">No senior citizens found.</p>
                         <p class="text-[12.5px] text-ink-400 mt-1">Try adjusting your filters or register a new senior.</p>
-                        <a href="{{ route('seniors.create') }}" class="btn btn-primary mt-4 inline-flex">
+                        <button type="button" @click="newProfileOpen = true" class="btn btn-primary mt-4 inline-flex">
                             <x-heroicon-o-user-plus class="w-3.5 h-3.5" /> New Senior
-                        </a>
+                        </button>
                     </td>
                 </tr>
                 @endforelse
@@ -369,6 +369,24 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    {{-- ── New Profile Modal (registration wizard) ─────────────────────── --}}
+    <div x-show="newProfileOpen" x-cloak
+         role="dialog" aria-modal="true" aria-labelledby="new-profile-title"
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 p-4 sm:p-6 overflow-y-auto"
+         @keydown.escape.window="if (newProfileOpen) newProfileOpen = false">
+        <div class="w-full max-w-4xl my-4" @click.stop>
+            <div class="flex items-center justify-between mb-3">
+                <h2 id="new-profile-title" class="font-display text-lg text-white drop-shadow-sm">Register New Senior Citizen</h2>
+                <button type="button" @click="newProfileOpen = false"
+                        class="bg-white/10 text-white hover:bg-white/20 rounded-full p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        aria-label="Close">
+                    <x-heroicon-o-x-mark class="w-5 h-5" />
+                </button>
+            </div>
+            <livewire:surveys.profile-survey />
         </div>
     </div>
 
@@ -554,6 +572,7 @@ function seniorIndex() {
         // Multi-select state
         selected: [],
         bulkArchiveOpen: false,
+        newProfileOpen: {{ request('new') ? 'true' : 'false' }},
         pageIds: @json($seniors->pluck('id')),
 
         // Single-senior archive state

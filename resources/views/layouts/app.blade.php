@@ -90,8 +90,8 @@
             </a>
 
             @hasanyrole('admin|encoder')
-            <a href="{{ route('seniors.create') }}"
-               class="nav-link {{ request()->routeIs('seniors.create') ? 'nav-link-active' : '' }}"
+            <a href="{{ route('seniors.index', ['new' => 1]) }}"
+               class="nav-link {{ request()->routeIs('seniors.create') || (request()->routeIs('seniors.index') && request('new')) ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'New Profile'">
                 <x-heroicon-o-user-plus class="w-4 h-4 flex-shrink-0" />
