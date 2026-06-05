@@ -182,7 +182,7 @@
                 <x-heroicon-o-clipboard-document-check class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
-            <a href="{{ route('reports.registry.export') }}"
+            <a href="{{ route('reports.registry') }}"
                class="nav-link"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Export Registry'">

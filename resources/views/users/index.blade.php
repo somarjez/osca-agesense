@@ -110,16 +110,32 @@
                                             <label class="eyebrow block mb-1.5">New Password
                                                 <span class="text-ink-400 dark:text-[#4a5550] normal-case font-normal ml-1">(leave blank to keep current)</span>
                                             </label>
-                                            <input type="password" name="password" autocomplete="new-password"
-                                                   class="form-input w-full @error('password', $editBag) border-critical-400 @enderror"
-                                                   placeholder="Minimum 8 characters">
+                                            <div class="relative" x-data="{ show: false }">
+                                                <input :type="show ? 'text' : 'password'" name="password" autocomplete="new-password"
+                                                       class="form-input w-full pr-11 @error('password', $editBag) border-critical-400 @enderror"
+                                                       placeholder="Minimum 8 characters">
+                                                <button type="button" @click="show = !show" tabindex="-1"
+                                                        class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
+                                                        :aria-label="show ? 'Hide password' : 'Show password'">
+                                                    <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                                                    <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                                                </button>
+                                            </div>
                                             @error('password', $editBag)<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
                                         </div>
 
                                         <div>
                                             <label class="eyebrow block mb-1.5">Confirm New Password</label>
-                                            <input type="password" name="password_confirmation" autocomplete="new-password"
-                                                   class="form-input w-full" placeholder="Re-enter new password">
+                                            <div class="relative" x-data="{ show: false }">
+                                                <input :type="show ? 'text' : 'password'" name="password_confirmation" autocomplete="new-password"
+                                                       class="form-input w-full pr-11" placeholder="Re-enter new password">
+                                                <button type="button" @click="show = !show" tabindex="-1"
+                                                        class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
+                                                        :aria-label="show ? 'Hide password' : 'Show password'">
+                                                    <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                                                    <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div class="flex items-center justify-end gap-3 pt-1">

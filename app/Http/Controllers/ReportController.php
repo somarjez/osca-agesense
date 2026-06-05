@@ -512,6 +512,47 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Export Registry landing page — summary previews + a sample of the registry,
+     * with a button to download the full XLSX. Admin only.
+     */
+    public function registryIndex()
+    {
+        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
+        $total = SeniorCitizen::active()->count();
+        $assessed = SeniorCitizen::active()->whereHas('latestMlResult')->count();
+
+        $riskBreakdown = MlResult::whereIn('id', $latestIds)
+            ->whereHas('seniorCitizen', fn ($q) => $q->active())
+            ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
+            ->groupBy('overall_risk_level')
+            ->pluck('count', 'overall_risk_level');
+
+        $barangaysCovered = SeniorCitizen::active()->distinct('barangay')->count('barangay');
+
+        $preview = SeniorCitizen::active()
+            ->with('latestMlResult')
+            ->orderBy('barangay')
+            ->orderBy('last_name')
+            ->limit(12)
+            ->get();
+
+        $stats = [
+            'total' => $total,
+            'assessed' => $assessed,
+            'not_assessed' => $total - $assessed,
+            'high' => (int) ($riskBreakdown['HIGH'] ?? 0),
+            'moderate' => (int) ($riskBreakdown['MODERATE'] ?? 0),
+            'low' => (int) ($riskBreakdown['LOW'] ?? 0),
+            'barangays' => $barangaysCovered,
+        ];
+
+        return view('reports.registry', compact('stats', 'preview'));
+    }
+
     public function exportRegistry()
     {
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))

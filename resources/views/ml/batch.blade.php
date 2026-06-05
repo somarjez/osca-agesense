@@ -199,6 +199,13 @@
                 <div class="card-title">Eligible Seniors</div>
                 <div class="card-sub">Seniors with at least one QoL survey · {{ $totalEligible }} total</div>
             </div>
+            <form method="GET" action="{{ route('ml.batch') }}" class="flex items-center gap-2">
+                <input type="text" name="search" value="{{ request('search') }}"
+                       placeholder="Search name or OSCA ID…" class="form-input text-[12px] max-w-[200px]">
+                @if (request('search'))
+                <a href="{{ route('ml.batch') }}" class="btn btn-ghost text-[12px]">Clear</a>
+                @endif
+            </form>
         </div>
         <table class="w-full">
             <thead>

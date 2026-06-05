@@ -61,7 +61,7 @@ class MlController extends Controller
         );
     }
 
-    public function batchIndex()
+    public function batchIndex(Request $request)
     {
         // $totalEligible: all seniors with any QoL survey (shown in the table/pagination)
         // $totalReady: subset with status='processed' — what batchRun() will actually process
@@ -74,6 +74,10 @@ class MlController extends Controller
         $pending = SeniorCitizen::active()
             ->whereHas('latestQolSurvey')
             ->with(['latestQolSurvey', 'latestMlResult'])
+            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
             ->paginate(25)
             ->withQueryString();
 

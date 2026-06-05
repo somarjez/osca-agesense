@@ -54,6 +54,7 @@
     {{-- ── Log table ── --}}
     <div x-data="{
         selected: [],
+        confirmOpen: false,
         get allIds() { return [...$el.querySelectorAll('.row-cb')].map(c => parseInt(c.value)); },
         toggleAll(checked) { this.selected = checked ? this.allIds : []; },
         toggle(id) {
@@ -136,32 +137,38 @@
     {{-- Floating action bar — appears when at least one row is checked --}}
     <div x-show="selected.length > 0" x-cloak x-transition
          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50
-                bg-ink-900 text-white rounded-xl shadow-xl
+                bg-ink-900 dark:bg-[#1a221e] text-white rounded-xl shadow-2xl ring-1 ring-white/15
                 flex items-center gap-4 px-5 py-3 text-sm">
 
         <span x-text="`${selected.length} selected`" class="font-medium tabular-nums"></span>
 
-        <form method="POST" action="{{ route('activity-log.bulk-destroy') }}">
+        <form x-ref="bulkDeleteForm" method="POST" action="{{ route('activity-log.bulk-destroy') }}">
             @csrf @method('DELETE')
             <template x-for="id in selected" :key="id">
                 <input type="hidden" name="ids[]" :value="id">
             </template>
-            <button type="submit"
-                    @click.prevent="
-                        const noun = selected.length === 1 ? 'entry' : 'entries';
-                        if (confirm(\`Permanently delete \${selected.length} log \${noun}? This cannot be undone.\`))
-                            \$el.closest('form').submit()
-                    "
-                    class="btn bg-critical-600 text-white hover:bg-critical-700 border-transparent text-xs py-1.5">
+            <button type="button" @click="confirmOpen = true"
+                    class="btn btn-danger text-xs py-1.5">
                 Delete Selected
             </button>
         </form>
 
         <button @click="selected = []"
-                class="text-white/50 hover:text-white text-xs underline underline-offset-2">
+                class="text-white/70 hover:text-white text-xs underline underline-offset-2">
             Deselect all
         </button>
     </div>
+
+    {{-- Confirm modal — kept OUTSIDE the translated floating bar so its fixed
+         positioning anchors to the viewport. A transformed ancestor (the bar's
+         -translate-x-1/2) would otherwise become the containing block and push
+         the modal off-screen. confirmOpen + $refs live on the page-level x-data. --}}
+    <x-confirm-modal show="confirmOpen"
+                     title="Delete selected log entries?"
+                     confirm="$refs.bulkDeleteForm.submit()"
+                     confirm-label="Delete permanently">
+        <p>The selected activity log entries will be <strong class="text-ink-900 dark:text-[#e4e1d8]">permanently</strong> deleted. This cannot be undone.</p>
+    </x-confirm-modal>
 
     </div>{{-- end Alpine wrapper --}}
 
