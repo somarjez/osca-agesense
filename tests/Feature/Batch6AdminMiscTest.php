@@ -105,4 +105,14 @@ class Batch6AdminMiscTest extends TestCase
             ->assertOk()
             ->assertSee('Confirm Password');
     }
+
+    #[Test]
+    public function user_index_edit_modal_renders_with_password_fields(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('New Password')
+            ->assertSee('Confirm New Password');
+    }
 }
