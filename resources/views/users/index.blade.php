@@ -3,18 +3,90 @@
 @section('page-subtitle', 'Create, edit, and deactivate system accounts')
 
 @section('content')
-<div class="space-y-5">
+<div class="space-y-5" x-data="{ createOpen: {{ $errors->isNotEmpty() ? 'true' : 'false' }} }">
 
     {{-- Header actions --}}
     <div class="flex items-center justify-between">
         <div class="text-[13px] text-ink-500">
             {{ $users->count() }} {{ Str::plural('account', $users->count()) }}
         </div>
-        <a href="{{ route('users.create') }}" class="btn btn-primary">
+        <button type="button" @click="createOpen = true" class="btn btn-primary">
             <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
             New Account
-        </a>
+        </button>
     </div>
+
+    {{-- Create account modal (replaces the standalone create page) --}}
+    <x-modal show="createOpen" title="New account" max-width="max-w-lg">
+        <form method="POST" action="{{ route('users.store') }}" class="space-y-4 text-left"
+              x-data="{ submitting: false }" @submit="submitting = true">
+            @csrf
+
+            <div>
+                <label class="eyebrow block mb-1.5" for="c-name">Full Name</label>
+                <input id="c-name" type="text" name="name" value="{{ old('name') }}"
+                       class="form-input w-full @error('name') border-critical-400 @enderror"
+                       placeholder="e.g. Maria Santos" required>
+                @error('name')<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label class="eyebrow block mb-1.5" for="c-email">Email Address</label>
+                <input id="c-email" type="email" name="email" value="{{ old('email') }}"
+                       class="form-input w-full @error('email') border-critical-400 @enderror"
+                       placeholder="e.g. maria@osca.local" required>
+                @error('email')<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label class="eyebrow block mb-1.5" for="c-role">Role</label>
+                <select id="c-role" name="role" class="form-select w-full @error('role') border-critical-400 @enderror" required>
+                    <option value="" disabled {{ old('role') ? '' : 'selected' }}>Select a role…</option>
+                    @foreach (['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'] as $rk => $rlabel)
+                    <option value="{{ $rk }}" {{ old('role') === $rk ? 'selected' : '' }}>{{ $rlabel }}</option>
+                    @endforeach
+                </select>
+                @error('role')<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+            </div>
+
+            <div class="border-t border-paper-rule dark:border-[#2b3530] pt-4">
+                <label class="eyebrow block mb-1.5" for="c-password">Password</label>
+                <div class="relative" x-data="{ show: false }">
+                    <input id="c-password" name="password" :type="show ? 'text' : 'password'"
+                           class="form-input w-full pr-11 @error('password') border-critical-400 @enderror"
+                           placeholder="Minimum 8 characters" required>
+                    <button type="button" @click="show = !show" tabindex="-1"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
+                            :aria-label="show ? 'Hide password' : 'Show password'">
+                        <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                        <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                    </button>
+                </div>
+                @error('password')<p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label class="eyebrow block mb-1.5" for="c-password_confirmation">Confirm Password</label>
+                <div class="relative" x-data="{ show: false }">
+                    <input id="c-password_confirmation" name="password_confirmation" :type="show ? 'text' : 'password'"
+                           class="form-input w-full pr-11" placeholder="Re-enter password" required>
+                    <button type="button" @click="show = !show" tabindex="-1"
+                            class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
+                            :aria-label="show ? 'Hide password' : 'Show password'">
+                        <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
+                        <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-1">
+                <button type="button" class="btn btn-ghost" @click="createOpen = false">Cancel</button>
+                <button type="submit" :disabled="submitting" class="btn btn-primary disabled:opacity-60">
+                    <x-heroicon-o-user-plus class="w-3.5 h-3.5" /> Create Account
+                </button>
+            </div>
+        </form>
+    </x-modal>
 
     {{-- Table --}}
     <div class="card overflow-hidden">

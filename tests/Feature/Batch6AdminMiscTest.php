@@ -115,4 +115,31 @@ class Batch6AdminMiscTest extends TestCase
             ->assertSee('New Password')
             ->assertSee('Confirm New Password');
     }
+
+    #[Test]
+    public function user_index_has_new_account_modal(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('createOpen = true', false)  // New Account button opens the modal
+            ->assertSee('New account')               // modal title
+            ->assertSee('Create Account');            // modal submit button
+    }
+
+    #[Test]
+    public function admin_can_create_a_user_from_the_modal(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('users.store'), [
+                'name' => 'New Encoder',
+                'email' => 'new.encoder@osca.local',
+                'role' => 'encoder',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseHas('users', ['email' => 'new.encoder@osca.local']);
+    }
 }
