@@ -62,11 +62,11 @@
                     <label class="eyebrow block mb-1.5" for="password">Password</label>
                     <div class="relative" x-data="{ show: false }">
                         <input id="password" name="password" :type="show ? 'text' : 'password'"
-                               class="form-input w-full pr-10 @error('password') border-critical-400 @enderror"
+                               class="form-input w-full pr-11 @error('password') border-critical-400 @enderror"
                                placeholder="Minimum 8 characters"
                                required>
                         <button type="button" @click="show = !show" tabindex="-1"
-                                class="absolute inset-y-0 right-0 px-3 flex items-center text-ink-400 hover:text-ink-700 dark:hover:text-[#c8c4bc]"
+                                class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
                                 :aria-label="show ? 'Hide password' : 'Show password'">
                             <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
                             <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
@@ -81,11 +81,11 @@
                     <label class="eyebrow block mb-1.5" for="password_confirmation">Confirm Password</label>
                     <div class="relative" x-data="{ show: false }">
                         <input id="password_confirmation" name="password_confirmation" :type="show ? 'text' : 'password'"
-                               class="form-input w-full pr-10"
+                               class="form-input w-full pr-11"
                                placeholder="Re-enter password"
                                required>
                         <button type="button" @click="show = !show" tabindex="-1"
-                                class="absolute inset-y-0 right-0 px-3 flex items-center text-ink-400 hover:text-ink-700 dark:hover:text-[#c8c4bc]"
+                                class="absolute top-1/2 right-3 -translate-y-1/2 text-ink-300 hover:text-ink-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/40 transition-colors"
                                 :aria-label="show ? 'Hide password' : 'Show password'">
                             <x-heroicon-o-eye x-show="!show" class="w-4 h-4" />
                             <x-heroicon-o-eye-slash x-show="show" x-cloak class="w-4 h-4" />
