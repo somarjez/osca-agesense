@@ -492,9 +492,15 @@ check_true(
     f"non_health_in_top5={len(top5_non_health)}, categories={[r.get('category') for r in top5]}"
 )
 check_true(
-    "trigger_summary present on all recs",
-    all(isinstance(r.get("trigger_summary"), dict) for r in diversity_recs),
-    "trigger_summary missing from some recs"
+    "trigger_summary present (non-empty string) on all recs",
+    all(isinstance(r.get("trigger_summary"), str) and r.get("trigger_summary").strip()
+        for r in diversity_recs),
+    "trigger_summary missing/empty/non-string on some recs"
+)
+check_true(
+    "trigger_context (firing context) attached to all recs",
+    all(isinstance(r.get("trigger_context"), dict) for r in diversity_recs),
+    "trigger_context missing from some recs"
 )
 print()
 
@@ -664,6 +670,111 @@ hc_access_old = [r.get("recommendation_code") for r in all_domain_recs if r.get(
 check_true("No recommendation uses deprecated category 'hc_access'",
            len(hc_access_old) == 0,
            f"found hc_access on: {hc_access_old}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+print("=== 16. Top-3 not all-health for HIGH senior with non-health triggers ===")
+
+# HIGH-risk senior with BOTH health concerns and clear non-health triggers.
+# Even at high urgency (health cap = 3), the top 3 must not be all health when
+# valid functional / social / financial / access triggers exist.
+HIGH_MIXED_ROW = {
+    "age": 84, "income_enc": 1.0, "sec5_eco_stability": 0.18,
+    "has_pension": 0, "env_fin_medical": 2, "env_fin_household": 2,
+    "func_independence": 2.0, "func_autonomy": 2.0, "func_control": 2.0,
+    "phy_energy": 2.0, "phy_mobility_outside": 2, "phy_mobility_indoor": 2,
+    "sec4_lives_alone": 1, "soc_social_support": 2, "soc_close_friend": 2,
+    "soc_participation": 2, "soc_opportunity": 2, "soc_respect": 2,
+    "psych_lonely_r": 2, "sec2_family_support": 0.2, "is_association_member": 0,
+    "social_emotional_concern": "lonely and sad",
+    "marital_status": "Widowed",
+    "medical_concern": "hypertension, diabetes, arthritis",
+    "dental_concern": "toothache", "optical_concern": "blurry vision",
+    "hearing_concern": "hearing loss",
+    "checkup_enc": 0,
+    "healthcare_difficulty": "transportation, cost",
+    "housing_concern": "leaking roof",
+    "env_service_access": 2.0,
+    "env_safe_home": 2.0, "household_condition": "poor and damaged",
+    "sec6_func_score": 0.35, "risk_functional": 0.7, "sec4_dependency_risk": 0.7,
+    "sec6_phy_score": 0.30,
+}
+high_recs = _build_recommendations(
+    named_id=2,
+    overall_level="HIGH",
+    feature_map=HIGH_MIXED_ROW,
+    section_scores={},
+    raw_context={},
+    priority_flag="urgent",
+)
+top3 = high_recs[:3]
+top3_cats = [r.get("category") for r in top3]
+top3_health = [c for c in top3_cats if c == "health"]
+check_true(
+    "HIGH senior: top-3 not all health when non-health triggers exist",
+    len(top3_health) < 3,
+    f"top3 categories={top3_cats}",
+)
+check_true(
+    "HIGH senior: at least 1 non-health rec in top 3",
+    any(c != "health" for c in top3_cats),
+    f"top3 categories={top3_cats}",
+)
+# health still appears prominently (not suppressed) — at least 1 health in top 3
+check_true(
+    "HIGH senior: health still represented in top 3",
+    any(c == "health" for c in top3_cats),
+    f"top3 categories={top3_cats}",
+)
+# No two health recs adjacent in the priority region beyond the cap intent:
+# the first 3 must contain >=1 non-health (already checked). Confirm full list
+# still carries every health rec (uncapped in all_recommendations sense).
+all_cats = [r.get("category") for r in high_recs]
+check_true(
+    "HIGH senior: all health recs retained in full list",
+    all_cats.count("health") >= 3,
+    f"health count in full list={all_cats.count('health')}",
+)
+# HIGH/urgent senior: health leads (clinical priority)
+check_true(
+    "HIGH senior: health leads (clinical priority) when urgent",
+    top3_cats[0] == "health",
+    f"top3 categories={top3_cats}",
+)
+
+# Routine (MODERATE) senior with non-health triggers must NOT lead with health.
+MOD_MIXED_ROW = {
+    "age": 78, "income_enc": 2.0, "sec5_eco_stability": 0.3,
+    "has_pension": 0, "env_fin_medical": 2, "env_fin_household": 2,
+    "func_independence": 2.5, "func_autonomy": 3.0, "func_control": 3.0,
+    "phy_energy": 3.0, "phy_mobility_outside": 3, "phy_mobility_indoor": 3,
+    "sec4_lives_alone": 1, "soc_social_support": 2, "soc_close_friend": 2,
+    "soc_participation": 2, "soc_opportunity": 3, "soc_respect": 3,
+    "psych_lonely_r": 3, "sec2_family_support": 0.3, "is_association_member": 0,
+    "social_emotional_concern": "", "marital_status": "Widowed",
+    "medical_concern": "hypertension", "dental_concern": "none",
+    "optical_concern": "none", "hearing_concern": "none",
+    "checkup_enc": 0, "healthcare_difficulty": "transport",
+    "housing_concern": "", "env_service_access": 2.0,
+    "env_safe_home": 3.0, "household_condition": "good",
+    "sec6_func_score": 0.5, "risk_functional": 0.3, "sec4_dependency_risk": 0.2,
+    "sec6_phy_score": 0.5,
+}
+mod_recs = _build_recommendations(
+    named_id=2, overall_level="MODERATE", feature_map=MOD_MIXED_ROW,
+    section_scores={}, raw_context={}, priority_flag="planned_monitoring",
+)
+mod_top3 = [r.get("category") for r in mod_recs[:3]]
+check_true(
+    "MODERATE senior: does NOT lead with health when non-health triggers exist",
+    mod_top3[0] != "health",
+    f"top3 categories={mod_top3}",
+)
+check_true(
+    "MODERATE senior: health still present in top 3",
+    "health" in mod_top3,
+    f"top3 categories={mod_top3}",
+)
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -24,6 +24,16 @@
         </a>
     </div>
 
+    {{-- Critical-priority banner (CRITICAL handled as HIGH with critical_priority_flag) --}}
+    @if ($senior->latestMlResult?->critical_flag)
+    <div class="flex items-start gap-3 bg-high-50 dark:bg-high-50/10 border border-high-100 dark:border-high-700/30 rounded-xl px-4 py-3">
+        <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-high-600 dark:text-high-400 flex-shrink-0 mt-0.5" />
+        <p class="text-[12px] text-high-700 dark:text-high-300">
+            <strong>Critical-priority flag.</strong> This senior's indicators reached the critical threshold. The risk level is reported as <strong>HIGH</strong> under the 3-level system, with a critical-priority flag for immediate OSCA/RHU/MSWDO coordination.
+        </p>
+    </div>
+    @endif
+
     {{-- Decision-support disclaimer --}}
     <div class="flex items-start gap-3 bg-info-50 dark:bg-info-50/10 border border-info-100 dark:border-info-700/30 rounded-xl px-4 py-3">
         <x-heroicon-o-information-circle class="w-4 h-4 text-info-600 dark:text-info-400 flex-shrink-0 mt-0.5" />
@@ -42,6 +52,7 @@
         'mental_health' => 'Mental Health',
         'functional'    => 'Functional',
         'hc_access'     => 'Healthcare Access',
+        'healthcare_access' => 'Healthcare Access',
         'general'       => 'General',
     ];
     @endphp
@@ -62,14 +73,29 @@
                         default   => 'bg-paper-2 text-ink-500',
                     } }}">{{ $rec->priority }}</span>
                 <div class="flex-1 min-w-0">
-                    {{-- Recommendation code badge --}}
-                    @if ($rec->recommendation_code)
-                    <span class="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-paper-2 text-ink-500 mb-1">
-                        {{ $rec->recommendation_code }}
-                    </span>
-                    @endif
+                    {{-- Recommendation code + WHO domain badges --}}
+                    <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                        @if ($rec->recommendation_code)
+                        <span class="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-paper-2 text-ink-500">
+                            {{ $rec->recommendation_code }}
+                        </span>
+                        @endif
+                        @if ($rec->domain)
+                        <span class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-info-50 dark:bg-info-50/10 text-info-700 dark:text-info-300 border border-info-100 dark:border-info-700/30">
+                            {{ $rec->domain }}
+                        </span>
+                        @endif
+                    </div>
 
                     <p class="text-[13px] text-ink-800 leading-relaxed">{{ $rec->action }}</p>
+
+                    {{-- Trigger summary: what flagged this recommendation --}}
+                    @if ($rec->trigger_summary)
+                    <p class="text-[11.5px] text-ink-500 mt-1.5 flex items-start gap-1">
+                        <x-heroicon-o-bolt class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-ink-400" />
+                        <span><span class="font-medium text-ink-600">Trigger:</span> {{ $rec->trigger_summary }}</span>
+                    </p>
+                    @endif
 
                     {{-- Service provider --}}
                     @if ($rec->service_provider)
@@ -79,12 +105,18 @@
                     </p>
                     @endif
 
-                    {{-- Evidence source --}}
+                    {{-- Evidence source + APA citation --}}
                     @if ($rec->evidence_source)
                     <p class="text-[11px] text-ink-400 mt-0.5 flex items-start gap-1">
                         <x-heroicon-o-document-text class="w-3 h-3 flex-shrink-0 mt-0.5" />
                         <span class="italic">{{ $rec->evidence_source }}</span>
+                        @if ($rec->source_type)
+                        <span class="not-italic text-ink-300">· {{ $rec->source_type }}</span>
+                        @endif
                     </p>
+                    @endif
+                    @if ($rec->apa_reference)
+                    <p class="text-[10.5px] text-ink-400 mt-0.5 pl-4 italic">{{ $rec->apa_reference }}</p>
                     @endif
 
                     {{-- Urgency / risk / target date row --}}
