@@ -1,7 +1,7 @@
 # AgeSense OSCA — Reproducibility & Cross-Device Consistency
 
 **System version:** v2.0.0 (K=4)
-**Last validated:** 2026-05-29
+**Last validated:** 2026-06-11 (290 seniors)
 **Audience:** developers, deployers, thesis panel
 
 > **Goal of this document:** explain *why* the live AgeSense system produces the
@@ -41,7 +41,7 @@ The survey date is immutable input data, so:
 
 Age is *not* one of the 31 clustering features — it only affects risk via the
 `sec1_age_risk` bucket (thresholds at 70/80, section weight 0.05). The change
-shifted 3 of 283 seniors by one year at a threshold, and **none changed risk level**.
+shifted a few seniors by one year at a threshold, and **none changed risk level**.
 
 The same logic is mirrored in the offline tools (`generate_xai_means.py`,
 `validate_system.py`) so the cluster-mean baseline and validation harness match
@@ -72,7 +72,7 @@ training device, the log warns:
 training device. Copy python/models/ from the training machine ...
 ```
 
-As of 2026-05-29 all 15 `.pkl` files match the manifest (model version 2.0.0).
+As of 2026-06-11 all 15 `.pkl` files match the manifest (model version 2.0.0).
 
 ---
 
@@ -87,9 +87,9 @@ The live system therefore uses **deterministic nearest-centroid in 31-dim scaled
 space** (`cluster_centroids_scaled.json`). This is the correct production choice:
 it is bit-for-bit identical on every device.
 
-Its agreement with the notebook is **91.2%**. The 8.8% that differ are
+Its agreement with the notebook is **91.0%**. The 9.0% that differ are
 **boundary-ambiguous seniors** — proven, not assumed: their distance gap between
-the nearest and second-nearest cluster averages **0.097**, versus **0.337** for
+the nearest and second-nearest cluster averages **0.095**, versus **0.336** for
 agreeing seniors (3.5× tighter). For these borderline seniors, the **risk score
 and recommendations are identical** regardless of which cluster label they get.
 
@@ -98,19 +98,19 @@ because the target method (UMAP+KMeans) is itself non-reproducible per record.
 
 ---
 
-## 5. Validation results (2026-05-29, `validate_system.py`, 283 seniors)
+## 5. Validation results (2026-06-11, `validate_system.py`, 290 seniors)
 
 Run with `ENABLE_NOTEBOOK_OVERRIDES=false` (live model only):
 
 | Category | Result | Verdict |
 |---|---|---|
-| Feature-engineering fidelity (WHO + section scores) | 99.6–100% within tolerance, mean Δ ~0.0002 | PASS |
-| Risk-score fidelity (IC/Env/Func/Composite) | 99.6–100% within 0.02, mean Δ ~0.0001 | PASS |
-| Risk-level match (LOW/MODERATE/HIGH) | 282/283 = **99.6%** | PASS |
-| Cluster match vs notebook | 258/283 = **91.2%** | deterministic ceiling |
-| Cluster coherence (risk rises with cluster id) | 0.289 → 0.394 → 0.412 → 0.544 | PASS (monotonic) |
-| XAI coverage | 283/283 = 100% | PASS |
-| Recommendation coverage | 283/283 = 100% (mean 11.5/senior) | PASS |
+| Feature-engineering fidelity (WHO + section scores) | 99.3–100% within tolerance, mean Δ ~0.0002 | PASS |
+| Risk-score fidelity (IC/Env/Func/Composite) | 99.7–100% within 0.02, mean Δ ~0.0002 | PASS |
+| Risk-level match (LOW/MODERATE/HIGH) | 289/290 = **99.7%** | PASS |
+| Cluster match vs notebook | 264/290 = **91.0%** | deterministic ceiling |
+| Cluster coherence (risk rises with cluster id) | 0.288 → 0.390 → 0.412 → 0.543 | PASS (monotonic) |
+| XAI coverage | 290/290 = 100% | PASS |
+| Recommendation coverage | 290/290 = 100% (mean 11.4/senior) | PASS |
 | Determinism (same payload × 3 runs) | identical every time | PASS |
 
 Re-run any time to re-confirm the whole system in one command:
@@ -184,4 +184,4 @@ match Section 5 above.
 - `docs/DATABASE_SHARING_AND_TEAM_SETUP.md` — sharing data across devices
 - `docs/UPDATING_THE_MODEL.md` — what to do when the model is retrained
 
-*Document version 1.0.0 | System: AgeSense OSCA v2.0.0 (K=4) | 2026-05-29*
+*Document version 1.1.0 | System: AgeSense OSCA v2.0.0 (K=4) | 2026-06-11*

@@ -9,7 +9,9 @@
 > still structurally how a model cutover works, but for the current build use the K=4
 > retraining/cutover steps in [UPDATING_THE_MODEL.md](UPDATING_THE_MODEL.md), and see
 > [model-validation-defensible-statements.md](model-validation-defensible-statements.md)
-> for the current v2.0.0 / K=4 cluster metrics.
+> for the current v2.0.0 / K=4 cluster metrics. The latest re-sync (290 seniors,
+> live-model canonical) is recorded in
+> [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
 
 This guide covers everything another device needed to do after pulling the `feat/live-model-alignment` branch (or after it merged into `main`). Follow the steps in order.
 

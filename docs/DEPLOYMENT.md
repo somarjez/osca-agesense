@@ -4,6 +4,8 @@
 > **Audience:** Anyone setting up the system on a new device.
 > **Platform:** Windows 10/11 with Laragon (recommended) or standard PHP/MySQL install.
 
+> **⚠️ Current state (2026-06-11): 290 seniors, live-model canonical.** This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` — all 290 seniors are scored by the live model (`prediction_source = live_model`) and the dashboard shows the **live** distribution **HIGH=56, MODERATE=196, LOW=38** (clusters C1=61, C2=85, C3=77, C4=67). Figures below that read "283", "notebook_cache: 283", or "HIGH=55/MODERATE=191/LOW=37" describe the earlier 283-senior / overrides-`true` state. Authoritative current numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 ---
 
 ## Table of Contents

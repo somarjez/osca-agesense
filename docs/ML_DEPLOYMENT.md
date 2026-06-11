@@ -109,26 +109,21 @@ All files in this table must be present in `python/models/` for the system to wo
 
 The inference service uses two different paths depending on the senior and the `ENABLE_NOTEBOOK_OVERRIDES` setting.
 
+> **This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` (Path B canonical).** Path A is optional — enable it only to reproduce the notebook distribution exactly. See the [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 ### Path A — Notebook cache (`prediction_source = notebook_cache`)
 
-**Used for:** The original 283 seed seniors when `ENABLE_NOTEBOOK_OVERRIDES=true`.
+**Used for:** The 290 seed seniors when `ENABLE_NOTEBOOK_OVERRIDES=true`.
 
-The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (which was populated from `senior_predictions.csv` during seeding). UMAP and the GBR/RFR models are **not called** for these seniors. The result is always identical across all devices regardless of hardware.
+The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (populated from `senior_predictions.csv`). UMAP and the GBR/RFR models are **not called** for these seniors. The result is identical across all devices.
 
-**Guaranteed distribution for all 283 seniors (all notebook_cache rows):**
-- HIGH: 55
-- MODERATE: 191
-- LOW: 37
-- C1 (High Functioning / Well-Supported Seniors): 60
-- C2 (Stable Ageing / Moderate Support Needs): 84
-- C3 (Environmentally and Financially Vulnerable Seniors): 74
-- C4 (Low Functioning / Multi-Domain Priority Seniors): 65
+**Notebook distribution for all 290 seniors (notebook_cache rows):**
+- HIGH: 55  ·  MODERATE: 196  ·  LOW: 38  ·  (1 senior labelled CRITICAL by the notebook → shown as HIGH in the live 3-level system)
+- C1: 64  ·  C2: 78  ·  C3: 76  ·  C4: 72
 
-Use this path for demos and the defense. It eliminates any possibility of floating-point variance across different CPUs.
+### Path B — Live model (`prediction_source = live_model`) — canonical
 
-### Path B — Live model (`prediction_source = live_model`)
-
-**Used for:** New seniors added after seeding (always), and all seniors when `ENABLE_NOTEBOOK_OVERRIDES=false`.
+**Used for:** New seniors added after seeding (always), and **all** seniors in this deployment (`ENABLE_NOTEBOOK_OVERRIDES=false`). Live distribution (290): HIGH=56, MODERATE=196, LOW=38; clusters C1=61, C2=85, C3=77, C4=67 (~91% agreement with the notebook — nearest-centroid in 31D scaled space is a deterministic *linear/Voronoi* approximation of the notebook's non-linear UMAP+KMeans boundaries; risk scores match exactly. See the [2026-06-11 re-sync record §6](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md)).
 
 Every senior is scored live using the following pipeline:
 
