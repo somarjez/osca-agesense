@@ -467,6 +467,7 @@ RECOMMENDATION_RULES = {
     # ── Health ────────────────────────────────────────────────────────────────
     "HLT-001": {
         "code": "HLT-001",
+        "trigger_summary": 'No recorded regular check-up, high medical risk, or age >= 70.',
         "category": "health",
         "source_id": "PHILHEALTH_YAKAP",
         "action": (
@@ -483,6 +484,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-002": {
         "code": "HLT-002",
+        "trigger_summary": 'Reported hypertension or high blood pressure.',
         "category": "health",
         "source_id": "DOH_PHILPEN",
         "action": (
@@ -498,6 +500,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-003": {
         "code": "HLT-003",
+        "trigger_summary": 'Reported diabetes or blood sugar concern.',
         "category": "health",
         "source_id": "DOH_PHILPEN",
         "action": (
@@ -511,6 +514,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-004": {
         "code": "HLT-004",
+        "trigger_summary": 'Difficulty with medicine costs or high medical financial burden.',
         "category": "health",
         "source_id": "PHILHEALTH_YAKAP",
         "action": (
@@ -526,6 +530,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-005": {
         "code": "HLT-005",
+        "trigger_summary": 'Reported dental concern.',
         "category": "health",
         "source_id": "RA_9994",
         "action": (
@@ -539,6 +544,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-006": {
         "code": "HLT-006",
+        "trigger_summary": 'Reported optical or vision concern.',
         "category": "health",
         "source_id": "RA_9994",
         "action": (
@@ -552,6 +558,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-007": {
         "code": "HLT-007",
+        "trigger_summary": 'Reported hearing concern.',
         "category": "health",
         "source_id": "RA_9994",
         "action": (
@@ -565,6 +572,7 @@ RECOMMENDATION_RULES = {
     },
     "HLT-008": {
         "code": "HLT-008",
+        "trigger_summary": 'Mobility difficulty or fall/frailty risk indicators.',
         "category": "health",
         "source_id": "WHO_HEALTHY_AGEING",
         "action": (
@@ -581,6 +589,7 @@ RECOMMENDATION_RULES = {
     # ── Financial ─────────────────────────────────────────────────────────────
     "FIN-001": {
         "code": "FIN-001",
+        "trigger_summary": 'No pension with low-income or indigent indicators.',
         "category": "financial",
         "source_id": "SOCIAL_PENSION",
         "action": (
@@ -601,6 +610,7 @@ RECOMMENDATION_RULES = {
     },
     "FIN-002": {
         "code": "FIN-002",
+        "trigger_summary": 'Financial difficulty meeting medical or household needs.',
         "category": "financial",
         "source_id": "DSWD_AICS",
         "action": (
@@ -616,6 +626,7 @@ RECOMMENDATION_RULES = {
     },
     "FIN-003": {
         "code": "FIN-003",
+        "trigger_summary": 'Difficulty with hospital or major medical expenses.',
         "category": "financial",
         "source_id": "MALASAKIT_CENTER",
         "action": (
@@ -636,6 +647,7 @@ RECOMMENDATION_RULES = {
     },
     "FIN-004": {
         "code": "FIN-004",
+        "trigger_summary": 'Moderate-to-high financial risk warranting PhilHealth check.',
         "category": "financial",
         "action": (
             "Verify active PhilHealth membership and check benefit utilization — assist the "
@@ -652,6 +664,7 @@ RECOMMENDATION_RULES = {
     },
     "FIN-005": {
         "code": "FIN-005",
+        "trigger_summary": 'Senior is 80, 85, 90, 95, or 100 years old.',
         "category": "financial",
         "action": (
             "Check eligibility for Expanded Centenarians Act cash gift and assist with "
@@ -668,6 +681,7 @@ RECOMMENDATION_RULES = {
     },
     "FIN-006": {
         "code": "FIN-006",
+        "trigger_summary": 'Disability or severe functional limitation indicators.',
         "category": "financial",
         "action": (
             "Refer to PDAO/MSWDO for PWD assessment if applicable; remind staff that senior "
@@ -684,6 +698,7 @@ RECOMMENDATION_RULES = {
     # ── Livelihood ────────────────────────────────────────────────────────────
     "LVL-001": {
         "code": "LVL-001",
+        "trigger_summary": 'Low income with skills/interest and no functional contraindication.',
         "category": "livelihood",
         "action": (
             "Assess willingness and physical capacity for livelihood support through DSWD SLP, "
@@ -702,6 +717,7 @@ RECOMMENDATION_RULES = {
     # ── Social / Emotional ────────────────────────────────────────────────────
     "SOC-001": {
         "code": "SOC-001",
+        "trigger_summary": 'Lives alone or limited family support (isolation risk).',
         "category": "social",
         "action": (
             "Assign barangay health worker (BHW) or OSCA/MSWDO caseworker for periodic welfare "
@@ -718,6 +734,7 @@ RECOMMENDATION_RULES = {
     },
     "SOC-002": {
         "code": "SOC-002",
+        "trigger_summary": 'Not registered with the Senior Citizen Association.',
         "category": "social",
         "action": (
             "Encourage registration or participation in the local Senior Citizen Association "
@@ -733,6 +750,7 @@ RECOMMENDATION_RULES = {
     },
     "SOC-003": {
         "code": "SOC-003",
+        "trigger_summary": 'Low social support, no close friend, or low participation.',
         "category": "social",
         "action": (
             "Encourage participation in OSCA, barangay, faith-based, or senior group activities "
@@ -748,6 +766,7 @@ RECOMMENDATION_RULES = {
     },
     "SOC-004": {
         "code": "SOC-004",
+        "trigger_summary": 'Reported emotional concern, loneliness, or low wellbeing.',
         "category": "mental_health",
         "action": (
             "Refer the senior to the RHU or a qualified mental health professional for assessment "
@@ -768,6 +787,7 @@ RECOMMENDATION_RULES = {
     },
     "SOC-005": {
         "code": "SOC-005",
+        "trigger_summary": 'Limited family support affecting wellbeing and care.',
         "category": "social",
         "action": (
             "Conduct family support assessment to review caregiver capacity, identify caregiver "
@@ -784,6 +804,7 @@ RECOMMENDATION_RULES = {
     # ── Functional / Accessibility ────────────────────────────────────────────
     "FNC-001": {
         "code": "FNC-001",
+        "trigger_summary": 'Limited functional independence or difficulty with daily activities.',
         "category": "functional",
         "action": (
             "Assess ADL (activities of daily living) limitations and coordinate home-care support "
@@ -799,6 +820,7 @@ RECOMMENDATION_RULES = {
     },
     "FNC-002": {
         "code": "FNC-002",
+        "trigger_summary": 'Aged 80+ (risk of functional decline, polypharmacy, falls).',
         "category": "functional",
         "source_id": "WHO_HEALTHY_AGEING",
         "action": (
@@ -818,6 +840,7 @@ RECOMMENDATION_RULES = {
     },
     "FNC-003": {
         "code": "FNC-003",
+        "trigger_summary": 'Transport/distance barrier or low service access.',
         "category": "healthcare_access",
         "source_id": "DSWD_AICS",
         "action": (
@@ -833,6 +856,7 @@ RECOMMENDATION_RULES = {
     },
     "FNC-004": {
         "code": "FNC-004",
+        "trigger_summary": 'Unsafe home or housing-safety concern.',
         "category": "healthcare_access",
         "source_id": "LGU_SOCIAL_WELFARE",
         "action": (
@@ -848,6 +872,7 @@ RECOMMENDATION_RULES = {
     },
     "FNC-005": {
         "code": "FNC-005",
+        "trigger_summary": 'Limited health service access (low accessibility score).',
         "category": "healthcare_access",
         "source_id": "BHW_COMMUNITY",
         "action": (
@@ -864,6 +889,7 @@ RECOMMENDATION_RULES = {
     # ── Functional (continued) ────────────────────────────────────────────────
     "FNC-006": {
         "code": "FNC-006",
+        "trigger_summary": 'Fall-risk indicators from mobility/functional score and age.',
         "category": "functional",
         "action": (
             "Conduct a home-based fall-risk assessment with the BHW/RHU and review "
@@ -881,6 +907,7 @@ RECOMMENDATION_RULES = {
     },
     "FNC-007": {
         "code": "FNC-007",
+        "trigger_summary": 'Functional or sensory limitation that may need an assistive device.',
         "category": "functional",
         "action": (
             "Assess eligibility for assistive device support (cane, walker, wheelchair, "
@@ -902,6 +929,7 @@ RECOMMENDATION_RULES = {
     # ── Household Safety ─────────────────────────────────────────────────────
     "HSF-001": {
         "code": "HSF-001",
+        "trigger_summary": 'Unsafe home, poor household condition, or housing concern.',
         "category": "healthcare_access",
         "source_id": "LGU_SOCIAL_WELFARE",
         "action": (
@@ -919,6 +947,7 @@ RECOMMENDATION_RULES = {
     },
     "HSF-002": {
         "code": "HSF-002",
+        "trigger_summary": 'Structurally unsafe home with low income.',
         "category": "healthcare_access",
         "source_id": "DSWD_AICS",
         "action": (
@@ -938,6 +967,7 @@ RECOMMENDATION_RULES = {
     # ── Social (continued) ────────────────────────────────────────────────────
     "SOC-006": {
         "code": "SOC-006",
+        "trigger_summary": 'Low community participation or limited opportunities/respect.',
         "category": "social",
         "action": (
             "Coordinate with OSCA or barangay to facilitate active participation in senior "
@@ -955,6 +985,7 @@ RECOMMENDATION_RULES = {
     },
     "SOC-007": {
         "code": "SOC-007",
+        "trigger_summary": 'Widowed or separated with low social support.',
         "category": "social",
         "action": (
             "Connect the senior with OSCA peer support groups, faith-based community "
@@ -973,6 +1004,7 @@ RECOMMENDATION_RULES = {
     # ── Healthcare Access (additional) ───────────────────────────────────────
     "HCA-001": {
         "code": "HCA-001",
+        "trigger_summary": 'Chronic condition(s) with no recorded regular check-up.',
         "category": "healthcare_access",
         "source_id": "PHILHEALTH_YAKAP",
         "action": (
@@ -1054,7 +1086,10 @@ def build_rec_from_rule(
         "apa_reference":            apa_reference,
         "source_type":              source_type,
         "recommendation_code":      rule.get("code", code),
-        "trigger_summary":          rule.get("trigger_summary", ""),
+        # trigger_summary: concise human-readable description of what fired this
+        # rule. New-format rules declare it explicitly; legacy rules fall back to
+        # the reason_template so the field is never empty for any coded rec.
+        "trigger_summary":          rule.get("trigger_summary") or rule.get("reason_template", ""),
         "requires_human_validation": rule.get("requires_human_validation", True),
         "documents_needed":         rule.get("documents_needed"),
     }

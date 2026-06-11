@@ -391,7 +391,19 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     @endphp
     <div class="rec-item">
         <div class="rec-num">{{ $loop->iteration }}.</div>
-        <div class="rec-text">{{ $rec->action }}</div>
+        <div class="rec-text">
+            {{ $rec->action }}
+            @if($rec->recommendation_code || $rec->trigger_summary)
+            <div style="font-size:8px; color:#94a3b8; margin-top:2px;">
+                @if($rec->recommendation_code)<strong style="color:#64748b;">{{ $rec->recommendation_code }}</strong>@endif
+                @if($rec->domain) · {{ $rec->domain }}@endif
+                @if($rec->trigger_summary) · {{ $rec->trigger_summary }}@endif
+            </div>
+            @endif
+            @if($rec->evidence_source)
+            <div style="font-size:8px; color:#94a3b8;">Source: {{ $rec->evidence_source }}@if($rec->apa_reference) — {{ $rec->apa_reference }}@endif</div>
+            @endif
+        </div>
         <div class="rec-urg"><span class="urgency {{ $urgClass }}">{{ strtoupper($rec->urgency ?? 'planned') }}</span></div>
     </div>
     @endforeach

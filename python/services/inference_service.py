@@ -977,6 +977,11 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             rec_code = str(row.get("recommendation_code", "") or "").strip() or None
             svc_provider = str(row.get("service_provider", "") or "").strip() or None
             evidence = str(row.get("evidence_source", "") or "").strip() or None
+            apa_ref = str(row.get("apa_reference", "") or "").strip() or None
+            src_type = str(row.get("source_type", "") or "").strip() or None
+            trig_summary = str(row.get("trigger_summary", "") or "").strip() or None
+            # domain falls back to category for CSVs that pre-date the v2 export
+            domain = str(row.get("domain", "") or "").strip() or category
             rhv_raw = str(row.get("requires_human_validation", "1")).strip()
             requires_hv = rhv_raw not in ("0", "false", "False", "")
             docs_raw = str(row.get("documents_needed", "") or "").strip()
@@ -987,7 +992,7 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             actions.append({
                 "priority": len(actions) + 1,
                 "type": "domain",
-                "domain": category,
+                "domain": domain,
                 "category": category,
                 "action": str(row.get("recommendation", "") or row.get("action", "")),
                 "reason": str(row.get("reason", "")),
@@ -997,6 +1002,9 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 "recommendation_code":       rec_code,
                 "service_provider":          svc_provider,
                 "evidence_source":           evidence,
+                "apa_reference":             apa_ref,
+                "source_type":               src_type,
+                "trigger_summary":           trig_summary,
                 "requires_human_validation": requires_hv,
                 "documents_needed":          docs_needed,
             })
@@ -1998,14 +2006,39 @@ def _build_recommendations(
                 non_health_interleaved.append(_q.pop(0))
         _queues = [_q for _q in _queues if _q]
 
-    # Final order: health[:cap] → interleaved non-health → remaining health
-    diverse: List[Dict[str, Any]] = (
-        health_q[:max_health_top]
-        + non_health_interleaved
-        + health_q[max_health_top:]
-    )
+    # Final order: alternate capped health with interleaved non-health so health
+    # never occupies the entire top-3 (or top-N) when non-health triggers exist.
+    # Health is still surfaced early (alternation starts with health), but a
+    # non-health recommendation lands in every other priority slot. Any health
+    # beyond the cap is appended after the interleave; the full set is preserved.
+    priority_health = list(health_q[:max_health_top])
+    remaining_health = list(health_q[max_health_top:])
+    nh_queue = list(non_health_interleaved)
 
-    # Add trigger_summary metadata to each recommendation
+    # Lead slot policy:
+    #   • Urgent / HIGH-risk seniors → a health referral leads (clinical priority).
+    #   • Routine seniors → lead with the top non-health need so the first
+    #     recommendation is not mechanically "health" for every senior; health
+    #     still appears in an early slot and is capped.
+    # Either way health is interleaved with non-health, so the top-3 is never all
+    # health when valid non-health triggers exist.
+    health_leads = is_high_urgency
+    diverse: List[Dict[str, Any]] = []
+    while priority_health or nh_queue:
+        first, second = (
+            (priority_health, nh_queue) if health_leads else (nh_queue, priority_health)
+        )
+        if first:
+            diverse.append(first.pop(0))
+        if second:
+            diverse.append(second.pop(0))
+    diverse += remaining_health
+
+    # Each rule's descriptive trigger_summary string (set by build_rec_from_rule)
+    # is preserved as-is — it is the human-readable "what fired this rule" text
+    # used by exports, the DB column, and the UI. The firing CONTEXT (cluster /
+    # risk / urgency / priority_flag) is attached under a separate key so
+    # trigger_summary stays a string and no information is lost.
     trigger_context = {
         "cluster_id":    named_id,
         "risk_level":    overall_level,
@@ -2013,7 +2046,9 @@ def _build_recommendations(
         "priority_flag": priority_flag or "",
     }
     for rec in diverse:
-        rec["trigger_summary"] = dict(trigger_context)
+        if not isinstance(rec.get("trigger_summary"), str):
+            rec["trigger_summary"] = str(rec.get("trigger_summary") or "")
+        rec["trigger_context"] = dict(trigger_context)
 
     # Re-number priorities globally after diversity reordering
     for idx, rec in enumerate(diverse, start=1):
