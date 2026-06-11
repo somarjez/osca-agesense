@@ -200,7 +200,7 @@ class RepairNotebookCache extends Command
             $nbCount = MlResult::whereHas(
                 'seniorCitizen', fn ($q) => $q->where('status', 'active')->whereNull('deleted_at')
             )->whereIn('id', function ($sub) {
-                $sub->selectRaw('MAX(id)')
+                $sub->selectRaw('MAX(ml_results.id)')
                     ->from('ml_results')
                     ->join('senior_citizens', 'senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->where('senior_citizens.status', 'active')
@@ -211,7 +211,7 @@ class RepairNotebookCache extends Command
             $liveCount = MlResult::whereHas(
                 'seniorCitizen', fn ($q) => $q->where('status', 'active')->whereNull('deleted_at')
             )->whereIn('id', function ($sub) {
-                $sub->selectRaw('MAX(id)')
+                $sub->selectRaw('MAX(ml_results.id)')
                     ->from('ml_results')
                     ->join('senior_citizens', 'senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->where('senior_citizens.status', 'active')
