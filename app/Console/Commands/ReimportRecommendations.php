@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\MlResult;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use Illuminate\Console\Command;
