@@ -107,7 +107,7 @@
         </div>
 
         <div class="card-body space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
@@ -128,17 +128,14 @@
                     </button>
                 </label>
                 <label class="block">
-                    <span class="eyebrow block mb-1.5">Risk Level</span>
+                    <span id="gis-secondary-filter-label" class="eyebrow block mb-1.5">Risk Level</span>
                     <select id="gis-risk-filter" class="form-select">
                         <option value="all">All Risk Levels</option>
                         <option value="low">Low</option>
                         <option value="moderate">Moderate</option>
                         <option value="high">High</option>
                     </select>
-                </label>
-                <label class="block">
-                    <span class="eyebrow block mb-1.5">Cluster / Health Group</span>
-                    <select id="gis-cluster-filter" class="form-select">
+                    <select id="gis-cluster-filter" class="form-select hidden">
                         <option value="all">All Groups</option>
                     </select>
                 </label>
@@ -186,7 +183,7 @@
             </div>
 
             <div id="gis-map"
-                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
+                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
                  data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
                  data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
@@ -234,6 +231,13 @@
 .dark .gis-recenter-control:hover {
     background: #3a4540;
     color: #fff;
+}
+/* The basemap is always the light tile layer. Give the map element a light,
+   land-coloured background (matching the tiles) so the brief tile gaps during a
+   zoom render as a soft land tone instead of Leaflet's default grey (#ddd) or
+   the dark-theme panel colour. The ID selector outranks the Tailwind bg classes. */
+#gis-map {
+    background: #f2efe9;
 }
 </style>
 @endpush
@@ -972,6 +976,30 @@
 
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
         control.style.display = mode === 'risk-indicator-heatmap' ? '' : 'none';
+    }
+
+    // The Risk Level and Cluster / Health Group filters share one slot that
+    // adapts to the active visualization: Cluster mode shows the health-group
+    // filter, every other mode shows the risk filter. The hidden filter is reset
+    // to "all" so it never silently narrows another mode's results.
+    function syncSecondaryFilter() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const riskSelect = document.getElementById(RISK_FILTER_ID);
+        const clusterSelect = document.getElementById(CLUSTER_FILTER_ID);
+        const label = document.getElementById('gis-secondary-filter-label');
+        if (!riskSelect || !clusterSelect) return;
+
+        const showCluster = mode === 'cluster-heatmap';
+        clusterSelect.classList.toggle('hidden', !showCluster);
+        riskSelect.classList.toggle('hidden', showCluster);
+        if (label) {
+            label.textContent = showCluster ? 'Health Group' : 'Risk Level';
+        }
+
+        const hiddenSelect = showCluster ? riskSelect : clusterSelect;
+        if (hiddenSelect.value !== 'all') {
+            hiddenSelect.value = 'all';
+        }
     }
 
     function selectedClusterGroup() {
@@ -4345,8 +4373,7 @@
                 this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-flow-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
-                map.on('zoomend resize', this._reset, this);
-                map.on('moveend', this._reposition, this);
+                map.on('moveend zoomend resize', this._reset, this);
                 this._reset();
             },
 
@@ -4354,8 +4381,7 @@
                 if (this._canvas?.parentNode) {
                     this._canvas.parentNode.removeChild(this._canvas);
                 }
-                map.off('zoomend resize', this._reset, this);
-                map.off('moveend', this._reposition, this);
+                map.off('moveend zoomend resize', this._reset, this);
             },
 
             _reset() {
@@ -4369,14 +4395,6 @@
                 this._canvas.height = Math.round(size.y * ratio);
                 this._ratio = ratio;
                 this._redraw();
-            },
-
-            // Pan: reposition the canvas only (content is frozen until the next
-            // zoom/resize redraw). Avoids the per-pan radial-gradient redraw that caused jank.
-            _reposition() {
-                if (!this._canvas) return;
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
             },
 
             async _redraw() {
@@ -4919,14 +4937,7 @@
             }));
         }
 
-        const primaryBoundary = primaryBoundaryGeoJson();
-
-        if (primaryBoundary) {
-            const maskLayer = buildMunicipalMaskLayer(primaryBoundary);
-            if (maskLayer) {
-                layers.municipalMask.addLayer(maskLayer);
-            }
-        }
+        refreshMunicipalMask(map);
 
         if (hasBoundaryFeatures(municipalGeoJson)) {
             layers.municipalBoundary.addLayer(buildBoundaryLayer(municipalGeoJson, {
@@ -4956,7 +4967,11 @@
     }
 
     function maskFillColor() {
-        return isDarkMode() ? '#131917' : '#ffffff';
+        // The basemap tiles are always the light layer (TILE_LIGHT_URL), so the
+        // mask covering everything outside Pagsanjan must stay light in both
+        // themes. A dark fill here painted the exterior near-black over the light
+        // tiles, which read as a blacked-out / "missing" map near the border.
+        return '#ffffff';
     }
 
     function createRecenterControl(map) {
@@ -4984,7 +4999,11 @@
             updateWhenIdle: true,
             keepBuffer: 4,
             noWrap: true,
-            bounds: mapNavigationBounds(),
+            // No `bounds` restriction: it limited tiles to the rectangular
+            // navigation bounds, so the basemap rendered as a square that didn't
+            // follow the town outline (obvious once the exterior mask was removed).
+            // Panning is already constrained by the map's maxBounds, so tiles only
+            // load around the viewable area regardless.
         });
     }
 
@@ -4999,8 +5018,8 @@
         }
     }
 
-    function buildMunicipalMaskLayer(featureCollection) {
-        if (!hasBoundaryFeatures(featureCollection)) {
+    function buildMunicipalMaskLayer(featureCollection, map) {
+        if (!map || !hasBoundaryFeatures(featureCollection)) {
             return null;
         }
 
@@ -5038,14 +5057,23 @@
             return null;
         }
 
+        // The outer ring tracks the CURRENT viewport (padded), not a fixed giant
+        // box. That keeps the projected coordinates roughly screen-sized, so the
+        // Canvas renderer never hits its ~32k-pixel coordinate limit — that
+        // overflow was what clipped the mask into a square and hid parts of the map
+        // at higher zooms. refreshMunicipalMask() rebuilds this on move/zoom so it
+        // always covers the screen, with the municipal boundary punched out as the
+        // hole so only Pagsanjan shows through.
+        const view = map.getBounds().pad(1.0);
         const outerRing = [
-            [-90, -360],
-            [-90, 360],
-            [90, 360],
-            [90, -360],
+            [view.getSouth(), view.getWest()],
+            [view.getSouth(), view.getEast()],
+            [view.getNorth(), view.getEast()],
+            [view.getNorth(), view.getWest()],
         ];
 
         return window.L.polygon([outerRing, ...holes], {
+            renderer: getMaskRenderer(map),
             pane: 'gis-mask-pane',
             stroke: false,
             fillColor: maskFillColor(),
@@ -5053,6 +5081,32 @@
             interactive: false,
             bubblingMouseEvents: false,
         });
+    }
+
+    // Dedicated Canvas renderer for the mask, in its own pane so it layers above
+    // the basemap/heat but below the facility and senior markers. Reused across
+    // rebuilds so we don't leak a canvas element on every move/zoom.
+    function getMaskRenderer(map) {
+        if (!map._gisMaskRenderer) {
+            map._gisMaskRenderer = window.L.canvas({ padding: 1.0, pane: 'gis-mask-pane' });
+        }
+        return map._gisMaskRenderer;
+    }
+
+    // Rebuild the exterior mask for the current viewport. Cheap (a single polygon)
+    // and keeps coordinates small so the Canvas renderer stays within its limits.
+    function refreshMunicipalMask(map) {
+        if (!map) return;
+        const layers = ensureLayerRegistry(map);
+        layers.municipalMask.clearLayers();
+        const primaryBoundary = primaryBoundaryGeoJson();
+        if (!primaryBoundary) {
+            return;
+        }
+        const maskLayer = buildMunicipalMaskLayer(primaryBoundary, map);
+        if (maskLayer) {
+            layers.municipalMask.addLayer(maskLayer);
+        }
     }
 
     function mapFocusBounds() {
@@ -5143,6 +5197,7 @@
         // previous (now superseded) filter/mode state skips its map mutations.
         ++activeRenderToken;
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        syncSecondaryFilter();
         const activeFeatures = filteredFeatures(seniorGeoJson.features || []);
         const markerStats = validatedFeatureSet(activeFeatures, { exactOnly: false });
         const renderStats = markerStats;
@@ -5403,6 +5458,10 @@
             fadeAnimation: false,
             markerZoomAnimation: false,
             preferCanvas: true,
+            // Default canvas padding is only 0.1, so the canvas barely extends past
+            // the viewport and its edge can appear as a square while dragging/zooming.
+            // Enlarge it so canvas-rendered vectors always cover the screen.
+            renderer: window.L.canvas({ padding: 0.5 }),
         }).setView(PAGSANJAN_CENTER, DEFAULT_ZOOM);
         el._leaflet_map_instance = map;
         ensureMapPanes(map);
@@ -5416,7 +5475,12 @@
             focusMapOnPagsanjan(map);
         });
 
-        map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
+        map.on('zoomend moveend', debounce(() => {
+            refreshHeatmapLayersForZoom(map);
+            // Re-cut the exterior mask to the new viewport so it keeps covering the
+            // screen (its outer ring is viewport-sized to stay canvas-safe).
+            refreshMunicipalMask(map);
+        }, 150));
         map.on('click', (event) => {
             openBarangayPopupAt(map, event.latlng);
         });
@@ -5458,6 +5522,11 @@
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
         if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
+            if (event.target?.id === MODE_ID) {
+                // Swap the adaptive Risk/Health-Group filter immediately so the
+                // control updates before the debounced re-render runs.
+                syncSecondaryFilter();
+            }
             debouncedRefresh();
         }
     });
