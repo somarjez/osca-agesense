@@ -3,6 +3,8 @@
 > **Audience:** The developer who owns the Jupyter notebook and retrains the model.
 > Other machines (collaborators, other laptops) do not need the notebook — they just `git pull` and reseed.
 
+> **⚠️ Current state (2026-06-11): model v2.0.0, 290 seniors, live-model canonical (`ENABLE_NOTEBOOK_OVERRIDES=false`).** The 2026-06-11 retrain was deployed **non-destructively** (no full re-seed): copy artifacts → `python/models/` + `storage/app/ml_models/`, regenerate manifest/baseline, rebuild centroids, then `php artisan ml:batch-analyze --force` (live mode) or `ml:repair-notebook-cache --all` (only if overrides=`true`). Dashboard distribution under the canonical `false` mode: **HIGH=56, MODERATE=196, LOW=38**. "283 / HIGH=55 / MODERATE=191 / notebook_cache" figures below describe the older state. See [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 > **Scope — read this first:**
 > This file describes the retraining workflow. **Normal deployment and defense setup do not require running the notebook.**
 > For normal setup, follow [DEPLOYMENT.md](DEPLOYMENT.md) and [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) instead.

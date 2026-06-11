@@ -54,7 +54,7 @@ Primary subject of all system operations. One record per registered senior citiz
 | Column | Type | Nullable | Description |
 |---|---|---|---|
 | `id` | `bigint unsigned` | NO | Auto-increment primary key |
-| `osca_id` | `varchar(20)` | NO | Unique — format `PAG-YYYY-NNNN` |
+| `osca_id` | `varchar(20)` | NO | Unique — format `{BRGY}-YYYY-NNNN`, where `{BRGY}` is the barangay's first 3 letters uppercased (e.g. `SAM-2026-0001`), except Barangay I/II (Poblacion) which use `BR1`/`BR2`. Sequence = max existing +1 **including soft-deleted rows** (see `SeniorCitizen::generateOscaId`). |
 | `first_name` | `varchar(100)` | NO | |
 | `middle_name` | `varchar(100)` | YES | |
 | `last_name` | `varchar(100)` | NO | |

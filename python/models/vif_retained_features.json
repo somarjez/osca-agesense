@@ -31,8 +31,8 @@
   "sec5_income_source_score",
   "sec4_household_risk",
   "sec3_community_score",
-  "education_enc",
   "checkup_enc",
+  "sec3_education_norm",
   "sec3_skill_score",
   "sec2_family_support"
 ]

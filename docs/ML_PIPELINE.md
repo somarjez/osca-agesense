@@ -425,16 +425,16 @@ All four cluster IDs (`1`–`4`) must be present or the file is ignored and hard
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
-Controls which prediction path is used for the 283 original seeded seniors.
+Controls which prediction path is used for the 290 original seeded seniors.
 
 | Value | Mode | Behaviour |
 |---|---|---|
-| `true` | **Defense / pilot mode** | Original 283 seeded seniors are served from the `notebook_cache` — their risk scores, clusters, and composite values come directly from the notebook-validated database rows. New or unmatched seniors always use the live model regardless of this setting. |
-| `false` | **Pure live-model mode** | All seniors are processed through the live inference pipeline (preprocess → UMAP → KMeans → GBR/RFR). Useful for validating that model artifacts produce deterministic results across runs. |
+| `false` | **Live-model mode (canonical for this deployment)** | All seniors are processed through the live inference pipeline (preprocess → nearest-centroid clustering → GBR/RFR). Cluster agreement with the notebook is ~91% (the deterministic nearest-centroid approximation of UMAP+KMeans); risk scores match the notebook (composite Δ ≈ 0). Reproducible across devices. |
+| `true` | **Notebook-exact mode (optional)** | The 290 seeded seniors are served from the `notebook_cache` — clusters/risk/composite come directly from the notebook-validated rows (100% cluster match). New or unmatched seniors always use the live model regardless of this setting. |
 
-**For defense and normal deployment, set `ENABLE_NOTEBOOK_OVERRIDES=true`.** This guarantees that dashboard numbers for the 283 notebook-cache seniors exactly match the notebook-validated values: HIGH=55, MODERATE=191, LOW=37 across the 283 seed seniors (plus any new seniors scored via the live model).
+**This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false`** — the live model scores every senior, consistent with `model-validation-defensible-statements.md`. Live distribution (290): HIGH=56, MODERATE=196, LOW=38.
 
-**For model validation and determinism testing, set `ENABLE_NOTEBOOK_OVERRIDES=false`.** All seniors run through the live model pipeline, allowing you to verify that repeated runs produce consistent scores.
+**Set `ENABLE_NOTEBOOK_OVERRIDES=true`** only if you need the dashboard to reproduce the notebook distribution exactly (HIGH=55, MODERATE=196, LOW=38, plus 1 senior the notebook labels CRITICAL → shown as HIGH live). Then run `php artisan ml:repair-notebook-cache --all` and restart services. See [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
 
 ---
 

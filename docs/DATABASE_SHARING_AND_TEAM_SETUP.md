@@ -7,6 +7,8 @@
 >
 > Do not let each member work from a separate local database and compare results.
 
+> **⚠️ Current state (2026-06-11): 290 seniors, live-model canonical.** This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` — all 290 seniors are `prediction_source = live_model` (notebook_cache: 0), and the dashboard distribution is **HIGH=56, MODERATE=196, LOW=38** (clusters C1=61, C2=85, C3=77, C4=67). The tables below showing "Total 283", "MODERATE 191", and "Notebook-Validated Cache: 283" describe the earlier 283-senior / overrides-`true` state. Authoritative current numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 ---
 
 ## Official Validated Seed Result
