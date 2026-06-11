@@ -105,12 +105,11 @@
     @if ($evalMetrics['silhouette'])
     <div class="card">
         <div class="card-head"><div class="card-title">Grouping Quality Indicators</div></div>
-        <div class="card-body grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+        <div class="card-body grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
             @foreach ([
                 ['Group Separation',  $evalMetrics['silhouette'],        'Higher = more distinct groups (0–1)'],
                 ['Group Distinctness',$evalMetrics['davies_bouldin'],    'Lower = better defined groups'],
                 ['Group Density',     $evalMetrics['calinski_harabasz'], 'Higher = tighter groups'],
-                ['Spread Score',      $evalMetrics['inertia'],           'How spread out members are within groups'],
             ] as [$label, $val, $hint])
             <div class="rounded-xl p-3 bg-paper-2 dark:bg-[#131917] border border-paper-rule dark:border-[#2b3530]">
                 <p class="text-[11px] text-ink-500 dark:text-[#8a9087] mb-1">{{ $label }}</p>
