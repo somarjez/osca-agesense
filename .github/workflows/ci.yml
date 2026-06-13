@@ -179,5 +179,8 @@ jobs:
             || (echo "ERROR: public/build missing after build step." && exit 1)
 
       - name: Audit npm dependencies for known CVEs
-        run: npm audit --audit-level=high
+        # Scope to production deps: vite/esbuild are dev-only build tooling whose
+        # advisories (esbuild dev server, Deno path) never reach the deployed app.
+        # Production dependencies are audited at the same high threshold.
+        run: npm audit --omit=dev --audit-level=high
 
