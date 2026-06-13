@@ -202,8 +202,14 @@ Given the rows that fired for a senior and the senior's `urgency` (`priority_fla
      categories.
    - Routine seniors: lead with the **highest-`priority_weight` non-health** need, then interleave
      categories so the **top-3 is never all-health**.
-4. **Total cap.** ~8–10 recs/senior (tunable constant); keep highest-`priority_weight` first within
-   each category, then across categories.
+4. **Per-category cap + total safety net.** The catalog is many-to-many — one need-tag fans out to
+   several overlapping rows (e.g. `medical_cost_strain` → ~8 rows), so without a per-category limit a
+   single need floods the output (measured: 22–83 rows/senior uncapped, median 43). Cap each
+   non-health category at **`CATEGORY_CAP = 2`** (top-2 by `priority_weight`); health keeps its own
+   2-routine / 3-urgent cap. `TOTAL_REC_CAP = 24` is a high safety net that rarely binds. Per-senior
+   counts then reflect the **breadth** of assessed need — observed **10–23, median 16** (a senior who
+   screens positive in 6 domains gets ~12; one positive in 10 domains gets ~20) — instead of a flat
+   clamped number. A flat total cap alone is wrong: it pins every senior to an identical count.
 5. **Determinism.** Stable sort keyed by `(bucket, -priority_weight, recommendation_code)` so output is
    reproducible across runs/devices (consistent with `project_clustering_determinism`).
 
