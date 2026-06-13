@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import csv
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 HEALTH_CATEGORY = "health"
@@ -142,6 +142,12 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
 
     Thresholds are ported verbatim from inference_service._*_recs so triggering
     behaviour matches the validated engine; only the OUTPUT (a tag set) differs.
+
+    Defaults are intentionally "fail-toward-flagging" (e.g. func_independence
+    defaults to 3.0, on the <=3 boundary): a missing field reads as a mild need,
+    matching the original engine. In production `row` is the dense merged dict
+    (feature_map + section_scores + raw_context), so partial-record over-flagging
+    is not a concern.
     """
     t: Set[str] = set()
     age = _sf(row.get("age"), 70)
