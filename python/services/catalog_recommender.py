@@ -399,3 +399,69 @@ def select(fired: List[CatalogRow], urgency: str = "planned",
         if second:
             out.append(second.pop(0))
     return out[:TOTAL_REC_CAP]
+
+
+def _row_to_rec(r: CatalogRow, priority: int, urgency: str, risk_level: str,
+                matched_tags: Set[str], trigger_context: Dict[str, Any]) -> Dict[str, Any]:
+    fired = sorted(r.trigger_tags & matched_tags)
+    reason = r.trigger_summary
+    if fired:
+        reason = f"{r.trigger_summary} (matched: {', '.join(fired)})"
+    return {
+        "priority": priority,
+        "type": "domain",
+        "domain": r.who_domain or r.category or "general",
+        "category": r.category or "general",
+        "action": r.recommendation,                 # verbatim catalog text
+        "urgency": urgency,
+        "risk_level": risk_level,
+        "reason": reason,
+        "service_provider": r.service_provider,
+        "evidence_source": r.source,
+        "apa_reference": r.apa_reference,
+        "source_type": r.source_type,
+        "recommendation_code": r.code,
+        "trigger_summary": r.trigger_summary,
+        "requires_human_validation": r.requires_human_validation,
+        "documents_needed": None,
+        "key_program_tag": r.key_program_tag,
+        "implementation_note": r.implementation_note,
+        "trigger_context": dict(trigger_context),
+    }
+
+
+def build_recommendations(row: Dict[str, Any], urgency: str = "planned",
+                          risk_level: str = "moderate", cluster_id: Any = None,
+                          overall_level: str = "", priority_flag: str = "",
+                          catalog: Optional[List[CatalogRow]] = None) -> List[Dict[str, Any]]:
+    catalog = catalog if catalog is not None else load_catalog()
+    tags = extract_need_tags(row)
+
+    # derived tags that depend on urgency / breadth of need
+    is_high = urgency in ("urgent", "immediate") or str(overall_level).upper() == "HIGH" \
+        or risk_level.lower() == "high"
+    if is_high:
+        tags.add("high_risk")
+    # categories triggered so far (excluding the broad osca/benefits proxies)
+    pre_fired = match(tags, catalog)
+    distinct_cats = {r.category for r in pre_fired if r.category not in ("benefits", "governance")}
+    if len(distinct_cats) >= 3:
+        tags.add("multiple_unmet_needs")
+    if "no_checkup" in tags or "low_income" in tags or len(distinct_cats) >= 3:
+        tags.add("osca_navigation")
+    if is_high or "multiple_unmet_needs" in tags:
+        tags.add("benefits_unaware")
+
+    fired = match(tags, catalog)
+    chosen = select(fired, urgency=urgency, risk_level=risk_level)
+
+    trigger_context = {
+        "cluster_id": cluster_id,
+        "risk_level": overall_level or risk_level,
+        "urgency": urgency,
+        "priority_flag": priority_flag or "",
+    }
+    return [
+        _row_to_rec(r, i, urgency, risk_level, tags, trigger_context)
+        for i, r in enumerate(chosen, start=1)
+    ]

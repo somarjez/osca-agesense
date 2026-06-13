@@ -90,6 +90,29 @@ def test_select_allows_three_health_for_urgent():
     assert sum(1 for r in chosen if r.category == "health") <= 3
 
 
+def test_build_recommendations_emits_full_schema():
+    row = {"medical_concern": "hypertension", "func_independence": 2,
+           "phy_mobility_outside": 2, "sec4_lives_alone": 1, "age": 82,
+           "has_pension": 0, "income_enc": 2, "env_fin_household": 2}
+    recs = cr.build_recommendations(row, urgency="planned", risk_level="moderate",
+                                    cluster_id=3, overall_level="MODERATE", priority_flag="")
+    assert recs, "expected at least one recommendation"
+    required = {"priority", "type", "domain", "category", "action", "urgency",
+                "risk_level", "reason", "service_provider", "evidence_source",
+                "apa_reference", "source_type", "recommendation_code",
+                "trigger_summary", "requires_human_validation", "documents_needed",
+                "trigger_context"}
+    for rec in recs:
+        assert required <= set(rec), f"missing keys: {required - set(rec)}"
+        assert rec["recommendation_code"], "code must be non-empty"
+        assert rec["apa_reference"], "apa must be non-empty"
+        assert rec["source_type"], "source_type must be non-empty"
+        assert rec["domain"], "domain must be non-empty"
+    assert [r["priority"] for r in recs] == list(range(1, len(recs) + 1))
+    # health capped, not all-health top-3
+    assert not all(r["category"] == "health" for r in recs[:3])
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
