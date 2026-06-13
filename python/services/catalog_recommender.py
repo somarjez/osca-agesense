@@ -339,3 +339,64 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("philhealth_gap")
 
     return t
+
+
+_PRIORITY_CATS = [
+    "functional", "healthcare_access", "social", "financial",
+    "mental_health", "assistive_device", "household_safety",
+    "elder_protection", "livelihood", "benefits", "other",
+]
+
+
+def match(senior_tags: Set[str], catalog: Optional[List[CatalogRow]] = None) -> List[CatalogRow]:
+    catalog = catalog if catalog is not None else load_catalog()
+    tags = set(senior_tags)
+    return [r for r in catalog if r.trigger_tags and (r.trigger_tags & tags)]
+
+
+def select(fired: List[CatalogRow], urgency: str = "planned",
+           risk_level: str = "moderate") -> List[CatalogRow]:
+    """Capped + needs-first ordering. Governance rows are excluded (they surface
+    as the requires_human_validation flag, not as ranked items)."""
+    rows = [r for r in fired if r.category != GOVERNANCE_CATEGORY]
+
+    is_high = urgency in ("urgent", "immediate") or risk_level.lower() == "high"
+    max_health = 3 if is_high else 2
+
+    def sort_key(r: CatalogRow):
+        return (-r.priority_weight, r.code)
+
+    health = sorted([r for r in rows if r.category == HEALTH_CATEGORY], key=sort_key)
+    non_health = [r for r in rows if r.category != HEALTH_CATEGORY]
+
+    # group non-health by category, each sorted by weight
+    groups: Dict[str, List[CatalogRow]] = {}
+    for r in non_health:
+        groups.setdefault(r.category, []).append(r)
+    for c in groups:
+        groups[c].sort(key=sort_key)
+
+    ordered_cats = [c for c in _PRIORITY_CATS if c in groups]
+    ordered_cats += sorted(c for c in groups if c not in _PRIORITY_CATS)
+    queues = [groups[c] for c in ordered_cats]
+
+    interleaved: List[CatalogRow] = []
+    while any(queues):
+        for q in queues:
+            if q:
+                interleaved.append(q.pop(0))
+        queues = [q for q in queues if q]
+
+    priority_health = health[:max_health]
+    remaining_health = health[max_health:]
+    health_leads = is_high
+
+    out: List[CatalogRow] = []
+    ph, nh = list(priority_health), list(interleaved)
+    while ph or nh:
+        first, second = (ph, nh) if health_leads else (nh, ph)
+        if first:
+            out.append(first.pop(0))
+        if second:
+            out.append(second.pop(0))
+    return out[:TOTAL_REC_CAP]

@@ -60,6 +60,36 @@ def test_extract_tags_healthy_senior_minimal():
     assert "dx_hypertension" not in tags
 
 
+def test_match_returns_rows_with_intersecting_tags():
+    catalog = cr.load_catalog()
+    fired = cr.match({"dx_hypertension"}, catalog)
+    codes = {r.code for r in fired}
+    assert "HLT_001" in codes
+    assert "HLT_002" not in codes  # diabetes-only row must not fire
+
+
+def test_select_caps_health_for_routine_senior():
+    catalog = cr.load_catalog()
+    # senior with many health triggers but also functional + access needs
+    tags = {"dx_hypertension", "dx_diabetes", "dx_htn_dm", "dx_cardiac",
+            "chronic_disease", "frailty", "adl_difficulty",
+            "transport_barrier", "no_checkup"}
+    fired = cr.match(tags, catalog)
+    chosen = cr.select(fired, urgency="planned", risk_level="moderate")
+    top3 = chosen[:3]
+    assert sum(1 for r in chosen if r.category == "health") <= 2
+    assert not all(r.category == "health" for r in top3), "top-3 must not be all health"
+    assert any(r.category == "functional" for r in chosen)
+
+
+def test_select_allows_three_health_for_urgent():
+    catalog = cr.load_catalog()
+    tags = {"dx_hypertension", "dx_diabetes", "dx_htn_dm", "dx_cardiac", "chronic_disease"}
+    fired = cr.match(tags, catalog)
+    chosen = cr.select(fired, urgency="urgent", risk_level="high")
+    assert sum(1 for r in chosen if r.category == "health") <= 3
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
