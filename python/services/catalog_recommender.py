@@ -387,8 +387,7 @@ def select(fired: List[CatalogRow], urgency: str = "planned",
                 interleaved.append(q.pop(0))
         queues = [q for q in queues if q]
 
-    priority_health = health[:max_health]
-    remaining_health = health[max_health:]
+    priority_health = health[:max_health]  # health beyond the cap is dropped (spec §5.2)
     health_leads = is_high
 
     out: List[CatalogRow] = []
