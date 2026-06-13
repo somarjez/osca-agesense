@@ -781,7 +781,9 @@ print()
 def test_catalog_cohort_balance_and_completeness():
     """Cohort-level defense audit: no null citation fields, health not dominant,
     functional + healthcare_access present, every action is verbatim catalog text."""
-    import os, sys, csv
+    import csv
+    import os
+    import sys
     here = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, os.path.join(here, "..", "services"))
     import catalog_recommender as cr
