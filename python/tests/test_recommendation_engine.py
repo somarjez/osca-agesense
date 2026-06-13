@@ -778,6 +778,70 @@ check_true(
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
+def test_catalog_cohort_balance_and_completeness():
+    """Cohort-level defense audit: no null citation fields, health not dominant,
+    functional + healthcare_access present, every action is verbatim catalog text."""
+    import os, sys, csv
+    here = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.join(here, "..", "services"))
+    import catalog_recommender as cr
+
+    catalog = cr.load_catalog()
+    catalog_texts = {r.recommendation for r in catalog}
+
+    pred_candidates = [
+        os.path.abspath(os.path.join(here, "..", "..", "..", "osca_output",
+                                     "predictions", "senior_predictions.csv")),
+        os.path.abspath(os.path.join(here, "..", "models", "predictions",
+                                     "senior_predictions.csv")),
+    ]
+    pred_path = next((p for p in pred_candidates if os.path.exists(p)), None)
+    if not pred_path:
+        print("SKIP cohort audit: senior_predictions.csv not found")
+        return
+
+    with open(pred_path, encoding="utf-8-sig", newline="") as fh:
+        seniors = list(csv.DictReader(fh))
+
+    cats = {}
+    total = 0
+    funcs = access = 0
+    for s in seniors:
+        recs = cr.build_recommendations(
+            s, urgency="planned", risk_level=str(s.get("risk_level", "moderate")).lower(),
+            cluster_id=s.get("cluster_id"), overall_level=str(s.get("risk_level", "MODERATE")),
+        )
+        for rec in recs:
+            total += 1
+            cats[rec["category"]] = cats.get(rec["category"], 0) + 1
+            assert rec["recommendation_code"], "null code"
+            assert rec["apa_reference"], "null apa"
+            assert rec["source_type"], "null source_type"
+            assert rec["domain"], "null domain"
+            assert rec["action"] in catalog_texts, "non-catalog (clinical) text emitted"
+        if any(r["category"] == "functional" for r in recs):
+            funcs += 1
+        if any(r["category"] == "healthcare_access" for r in recs):
+            access += 1
+
+    assert total > 0, "no recommendations generated"
+    health_pct = 100.0 * cats.get("health", 0) / total
+    print(f"AUDIT total={total} health={health_pct:.1f}% funcs_seniors={funcs} access_seniors={access}")
+    assert health_pct <= 35.0, f"health still dominant: {health_pct:.1f}%"
+    assert cats.get("functional", 0) > 0, "functional absent"
+    assert cats.get("healthcare_access", 0) > 0, "healthcare_access absent"
+
+
+print("=== 17. Catalog cohort balance and completeness ===")
+try:
+    test_catalog_cohort_balance_and_completeness()
+    print("  [OK] test_catalog_cohort_balance_and_completeness")
+except AssertionError as _e:
+    all_ok = False
+    print(f"  [FAIL] test_catalog_cohort_balance_and_completeness: {_e}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
 print("=" * 50)
 print("ALL CHECKS PASSED" if all_ok else "SOME CHECKS FAILED")
 import sys  # noqa: E402
