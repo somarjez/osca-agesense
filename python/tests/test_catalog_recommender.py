@@ -90,6 +90,25 @@ def test_select_allows_three_health_for_urgent():
     assert sum(1 for r in chosen if r.category == "health") <= 3
 
 
+def test_select_caps_each_nonhealth_category():
+    """Per-category cap: a tag that fans out to many rows in one category
+    (e.g. medical_cost_strain -> 8 healthcare_access/financial rows) must not
+    flood the output. No non-health category may exceed CATEGORY_CAP."""
+    from collections import Counter
+    catalog = cr.load_catalog()
+    tags = {"medical_cost_strain", "no_checkup", "transport_barrier",
+            "service_access_low", "low_income", "no_pension"}
+    fired = cr.match(tags, catalog)
+    # sanity: this setup genuinely fans out within healthcare_access pre-cap
+    assert sum(1 for r in fired if r.category == "healthcare_access") > cr.CATEGORY_CAP
+    chosen = cr.select(fired, urgency="planned", risk_level="moderate")
+    per_cat = Counter(r.category for r in chosen)
+    for cat, n in per_cat.items():
+        if cat == "health":
+            continue
+        assert n <= cr.CATEGORY_CAP, f"{cat} has {n} recs, exceeds CATEGORY_CAP"
+
+
 def test_build_recommendations_emits_full_schema():
     row = {"medical_concern": "hypertension", "func_independence": 2,
            "phy_mobility_outside": 2, "sec4_lives_alone": 1, "age": 82,

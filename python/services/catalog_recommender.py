@@ -15,7 +15,15 @@ from typing import Any, Dict, List, Optional, Set
 
 HEALTH_CATEGORY = "health"
 GOVERNANCE_CATEGORY = "governance"
-TOTAL_REC_CAP = 10
+# Per-category cap: the catalog is many-to-many (one need-tag fans out to several
+# overlapping rows — e.g. medical_cost_strain -> 8 rows), so without a per-category
+# limit a single need floods the output. Keeping the top-N highest-priority_weight
+# rows per category makes the per-senior count reflect the BREADTH of need (how many
+# distinct areas) rather than redundant within-category fan-out. Health uses its own
+# 2-routine / 3-urgent cap. TOTAL_REC_CAP is a high safety net that rarely binds once
+# the per-category cap is in effect.
+CATEGORY_CAP = 2
+TOTAL_REC_CAP = 24  # high safety net; per-category cap is the real driver -> counts vary 10-23 by need
 SKIP_TOKENS = {"none", "nan", "", "n/a", "no concern", "no concerns",
                "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth"}
 
@@ -375,12 +383,14 @@ def select(fired: List[CatalogRow], urgency: str = "planned",
     health = sorted([r for r in rows if r.category == HEALTH_CATEGORY], key=sort_key)
     non_health = [r for r in rows if r.category != HEALTH_CATEGORY]
 
-    # group non-health by category, each sorted by weight
+    # group non-health by category, sort by weight, and cap each category so a
+    # single fanned-out need (e.g. medical_cost_strain) cannot flood the output.
     groups: Dict[str, List[CatalogRow]] = {}
     for r in non_health:
         groups.setdefault(r.category, []).append(r)
     for c in groups:
         groups[c].sort(key=sort_key)
+        groups[c] = groups[c][:CATEGORY_CAP]
 
     ordered_cats = [c for c in _PRIORITY_CATS if c in groups]
     ordered_cats += sorted(c for c in groups if c not in _PRIORITY_CATS)
