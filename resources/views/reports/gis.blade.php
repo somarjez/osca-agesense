@@ -269,12 +269,12 @@
     const MIN_ZOOM = 13;
     const MAX_ZOOM = 18;
     const DEFAULT_FOCUS_BOUNDS_COORDS = [
-        [14.2598, 121.4442],
-        [14.2824, 121.4668],
+        [14.2180, 121.4230],
+        [14.2845, 121.4685],
     ];
     const NAVIGATION_BOUNDS_COORDS = [
-        [14.2580, 121.4410],
-        [14.2840, 121.4700],
+        [14.2160, 121.4210],
+        [14.2865, 121.4710],
     ];
     const MAP_FIT_OPTIONS = {
         padding: [18, 18],

@@ -172,41 +172,155 @@ class GisApiController extends Controller
 
     public function facilities(): JsonResponse
     {
-        $features = Facility::query()
-            ->where('is_active', true)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->orderBy('type')
-            ->orderBy('name')
-            ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source'])
-            ->map(function (Facility $facility) {
-                return [
-                    'type' => 'Feature',
-                    'geometry' => [
-                        'type' => 'Point',
-                        'coordinates' => [(float) $facility->longitude, (float) $facility->latitude],
-                    ],
-                    'properties' => [
-                        'facility_id' => $facility->id,
-                        'name' => $facility->name,
-                        'type' => $facility->type,
-                        'barangay' => $facility->barangay,
-                        'source' => $facility->source,
-                    ],
-                ];
-            })
-            ->values()
-            ->all();
+        $features = $this->facilityGeoJsonFeatures();
+        $source = 'geojson';
+        $note = 'GeoJSON-backed facility GIS data loaded.';
+
+        if ($features === null) {
+            $source = 'database';
+            $note = 'Database-backed facility GIS data loaded.';
+            $features = Facility::query()
+                ->where('is_active', true)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->orderBy('type')
+                ->orderBy('name')
+                ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source'])
+                ->map(function (Facility $facility) {
+                    return [
+                        'type' => 'Feature',
+                        'geometry' => [
+                            'type' => 'Point',
+                            'coordinates' => [(float) $facility->longitude, (float) $facility->latitude],
+                        ],
+                        'properties' => [
+                            'facility_id' => $facility->id,
+                            'name' => $facility->name,
+                            'type' => $facility->type,
+                            'barangay' => $facility->barangay,
+                            'source' => $facility->source,
+                        ],
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         return $this->geoJsonResponse(
             $features,
-            'database',
-            'Database-backed facility GIS data loaded.',
+            $source,
+            $note,
             [
                 'placement' => 'public_facility_coordinates',
                 'total' => count($features),
             ]
         );
+    }
+
+    private function facilityGeoJsonFeatures(): ?array
+    {
+        $path = base_path('database/gis/facilities/pagsanjan_facilities_thesis_final_cleaned.geojson');
+
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) file_get_contents($path), true);
+        $features = is_array($decoded) ? ($decoded['features'] ?? null) : null;
+
+        if (! is_array($features)) {
+            return null;
+        }
+
+        return collect($features)
+            ->map(function (array $feature) {
+                $properties = $feature['properties'] ?? [];
+                $coordinates = $feature['geometry']['coordinates'] ?? null;
+                $latitude = $properties['lat'] ?? ($coordinates[1] ?? null);
+                $longitude = $properties['lon'] ?? ($coordinates[0] ?? null);
+
+                if (! is_numeric($latitude) || ! is_numeric($longitude)) {
+                    return null;
+                }
+
+                $osmType = trim((string) ($properties['osm_type'] ?? ''));
+                $osmId = trim((string) ($properties['osm_id'] ?? ''));
+                $source = $properties['raw_tags']['source'] ?? 'thesis_final_cleaned_geojson';
+
+                return [
+                    'type' => 'Feature',
+                    'geometry' => [
+                        'type' => 'Point',
+                        'coordinates' => [(float) $longitude, (float) $latitude],
+                    ],
+                    'properties' => [
+                        'facility_id' => null,
+                        'name' => $properties['name'] ?? 'Unnamed Facility',
+                        'type' => $this->facilityTypeFromGeoJson($properties),
+                        'barangay' => $properties['addr_barangay'] ?? null,
+                        'source' => $source,
+                        'osm_id' => ($osmType !== '' && $osmId !== '') ? "{$osmType}:{$osmId}" : null,
+                    ],
+                ];
+            })
+            ->filter()
+            ->sortBy([
+                fn (array $a, array $b) => strcmp((string) $a['properties']['type'], (string) $b['properties']['type']),
+                fn (array $a, array $b) => strcmp((string) $a['properties']['name'], (string) $b['properties']['name']),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function facilityTypeFromGeoJson(array $properties): string
+    {
+        $category = strtolower((string) ($properties['category'] ?? ''));
+        $amenity = strtolower((string) ($properties['amenity'] ?? ''));
+        $healthcare = strtolower((string) ($properties['healthcare'] ?? ''));
+        $shop = strtolower((string) ($properties['shop'] ?? ''));
+        $name = strtolower((string) ($properties['name'] ?? ''));
+
+        if ($category === 'pharmacy' || $amenity === 'pharmacy' || $healthcare === 'pharmacy' || str_contains($name, 'botika') || str_contains($name, 'drug')) {
+            return 'Pharmacy';
+        }
+
+        if (str_contains($name, 'hospital') || $amenity === 'hospital' || $healthcare === 'hospital') {
+            return 'Hospital';
+        }
+
+        if ($category === 'healthcare' || in_array($amenity, ['clinic', 'dentist', 'doctors', 'health_post'], true) || $healthcare !== '') {
+            return 'Health Center';
+        }
+
+        if ($category === 'barangay_hall' || str_contains($name, 'barangay hall') || str_contains($name, 'pambarangay')) {
+            return 'Barangay Hall';
+        }
+
+        if ($category === 'community_social' || str_contains($name, 'senior citizens') || str_contains($name, 'osca')) {
+            return 'Senior Center';
+        }
+
+        if ($category === 'government_office') {
+            return str_contains($name, 'municipal') ? 'Municipal Hall' : 'Government Office';
+        }
+
+        if ($category === 'emergency_service') {
+            return str_contains($name, 'fire') ? 'Fire Station' : (str_contains($name, 'police') ? 'Police Station' : 'Emergency Service');
+        }
+
+        if ($category === 'worship' || $amenity === 'place_of_worship') {
+            return 'Church';
+        }
+
+        if ($category === 'market_food') {
+            return in_array($shop, ['supermarket', 'mall'], true) ? 'Supermarket' : (str_contains($name, 'market') ? 'Public Market' : 'Community Store');
+        }
+
+        if ($category === 'food') {
+            return 'Food Service';
+        }
+
+        return 'Community Facility';
     }
 
     public function pagsanjanBoundary(): JsonResponse

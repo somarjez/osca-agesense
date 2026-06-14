@@ -6411,6 +6411,309 @@
                                                               14.2648237
                                                           ]
                                       }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17318133",
+                                            "name":  "Barangay Hall - Anibong",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "User-provided general vicinity coordinate inside Barangay Anibong; exact barangay hall listing not found in public Google Maps or OSM results",
+                                            "addr_street":  null,
+                                            "addr_barangay":  "Anibong",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.2279,
+                                            "lon":  121.4632,
+                                            "raw_tags":  {
+                                                             "source":  "user_provided_barangay_vicinity_coordinate",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17318133"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4632,
+                                                              14.2279
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17318175",
+                                            "name":  "Barangay Hall - Calusiche",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "7C5X+G2M Barangay Hall of Calusiche, Agawin Rd, Pagsanjan, Laguna",
+                                            "addr_street":  "Agawin Rd",
+                                            "addr_barangay":  "Calusiche",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.258398,
+                                            "lon":  121.4476226,
+                                            "raw_tags":  {
+                                                             "source":  "google_maps_public_listing",
+                                                             "google_maps_name":  "Barangay Hall of Calusiche",
+                                                             "google_maps_place_hex":  "0x3397fd002f12285d:0xc81795201c2c4950",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17318175"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4476226,
+                                                              14.258398
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17318176",
+                                            "name":  "Barangay Hall - Dingin",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "OSM Dingin administrative relation center; exact barangay hall POI not mapped in OSM",
+                                            "addr_street":  null,
+                                            "addr_barangay":  "Dingin",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.243762,
+                                            "lon":  121.450867,
+                                            "raw_tags":  {
+                                                             "source":  "osm_admin_relation_center_supplement",
+                                                             "osm_relation":  "17318176"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.450867,
+                                                              14.243762
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17318132",
+                                            "name":  "Barangay Hall - Lambac",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "7F33+PG7 Lambac Barangay Hall, Pagsanjan, Laguna",
+                                            "addr_street":  null,
+                                            "addr_barangay":  "Lambac",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.2542908,
+                                            "lon":  121.4537821,
+                                            "raw_tags":  {
+                                                             "source":  "google_maps_public_listing",
+                                                             "google_maps_name":  "Lambac Barangay Hall",
+                                                             "google_maps_place_hex":  "0x3397fd26de5eaed9:0xb0173e303c27d92f",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17318132"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4537821,
+                                                              14.2542908
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17318102",
+                                            "name":  "Barangay Hall - Magdapio",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "7FC5+RXP Magdapio Barangay Hall, Pagsanjan, Laguna",
+                                            "addr_street":  null,
+                                            "addr_barangay":  "Magdapio",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.2721328,
+                                            "lon":  121.4599537,
+                                            "raw_tags":  {
+                                                             "source":  "google_maps_public_listing",
+                                                             "google_maps_name":  "Magdapio Barangay Hall",
+                                                             "google_maps_place_hex":  "0x3397fd0068cc14c3:0xa06deec02dbb322b",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17318102"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4599537,
+                                                              14.2721328
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17317779",
+                                            "name":  "Barangay Hall - Barangay I (Poblacion)",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "Poblacion I Barangay Hall, 7 Crisostomo, Pagsanjan, Laguna",
+                                            "addr_street":  "7 Crisostomo",
+                                            "addr_barangay":  "Barangay I (Poblacion)",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.27502,
+                                            "lon":  121.4556649,
+                                            "raw_tags":  {
+                                                             "source":  "google_maps_public_listing",
+                                                             "google_maps_name":  "Poblacion I Barangay Hall",
+                                                             "google_maps_place_hex":  "0x3397fd000e557c37:0xbb98810972ffd3c3",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17317779"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4556649,
+                                                              14.27502
+                                                          ]
+                                      }
+                     },
+                     {
+                         "type":  "Feature",
+                         "properties":  {
+                                            "osm_type":  "relation",
+                                            "osm_id":  "17317778",
+                                            "name":  "Barangay Hall - Barangay II (Poblacion)",
+                                            "category":  "barangay_hall",
+                                            "amenity":  "townhall",
+                                            "healthcare":  null,
+                                            "shop":  null,
+                                            "office":  "government",
+                                            "operator":  null,
+                                            "addr_full":  "Barangay Hall of Poblacion II, 1937 Cosme, Pagsanjan, Laguna",
+                                            "addr_street":  "1937 Cosme",
+                                            "addr_barangay":  "Barangay II (Poblacion)",
+                                            "phone":  null,
+                                            "opening_hours":  null,
+                                            "lat":  14.2757099,
+                                            "lon":  121.4529784,
+                                            "raw_tags":  {
+                                                             "source":  "google_maps_public_listing",
+                                                             "google_maps_name":  "Barangay Hall of Poblacion II",
+                                                             "google_maps_place_hex":  "0x3397fd00095ffbc7:0xff8cefd1370c619e",
+                                                             "verification_date":  "2026-06-14",
+                                                             "osm_relation":  "17317778"
+                                                         },
+                                            "cleaning_flag":  null,
+                                            "ors_label":  null,
+                                            "ors_confidence":  null,
+                                            "ors_locality":  null,
+                                            "ors_borough":  null,
+                                            "ors_region":  null,
+                                            "ors_county":  null,
+                                            "ors_error":  null,
+                                            "thesis_review_flag":  "manual_supplement"
+                                        },
+                         "geometry":  {
+                                          "type":  "Point",
+                                          "coordinates":  [
+                                                              121.4529784,
+                                                              14.2757099
+                                                          ]
+                                      }
                      }
                  ]
 }
