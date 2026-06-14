@@ -818,7 +818,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 | `facilities` table | ✅ Done | Stores health centres, hospitals, pharmacies, markets, barangay halls (plus `osm_id` for OSM-imported facilities) |
 | `senior_accessibility_metrics` table | ✅ Done | Links seniors to nearest facility per category (health centre, hospital, pharmacy, market, barangay hall); stores distances |
 | Route-distance cache tables | ✅ Done | `senior_facility_route_distances` + `senior_facility_route_failures` |
-| Pagsanjan facility seeder | ✅ Done | `PagsanjanFacilitySeeder` — facilities across barangays; superseded by real OSM coordinates via `facilities:import-osm` |
+| Pagsanjan facility seeder | ✅ Done | `PagsanjanFacilitySeeder` synchronizes the committed 155-record GeoJSON dataset into the database |
 | GIS API — `/api/gis/seniors` | ✅ Done | Returns senior locations as GeoJSON FeatureCollection |
 | GIS API — `/api/gis/facilities` | ✅ Done | Returns active facilities as GeoJSON FeatureCollection |
 | GIS API — `/api/gis/boundary/*` | ✅ Done | Returns municipal and barangay boundary GeoJSON (from local storage files) |
@@ -831,6 +831,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 | GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — lat/lng + nearest facility distances + accessibility score |
 | Road-network route caching | ✅ Done | `php artisan gis:cache-route-distances` (OpenRouteService) |
 | OpenStreetMap facility import | ✅ Done | `php artisan facilities:import-osm` — replaces approximate facilities with real coordinates |
+| Committed facility sync | ✅ Done | `php artisan facilities:sync-geojson` — local, idempotent database sync with no external API request |
 | Field GPS / geocoding documentation | ✅ Done | [gis-geocoding.md](gis-geocoding.md); manual-pin workflow covered in [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
 | `gis_proximity_score` as an ML feature | ⏳ Pending | Accessibility scores computed but not yet wired into the GBR/RFR pipeline — requires model retrain |
 
@@ -842,7 +843,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 | Base tiles | OpenStreetMap (free, no API key required) |
 | GIS data format | GeoJSON FeatureCollection — served by `GisApiController` |
 | Senior coordinates | Stored in `senior_citizens.latitude / .longitude`; barangay centroid fallback via hash-based generalisation |
-| Facility data | `facilities` table, seeded via `PagsanjanFacilitySeeder` |
+| Facility data | `facilities` table, synchronized from the committed 155-record GeoJSON via `PagsanjanFacilitySeeder` or `facilities:sync-geojson` |
 | Proximity storage | `senior_accessibility_metrics` table (health centre, barangay hall, market distances) |
 | Boundary files | GeoJSON files at `storage/app/gis/boundaries/` (optional; graceful fallback if missing) |
 

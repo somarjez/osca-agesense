@@ -240,7 +240,27 @@ This provides an admin-only CSV export for GIS and accessibility planning. It ca
 
 The export is privacy-oriented and intended for planning, reporting, and accessibility review.
 
-### 11. OpenStreetMap Facility Import
+### 11. Committed Facility Dataset Sync
+
+The application ships with a reviewed 155-record facility dataset at
+`database/gis/facilities/pagsanjan_facilities_thesis_final_cleaned.geojson`.
+Synchronize it into the database with:
+
+```text
+php artisan facilities:sync-geojson
+php artisan gis:score-proximity
+```
+
+The sync is local and does not call OSM, ORS, or Google Maps. It upserts records
+by `osm_id`, preserves matching database IDs, and deactivates obsolete managed
+prototype records instead of deleting them. Use `--dry-run` to validate the
+dataset without writing, or `--keep-existing` to skip stale-record deactivation.
+
+`PagsanjanFacilitySeeder` uses the same sync service, so
+`php artisan db:seed --class=PagsanjanFacilitySeeder` produces the same database
+state.
+
+### 12. OpenStreetMap Facility Import
 
 Command:
 
@@ -297,6 +317,7 @@ Key privacy protections:
 | `php artisan gis:geocode` | Assign approximate barangay-level coordinates |
 | `php artisan gis:score-proximity` | Calculate nearest facility distances and accessibility scores |
 | `php artisan gis:cache-route-distances` | Precompute road-route distances to nearby facilities |
+| `php artisan facilities:sync-geojson` | Synchronize the committed 155-record facility dataset into the database |
 | `php artisan facilities:import-osm` | Import real facility coordinates from OpenStreetMap and supersede approximate seeded facilities |
 
 ## Modified and Added Files
@@ -345,7 +366,8 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | `database/migrations/2026_05_26_000001_add_hospital_and_pharmacy_to_accessibility_metrics.php` | Added hospital and pharmacy nearest facility references and distance fields to accessibility metrics. |
 | `database/migrations/2026_05_27_000001_create_senior_facility_route_distances_table.php` | Added route distance and route failure cache tables. |
 | `database/migrations/2026_06_03_000001_add_osm_id_to_facilities_table.php` | Added `osm_id` to facilities so OpenStreetMap-imported facilities can be matched and deduplicated. |
-| `database/seeders/PagsanjanFacilitySeeder.php` | Updated seeded Pagsanjan facility data used by accessibility scoring and map overlays. |
+| `database/gis/facilities/pagsanjan_facilities_thesis_final_cleaned.geojson` | Reviewed 155-record facility source dataset used for reproducible database synchronization. |
+| `database/seeders/PagsanjanFacilitySeeder.php` | Synchronizes the committed facility GeoJSON into the database through the shared dataset service. |
 
 ### Frontend and Views
 
