@@ -178,7 +178,7 @@ class GisApiController extends Controller
             ->whereNotNull('longitude')
             ->orderBy('type')
             ->orderBy('name')
-            ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source'])
+            ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source', 'osm_id'])
             ->map(function (Facility $facility) {
                 return [
                     'type' => 'Feature',
@@ -192,6 +192,7 @@ class GisApiController extends Controller
                         'type' => $facility->type,
                         'barangay' => $facility->barangay,
                         'source' => $facility->source,
+                        'osm_id' => $facility->osm_id,
                     ],
                 ];
             })
@@ -333,13 +334,16 @@ class GisApiController extends Controller
 
     private function cachedRouteFailure(array $validated): ?array
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return null;
         }
 
         $failure = SeniorFacilityRouteFailure::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->first();
 
         if (! $failure || ! $this->routeCacheCoordinatesMatch($validated, $failure)) {
@@ -358,13 +362,16 @@ class GisApiController extends Controller
 
     private function cachedRouteDistance(array $validated): ?array
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return null;
         }
 
         $route = SeniorFacilityRouteDistance::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->first();
 
         if (! $route) {
@@ -385,14 +392,17 @@ class GisApiController extends Controller
 
     private function storeRouteDistance(array $validated, array $route): void
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return;
         }
 
         SeniorFacilityRouteDistance::query()->updateOrCreate(
             [
-                'senior_citizen_id' => $validated['senior_id'],
-                'facility_id' => $validated['facility_id'],
+                'senior_citizen_id' => $seniorId,
+                'facility_id' => $facilityId,
             ],
             [
                 'origin_latitude' => round((float) $validated['origin_lat'], 7),
@@ -407,14 +417,17 @@ class GisApiController extends Controller
         );
 
         SeniorFacilityRouteFailure::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->delete();
     }
 
     private function storeRouteFailure(array $validated, ?int $statusCode, string $message): void
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return;
         }
 
@@ -424,8 +437,8 @@ class GisApiController extends Controller
 
         SeniorFacilityRouteFailure::query()->updateOrCreate(
             [
-                'senior_citizen_id' => $validated['senior_id'],
-                'facility_id' => $validated['facility_id'],
+                'senior_citizen_id' => $seniorId,
+                'facility_id' => $facilityId,
             ],
             [
                 'origin_latitude' => round((float) $validated['origin_lat'], 7),
