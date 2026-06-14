@@ -760,14 +760,18 @@
 
         if (mode === 'markers') {
             legendEl.innerHTML = `
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border-2 border-dashed border-teal-500 bg-white inline-block"></span>Generalized barangay point</span>
-                <span class="inline-flex items-center gap-2 min-w-[260px]">
-                    <span>Lower count</span>
-                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
-                    <span>Higher count</span>
-                </span>
-                ${facilityLegendHtml()}
-                ${boundaryLegend}
+                <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border-2 border-dashed border-teal-500 bg-white inline-block"></span>Generalized barangay point</span>
+                    <span class="inline-flex items-center gap-2 min-w-[260px]">
+                        <span>Lower count</span>
+                        <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
+                        <span>Higher count</span>
+                    </span>
+                </div>
+                <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                    ${facilityLegendHtml()}
+                    ${boundaryLegend}
+                </div>
             `;
             return;
         }
@@ -801,14 +805,18 @@
                     </span>`;
 
                 legendEl.innerHTML = `
-                    <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
-                    ${selectedClusterScale}
-                    ${clusterLegend}
-                    <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
-                        ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest health group color without blending groups. Markers show the actual senior health group.'
-                        : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
-                    ${facilityLegendHtml()}
-                    ${boundaryLegend}
+                    <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                        <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
+                        ${selectedClusterScale}
+                        ${clusterLegend}
+                        <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
+                            ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest health group color without blending groups. Markers show the actual senior health group.'
+                            : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
+                    </div>
+                    <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                        ${facilityLegendHtml()}
+                        ${boundaryLegend}
+                    </div>
                 `;
                 return;
             }
@@ -818,26 +826,34 @@
                 : '';
 
             legendEl.innerHTML = `
-                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
-                <span class="inline-flex items-center gap-2 min-w-[260px]">
-                    <span>${heatmapLabel[1]}</span>
-                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:${gradient};"></span>
-                    <span>${heatmapLabel[2]}</span>
-                </span>
-                ${facilityLegendHtml()}
-                ${boundaryLegend}
-                ${riskDotNote}
+                <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                    <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
+                    <span class="inline-flex items-center gap-2 min-w-[260px]">
+                        <span>${heatmapLabel[1]}</span>
+                        <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:${gradient};"></span>
+                        <span>${heatmapLabel[2]}</span>
+                    </span>
+                    ${riskDotNote}
+                </div>
+                <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                    ${facilityLegendHtml()}
+                    ${boundaryLegend}
+                </div>
             `;
             return;
         }
 
         legendEl.innerHTML = `
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
-            ${facilityLegendHtml()}
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
-            ${boundaryLegend}
+            <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
+            </div>
+            <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+                ${facilityLegendHtml()}
+                ${boundaryLegend}
+            </div>
         `;
     }
 

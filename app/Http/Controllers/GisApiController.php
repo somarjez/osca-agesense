@@ -246,6 +246,11 @@ class GisApiController extends Controller
                 $osmType = trim((string) ($properties['osm_type'] ?? ''));
                 $osmId = trim((string) ($properties['osm_id'] ?? ''));
                 $source = $properties['raw_tags']['source'] ?? 'thesis_final_cleaned_geojson';
+                $barangay = trim((string) ($properties['addr_barangay'] ?? ''));
+
+                if ($barangay === '') {
+                    $barangay = $this->barangayAtCoordinates((float) $longitude, (float) $latitude) ?? '';
+                }
 
                 return [
                     'type' => 'Feature',
@@ -257,7 +262,7 @@ class GisApiController extends Controller
                         'facility_id' => null,
                         'name' => $properties['name'] ?? 'Unnamed Facility',
                         'type' => $this->facilityTypeFromGeoJson($properties),
-                        'barangay' => $properties['addr_barangay'] ?? null,
+                        'barangay' => $barangay !== '' ? $barangay : null,
                         'source' => $source,
                         'osm_id' => ($osmType !== '' && $osmId !== '') ? "{$osmType}:{$osmId}" : null,
                     ],
@@ -270,6 +275,32 @@ class GisApiController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private function barangayAtCoordinates(float $longitude, float $latitude): ?string
+    {
+        $point = [$longitude, $latitude];
+
+        foreach ($this->barangayBoundaryFeatures() as $feature) {
+            $geometry = $feature['geometry'] ?? [];
+            $type = $geometry['type'] ?? null;
+            $coordinates = $geometry['coordinates'] ?? null;
+            $polygons = $type === 'Polygon'
+                ? [$coordinates]
+                : ($type === 'MultiPolygon' ? $coordinates : []);
+
+            if (! is_array($polygons)) {
+                continue;
+            }
+
+            foreach ($polygons as $rings) {
+                if (is_array($rings) && $this->pointInsideRings($point, $rings)) {
+                    return $this->boundaryFeatureName($feature);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function facilityTypeFromGeoJson(array $properties): string
@@ -447,13 +478,16 @@ class GisApiController extends Controller
 
     private function cachedRouteFailure(array $validated): ?array
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return null;
         }
 
         $failure = SeniorFacilityRouteFailure::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->first();
 
         if (! $failure || ! $this->routeCacheCoordinatesMatch($validated, $failure)) {
@@ -472,13 +506,16 @@ class GisApiController extends Controller
 
     private function cachedRouteDistance(array $validated): ?array
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return null;
         }
 
         $route = SeniorFacilityRouteDistance::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->first();
 
         if (! $route) {
@@ -499,14 +536,17 @@ class GisApiController extends Controller
 
     private function storeRouteDistance(array $validated, array $route): void
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return;
         }
 
         SeniorFacilityRouteDistance::query()->updateOrCreate(
             [
-                'senior_citizen_id' => $validated['senior_id'],
-                'facility_id' => $validated['facility_id'],
+                'senior_citizen_id' => $seniorId,
+                'facility_id' => $facilityId,
             ],
             [
                 'origin_latitude' => round((float) $validated['origin_lat'], 7),
@@ -521,14 +561,17 @@ class GisApiController extends Controller
         );
 
         SeniorFacilityRouteFailure::query()
-            ->where('senior_citizen_id', $validated['senior_id'])
-            ->where('facility_id', $validated['facility_id'])
+            ->where('senior_citizen_id', $seniorId)
+            ->where('facility_id', $facilityId)
             ->delete();
     }
 
     private function storeRouteFailure(array $validated, ?int $statusCode, string $message): void
     {
-        if ($validated['senior_id'] === null || $validated['facility_id'] === null) {
+        $seniorId = $validated['senior_id'] ?? null;
+        $facilityId = $validated['facility_id'] ?? null;
+
+        if ($seniorId === null || $facilityId === null) {
             return;
         }
 
@@ -538,8 +581,8 @@ class GisApiController extends Controller
 
         SeniorFacilityRouteFailure::query()->updateOrCreate(
             [
-                'senior_citizen_id' => $validated['senior_id'],
-                'facility_id' => $validated['facility_id'],
+                'senior_citizen_id' => $seniorId,
+                'facility_id' => $facilityId,
             ],
             [
                 'origin_latitude' => round((float) $validated['origin_lat'], 7),
