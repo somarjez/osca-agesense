@@ -16,7 +16,7 @@ class ImportOsmFacilities extends Command
 
     protected $description = 'Import facility data from OpenStreetMap Overpass API for Pagsanjan.';
 
-    private const SUPERSEDE_RADIUS_METERS = 50;
+    private const SUPERSEDE_RADIUS_METERS = 250;
 
     private ?array $barangayFeatures = null;
 
@@ -45,7 +45,7 @@ class ImportOsmFacilities extends Command
         foreach ($elements as $element) {
             $data = $this->buildFacilityData($element);
 
-            if ($data === null) {
+            if ($data === null || $data['barangay'] === null) {
                 $stats['skipped']++;
 
                 continue;
@@ -129,15 +129,16 @@ class ImportOsmFacilities extends Command
 
     private function overpassQuery(): string
     {
-        $bbox = '14.255,121.435,14.290,121.475';
+        $bbox = '14.220,121.410,14.290,121.480';
 
         return '[out:json][timeout:30];'
             .'(node["amenity"~"hospital|clinic|doctors|health_centre|nursing_home|pharmacy|place_of_worship|marketplace|community_centre|social_facility|townhall|bus_station|taxi"]('.$bbox.');'
             .'node["office"="government"]('.$bbox.');'
             .'node["shop"~"chemist|supermarket|convenience|general|market"]('.$bbox.');'
             .'node["highway"="bus_stop"]('.$bbox.');'
-            .'way["amenity"~"hospital|marketplace|community_centre|townhall"]('.$bbox.');'
-            .'way["shop"~"supermarket|market"]('.$bbox.');'
+            .'way["amenity"~"hospital|clinic|doctors|health_centre|nursing_home|pharmacy|place_of_worship|marketplace|community_centre|social_facility|townhall|bus_station|taxi"]('.$bbox.');'
+            .'way["office"="government"]('.$bbox.');'
+            .'way["shop"~"chemist|supermarket|convenience|general|market"]('.$bbox.');'
             .')->.results;.results out center tags;';
     }
 
@@ -211,19 +212,22 @@ class ImportOsmFacilities extends Command
         }
 
         if ($amenity === 'townhall' || $office === 'government') {
-            if (str_contains($name, 'municipal')) {
+            if (str_contains($name, 'municipal') || str_contains($name, 'townhall') || str_contains($name, 'town hall')) {
                 return 'Municipal Hall';
             }
+            if (str_contains($name, 'barangay') || str_contains($name, 'pambarangay')) {
+                return 'Barangay Hall';
+            }
 
-            return 'Barangay Hall';
+            return 'Government Office';
         }
 
         if ($amenity === 'community_centre') {
-            return str_contains($name, 'senior') ? 'Senior Center' : 'Community Store';
+            return (str_contains($name, 'senior') || str_contains($name, 'osca')) ? 'Senior Center' : 'Community Store';
         }
 
         if ($amenity === 'social_facility') {
-            return 'Community Store';
+            return (str_contains($name, 'senior') || str_contains($name, 'osca')) ? 'Senior Center' : 'Community Store';
         }
         if ($amenity === 'bus_station') {
             return 'Transport Hub';
@@ -287,7 +291,23 @@ class ImportOsmFacilities extends Command
                 (float) $candidate->latitude, (float) $candidate->longitude
             );
 
+            $shouldSupersede = false;
+
+            // Rule 1: Within distance threshold
             if ($distance <= self::SUPERSEDE_RADIUS_METERS) {
+                $shouldSupersede = true;
+            }
+
+            // Rule 2: It is a unique municipal/barangay facility and matches context
+            if (!$shouldSupersede) {
+                if (in_array($data['type'], ['Senior Center', 'Municipal Hall', 'Public Market'], true)) {
+                    $shouldSupersede = true;
+                } elseif ($data['type'] === 'Barangay Hall' && $candidate->barangay === $data['barangay']) {
+                    $shouldSupersede = true;
+                }
+            }
+
+            if ($shouldSupersede) {
                 $candidate->update([
                     'is_active' => false,
                     'source' => 'sample_prototype_approximate_superseded',

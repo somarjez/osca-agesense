@@ -3564,10 +3564,10 @@
     function createFacilityIcon() {
         return window.L.divIcon({
             className: 'gis-facility-icon',
-            html: `<span style="display:block;width:16px;height:16px;border-radius:4px;background:#0284c7;border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);transform:rotate(45deg);"></span>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-            popupAnchor: [0, -8],
+            html: `<span style="display:flex;width:28px;height:28px;align-items:center;justify-content:center;"><span style="display:block;width:16px;height:16px;border-radius:4px;background:#0284c7;border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);transform:rotate(45deg);"></span></span>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            popupAnchor: [0, -14],
         });
     }
 
@@ -3808,19 +3808,45 @@
     }
 
     function buildFacilityLayer(featureCollection) {
-        return window.L.geoJSON(featureCollection, {
+        const markerLayer = window.L.geoJSON(featureCollection, {
             pointToLayer(feature, latlng) {
                 const marker = window.L.marker(latlng, {
                     icon: createFacilityIcon(),
                     keyboard: false,
                     pane: 'gis-facility-pane',
+                    bubblingMouseEvents: false,
+                    riseOnHover: true,
+                    zIndexOffset: 1000,
                 });
 
                 marker.bindPopup(facilityPopupHtml(feature.properties));
+                marker.on('click', (event) => {
+                    if (event?.originalEvent) {
+                        window.L.DomEvent.stopPropagation(event.originalEvent);
+                        window.L.DomEvent.preventDefault(event.originalEvent);
+                    }
+                    marker.openPopup();
+                });
 
                 return marker;
             },
         });
+
+        const clusterGroup = window.L.markerClusterGroup({
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            maxClusterRadius: 15,
+            iconCreateFunction(cluster) {
+                return window.L.divIcon({
+                    html: `<div style="background:#0284c7;color:#fff;width:28px;height:28px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.95);box-shadow:0 4px 10px rgba(15,23,42,0.18);font-size:10px;font-weight:700;">${cluster.getChildCount()}</div>`,
+                    className: 'gis-facility-cluster-icon',
+                    iconSize: [28, 28],
+                });
+            }
+        });
+
+        clusterGroup.addLayer(markerLayer);
+        return clusterGroup;
     }
 
     function boundaryLabel(properties) {
@@ -3934,7 +3960,7 @@
 
         if (!map.getPane('gis-facility-pane')) {
             map.createPane('gis-facility-pane');
-            map.getPane('gis-facility-pane').style.zIndex = 610;
+            map.getPane('gis-facility-pane').style.zIndex = 650;
         }
 
         if (!map.getPane('gis-senior-pane')) {
