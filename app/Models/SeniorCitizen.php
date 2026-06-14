@@ -114,6 +114,15 @@ class SeniorCitizen extends Model
         return $this->hasMany(Recommendation::class);
     }
 
+    /**
+     * Recommendations from the senior's latest ML result only (current assessment).
+     * Reuses Recommendation::scopeCurrent so the "latest" definition lives in one place.
+     */
+    public function currentRecommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class)->current();
+    }
+
     public function accessibilityMetrics(): HasMany
     {
         return $this->hasMany(SeniorAccessibilityMetric::class);
@@ -156,9 +165,25 @@ class SeniorCitizen extends Model
 
     public static function generateOscaId(string $barangay): string
     {
-        $prefix = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $barangay), 0, 3));
+        // The two Poblacion barangays both reduce to "BAR" under the 3-letter rule
+        // and would share one sequence; give them distinct prefixes instead.
+        $special = [
+            'Barangay I (Poblacion)' => 'BR1',
+            'Barangay II (Poblacion)' => 'BR2',
+        ];
+        $prefix = $special[trim($barangay)]
+            ?? strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $barangay), 0, 3));
         $year = now()->format('Y');
-        $seq = str_pad(static::where('osca_id', 'like', "{$prefix}-{$year}-%")->count() + 1, 4, '0', STR_PAD_LEFT);
+
+        // Use the highest existing sequence — including soft-deleted rows, which the
+        // unique index still enforces — rather than count()+1. A row count collides
+        // with trashed rows and any gaps left by deletions (e.g. BAR-2026-0037).
+        $maxSeq = (int) static::withTrashed()
+            ->where('osca_id', 'like', "{$prefix}-{$year}-%")
+            ->selectRaw('COALESCE(MAX(CAST(SUBSTRING_INDEX(osca_id, "-", -1) AS UNSIGNED)), 0) AS m')
+            ->value('m');
+
+        $seq = str_pad($maxSeq + 1, 4, '0', STR_PAD_LEFT);
 
         return "{$prefix}-{$year}-{$seq}";
     }

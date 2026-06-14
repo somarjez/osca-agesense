@@ -28,57 +28,17 @@
         <p>Generated: {{ now()->format('F j, Y') }} · OSCA AgeSense System</p>
     </div>
 
-    {{-- ── Compact stat + filter strip ── --}}
-    <div class="card overflow-hidden">
-        <div class="px-5 py-3 flex flex-wrap items-center gap-4">
-            {{-- Stat strip --}}
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 flex-shrink-0">
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-high-500 flex-shrink-0"></span>
-                    <span class="font-mono font-bold text-[20px] leading-none text-high-700 dark:text-[#e08070] tnum">{{ number_format($riskDist['HIGH'] ?? 0) }}</span>
-                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">high risk</span>
-                </div>
-                <span class="text-ink-200 dark:text-[#2b3530] select-none">·</span>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-moderate-500 flex-shrink-0"></span>
-                    <span class="font-mono font-bold text-[20px] leading-none text-moderate-700 dark:text-[#d4a830] tnum">{{ number_format($riskDist['MODERATE'] ?? 0) }}</span>
-                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">moderate</span>
-                </div>
-                <span class="text-ink-200 dark:text-[#2b3530] select-none">·</span>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-low-500 flex-shrink-0"></span>
-                    <span class="font-mono font-bold text-[20px] leading-none text-low-700 dark:text-[#4a8a68] tnum">{{ number_format($riskDist['LOW'] ?? 0) }}</span>
-                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">low risk</span>
-                </div>
-            </div>
-
-            {{-- Vertical divider --}}
-            <div class="w-px self-stretch bg-paper-rule dark:bg-[#2b3530] flex-shrink-0 hidden sm:block"></div>
-
-            {{-- Filter form --}}
-            <form method="GET" class="flex gap-2 flex-wrap flex-1 items-center">
-                <x-heroicon-o-funnel class="w-4 h-4 text-ink-400 flex-shrink-0" />
-                <select name="barangay" class="form-select max-w-[200px]">
-                    <option value="">All Barangays</option>
-                    @foreach ($barangays as $b)
-                    <option value="{{ $b }}" {{ request('barangay') === $b ? 'selected' : '' }}>{{ $b }}</option>
-                    @endforeach
-                </select>
-                <select name="risk_level" class="form-select max-w-[160px]">
-                    <option value="">All HIGH risk</option>
-                    <option value="high" {{ request('risk_level') === 'high' ? 'selected' : '' }}>HIGH only</option>
-                </select>
-                <button type="submit" class="btn btn-primary">Filter</button>
-            </form>
-
-            <a href="{{ route('reports.risk.export') }}" class="btn flex-shrink-0">
-                <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
-            </a>
-        </div>
+    {{-- ── Interactive Risk Explorer (primary tool) ── --}}
+    <div>
+        <div class="eyebrow text-forest-600 dark:text-forest-400 mb-1">Risk Analysis</div>
+        <h2 class="font-display text-2xl leading-tight text-ink-900 dark:text-[#e4e1d8]">Interactive Risk Explorer</h2>
+        <p class="text-sm text-ink-500 dark:text-[#8a9087] mt-0.5">Filter and drill down by barangay, risk level, and domain scores.</p>
     </div>
 
-    {{-- ── Domain Averages + Rec Categories ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <livewire:reports.risk-report />
+
+    {{-- ── Supporting analytics ── --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
         {{-- Domain Risk Avg Bars --}}
         <div class="card">
@@ -89,7 +49,7 @@
                 @foreach ([
                     ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0],
                     ['Environment',             $domainAvgs?->env       ?? 0],
-                    ['Functional',              $domainAvgs?->func      ?? 0],
+                    ['Functional Ability',      $domainAvgs?->func      ?? 0],
                     ['Composite',               $domainAvgs?->composite ?? 0],
                 ] as [$label, $val])
                 @php $barClass = $val >= 0.50 ? 'bar-fill-high' : ($val >= 0.30 ? 'bar-fill-moderate' : 'bar-fill-low'); @endphp
@@ -181,83 +141,6 @@
                     @endforeach
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    {{-- ── At-Risk Seniors Table ── --}}
-    <div class="card overflow-hidden">
-        <div class="card-head bg-high-50/40 dark:bg-high-500/5 border-b border-high-100 dark:border-high-500/10">
-            <div class="flex items-center gap-2">
-                <x-heroicon-o-exclamation-triangle class="w-4 h-4 text-high-700 flex-shrink-0" />
-                <div class="card-title text-high-700 dark:text-[#e08070]">At-Risk Seniors (HIGH)</div>
-            </div>
-            <span class="text-[11.5px] text-high-700 dark:text-[#e08070] tnum font-semibold">{{ $atRiskSeniors->total() }} total</span>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr>
-                        <th class="th">Senior Citizen</th>
-                        <th class="th">Barangay</th>
-                        <th class="th text-center">Age</th>
-                        <th class="th text-center">Risk</th>
-                        <th class="th text-center">Composite</th>
-                        <th class="th text-center">IC</th>
-                        <th class="th text-center">Env</th>
-                        <th class="th text-center">Func</th>
-                        <th class="th">Cluster</th>
-                        <th class="th"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($atRiskSeniors as $senior)
-                    <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
-                        <td class="td">
-                            <div class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior->first_name }} {{ $senior->last_name }}</div>
-                            <div class="text-[11px] text-ink-400 dark:text-[#6b7570] font-mono">{{ $senior->osca_id }}</div>
-                        </td>
-                        <td class="td text-ink-500 dark:text-[#8a9087]">{{ $senior->barangay }}</td>
-                        <td class="td text-center font-mono tnum text-ink-700 dark:text-[#b0b5b2]">{{ $senior->age }}</td>
-                        <td class="td text-center">
-                            <span class="badge badge-high">{{ $senior->overall_risk_level }}</span>
-                        </td>
-                        <td class="td text-center font-mono tnum font-semibold text-ink-800 dark:text-[#c8c4bc]">{{ number_format($senior->composite_risk * 100, 1) }}%</td>
-                        <td class="td text-center font-mono tnum text-[11.5px] text-ink-500 dark:text-[#8a9087]">{{ number_format($senior->ic_risk * 100, 1) }}%</td>
-                        <td class="td text-center font-mono tnum text-[11.5px] text-ink-500 dark:text-[#8a9087]">{{ number_format($senior->env_risk * 100, 1) }}%</td>
-                        <td class="td text-center font-mono tnum text-[11.5px] text-ink-500 dark:text-[#8a9087]">{{ number_format($senior->func_risk * 100, 1) }}%</td>
-                        <td class="td text-[12px] text-ink-500 dark:text-[#8a9087]">{{ $senior->cluster_name }}</td>
-                        <td class="td text-right">
-                            <a href="{{ route('seniors.show', $senior->id) }}"
-                               class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">View →</a>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="10" class="td text-center py-12 text-ink-400 dark:text-[#6b7570]">
-                            No high risk seniors found with current filters.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        @if ($atRiskSeniors->hasPages())
-        <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-3">
-            {{ $atRiskSeniors->links() }}
-        </div>
-        @endif
-    </div>
-
-    {{-- ── Interactive Risk Explorer ── --}}
-    <div class="card overflow-hidden">
-        <div class="card-head">
-            <div>
-                <div class="card-title">Interactive Risk Explorer</div>
-                <div class="card-sub">Filter and drill down by barangay, risk level, and domain scores</div>
-            </div>
-        </div>
-        <div class="card-body pt-0">
-            <livewire:reports.risk-report />
         </div>
     </div>
 

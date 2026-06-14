@@ -18,22 +18,20 @@
      the explanation of what will happen. Pass a `confirm` Alpine expression for the
      primary action, or supply your own button(s) via the `action` slot. --}}
 <x-modal show="{{ $show }}" max-width="max-w-md" :closeable="true">
-    <div class="flex gap-3.5">
-        <div class="w-9 h-9 rounded-xl grid place-items-center flex-shrink-0 {{ $iconWrap }}">
-            <x-dynamic-component :component="$icon" class="w-5 h-5" aria-hidden="true" />
+    <div class="flex flex-col items-center text-center">
+        <div class="w-12 h-12 rounded-2xl grid place-items-center {{ $iconWrap }}">
+            <x-dynamic-component :component="$icon" class="w-6 h-6" aria-hidden="true" />
         </div>
-        <div class="min-w-0">
-            <h2 class="card-title mb-1">{{ $title }}</h2>
-            <div class="text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed">{{ $slot }}</div>
-        </div>
+        <h2 class="card-title mt-3.5 mb-1.5">{{ $title }}</h2>
+        <div class="w-full text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed">{{ $slot }}</div>
     </div>
 
     <x-slot:footer>
-        <button type="button" @click="{{ $show }} = false" class="btn btn-secondary">{{ $cancelLabel }}</button>
+        <button type="button" @click="{{ $show }} = false" class="btn btn-secondary flex-1 justify-center">{{ $cancelLabel }}</button>
         @isset($action)
             {{ $action }}
         @elseif($confirm)
-            <button type="button" @click="{{ $confirm }}" class="btn {{ $btnClass }}">{{ $confirmLabel }}</button>
+            <button type="button" @click="{{ $confirm }}" class="btn {{ $btnClass }} flex-1 justify-center">{{ $confirmLabel }}</button>
         @endisset
     </x-slot:footer>
 </x-modal>

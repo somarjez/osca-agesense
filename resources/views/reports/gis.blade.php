@@ -46,14 +46,21 @@
                     </span>
                 </div>
                 @role('admin')
-                <form method="POST" action="{{ route('reports.gis.geocode') }}"
-                      class="shrink-0 sm:ml-auto"
-                      onsubmit="return confirm('Run bulk barangay-level geocoding now? This will not overwrite verified manual/GPS coordinates.');">
-                    @csrf
-                    <button type="submit" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
+                <div x-data="{ open: false }" class="shrink-0 sm:ml-auto">
+                    <button type="button" @click="open = true" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
                         Run Bulk Geocode
                     </button>
-                </form>
+                    <form x-ref="geocodeForm" method="POST" action="{{ route('reports.gis.geocode') }}" class="hidden">
+                        @csrf
+                    </form>
+                    <x-confirm-modal show="open"
+                                     title="Run bulk geocoding?"
+                                     tone="primary"
+                                     confirm="$refs.geocodeForm.submit()"
+                                     confirm-label="Run geocoding">
+                        <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
+                    </x-confirm-modal>
+                </div>
                 @endrole
             </div>
             <div class="border-t border-paper-rule dark:border-[#2b3530]"></div>
@@ -100,16 +107,14 @@
         </div>
 
         <div class="card-body space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Visualization</span>
                     <select id="gis-visualization-mode" class="form-select">
-                        <option value="markers">Senior Distribution Points</option>
-                        <option value="accessibility-heatmap">Accessibility Heatmap</option>
-                        <option value="barangay-density">Barangay Density View</option>
+                        <option value="markers">Senior Population Overview</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
                         <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
-                        <option value="senior-distribution-accessibility-heatmap">Senior Distribution and Accessibility Heatmap</option>
+                        <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
                     </select>
                 </label>
                 <label class="block">
@@ -117,43 +122,47 @@
                     <select id="gis-barangay-filter" class="form-select">
                         <option value="all">All Barangays</option>
                     </select>
+                    <button id="gis-recenter-btn" type="button"
+                        class="mt-1 text-[11px] text-ink-500 dark:text-[#7a8580] hover:text-forest-700 dark:hover:text-forest-400 underline underline-offset-2 transition-colors">
+                        ↺ Re-center map
+                    </button>
                 </label>
                 <label class="block">
-                    <span class="eyebrow block mb-1.5">Risk Level</span>
+                    <span id="gis-secondary-filter-label" class="eyebrow block mb-1.5">Risk Level</span>
                     <select id="gis-risk-filter" class="form-select">
                         <option value="all">All Risk Levels</option>
                         <option value="low">Low</option>
                         <option value="moderate">Moderate</option>
                         <option value="high">High</option>
                     </select>
-                </label>
-                <label class="block">
-                    <span class="eyebrow block mb-1.5">Cluster / Health Group</span>
-                    <select id="gis-cluster-filter" class="form-select">
+                    <select id="gis-cluster-filter" class="form-select hidden">
                         <option value="all">All Groups</option>
                     </select>
                 </label>
             </div>
 
-            <div class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
-                <div class="eyebrow mb-2">KDE Heatmap Overlays</div>
-                <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="risk-indicator-heatmap">
-                        <span>Risk Distribution Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="cluster-heatmap">
-                        <span>Health Group / Cluster Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" data-gis-kde-overlay value="accessibility-heatmap">
-                        <span>Accessibility / Facility Proximity Heatmap</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2">
-                        <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                        <span>Show cluster senior points</span>
-                    </label>
+            <div id="gis-layer-options" class="hidden">
+                <div id="gis-layer-options-markers" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-senior-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior points</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-show-barangay-density-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show barangay density fill</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="gis-layer-options-cluster" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
+                    <div class="eyebrow mb-2">Layer Options</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                        <label class="inline-flex items-center gap-2">
+                            <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                            <span>Show senior distribution points</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -165,8 +174,16 @@
                 </label>
             </div>
 
+            <div id="gis-risk-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
+                <div class="eyebrow mb-2">Risk Point Display</div>
+                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                    <input id="gis-show-risk-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                    <span>Show senior points on risk heatmap</span>
+                </label>
+            </div>
+
             <div id="gis-map"
-                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2 dark:bg-[#1a201d] min-h-[420px] md:min-h-[460px]"
+                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[460px]"
                  data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
                  data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
                  data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
@@ -189,6 +206,42 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.gis-recenter-control {
+    background: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    color: #333;
+    padding: 0;
+}
+.gis-recenter-control:hover {
+    background: #f4f4f4;
+    color: #000;
+}
+.dark .gis-recenter-control {
+    background: #2b3530;
+    color: #b0b5b2;
+}
+.dark .gis-recenter-control:hover {
+    background: #3a4540;
+    color: #fff;
+}
+/* The basemap is always the light tile layer. Give the map element a light,
+   land-coloured background (matching the tiles) so the brief tile gaps during a
+   zoom render as a soft land tone instead of Leaflet's default grey (#ddd) or
+   the dark-theme panel colour. The ID selector outranks the Tailwind bg classes. */
+#gis-map {
+    background: #f2efe9;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
@@ -199,9 +252,13 @@
     const RISK_FILTER_ID = 'gis-risk-filter';
     const CLUSTER_FILTER_ID = 'gis-cluster-filter';
     const CLUSTER_POINTS_TOGGLE_ID = 'gis-cluster-points-toggle';
+    const SHOW_SENIOR_POINTS_TOGGLE_ID = 'gis-show-senior-points-toggle';
+    const SHOW_BARANGAY_DENSITY_TOGGLE_ID = 'gis-show-barangay-density-toggle';
+    const LAYER_OPTIONS_ID = 'gis-layer-options';
     const SHOW_HEATMAP_SENIOR_POINTS_ID = 'gis-show-heatmap-senior-points';
     const ACCESSIBILITY_POINT_DISPLAY_ID = 'gis-accessibility-point-display';
-    const KDE_OVERLAY_SELECTOR = '[data-gis-kde-overlay]';
+    const SHOW_RISK_SENIOR_POINTS_ID = 'gis-show-risk-senior-points';
+    const RISK_POINT_DISPLAY_ID = 'gis-risk-point-display';
     const LEGEND_ID = 'gis-map-legend';
     const TOTAL_STAT_ID = 'gis-stat-total';
     const HIGH_RISK_STAT_ID = 'gis-stat-high-risk';
@@ -209,15 +266,15 @@
     const SOURCE_STAT_ID = 'gis-stat-source';
     const PAGSANJAN_CENTER = [14.2708, 121.4560];
     const DEFAULT_ZOOM = 15;
-    const MIN_ZOOM = 8;
+    const MIN_ZOOM = 13;
     const MAX_ZOOM = 18;
     const DEFAULT_FOCUS_BOUNDS_COORDS = [
         [14.2598, 121.4442],
         [14.2824, 121.4668],
     ];
     const NAVIGATION_BOUNDS_COORDS = [
-        [14.2555, 121.4395],
-        [14.2868, 121.4715],
+        [14.2580, 121.4410],
+        [14.2840, 121.4700],
     ];
     const MAP_FIT_OPTIONS = {
         padding: [18, 18],
@@ -225,9 +282,8 @@
         animate: false,
     };
     const MUNICIPAL_FOCUS_PADDING_RATIO = 0.03;
-    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 1.25;
+    const MUNICIPAL_NAVIGATION_PADDING_RATIO = 0.15;
     const HEATMAP_MODES = new Set([
-        'accessibility-heatmap',
         'senior-distribution-accessibility-heatmap',
         'risk-indicator-heatmap',
         'cluster-heatmap',
@@ -268,19 +324,21 @@
     const CLUSTER_HEATMAP_RAMPS = {
         1: {
             label: 'C1',
+            title: 'C1 · High Functioning / Well-Supported Seniors',
             name: 'Cluster 1',
             stops: {
                 0.00: '#dff7ff',
                 0.14: '#aeeeff',
                 0.32: '#67d8ff',
-                0.52: '#22b8ee',
-                0.70: '#0796d6',
+                0.52: '#14aee8',
+                0.70: '#048dcc',
                 0.86: '#0077b6',
                 1.00: '#005f99',
             },
         },
         2: {
             label: 'C2',
+            title: 'C2 · Stable Ageing / Moderate Support Needs',
             name: 'Cluster 2',
             stops: {
                 0.00: '#e5ffe9',
@@ -288,12 +346,13 @@
                 0.32: '#74eba0',
                 0.52: '#35d676',
                 0.70: '#16b957',
-                0.86: '#079640',
-                1.00: '#057a35',
+                0.86: '#0fa64b',
+                1.00: '#0b8f40',
             },
         },
         3: {
             label: 'C3',
+            title: 'C3 · Environmentally and Financially Vulnerable Seniors',
             name: 'Cluster 3',
             stops: {
                 0.00: '#fff8bf',
@@ -307,6 +366,7 @@
         },
         4: {
             label: 'C4',
+            title: 'C4 · Low Functioning / Multi-Domain Priority Seniors',
             name: 'Cluster 4',
             stops: {
                 0.00: '#ffe2e2',
@@ -349,6 +409,55 @@
             timer = setTimeout(() => fn.apply(this, args), ms);
         };
     }
+
+    // --- Cooperative time-slicing ---------------------------------------
+    // The KDE raster build is a few hundred ms to ~2s of synchronous canvas
+    // work. To keep the UI responsive (no single long task / "page
+    // unresponsive" dialog), the build yields to the event loop whenever a
+    // time budget is exceeded. MessageChannel yields with ~0ms latency (vs
+    // ~16ms for requestAnimationFrame), so total wall-time overhead is tiny.
+    const __sliceChannel = (typeof MessageChannel !== 'undefined') ? new MessageChannel() : null;
+    const __sliceWaiters = [];
+    if (__sliceChannel) {
+        __sliceChannel.port1.onmessage = () => {
+            const resolve = __sliceWaiters.shift();
+            if (resolve) resolve();
+        };
+    }
+
+    function yieldToEventLoop() {
+        return new Promise((resolve) => {
+            if (!__sliceChannel) {
+                setTimeout(resolve, 0);
+                return;
+            }
+            __sliceWaiters.push(resolve);
+            __sliceChannel.port2.postMessage(0);
+        });
+    }
+
+    function nowMs() {
+        return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    }
+
+    // Returns a predicate that is true once `budgetMs` of wall-time has
+    // elapsed since the last time it returned true (i.e. "time to yield").
+    function makeSliceBudget(budgetMs = 10) {
+        let last = nowMs();
+        return () => {
+            const now = nowMs();
+            if (now - last >= budgetMs) {
+                last = now;
+                return true;
+            }
+            return false;
+        };
+    }
+
+    // Monotonic token: bumped on every renderDataLayers call so an in-flight
+    // async heatmap build from a superseded filter/mode state can detect it is
+    // stale and skip mutating the map.
+    let activeRenderToken = 0;
 
     let latestRequestId = 0;
     let latestSeniorGeoJson = null;
@@ -469,6 +578,13 @@
         return cluster ? `${cluster.label} higher intensity within selected cluster` : 'Higher intensity within selected cluster';
     }
 
+    function clusterDisplayName(featureOrNumber) {
+        const number = typeof featureOrNumber === 'number'
+            ? featureOrNumber
+            : featureClusterNumber(featureOrNumber);
+        return CLUSTER_HEATMAP_RAMPS[number]?.title ?? 'Unassigned';
+    }
+
     function featureClusterNumber(feature) {
         const number = clusterNumber(clusterLabel(feature), feature);
         if (number === null) {
@@ -500,13 +616,16 @@
     }
 
     function riskWeight(level) {
+        // Widen tier separation so the KDE surface reflects risk SEVERITY rather than
+        // population density: a dense cluster of LOW-risk seniors should not out-weigh a
+        // few HIGH-risk seniors. HIGH dominates; LOW contributes only a faint floor.
         switch ((level || '').toUpperCase()) {
             case 'HIGH':
                 return 1.0;
             case 'MODERATE':
-                return 0.6;
+                return 0.4;
             case 'LOW':
-                return 0.3;
+                return 0.12;
             default:
                 return null;
         }
@@ -635,8 +754,7 @@
         }
 
         const heatmapLabels = {
-            'accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
-            'senior-distribution-accessibility-heatmap': ['Senior Distribution and Accessibility Heatmap', 'Better access', 'Greater access need'],
+            'senior-distribution-accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
             'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
@@ -647,7 +765,7 @@
             if (mode === 'cluster-heatmap') {
                 const clusterLegend = Object.values(CLUSTER_HEATMAP_RAMPS).map((ramp) => `
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${ramp.label}
+                        <span class="h-2.5 w-10 rounded-full inline-block border border-white/70" style="background:${gradientCss(ramp.stops)};"></span>${escapeHtml(ramp.title)}
                     </span>
                 `).join('');
                 const selectedCluster = selectedClusterGroup();
@@ -676,6 +794,10 @@
                 return;
             }
 
+            const riskDotNote = mode === 'risk-indicator-heatmap'
+                ? '<span class="text-ink-400 dark:text-[#6b7570]">Dots are individual seniors; color shows local risk density. A senior in a sparsely populated area may appear as a dot with little surrounding color.</span>'
+                : '';
+
             legendEl.innerHTML = `
                 <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
                 <span class="inline-flex items-center gap-2 min-w-[260px]">
@@ -685,20 +807,7 @@
                 </span>
                 <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
                 ${boundaryLegend}
-            `;
-            return;
-        }
-
-        if (mode === 'barangay-density') {
-            legendEl.innerHTML = `
-                <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">Barangay Density View</span>
-                <span class="inline-flex items-center gap-2 min-w-[260px]">
-                    <span>Lower count</span>
-                    <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
-                    <span>Higher count</span>
-                </span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
-                ${boundaryLegend}
+                ${riskDotNote}
             `;
             return;
         }
@@ -787,23 +896,30 @@
         const select = document.getElementById(selectId);
         if (!select) return;
 
+        const entries = values.map((value) => (value && typeof value === 'object')
+            ? { value: String(value.value), label: String(value.label) }
+            : { value: String(value), label: String(value) });
+
         const currentValue = select.value || 'all';
         select.innerHTML = `<option value="all">${defaultLabel}</option>`;
 
-        values.forEach((value) => {
+        entries.forEach((entry) => {
             const option = document.createElement('option');
-            option.value = String(value);
-            option.textContent = String(value);
+            option.value = entry.value;
+            option.textContent = entry.label;
             select.appendChild(option);
         });
 
-        select.value = values.includes(currentValue) ? currentValue : 'all';
+        select.value = entries.some((entry) => entry.value === currentValue) ? currentValue : 'all';
     }
 
     function initializeFilters(features) {
         setSelectOptions(BARANGAY_FILTER_ID, 'All Barangays', uniqueSortedValues(features, 'barangay'));
         setSelectOptions(RISK_FILTER_ID, 'All Risk Levels', uniqueSortedValues(features, 'risk_level'));
-        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features));
+        setSelectOptions(CLUSTER_FILTER_ID, 'All Groups', uniqueSortedClusterValues(features).map((value) => ({
+            value,
+            label: CLUSTER_HEATMAP_RAMPS[clusterNumber(value, null)]?.title ?? value,
+        })));
     }
 
     function getSelectedValue(selectId) {
@@ -818,12 +934,32 @@
         return getSelectedValue(BARANGAY_FILTER_ID) === 'all';
     }
 
-    function shouldShowClusterSeniorPoints() {
+    function shouldShowClusterDistributionPoints() {
         return document.getElementById(CLUSTER_POINTS_TOGGLE_ID)?.checked !== false;
     }
 
     function shouldShowAccessibilitySeniorPoints() {
         return document.getElementById(SHOW_HEATMAP_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
+    function shouldShowRiskSeniorPoints() {
+        return document.getElementById(SHOW_RISK_SENIOR_POINTS_ID)?.checked !== false;
+    }
+
+    function syncLayerOptionsPanel() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const wrapper = document.getElementById(LAYER_OPTIONS_ID);
+        const markersPanel = document.getElementById('gis-layer-options-markers');
+        const clusterPanel = document.getElementById('gis-layer-options-cluster');
+
+        if (!wrapper) return;
+
+        const showMarkers = mode === 'markers';
+        const showCluster = mode === 'cluster-heatmap';
+
+        wrapper.classList.toggle('hidden', !showMarkers && !showCluster);
+        markersPanel?.classList.toggle('hidden', !showMarkers);
+        clusterPanel?.classList.toggle('hidden', !showCluster);
     }
 
     function syncAccessibilityPointDisplay() {
@@ -834,10 +970,36 @@
         control.style.display = mode === 'senior-distribution-accessibility-heatmap' ? '' : 'none';
     }
 
-    function selectedKdeOverlayModes() {
-        return [...document.querySelectorAll(`${KDE_OVERLAY_SELECTOR}:checked`)]
-            .map((input) => input.value)
-            .filter((mode) => ['risk-indicator-heatmap', 'cluster-heatmap', 'accessibility-heatmap'].includes(mode));
+    function syncRiskPointDisplay() {
+        const control = document.getElementById(RISK_POINT_DISPLAY_ID);
+        if (!control) return;
+
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        control.style.display = mode === 'risk-indicator-heatmap' ? '' : 'none';
+    }
+
+    // The Risk Level and Cluster / Health Group filters share one slot that
+    // adapts to the active visualization: Cluster mode shows the health-group
+    // filter, every other mode shows the risk filter. The hidden filter is reset
+    // to "all" so it never silently narrows another mode's results.
+    function syncSecondaryFilter() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        const riskSelect = document.getElementById(RISK_FILTER_ID);
+        const clusterSelect = document.getElementById(CLUSTER_FILTER_ID);
+        const label = document.getElementById('gis-secondary-filter-label');
+        if (!riskSelect || !clusterSelect) return;
+
+        const showCluster = mode === 'cluster-heatmap';
+        clusterSelect.classList.toggle('hidden', !showCluster);
+        riskSelect.classList.toggle('hidden', showCluster);
+        if (label) {
+            label.textContent = showCluster ? 'Health Group' : 'Risk Level';
+        }
+
+        const hiddenSelect = showCluster ? riskSelect : clusterSelect;
+        if (hiddenSelect.value !== 'all') {
+            hiddenSelect.value = 'all';
+        }
     }
 
     function selectedClusterGroup() {
@@ -1024,7 +1186,7 @@
 
         const range = stats.max - stats.min;
         const score = range > 0 ? clampUnit((distance - stats.min) / range) : 0.5;
-        let level = 'Priority';
+        let level = 'Farthest';
 
         if (distance <= stats.q25) {
             level = 'Nearest';
@@ -1280,6 +1442,21 @@
         return featureInsideBoundaryFeature(feature, boundaryFeature);
     }
 
+    // Computes each senior's boundary validity + coordinate kind once after data
+    // load. Filter/mode switches then reuse these flags instead of re-running
+    // point-in-polygon geometry for every senior on every interaction.
+    function prevalidateAllFeatures(features) {
+        if (!Array.isArray(features)) return;
+
+        features.forEach((feature) => {
+            feature.__gisValidity = {
+                kind: coordinateKind(feature),
+                insidePrimary: featureInsidePrimaryBoundary(feature),
+                insideAssigned: featureInsideAssignedBarangay(feature),
+            };
+        });
+    }
+
     function validatedFeatureSet(features, options = {}) {
         const exactOnly = Boolean(options.exactOnly);
         const stats = {
@@ -1292,14 +1469,17 @@
         };
 
         features.forEach((feature) => {
-            const kind = coordinateKind(feature);
+            const validity = feature.__gisValidity;
+            const kind = validity ? validity.kind : coordinateKind(feature);
+            const insidePrimary = validity ? validity.insidePrimary : featureInsidePrimaryBoundary(feature);
+            const insideAssigned = validity ? validity.insideAssigned : featureInsideAssignedBarangay(feature);
 
-            if (!featureInsidePrimaryBoundary(feature)) {
+            if (!insidePrimary) {
                 stats.outsidePagsanjan++;
                 return;
             }
 
-            if (!featureInsideAssignedBarangay(feature)) {
+            if (!insideAssigned) {
                 stats.mismatches++;
                 return;
             }
@@ -1866,6 +2046,94 @@
         return new ClusterDistributionLayer();
     }
 
+    // Rasterizes a clip-boundary polygon into a flat inside/outside bitmap.
+    // projectFn maps a (lat, lng) to canvas pixel coords for the target space.
+    // Replaces per-pixel point-in-polygon ray-casting (which ran pixels ×
+    // boundary-vertices times and froze the main thread) with an O(1) lookup.
+    function buildBoundaryMask(width, height, projectFn, boundary) {
+        if (!hasBoundaryFeatures(boundary) || width <= 0 || height <= 0) {
+            return null;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000000';
+
+        const tracePolygon = (rings) => {
+            if (!Array.isArray(rings) || !rings.length) return;
+            ctx.beginPath();
+            rings.forEach((ring) => {
+                if (!Array.isArray(ring)) return;
+                ring.forEach(([lng, lat], pointIndex) => {
+                    const point = projectFn(Number(lat), Number(lng));
+                    if (pointIndex === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.closePath();
+            });
+            // even-odd so inner rings (holes) are carved out, matching
+            // pointInsideBoundary's outer-ring / hole semantics.
+            ctx.fill('evenodd');
+        };
+
+        boundary.features.forEach((feature) => {
+            const geometry = feature?.geometry;
+            const coordinates = geometry?.coordinates;
+            if (!geometry || !Array.isArray(coordinates)) return;
+
+            if (geometry.type === 'Polygon') {
+                tracePolygon(coordinates);
+            } else if (geometry.type === 'MultiPolygon') {
+                coordinates.forEach((polygon) => tracePolygon(polygon));
+            }
+        });
+
+        const data = ctx.getImageData(0, 0, width, height).data;
+        const mask = new Uint8Array(width * height);
+        for (let pixel = 0; pixel < mask.length; pixel++) {
+            mask[pixel] = data[(pixel * 4) + 3] > 0 ? 1 : 0;
+        }
+
+        return mask;
+    }
+
+    // Raster-space masks are keyed by bounds + size; the municipal bounds are
+    // constant across filters and zoom, so the mask is built at most once.
+    const rasterBoundaryMaskCache = new Map();
+
+    function getRasterBoundaryMask(bounds, width, height, boundary) {
+        if (!hasBoundaryFeatures(boundary) || !bounds?.isValid?.()) {
+            return null;
+        }
+
+        const key = [
+            bounds.getSouth().toFixed(6),
+            bounds.getWest().toFixed(6),
+            bounds.getNorth().toFixed(6),
+            bounds.getEast().toFixed(6),
+            `${width}x${height}`,
+        ].join('|');
+
+        if (rasterBoundaryMaskCache.has(key)) {
+            return rasterBoundaryMaskCache.get(key);
+        }
+
+        const mask = buildBoundaryMask(
+            width,
+            height,
+            (lat, lng) => latLngToRasterPoint(lat, lng, bounds, width, height),
+            boundary
+        );
+        rasterBoundaryMaskCache.set(key, mask);
+
+        return mask;
+    }
+
     function rasterSizeForBounds(bounds, options = {}) {
         if (!bounds?.isValid?.()) {
             return { width: 512, height: 512 };
@@ -1878,9 +2146,9 @@
         const north = window.L.latLng(bounds.getNorth(), center.lng);
         const widthMeters = Math.max(1, west.distanceTo(east));
         const heightMeters = Math.max(1, south.distanceTo(north));
-        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 2, window.devicePixelRatio || 1));
-        const maxSide = Math.round((options.maxRasterSide ?? 1280) * pixelRatio);
-        const minSide = Math.round((options.minRasterSide ?? 720) * pixelRatio);
+        const pixelRatio = Math.max(1, Math.min(options.pixelRatioCap ?? 1.5, window.devicePixelRatio || 1));
+        const maxSide = Math.round((options.maxRasterSide ?? 900) * pixelRatio);
+        const minSide = Math.round((options.minRasterSide ?? 560) * pixelRatio);
 
         if (widthMeters >= heightMeters) {
             return {
@@ -2081,7 +2349,8 @@
 
         levels.forEach((level, levelIndex) => {
             const levelFrac = levels.length > 1 ? levelIndex / (levels.length - 1) : 0;
-            context.lineWidth = baseLineWidth * (0.70 + levelFrac * 0.60);
+            const lineWidth = baseLineWidth * (0.80 + levelFrac * 0.72);
+            context.lineWidth = lineWidth;
             context.beginPath();
 
             for (let y = 0; y < height - step; y += step) {
@@ -2118,17 +2387,23 @@
                 }
             }
 
-            const opacity = 0.18 + levelFrac * 0.26;
-            context.shadowColor = 'rgba(255,255,255,0.18)';
-            context.shadowBlur = 1.2;
-            context.strokeStyle = `rgba(255,255,255,${Math.min(0.48, opacity)})`;
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+            const haloLineWidth = options.haloLineWidth ?? 0.25;
+            if (haloLineWidth > 0) {
+                context.lineWidth = lineWidth + haloLineWidth;
+                context.strokeStyle = `rgba(15,23,42,${options.haloOpacity ?? 0.06})`;
+                context.stroke();
+            }
+            context.lineWidth = lineWidth;
+            context.strokeStyle = `rgba(255,255,255,${Math.min(options.maxOpacity ?? 0.88, (options.opacityBase ?? 0.48) + (levelFrac * (options.opacityRange ?? 0.30)))})`;
             context.stroke();
         });
 
         context.restore();
     }
 
-    function createClusterDistributionRasterLayer(groups, options) {
+    async function createClusterDistributionRasterLayer(groups, options) {
         const bounds = options.bounds;
         if (!bounds?.isValid?.()) {
             return null;
@@ -2140,10 +2415,20 @@
         const peakRadius = rasterRadiusPixels(bounds, width, height, peakRadiusMeters);
         const pointCoreRadiusMeters = options.point_core_radius_meters ?? Math.max(80, Math.min(130, options.radius_meters * 0.34));
         const pointCoreRadius = rasterRadiusPixels(bounds, width, height, pointCoreRadiusMeters);
-        const smoothingPixels = Math.max(14, Math.min(36, radius * 0.34));
-        const peakSmoothingPixels = Math.max(8, Math.min(22, peakRadius * 0.24));
-        const pointCoreSmoothingPixels = Math.max(5, Math.min(14, pointCoreRadius * 0.16));
-        const groupImages = groups.map((group) => {
+        const smoothingPixels = Math.max(
+            options.smoothingPixelMin ?? 14,
+            Math.min(options.smoothingPixelMax ?? 36, radius * (options.smoothingPixelRatio ?? 0.52))
+        );
+        const peakSmoothingPixels = Math.max(
+            options.peakSmoothingPixelMin ?? 8,
+            Math.min(options.peakSmoothingPixelMax ?? 22, peakRadius * (options.peakSmoothingPixelRatio ?? 0.38))
+        );
+        const pointCoreSmoothingPixels = Math.max(
+            options.pointCoreSmoothingPixelMin ?? 5,
+            Math.min(options.pointCoreSmoothingPixelMax ?? 14, pointCoreRadius * (options.pointCoreSmoothingPixelRatio ?? 0.26))
+        );
+        const groupImages = [];
+        for (const group of groups) {
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
@@ -2212,10 +2497,13 @@
                 }
             });
 
+            await yieldToEventLoop();
             const data = smoothedRasterData(canvas, smoothingPixels);
+            await yieldToEventLoop();
             const peakData = options.enablePeakSupport === false
                 ? null
                 : smoothedRasterData(peakCanvas, peakSmoothingPixels);
+            await yieldToEventLoop();
             const pointCoreData = options.enablePeakSupport === false
                 ? null
                 : smoothedRasterData(pointCoreCanvas, pointCoreSmoothingPixels);
@@ -2236,7 +2524,7 @@
                 }
             }
 
-            return {
+            groupImages.push({
                 label: group.label,
                 color: hexToRgb(group.color),
                 ramp: gradientStopsFromStops(group.stops),
@@ -2247,8 +2535,9 @@
                 strongestDensity,
                 strongestPeakDensity,
                 strongestPointCoreDensity,
-            };
-        });
+            });
+            await yieldToEventLoop();
+        }
 
         const outputCanvas = document.createElement('canvas');
         outputCanvas.width = width;
@@ -2267,21 +2556,26 @@
             ? Math.max(42, Math.min(options.colorScaleMax || 255, strongestDensity * 0.82 || 42))
             : Math.max(72, Math.min(options.colorScaleMax || 255, strongestDensity * 1.05 || 72));
         const minVisibleDensity = options.minVisibleDensity ?? 0.22;
+        const boundaryMask = getRasterBoundaryMask(bounds, width, height, options.clipBoundary);
         const rasterPixelInsideBoundary = (x, y) => {
-            if (!hasBoundaryFeatures(options.clipBoundary)) {
+            if (!boundaryMask) {
                 return true;
             }
 
-            const lng = bounds.getWest() + ((x + 0.5) / width) * (bounds.getEast() - bounds.getWest());
-            const lat = bounds.getNorth() - ((y + 0.5) / height) * (bounds.getNorth() - bounds.getSouth());
-
-            return pointInsideBoundary([lng, lat], options.clipBoundary);
+            return boundaryMask[(y * width) + x] === 1;
         };
 
+        const __pixelSliceBudget = makeSliceBudget(10);
         for (let index = 0; index < outputImage.data.length; index += 4) {
             const pixel = index / 4;
             const x = pixel % width;
             const y = Math.floor(pixel / width);
+
+            // Yield to the event loop every ~10ms so the per-pixel colorization
+            // never becomes one multi-second main-thread task.
+            if ((pixel & 8191) === 0 && __pixelSliceBudget()) {
+                await yieldToEventLoop();
+            }
 
             if (options.independentSurfaces === true) {
                 let contourDensity = 0;
@@ -2516,6 +2810,7 @@
             ));
         }
 
+        await yieldToEventLoop();
         if (options.independentSurfaces !== true) {
             smoothRasterColorEdges(
                 outputImage,
@@ -2528,6 +2823,8 @@
         }
         outputContext.putImageData(outputImage, 0, 0);
 
+        await yieldToEventLoop();
+
         // Run marching squares directly on the full-resolution contour density
         // grid (step=4 skips every 4px for speed while keeping contour shape).
         // Drawing at native canvas resolution avoids the scale-up blurring that
@@ -2536,15 +2833,23 @@
             contourDensityGrid,
             width,
             height,
-            options.contourSmoothPasses ?? 5
+            options.contourSmoothPasses ?? 7
         );
         drawKdeContours(outputContext, contourSourceGrid, width, height, {
-            step: options.contourStep ?? 4,
-            levels: options.contourLevels ?? [0.08, 0.16, 0.24, 0.32, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90],
-            lineWidth: options.contourLineWidth ?? 1.1,
+            step: options.contourStep ?? 5,
+            levels: options.contourLevels ?? [0.14, 0.28, 0.44, 0.62, 0.80],
+            lineWidth: options.contourLineWidth ?? 0.95,
         });
 
-        return createSmoothHeatmapImageOverlay(outputCanvas.toDataURL('image/png'), bounds, {
+        await yieldToEventLoop();
+        const blurredCanvas = document.createElement('canvas');
+        blurredCanvas.width = width;
+        blurredCanvas.height = height;
+        const blurCtx = blurredCanvas.getContext('2d');
+        blurCtx.filter = 'blur(5px)';
+        blurCtx.drawImage(outputCanvas, 0, 0);
+
+        return createSmoothHeatmapImageOverlay(blurredCanvas.toDataURL('image/png'), bounds, {
             pane: 'gis-heat-pane',
             opacity: 1,
             interactive: false,
@@ -3318,6 +3623,7 @@
     async function updateRoadNetworkServices(layer, feature) {
         const popup = layer.getPopup?.();
         if (!popup) return;
+        if (!accessibilityComputationEnabled()) return;
 
         const requestId = (layer._gisRouteRequestId || 0) + 1;
         layer._gisRouteRequestId = requestId;
@@ -3404,6 +3710,11 @@
             })));
     }
 
+    function accessibilityComputationEnabled() {
+        const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        return mode === 'markers' || mode === 'senior-distribution-accessibility-heatmap';
+    }
+
     function popupHtml(featureOrProperties, routedServices = null) {
         const feature = featureOrProperties?.type === 'Feature'
             ? featureOrProperties
@@ -3413,14 +3724,21 @@
         const oscaId = escapeHtml(p.osca_id ?? `#${p.senior_id ?? 'N/A'}`);
         const barangay = escapeHtml(p.barangay ?? 'N/A');
         const riskLevel = escapeHtml(p.risk_level ?? 'Unknown');
-        const healthGroup = escapeHtml(p.cluster_label ?? p.cluster ?? 'Unassigned');
+        const healthGroup = escapeHtml(clusterDisplayName(feature));
         const accessibility = p.gis_proximity_score !== null && p.gis_proximity_score !== undefined
             ? `${Number(p.gis_proximity_score).toFixed(1)}% (${escapeHtml(p.accessibility_status ?? accessibilityStatus(p.gis_proximity_score))})`
             : escapeHtml(p.accessibility_status ?? 'No accessibility score available');
+        const showAccess = accessibilityComputationEnabled();
+        const accessibilityRow = showAccess
+            ? `<div><strong>Accessibility Status:</strong> ${accessibility}</div>`
+            : '';
         const services = routedServices
             ? serviceListHtml(routedServices)
             : routeLoadingListHtml(routeCandidatesForFeature(feature));
         const servicesElementId = escapeHtml(routeServicesElementId(feature));
+        const servicesBlock = showAccess
+            ? `<div><strong>Nearby senior services:</strong><div id="${servicesElementId}">${services}</div></div>`
+            : '';
 
         if (p.is_generalized_senior_point) {
             return `
@@ -3431,11 +3749,8 @@
                     <div><strong>Point Type:</strong> Generalized senior point</div>
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                     <div><strong>Health Group:</strong> ${healthGroup}</div>
-                    <div><strong>Accessibility Status:</strong> ${accessibility}</div>
-                    <div>
-                        <strong>Nearby senior services:</strong>
-                        <div id="${servicesElementId}">${services}</div>
-                    </div>
+                    ${accessibilityRow}
+                    ${servicesBlock}
                 </div>
             `;
         }
@@ -3448,11 +3763,8 @@
                 <div><strong>Total Seniors:</strong> ${p.senior_count ?? p.total_seniors ?? 0}</div>
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
                 <div><strong>Health Group:</strong> ${healthGroup}</div>
-                <div><strong>Accessibility Status:</strong> ${accessibility}</div>
-                <div>
-                    <strong>Nearby senior services:</strong>
-                    <div id="${servicesElementId}">${services}</div>
-                </div>
+                ${accessibilityRow}
+                ${servicesBlock}
             </div>
         `;
     }
@@ -3641,9 +3953,6 @@
             municipalBoundary: window.L.layerGroup().addTo(map),
             municipalMask: window.L.layerGroup().addTo(map),
             heatmap: window.L.layerGroup().addTo(map),
-            kdeRiskHeatmap: window.L.layerGroup().addTo(map),
-            kdeClusterHeatmap: window.L.layerGroup().addTo(map),
-            kdeAccessibilityHeatmap: window.L.layerGroup().addTo(map),
             barangayDensity: window.L.layerGroup().addTo(map),
             riskOverlay: window.L.layerGroup().addTo(map),
             facilities: window.L.layerGroup().addTo(map),
@@ -3659,7 +3968,6 @@
         const layers = ensureLayerRegistry(map);
         map._gisActiveHeatmap = null;
         layers.heatmap.clearLayers();
-        clearKdeOverlayLayers(map);
         layers.barangayDensity.clearLayers();
         layers.riskOverlay.clearLayers();
         layers.facilities.clearLayers();
@@ -3673,32 +3981,6 @@
         layers.riskOverlay.clearLayers();
     }
 
-    function kdeLayerForMode(map, mode) {
-        const layers = ensureLayerRegistry(map);
-
-        if (mode === 'risk-indicator-heatmap') {
-            return layers.kdeRiskHeatmap;
-        }
-
-        if (mode === 'cluster-heatmap') {
-            return layers.kdeClusterHeatmap;
-        }
-
-        if (mode === 'accessibility-heatmap') {
-            return layers.kdeAccessibilityHeatmap;
-        }
-
-        return null;
-    }
-
-    function clearKdeOverlayLayers(map) {
-        const layers = ensureLayerRegistry(map);
-        map._gisKdeOverlayContexts = {};
-        layers.kdeRiskHeatmap.clearLayers();
-        layers.kdeClusterHeatmap.clearLayers();
-        layers.kdeAccessibilityHeatmap.clearLayers();
-    }
-
     function heatmapFeaturesForMode(features, mode) {
         if (mode === 'cluster-heatmap') {
             const selectedCluster = selectedClusterGroup();
@@ -3708,7 +3990,7 @@
             });
         }
 
-        if (mode === 'accessibility-heatmap' || mode === 'senior-distribution-accessibility-heatmap') {
+        if (mode === 'senior-distribution-accessibility-heatmap') {
             return features.filter((feature) => accessibilityNeedWeight(feature.properties || {}) !== null);
         }
 
@@ -3733,7 +4015,7 @@
         return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
     }
 
-    function buildClusterDistributionHeatmapLayer(map, features, options = {}) {
+    async function buildClusterDistributionHeatmapLayer(map, features, options = {}) {
         const clusterGroups = groupFeaturesByCluster(features);
         const clusterFeatures = clusterGroups.flatMap(([, groupFeatures]) => groupFeatures);
         const selectedClusterMode = selectedClusterGroup() !== 'all' && clusterGroups.length === 1;
@@ -3770,7 +4052,7 @@
         // Renders independent filled-contour KDE surfaces per health group.
         // Hue stays tied to one assigned cluster per pixel; overlapping major
         // and minor groups never average into a blended color.
-        const heatmapLayer = createClusterDistributionRasterLayer(groups, {
+        const heatmapLayer = await createClusterDistributionRasterLayer(groups, {
             bounds,
             radius_meters: radiusMeters,
             maxRasterSide: options.maxRasterSide ?? 680,
@@ -3845,10 +4127,10 @@
             edgeSmoothStrength: options.edgeSmoothStrength ?? 0.28,
             edgeSmoothRadius: options.edgeSmoothRadius ?? 1,
             dominancePower: options.dominancePower ?? 0.74,
-            contourSmoothPasses: options.contourSmoothPasses ?? 12,
-            contourStep: options.contourStep ?? 3,
-            contourLevels: options.contourLevels ?? [0.06, 0.11, 0.17, 0.25, 0.34, 0.45, 0.57, 0.70, 0.84],
-            contourLineWidth: options.contourLineWidth ?? 0.58,
+            contourSmoothPasses: options.contourSmoothPasses ?? 14,
+            contourStep: options.contourStep ?? 5,
+            contourLevels: options.contourLevels ?? [0.12, 0.26, 0.44, 0.66, 0.84],
+            contourLineWidth: options.contourLineWidth ?? 0.9,
             clipBoundary: clusterClipBoundary,
         });
 
@@ -3904,7 +4186,7 @@
     // Reuses the cluster raster-KDE engine with a single risk-weighted surface,
     // so the Risk Distribution heatmap renders with the exact same smooth,
     // contoured, Pagsanjan-clipped look as the health-group heatmap.
-    function buildRiskDistributionRasterLayer(map, features, options = {}) {
+    async function buildRiskDistributionRasterLayer(map, features, options = {}) {
         const points = riskDistributionPoints(features);
         const bounds = primaryBoundaryBounds();
         const radiusMeters = Number.isFinite(options.radiusMeters)
@@ -3921,7 +4203,7 @@
             points,
         };
 
-        const layer = createClusterDistributionRasterLayer([group], {
+        const layer = await createClusterDistributionRasterLayer([group], {
             bounds,
             radius_meters: radiusMeters,
             peak_radius_meters: options.peakRadiusMeters ?? Math.max(90, Math.min(160, radiusMeters * 0.40)),
@@ -3969,17 +4251,126 @@
             .filter(Boolean);
     }
 
-    function createAccessibilityPointHeatmapLayer(points, options = {}) {
+    function createAccessibilityHeatmapOverlay(points, bounds, options = {}) {
+        if (!points.length || !bounds?.isValid?.()) {
+            return null;
+        }
+
+        const stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
+        const { width, height } = rasterSizeForBounds(bounds);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+
+        // Radius in raster pixels via the shared helper, which uses the smaller of
+        // the x/y meters-per-pixel so the blob stays circular for non-square bounds.
+        const radiusMeters = options.radiusMeters ?? 620;
+        const radius = Math.round(rasterRadiusPixels(bounds, width, height, radiusMeters));
+
+        points
+            .slice()
+            .sort((a, b) => a[2] - b[2])
+            .forEach(([lat, lng, score]) => {
+                const point = latLngToRasterPoint(lat, lng, bounds, width, height);
+                const [red, green, blue] = colorForGradientValue(score, stops);
+                const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
+                gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
+                gradient.addColorStop(0.48, `rgba(${red},${green},${blue},0.24)`);
+                gradient.addColorStop(0.78, `rgba(${red},${green},${blue},0.08)`);
+                gradient.addColorStop(1.00, `rgba(${red},${green},${blue},0)`);
+                context.fillStyle = gradient;
+                context.beginPath();
+                context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                context.fill();
+            });
+
+        // Clip to the municipal boundary using the precomputed cached mask.
+        const boundary = options.clipBoundary ?? primaryBoundaryGeoJson();
+        const mask = getRasterBoundaryMask(bounds, width, height, boundary);
+        const image = context.getImageData(0, 0, width, height);
+        const contourDensityGrid = new Float32Array(width * height);
+        for (let index = 0; index < image.data.length; index += 4) {
+            const pixel = index / 4;
+            if (mask && mask[pixel] !== 1) {
+                image.data[index + 3] = 0;
+                continue;
+            }
+            contourDensityGrid[pixel] = clampUnit(image.data[index + 3] / 190);
+        }
+        context.putImageData(image, 0, 0);
+
+        // KDE contour overlay (same levels/step as the old live layer).
+        const contourSource = smoothScalarGrid(contourDensityGrid, width, height, 5);
+        drawKdeContours(context, contourSource, width, height, {
+            step: 4,
+            levels: [0.10, 0.18, 0.28, 0.40, 0.54, 0.68, 0.82],
+            lineWidth: 1.05,
+            haloLineWidth: 0,
+        });
+
+        return createSmoothHeatmapImageOverlay(canvas.toDataURL('image/png'), bounds, {
+            pane: 'gis-heat-pane',
+            opacity: 1,
+            interactive: false,
+        });
+    }
+
+    function buildAccessibilityDistributionRasterLayer(map, features, options = {}) {
+        const referenceFeatures = options.referenceFeatures || latestSeniorGeoJson?.features || features;
+        const points = accessibilityDistributionPoints(features, referenceFeatures);
+        const bounds = primaryBoundaryBounds();
+        const radiusMeters = Number.isFinite(options.radiusMeters)
+            ? options.radiusMeters
+            : Math.max(520, Math.min(760, heatmapRadiusMeters(features, 'accessibility-heatmap') * 1.35));
+
+        if (!points.length || !bounds?.isValid?.()) {
+            return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
+        }
+
+        const layer = createAccessibilityHeatmapOverlay(points, bounds, {
+            radiusMeters,
+            clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
+        });
+
+        return {
+            layer,
+            points: { length: points.length },
+            radiusMeters: Math.round(radiusMeters),
+            colorScaleMax: options.colorScaleMax ?? 255,
+        };
+    }
+
+    function clusterFlowPoints(features) {
+        return features
+            .map((feature) => {
+                const latlng = featureLatLng(feature);
+                const ramp = gradientStopsFromStops(clusterGradientForLabel(clusterLabel(feature), feature));
+
+                if (!latlng || !ramp?.length) {
+                    return null;
+                }
+
+                const groupNumber = featureClusterNumber(feature) ?? clusterNumber(clusterLabel(feature)) ?? 0;
+                const color = colorForGradientValue(0.70, ramp);
+
+                return [latlng.lat, latlng.lng, color, groupNumber];
+            })
+            .filter(Boolean);
+    }
+
+    function createClusterFlowHeatmapLayer(points, options = {}) {
         const HeatLayer = window.L.Layer.extend({
             initialize() {
                 this._points = points;
                 this._options = options;
-                this._stops = gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP);
+                this._contourCache = null;
             },
 
             onAdd(map) {
                 this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-accessibility-heat-canvas');
+                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-flow-heat-canvas');
                 this._canvas.style.pointerEvents = 'none';
                 (map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane).appendChild(this._canvas);
                 map.on('moveend zoomend resize', this._reset, this);
@@ -3995,7 +4386,7 @@
 
             _reset() {
                 const size = this._map.getSize();
-                const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                const ratio = Math.max(1, Math.min(1.5, window.devicePixelRatio || 1));
                 const topLeft = this._map.containerPointToLayerPoint([0, 0]);
                 window.L.DomUtil.setPosition(this._canvas, topLeft);
                 this._canvas.style.width = `${size.x}px`;
@@ -4006,7 +4397,8 @@
                 this._redraw();
             },
 
-            _redraw() {
+            async _redraw() {
+                const myRedraw = (this._redrawToken = (this._redrawToken || 0) + 1);
                 const width = this._canvas.width;
                 const height = this._canvas.height;
                 const ratio = this._ratio || 1;
@@ -4021,8 +4413,8 @@
 
                 this._points
                     .slice()
-                    .sort((a, b) => a[2] - b[2])
-                    .forEach(([lat, lng, score]) => {
+                    .sort((a, b) => a[3] - b[3])
+                    .forEach(([lat, lng, color]) => {
                         const mapPoint = this._map.latLngToContainerPoint([lat, lng]);
                         const point = {
                             x: mapPoint.x * ratio,
@@ -4033,7 +4425,7 @@
                             return;
                         }
 
-                        const [red, green, blue] = colorForGradientValue(score, this._stops);
+                        const [red, green, blue] = color;
                         const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
                         gradient.addColorStop(0.00, `rgba(${red},${green},${blue},0.66)`);
                         gradient.addColorStop(0.20, `rgba(${red},${green},${blue},0.48)`);
@@ -4046,15 +4438,27 @@
                         context.fill();
                     });
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
+
                 const boundary = this._options.clipBoundary ?? primaryBoundaryGeoJson();
                 const image = context.getImageData(0, 0, width, height);
+                const flowMask = hasBoundaryFeatures(boundary)
+                    ? buildBoundaryMask(width, height, (lat, lng) => {
+                        const containerPoint = this._map.latLngToContainerPoint([lat, lng]);
+                        return { x: containerPoint.x * ratio, y: containerPoint.y * ratio };
+                    }, boundary)
+                    : null;
+                const __flowSliceBudget = makeSliceBudget(10);
                 for (let index = 0; index < image.data.length; index += 4) {
-                    if (!image.data[index + 3]) continue;
                     const pixel = index / 4;
-                    const cssX = (pixel % width) / ratio;
-                    const cssY = Math.floor(pixel / width) / ratio;
+                    if ((pixel & 8191) === 0 && __flowSliceBudget()) {
+                        await yieldToEventLoop();
+                        if (myRedraw !== this._redrawToken) return;
+                    }
+                    if (!image.data[index + 3]) continue;
 
-                    if (hasBoundaryFeatures(boundary) && !canvasPixelInsideBoundary(this._map, cssX, cssY, boundary)) {
+                    if (flowMask && flowMask[pixel] !== 1) {
                         image.data[index + 3] = 0;
                         continue;
                     }
@@ -4063,6 +4467,8 @@
                 }
                 context.putImageData(image, 0, 0);
 
+                await yieldToEventLoop();
+                if (myRedraw !== this._redrawToken) return;
                 const contourSourceGrid = smoothScalarGrid(contourDensityGrid, width, height, 5);
                 drawKdeContours(context, contourSourceGrid, width, height, {
                     step: Math.max(3, Math.round(4 * ratio)),
@@ -4075,29 +4481,20 @@
         return new HeatLayer();
     }
 
-    function buildAccessibilityDistributionRasterLayer(map, features, options = {}) {
-        const referenceFeatures = options.referenceFeatures || latestSeniorGeoJson?.features || features;
-        const points = accessibilityDistributionPoints(features, referenceFeatures);
-        const bounds = primaryBoundaryBounds();
+    function buildClusterFlowHeatmapLayer(map, features, options = {}) {
+        const points = clusterFlowPoints(features);
         const radiusMeters = Number.isFinite(options.radiusMeters)
             ? options.radiusMeters
-            : Math.max(520, Math.min(760, heatmapRadiusMeters(features, 'accessibility-heatmap') * 1.35));
+            : Math.max(520, Math.min(760, heatmapRadiusMeters(features, 'cluster-heatmap') * 1.35));
 
-        if (!points.length || !bounds?.isValid?.()) {
-            return { layer: null, points: { length: 0 }, radiusMeters: Math.round(radiusMeters) };
+        if (!points.length) {
+            return null;
         }
 
-        const layer = createAccessibilityPointHeatmapLayer(points, {
+        return createClusterFlowHeatmapLayer(points, {
             radiusMeters,
             clipBoundary: options.clipBoundary ?? primaryBoundaryGeoJson(),
         });
-
-        return {
-            layer,
-            points: { length: points.length },
-            radiusMeters: Math.round(radiusMeters),
-            colorScaleMax: options.colorScaleMax ?? 255,
-        };
     }
 
     function createSmoothHeatmapImageOverlay(dataUrl, bounds, options = {}) {
@@ -4121,464 +4518,81 @@
         return overlay;
     }
 
-    function buildClusterPointRampLayer(features, options = {}) {
-        const groups = groupFeaturesByCluster(features)
-            .map(([label, groupFeatures]) => {
-                const groupNumber = featureClusterNumber(groupFeatures[0]);
-                const resolvedLabel = groupNumber ? `Group ${groupNumber}` : label;
-
-                return {
-                    label: resolvedLabel,
-                    color: clusterColorForLabel(resolvedLabel, groupFeatures[0]),
-                    ramp: gradientStopsFromStops(clusterGradientForLabel(resolvedLabel, groupFeatures[0])),
-                    points: groupFeatures
-                        .map((feature) => {
-                            const latlng = featureLatLng(feature);
-                            return latlng
-                                ? [latlng.lat, latlng.lng, Math.max(1, seniorCount(feature)), normalizeBarangayName(feature.properties?.barangay)]
-                                : null;
-                        })
-                        .filter(Boolean),
-                };
-            })
-            .filter((group) => group.points.length);
-
-        if (!groups.length) {
-            return null;
-        }
-
-        const PointRampLayer = window.L.Layer.extend({
-            initialize() {
-                this._groups = groups;
-                this._options = options;
-            },
-
-            onAdd(map) {
-                this._map = map;
-                this._canvas = window.L.DomUtil.create('canvas', 'leaflet-layer gis-cluster-point-ramp');
-                this._canvas.style.pointerEvents = 'none';
-
-                const pane = map.getPane('gis-heat-pane') ?? map.getPanes().overlayPane;
-                pane.appendChild(this._canvas);
-
-                map.on('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation && window.L.Browser.any3d) {
-                    map.on('zoomanim', this._animateZoom, this);
-                }
-
-                this._reset();
-            },
-
-            onRemove(map) {
-                if (this._canvas?.parentNode) {
-                    this._canvas.parentNode.removeChild(this._canvas);
-                }
-
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                    this._resetFrame = null;
-                }
-                map.off('moveend zoomend resize', this._scheduleReset, this);
-                if (map.options.zoomAnimation) {
-                    map.off('zoomanim', this._animateZoom, this);
-                }
-            },
-
-            _scheduleReset() {
-                if (this._resetFrame) {
-                    window.cancelAnimationFrame(this._resetFrame);
-                }
-
-                this._resetFrame = window.requestAnimationFrame(() => {
-                    this._resetFrame = null;
-                    this._reset();
-                });
-            },
-
-            _reset() {
-                const size = this._map.getSize();
-                const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-                this._pixelScale = 1;
-
-                window.L.DomUtil.setPosition(this._canvas, topLeft);
-                this._canvas.style.width = '';
-                this._canvas.style.height = '';
-                this._canvas.width = size.x;
-                this._canvas.height = size.y;
-                this._redraw();
-            },
-
-            _animateZoom(event) {
-                const scale = this._map.getZoomScale(event.zoom);
-                const offset = this._map
-                    ._getCenterOffset(event.center)
-                    ._multiplyBy(-scale)
-                    .subtract(this._map._getMapPanePos());
-
-                if (window.L.DomUtil.setTransform) {
-                    window.L.DomUtil.setTransform(this._canvas, offset, scale);
-                    return;
-                }
-
-                this._canvas.style[window.L.DomUtil.TRANSFORM] = `${window.L.DomUtil.getTranslateString(offset)} scale(${scale})`;
-            },
-
-            _densityForGroup(group, width, height, radius) {
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const context = canvas.getContext('2d');
-                context.globalCompositeOperation = 'lighter';
-                const maxWeight = Math.max(1, ...group.points.map((point) => point[2] || 1));
-                const barangayGroupCounts = group.points.reduce((counts, point) => {
-                    const barangay = point[3] || '';
-                    if (barangay) {
-                        counts.set(barangay, (counts.get(barangay) || 0) + 1);
-                    }
-
-                    return counts;
-                }, new Map());
-                const barangayBoostFor = (barangay) => {
-                    const count = barangayGroupCounts.get(barangay) || 0;
-                    if (count >= 6) return 1.58;
-                    if (count >= 4) return 1.42;
-                    if (count >= 3) return 1.28;
-                    return 1;
-                };
-                const projectedPoints = [];
-
-                group.points.forEach(([lat, lng, weight, barangay]) => {
-                    const point = this._map.latLngToContainerPoint([lat, lng]);
-                    point.x *= this._pixelScale;
-                    point.y *= this._pixelScale;
-                    const barangayBoost = barangayBoostFor(barangay);
-                    const localRadius = radius * barangayBoost;
-                    if (point.x < -localRadius || point.y < -localRadius || point.x > width + localRadius || point.y > height + localRadius) {
-                        return;
-                    }
-
-                    const intensity = clampUnit(Math.max(barangayBoost > 1 ? 0.82 : 0.70, (Number(weight) || 1) / maxWeight));
-                    projectedPoints.push({ x: point.x, y: point.y, intensity, barangay, barangayBoost });
-                    const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, localRadius);
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${0.96 * intensity})`);
-                    gradient.addColorStop(0.14, `rgba(0,0,0,${0.86 * intensity})`);
-                    gradient.addColorStop(0.30, `rgba(0,0,0,${0.58 * intensity})`);
-                    gradient.addColorStop(0.50, `rgba(0,0,0,${0.30 * intensity})`);
-                    gradient.addColorStop(0.72, `rgba(0,0,0,${0.11 * intensity})`);
-                    gradient.addColorStop(0.90, `rgba(0,0,0,${0.026 * intensity})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(point.x, point.y, localRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                const groupNumber = clusterNumber(group.label);
-                const compactGroup = projectedPoints.length >= 3;
-                const bridgeBoost = compactGroup ? 1.34 : 1;
-                const bridgeDistance = radius * 1.65 * bridgeBoost;
-                const bridgeDistanceSquared = bridgeDistance * bridgeDistance;
-                const bridgeKernelRadius = Math.max(10, radius * (compactGroup ? 0.62 : 0.48));
-
-                for (let firstIndex = 0; firstIndex < projectedPoints.length; firstIndex += 1) {
-                    const first = projectedPoints[firstIndex];
-                    for (let secondIndex = firstIndex + 1; secondIndex < projectedPoints.length; secondIndex += 1) {
-                        const second = projectedPoints[secondIndex];
-                        const sameBoostedBarangayPair = first.barangay && first.barangay === second.barangay && Math.max(first.barangayBoost, second.barangayBoost) > 1;
-                        const pairBoost = sameBoostedBarangayPair ? Math.max(first.barangayBoost, second.barangayBoost) : 1;
-                        const dx = second.x - first.x;
-                        const dy = second.y - first.y;
-                        const distanceSquared = (dx * dx) + (dy * dy);
-                        const pairBridgeDistance = bridgeDistance * pairBoost;
-                        const pairBridgeDistanceSquared = pairBridgeDistance * pairBridgeDistance;
-                        if (distanceSquared > pairBridgeDistanceSquared) {
-                            continue;
-                        }
-
-                        const distance = Math.sqrt(distanceSquared);
-                        const closeness = clampUnit(1 - (distance / pairBridgeDistance));
-                        const bridgeAlphaCap = sameBoostedBarangayPair ? 0.56 : (compactGroup ? 0.46 : 0.32);
-                        const bridgeAlphaBase = sameBoostedBarangayPair ? 0.18 : (compactGroup ? 0.13 : 0.08);
-                        const bridgeAlphaRange = sameBoostedBarangayPair ? 0.38 : (compactGroup ? 0.33 : 0.24);
-                        const bridgeAlpha = Math.min(bridgeAlphaCap, (bridgeAlphaBase + (closeness * bridgeAlphaRange)) * Math.min(first.intensity, second.intensity));
-                        const midpointX = (first.x + second.x) / 2;
-                        const midpointY = (first.y + second.y) / 2;
-                        const blobCount = sameBoostedBarangayPair ? 4 : (compactGroup ? 3 : 2);
-
-                        for (let blobIndex = 1; blobIndex <= blobCount; blobIndex += 1) {
-                            const t = blobIndex / (blobCount + 1);
-                            const centerX = first.x + (dx * t);
-                            const centerY = first.y + (dy * t);
-                            const wobble = Math.sin((first.x + second.y + blobIndex * 31) * 0.017) * bridgeKernelRadius * 0.14;
-                            const angle = Math.atan2(dy, dx) + (Math.PI / 2);
-                            const blobX = blobIndex === Math.ceil(blobCount / 2)
-                                ? midpointX
-                                : centerX + Math.cos(angle) * wobble;
-                            const blobY = blobIndex === Math.ceil(blobCount / 2)
-                                ? midpointY
-                                : centerY + Math.sin(angle) * wobble;
-                            const kernelRadius = bridgeKernelRadius * (sameBoostedBarangayPair ? 1.22 : 1) * (0.74 + (closeness * 0.34));
-                            const gradient = context.createRadialGradient(blobX, blobY, 0, blobX, blobY, kernelRadius);
-
-                            gradient.addColorStop(0.00, `rgba(0,0,0,${bridgeAlpha * 0.78})`);
-                            gradient.addColorStop(0.34, `rgba(0,0,0,${bridgeAlpha * 0.42})`);
-                            gradient.addColorStop(0.68, `rgba(0,0,0,${bridgeAlpha * 0.12})`);
-                            gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                            context.fillStyle = gradient;
-                            context.beginPath();
-                            context.arc(blobX, blobY, kernelRadius, 0, Math.PI * 2);
-                            context.fill();
-                        }
-                    }
-                }
-
-                const componentDistance = radius * (compactGroup ? 2.35 : 1.95);
-                const componentDistanceSquared = componentDistance * componentDistance;
-                const visited = new Set();
-
-                projectedPoints.forEach((startPoint, startIndex) => {
-                    if (visited.has(startIndex)) {
-                        return;
-                    }
-
-                    const queue = [startIndex];
-                    const componentIndexes = [];
-                    visited.add(startIndex);
-
-                    while (queue.length) {
-                        const currentIndex = queue.shift();
-                        const current = projectedPoints[currentIndex];
-                        componentIndexes.push(currentIndex);
-
-                        projectedPoints.forEach((candidate, candidateIndex) => {
-                            if (visited.has(candidateIndex)) {
-                                return;
-                            }
-
-                            const sameBoostedBarangayPair = candidate.barangay
-                                && candidate.barangay === current.barangay
-                                && Math.max(candidate.barangayBoost, current.barangayBoost) > 1;
-                            const dx = candidate.x - current.x;
-                            const dy = candidate.y - current.y;
-                            const distanceSquared = (dx * dx) + (dy * dy);
-                            const localComponentDistance = componentDistance * (sameBoostedBarangayPair ? Math.max(candidate.barangayBoost, current.barangayBoost) : 1);
-                            if (distanceSquared > localComponentDistance * localComponentDistance) {
-                                return;
-                            }
-
-                            visited.add(candidateIndex);
-                            queue.push(candidateIndex);
-                        });
-                    }
-
-                    if (componentIndexes.length < 2) {
-                        return;
-                    }
-
-                    const component = componentIndexes.map((index) => projectedPoints[index]);
-                    const componentBarangays = component.reduce((counts, point) => {
-                        if (point.barangay) {
-                            counts.set(point.barangay, (counts.get(point.barangay) || 0) + 1);
-                        }
-
-                        return counts;
-                    }, new Map());
-                    const strongestBarangay = [...componentBarangays.entries()].sort((a, b) => b[1] - a[1])[0];
-                    const componentBarangayBoost = strongestBarangay
-                        ? barangayBoostFor(strongestBarangay[0])
-                        : 1;
-                    const isBoostedBarangayComponent = componentBarangayBoost > 1
-                        && strongestBarangay[1] >= Math.max(2, Math.ceil(component.length * 0.5));
-                    const centerX = component.reduce((total, point) => total + point.x, 0) / component.length;
-                    const centerY = component.reduce((total, point) => total + point.y, 0) / component.length;
-                    const extent = component.reduce((max, point) => {
-                        const dx = point.x - centerX;
-                        const dy = point.y - centerY;
-                        return Math.max(max, Math.sqrt((dx * dx) + (dy * dy)));
-                    }, 0);
-                    const cloudRadius = Math.max(
-                        radius * (isBoostedBarangayComponent ? 1.72 : (component.length >= 3 ? 1.28 : 1.06)),
-                        extent + (radius * (isBoostedBarangayComponent ? 1.08 : 0.78))
-                    );
-                    const cloudAlpha = Math.min(
-                        isBoostedBarangayComponent ? 0.46 : (component.length >= 3 ? 0.34 : 0.24),
-                        (isBoostedBarangayComponent ? 0.13 : 0.08) + (component.length * (isBoostedBarangayComponent ? 0.055 : (component.length >= 3 ? 0.045 : 0.035)))
-                    );
-                    const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, cloudRadius);
-
-                    gradient.addColorStop(0.00, `rgba(0,0,0,${cloudAlpha})`);
-                    gradient.addColorStop(0.34, `rgba(0,0,0,${cloudAlpha * 0.52})`);
-                    gradient.addColorStop(0.66, `rgba(0,0,0,${cloudAlpha * 0.18})`);
-                    gradient.addColorStop(1.00, 'rgba(0,0,0,0)');
-
-                    context.fillStyle = gradient;
-                    context.beginPath();
-                    context.arc(centerX, centerY, cloudRadius, 0, Math.PI * 2);
-                    context.fill();
-                });
-
-                return context.getImageData(0, 0, width, height).data;
-            },
-
-            _redraw() {
-                const width = this._canvas.width;
-                const height = this._canvas.height;
-                const radiusMeters = this._options.radiusMeters ?? 230;
-                const pixelScale = this._pixelScale || 1;
-                const rawRadius = metersToPixelsAtLatLng(this._map, this._map.getCenter(), radiusMeters);
-                const zoom = this._map.getZoom();
-                const minScreenRadius = zoom <= 11 ? 4 : (zoom <= 13 ? 8 : 3);
-                const maxScreenRadius = zoom <= 11 ? 18 : (zoom <= 13 ? 42 : 260);
-                const screenRadius = Math.max(minScreenRadius, Math.min(maxScreenRadius, rawRadius));
-                const radius = Math.max(2, Math.round(screenRadius * pixelScale));
-                const groupImages = this._groups.map((group) => ({
-                    ...group,
-                    data: this._densityForGroup(group, width, height, radius),
-                }));
-                const anchorGroupIndexes = new Int16Array(width * height);
-                const anchorScores = new Float32Array(width * height);
-                anchorGroupIndexes.fill(-1);
-                const protectedRadius = Math.round(Math.max(3, Math.min(90, radius * 0.46)));
-                const protectedRadiusSquared = protectedRadius * protectedRadius;
-
-                groupImages.forEach((group, groupIndex) => {
-                    group.points.forEach(([lat, lng]) => {
-                        const point = this._map.latLngToContainerPoint([lat, lng]);
-                        point.x *= pixelScale;
-                        point.y *= pixelScale;
-                        const startX = Math.max(0, Math.floor(point.x - protectedRadius));
-                        const endX = Math.min(width - 1, Math.ceil(point.x + protectedRadius));
-                        const startY = Math.max(0, Math.floor(point.y - protectedRadius));
-                        const endY = Math.min(height - 1, Math.ceil(point.y + protectedRadius));
-
-                        for (let y = startY; y <= endY; y += 1) {
-                            const dy = y - point.y;
-                            for (let x = startX; x <= endX; x += 1) {
-                                const dx = x - point.x;
-                                const distanceSquared = (dx * dx) + (dy * dy);
-                                if (distanceSquared > protectedRadiusSquared) {
-                                    continue;
-                                }
-
-                                const pixel = (y * width) + x;
-                                const score = Math.pow(1 - Math.sqrt(distanceSquared) / protectedRadius, 2.20);
-                                if (score > anchorScores[pixel]) {
-                                    anchorScores[pixel] = score;
-                                    anchorGroupIndexes[pixel] = groupIndex;
-                                }
-                            }
-                        }
-                    });
-                });
-                const outputContext = this._canvas.getContext('2d');
-                const outputImage = outputContext.createImageData(width, height);
-
-                for (let index = 0; index < outputImage.data.length; index += 4) {
-                    const pixel = index / 4;
-                    const x = pixel % width;
-                    const y = Math.floor(pixel / width);
-
-                    let winningGroup = null;
-                    let winningAlpha = 0;
-                    let secondAlpha = 0;
-
-                    for (const group of groupImages) {
-                        const alpha = group.data[index + 3];
-                        if (alpha > winningAlpha) {
-                            secondAlpha = winningAlpha;
-                            winningAlpha = alpha;
-                            winningGroup = group;
-                        } else if (alpha > secondAlpha) {
-                            secondAlpha = alpha;
-                        }
-                    }
-
-                    const anchorGroupIndex = anchorGroupIndexes[pixel];
-                    if (anchorGroupIndex >= 0 && anchorScores[pixel] >= 0.08) {
-                        winningGroup = groupImages[anchorGroupIndex];
-                        winningAlpha = Math.max(
-                            winningAlpha,
-                            255 * (0.12 + (anchorScores[pixel] * 0.84))
-                        );
-                    }
-
-                    const normalized = clampUnit(winningAlpha / 255);
-                    const supportAlpha = groupImages.reduce((total, group) => total + group.data[index + 3], 0);
-                    const supportDensity = clampUnit(supportAlpha / 255);
-                    const minVisibleDensity = zoom <= 11 ? 0.115 : (zoom <= 13 ? 0.062 : (this._options.minVisibleDensity ?? 0.004));
-                    const minSupportDensity = zoom <= 11 ? 0.34 : (zoom <= 13 ? 0.24 : 0);
-                    if (!winningGroup || normalized < minVisibleDensity) {
-                        continue;
-                    }
-
-                    if (supportDensity < minSupportDensity) {
-                        continue;
-                    }
-
-                    const screenX = x / pixelScale;
-                    const screenY = y / pixelScale;
-
-                    if (!canvasPixelInsideBoundary(this._map, screenX, screenY, this._options.clipBoundary)) {
-                        continue;
-                    }
-
-                    const fixedRampFloor = this._options.fixedRampFloor ?? 0.004;
-                    const rampDensity = clampUnit((normalized - fixedRampFloor) / (1 - fixedRampFloor));
-                    const [red, green, blue] = colorForGradientValue(
-                        Math.pow(rampDensity, this._options.dominancePower ?? 0.86),
-                        winningGroup.ramp
-                    );
-
-                    outputImage.data[index] = red;
-                    outputImage.data[index + 1] = green;
-                    outputImage.data[index + 2] = blue;
-                    const competition = secondAlpha > 0
-                        ? clampUnit((winningAlpha - secondAlpha) / Math.max(winningAlpha, 1))
-                        : 1;
-                    const supportFeather = zoom <= 13 ? clampUnit((supportDensity - minSupportDensity) / Math.max(0.18, 1 - minSupportDensity)) : 1;
-                    const edgeFeather = (0.58 + (Math.pow(competition, 0.42) * 0.42)) * (0.52 + (supportFeather * 0.48));
-                    outputImage.data[index + 3] = Math.round(Math.min(
-                        this._options.outputMaxAlpha ?? 255,
-                        (this._options.outputAlphaBase ?? 255) * Math.pow(rampDensity, this._options.outputAlphaPower ?? 0.58) * edgeFeather
-                    ));
-                }
-
-                outputContext.clearRect(0, 0, width, height);
-                outputContext.putImageData(outputImage, 0, 0);
-            },
+    function makeClusterDivIcon(tone, count) {
+        return window.L.divIcon({
+            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${count}</div>`,
+            className: 'gis-cluster-icon',
+            iconSize: [34, 34],
         });
-
-        return new PointRampLayer();
     }
 
-    function buildClusterIdentityHaloLayer(features) {
-        return window.L.geoJSON({
+    function buildClusterDistributionPointLayer(map, features) {
+        const markerLayer = window.L.geoJSON({
             type: 'FeatureCollection',
             features,
         }, {
             pointToLayer(feature, latlng) {
+                const kind = coordinateKind(feature);
                 const color = clusterColorForLabel(clusterLabel(feature), feature);
+                const isFallback = kind === 'fallback';
 
                 return window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
                     pane: 'gis-senior-pane',
-                    radius: 3.5,
+                    radius: isFallback ? 5 : 7.5,
                     color: '#ffffff',
-                    weight: 1,
+                    weight: isFallback ? 1 : 2,
                     opacity: 0.82,
-                    fillColor: color,
-                    fillOpacity: 0.68,
+                    fillColor: isFallback ? colorWithAlpha(color, 0.5) : color,
+                    fillOpacity: isFallback ? 0.58 : 0.9,
                     interactive: true,
+                    gisRiskLevel: feature.properties?.risk_level,
+                    gisBarangay: feature.properties?.barangay,
+                    gisCoordinateKind: kind,
+                    gisCluster: clusterLabel(feature),
                 });
             },
             onEachFeature(feature, layer) {
                 attachSeniorPopup(layer, feature);
             },
         });
+
+        if (! shouldClusterMarkers()) {
+            return markerLayer;
+        }
+
+        const markerClusterLayer = window.L.markerClusterGroup({
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+            maxClusterRadius: 26,
+            iconCreateFunction(cluster) {
+                const markers = cluster.getAllChildMarkers();
+                const counts = new Map();
+
+                markers.forEach((marker) => {
+                    const label = marker.options.gisCluster;
+                    if (!label) return;
+
+                    const key = clusterNumber(label) ?? label;
+                    const current = counts.get(key) ?? { label, count: 0 };
+                    current.count++;
+                    counts.set(key, current);
+                });
+
+                const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0];
+                const tone = majority ? clusterColorForLabel(majority.label) : '#64748b';
+
+                return makeClusterDivIcon(tone, cluster.getChildCount());
+            },
+        });
+
+        markerClusterLayer.addLayer(markerLayer);
+
+        return markerClusterLayer;
     }
 
-    function buildRiskIdentityHaloLayer(features) {
+    function buildRiskIdentityHaloLayer(map, features) {
         // Small senior dots (colored by real risk level) shown above the risk
         // KDE surface so markers stay visible and popups keep working.
         return window.L.geoJSON({
@@ -4589,6 +4603,7 @@
                 const color = riskColor(feature.properties?.risk_level);
 
                 return window.L.circleMarker(latlng, {
+                    renderer: getCanvasRenderer(map),
                     pane: 'gis-senior-pane',
                     radius: 3.5,
                     color: '#ffffff',
@@ -4667,11 +4682,7 @@
                 const markers = cluster.getAllChildMarkers();
                 const tone = accessibilityClusterTone(markers);
 
-                return window.L.divIcon({
-                    html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                    className: 'gis-cluster-icon',
-                    iconSize: [34, 34],
-                });
+                return makeClusterDivIcon(tone, cluster.getChildCount());
             },
         });
 
@@ -4721,118 +4732,12 @@
         }
     }
 
-    function setKdeOverlayContext(map, mode, features, options = {}) {
-        map._gisKdeOverlayContexts = map._gisKdeOverlayContexts || {};
-        map._gisKdeOverlayContexts[mode] = {
-            mode,
-            features: [...features],
-            radiusMeters: options.radiusMeters,
-            colorScaleMax: options.colorScaleMax,
-        };
-    }
-
-    function renderKdeOverlayHeatmap(map, mode, features) {
-        const layerGroup = kdeLayerForMode(map, mode);
-        if (!layerGroup) {
-            return null;
-        }
-
-        layerGroup.clearLayers();
-
-        if (mode === 'cluster-heatmap') {
-            const result = buildClusterDistributionHeatmapLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            const clusterFeatures = heatmapFeaturesForMode(features, 'cluster-heatmap');
-            layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
-                clipBoundary: primaryBoundaryGeoJson(),
-            });
-            if (pointRampLayer) {
-                layerGroup.addLayer(pointRampLayer);
-            }
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        if (mode === 'risk-indicator-heatmap') {
-            // Same smooth raster-KDE engine as the cluster overlay so the
-            // "Risk Distribution Heatmap" checkbox matches the typhoon style.
-            const result = buildRiskDistributionRasterLayer(map, features);
-            if (!result.layer || !result.points.length) return null;
-
-            layerGroup.addLayer(result.layer);
-            setKdeOverlayContext(map, mode, features, {
-                radiusMeters: result.radiusMeters,
-                colorScaleMax: result.colorScaleMax,
-            });
-
-            return result;
-        }
-
-        const heatmapFeatures = heatmapFeaturesForMode(features, mode);
-        const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, heatmapFeatures, mode);
-
-        if (!points.length || !heatLayer) {
-            return null;
-        }
-
-        layerGroup.addLayer(heatLayer);
-        setKdeOverlayContext(map, mode, heatmapFeatures);
-
-        return { points, radiusMeters };
-    }
-
-    function renderKdeOverlayHeatmaps(map, features) {
-        clearKdeOverlayLayers(map);
-
-        const modes = selectedKdeOverlayModes();
-        const results = modes
-            .map((mode) => renderKdeOverlayHeatmap(map, mode, features))
-            .filter(Boolean);
-
-        return results;
-    }
-
-    function refreshKdeOverlayHeatmaps(map) {
-        const contexts = map?._gisKdeOverlayContexts || {};
-
-        Object.values(contexts).forEach((context) => {
-            const layerGroup = kdeLayerForMode(map, context.mode);
-            if (!layerGroup) return;
-
-            // Raster-KDE overlays (cluster + risk) are zoom-stable image overlays
-            // and must not be rebuilt as canvas layers on zoom.
-            if (context.mode === 'cluster-heatmap' || context.mode === 'risk-indicator-heatmap') {
-                return;
-            }
-
-            layerGroup.clearLayers();
-
-            const refreshOptions = {
-                radiusMeters: context.radiusMeters,
-                colorScaleMax: context.colorScaleMax,
-            };
-
-            const { layer: heatLayer, points, radiusMeters } = buildHeatmapLayer(map, context.features, context.mode, refreshOptions);
-
-            if (points.length && heatLayer) {
-                layerGroup.addLayer(heatLayer);
-                context.radiusMeters = context.radiusMeters ?? radiusMeters;
-            }
-        });
-    }
-
     function refreshHeatmapLayersForZoom(map) {
         refreshActiveHeatmapRadius(map);
-        refreshKdeOverlayHeatmaps(map);
     }
 
-    function renderRiskHeatmap(map, features) {
+    async function renderRiskHeatmap(map, features) {
+        const myToken = activeRenderToken;
         clearHeatmapLayers(map);
 
         if (!window.L.Layer) {
@@ -4841,7 +4746,8 @@
             return;
         }
 
-        const result = buildRiskDistributionRasterLayer(map, features);
+        const result = await buildRiskDistributionRasterLayer(map, features);
+        if (myToken !== activeRenderToken) return;
 
         if (!result.layer || !result.points.length) {
             focusMapOnActiveLayer(map, features);
@@ -4850,7 +4756,9 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(features));
+        if (shouldShowRiskSeniorPoints()) {
+            ensureLayerRegistry(map).seniors.addLayer(buildRiskIdentityHaloLayer(map, features));
+        }
         setActiveHeatmapContext(map, 'risk-indicator-heatmap', features, {
             radiusMeters: result.radiusMeters,
             colorScaleMax: result.colorScaleMax,
@@ -4859,7 +4767,7 @@
         setStatus(`Risk Indicator Distribution renders ${result.points.length} senior GIS point(s) as a continuous KDE risk surface, weighted by composite risk score (falling back to risk level), clipped to Pagsanjan (${result.radiusMeters}m radius).`, 'success');
     }
 
-    function renderSeniorDistributionAccessibilityHeatmap(map, features) {
+    async function renderSeniorDistributionAccessibilityHeatmap(map, features) {
         clearHeatmapLayers(map);
 
         if (!window.L.Layer) {
@@ -4905,7 +4813,8 @@
         setStatus(`Senior Distribution and Accessibility Heatmap renders ${result.points.length} senior distribution point(s).${pointText} Heatmap color comes from backend accessibility/proximity data; points follow the senior GIS data available in the database.`, 'success');
     }
 
-    function renderClusterHeatmap(map, features) {
+    async function renderClusterHeatmap(map, features) {
+        const myToken = activeRenderToken;
         clearHeatmapLayers(map);
 
         const selectedCluster = selectedClusterGroup();
@@ -4914,7 +4823,8 @@
         if (selectedCluster === 'all') {
             const layerGroup = ensureLayerRegistry(map).heatmap;
             layerGroup.clearLayers();
-            const result = buildClusterDistributionHeatmapLayer(map, features);
+            const result = await buildClusterDistributionHeatmapLayer(map, features);
+            if (myToken !== activeRenderToken) return;
 
             if (!result.layer || !result.points.length) {
                 focusMapOnActiveLayer(map, features);
@@ -4923,14 +4833,15 @@
             }
 
             layerGroup.addLayer(result.layer);
-            const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
+            const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
+                radiusMeters: result.radiusMeters,
                 clipBoundary: primaryBoundaryGeoJson(),
             });
             if (pointRampLayer) {
                 layerGroup.addLayer(pointRampLayer);
             }
-            if (shouldShowClusterSeniorPoints()) {
-                ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+            if (shouldShowClusterDistributionPoints()) {
+                ensureLayerRegistry(map).seniors.addLayer(buildClusterDistributionPointLayer(map, clusterFeatures));
             }
             setActiveHeatmapContext(map, 'cluster-heatmap', features, {
                 radiusMeters: result.radiusMeters,
@@ -4941,7 +4852,8 @@
             return;
         }
 
-        const result = buildClusterDistributionHeatmapLayer(map, features);
+        const result = await buildClusterDistributionHeatmapLayer(map, features);
+        if (myToken !== activeRenderToken) return;
 
         if (!window.L.Layer) {
             focusMapOnActiveLayer(map, features);
@@ -4956,14 +4868,15 @@
         }
 
         ensureLayerRegistry(map).heatmap.addLayer(result.layer);
-        const pointRampLayer = buildClusterPointRampLayer(clusterFeatures, {
+        const pointRampLayer = buildClusterFlowHeatmapLayer(map, clusterFeatures, {
+            radiusMeters: result.radiusMeters,
             clipBoundary: primaryBoundaryGeoJson(),
         });
         if (pointRampLayer) {
             ensureLayerRegistry(map).heatmap.addLayer(pointRampLayer);
         }
-        if (shouldShowClusterSeniorPoints()) {
-            ensureLayerRegistry(map).seniors.addLayer(buildClusterIdentityHaloLayer(clusterFeatures));
+        if (shouldShowClusterDistributionPoints()) {
+            ensureLayerRegistry(map).seniors.addLayer(buildClusterDistributionPointLayer(map, clusterFeatures));
         }
         setActiveHeatmapContext(map, 'cluster-heatmap', clusterFeatures, {
             radiusMeters: result.radiusMeters,
@@ -4973,19 +4886,19 @@
         setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) in ${selectedCluster}, rendered as a clipped geographic KDE raster (${result.radiusMeters}m radius).`, 'success');
     }
 
-    function toggleGisLayer(map, mode, features) {
+    async function toggleGisLayer(map, mode, features) {
         if (mode === 'risk-indicator-heatmap') {
-            renderRiskHeatmap(map, features);
+            await renderRiskHeatmap(map, features);
             return true;
         }
 
         if (mode === 'cluster-heatmap') {
-            renderClusterHeatmap(map, features);
+            await renderClusterHeatmap(map, features);
             return true;
         }
 
         if (mode === 'senior-distribution-accessibility-heatmap') {
-            renderSeniorDistributionAccessibilityHeatmap(map, features);
+            await renderSeniorDistributionAccessibilityHeatmap(map, features);
             return true;
         }
 
@@ -5024,14 +4937,7 @@
             }));
         }
 
-        const primaryBoundary = primaryBoundaryGeoJson();
-
-        if (primaryBoundary) {
-            const maskLayer = buildMunicipalMaskLayer(primaryBoundary);
-            if (maskLayer) {
-                layers.municipalMask.addLayer(maskLayer);
-            }
-        }
+        refreshMunicipalMask(map);
 
         if (hasBoundaryFeatures(municipalGeoJson)) {
             layers.municipalBoundary.addLayer(buildBoundaryLayer(municipalGeoJson, {
@@ -5061,7 +4967,29 @@
     }
 
     function maskFillColor() {
-        return isDarkMode() ? '#131917' : '#ffffff';
+        // The basemap tiles are always the light layer (TILE_LIGHT_URL), so the
+        // mask covering everything outside Pagsanjan must stay light in both
+        // themes. A dark fill here painted the exterior near-black over the light
+        // tiles, which read as a blacked-out / "missing" map near the border.
+        return '#ffffff';
+    }
+
+    function createRecenterControl(map) {
+        const RecenterControl = window.L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd() {
+                const btn = window.L.DomUtil.create('button', 'leaflet-bar leaflet-control gis-recenter-control');
+                btn.type = 'button';
+                btn.title = 'Re-center map on Pagsanjan';
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+                window.L.DomEvent.on(btn, 'click', (e) => {
+                    window.L.DomEvent.stopPropagation(e);
+                    focusMapOnPagsanjan(map);
+                });
+                return btn;
+            },
+        });
+        return new RecenterControl();
     }
 
     function createTileLayer() {
@@ -5070,6 +4998,12 @@
             attribution: TILE_LIGHT_ATTRIBUTION,
             updateWhenIdle: true,
             keepBuffer: 4,
+            noWrap: true,
+            // No `bounds` restriction: it limited tiles to the rectangular
+            // navigation bounds, so the basemap rendered as a square that didn't
+            // follow the town outline (obvious once the exterior mask was removed).
+            // Panning is already constrained by the map's maxBounds, so tiles only
+            // load around the viewable area regardless.
         });
     }
 
@@ -5084,8 +5018,8 @@
         }
     }
 
-    function buildMunicipalMaskLayer(featureCollection) {
-        if (!hasBoundaryFeatures(featureCollection)) {
+    function buildMunicipalMaskLayer(featureCollection, map) {
+        if (!map || !hasBoundaryFeatures(featureCollection)) {
             return null;
         }
 
@@ -5123,14 +5057,23 @@
             return null;
         }
 
+        // The outer ring tracks the CURRENT viewport (padded), not a fixed giant
+        // box. That keeps the projected coordinates roughly screen-sized, so the
+        // Canvas renderer never hits its ~32k-pixel coordinate limit — that
+        // overflow was what clipped the mask into a square and hid parts of the map
+        // at higher zooms. refreshMunicipalMask() rebuilds this on move/zoom so it
+        // always covers the screen, with the municipal boundary punched out as the
+        // hole so only Pagsanjan shows through.
+        const view = map.getBounds().pad(1.0);
         const outerRing = [
-            [-90, -360],
-            [-90, 360],
-            [90, 360],
-            [90, -360],
+            [view.getSouth(), view.getWest()],
+            [view.getSouth(), view.getEast()],
+            [view.getNorth(), view.getEast()],
+            [view.getNorth(), view.getWest()],
         ];
 
         return window.L.polygon([outerRing, ...holes], {
+            renderer: getMaskRenderer(map),
             pane: 'gis-mask-pane',
             stroke: false,
             fillColor: maskFillColor(),
@@ -5138,6 +5081,32 @@
             interactive: false,
             bubblingMouseEvents: false,
         });
+    }
+
+    // Dedicated Canvas renderer for the mask, in its own pane so it layers above
+    // the basemap/heat but below the facility and senior markers. Reused across
+    // rebuilds so we don't leak a canvas element on every move/zoom.
+    function getMaskRenderer(map) {
+        if (!map._gisMaskRenderer) {
+            map._gisMaskRenderer = window.L.canvas({ padding: 1.0, pane: 'gis-mask-pane' });
+        }
+        return map._gisMaskRenderer;
+    }
+
+    // Rebuild the exterior mask for the current viewport. Cheap (a single polygon)
+    // and keeps coordinates small so the Canvas renderer stays within its limits.
+    function refreshMunicipalMask(map) {
+        if (!map) return;
+        const layers = ensureLayerRegistry(map);
+        layers.municipalMask.clearLayers();
+        const primaryBoundary = primaryBoundaryGeoJson();
+        if (!primaryBoundary) {
+            return;
+        }
+        const maskLayer = buildMunicipalMaskLayer(primaryBoundary, map);
+        if (maskLayer) {
+            layers.municipalMask.addLayer(maskLayer);
+        }
     }
 
     function mapFocusBounds() {
@@ -5223,8 +5192,12 @@
         focusMapOnPagsanjan(map);
     }
 
-    function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
+    async function renderDataLayers(map, seniorGeoJson, facilityGeoJson) {
+        // Bump the render token so any in-flight async heatmap build from a
+        // previous (now superseded) filter/mode state skips its map mutations.
+        ++activeRenderToken;
         const mode = document.getElementById(MODE_ID)?.value ?? 'markers';
+        syncSecondaryFilter();
         const activeFeatures = filteredFeatures(seniorGeoJson.features || []);
         const markerStats = validatedFeatureSet(activeFeatures, { exactOnly: false });
         const renderStats = markerStats;
@@ -5236,8 +5209,10 @@
         clearDynamicLayers(map);
         renderBoundaryLayers(map, latestMunicipalBoundaryGeoJson, latestBarangayBoundaryGeoJson);
         syncAccessibilityPointDisplay();
+        syncRiskPointDisplay();
+        syncLayerOptionsPanel();
         updateLegend(mode);
-        updateSummaryCards(seniorGeoJson, mode === 'barangay-density' ? activeFeatures : renderStats.visible);
+        updateSummaryCards(seniorGeoJson, renderStats.visible);
 
         if (!activeFeatures.length) {
             focusMapOnPagsanjan(map);
@@ -5251,17 +5226,12 @@
         }
 
         if (mode === 'markers') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            const showDensityFill = document.getElementById(SHOW_BARANGAY_DENSITY_TOGGLE_ID)?.checked !== false;
+            if (showDensityFill) {
+                layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
+            }
         }
 
-        if (mode === 'barangay-density') {
-            layers.barangayDensity.addLayer(buildBarangayDensityLayer(activeFeatures));
-            const kdeOverlayResults = renderKdeOverlayHeatmaps(map, markerStats.visible);
-            focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)} Barangay density uses backend senior counts.${overlayText}`, 'success');
-            return;
-        }
 
         if (mode !== 'markers' && !markerStats.visible.length) {
             focusMapOnActiveLayer(map, activeFeatures);
@@ -5275,9 +5245,6 @@
                 ? markerStats.visible.filter((feature) => seniorCount(feature) > 0)
                 : markerStats.visible,
         };
-        const kdeOverlayResults = mode === 'cluster-heatmap'
-            ? []
-            : renderKdeOverlayHeatmaps(map, markerStats.visible);
 
         if (mode === 'markers') {
             const markerLayer = window.L.geoJSON(featureCollection, {
@@ -5303,38 +5270,36 @@
                 },
             });
 
-            if (shouldClusterMarkers()) {
-                const markerClusterLayer = window.L.markerClusterGroup({
-                    showCoverageOnHover: false,
-                    spiderfyOnMaxZoom: true,
-                    disableClusteringAtZoom: 16,
-                    maxClusterRadius: 26,
-                    iconCreateFunction(cluster) {
-                        const markers = cluster.getAllChildMarkers();
-                        const tone = clusterTone(markers);
+            const showSeniorPoints = document.getElementById(SHOW_SENIOR_POINTS_TOGGLE_ID)?.checked !== false;
+            if (showSeniorPoints) {
+                if (shouldClusterMarkers()) {
+                    const markerClusterLayer = window.L.markerClusterGroup({
+                        showCoverageOnHover: false,
+                        spiderfyOnMaxZoom: true,
+                        disableClusteringAtZoom: 16,
+                        maxClusterRadius: 26,
+                        iconCreateFunction(cluster) {
+                            const markers = cluster.getAllChildMarkers();
+                            const tone = clusterTone(markers);
 
-                        return window.L.divIcon({
-                            html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${cluster.getChildCount()}</div>`,
-                            className: 'gis-cluster-icon',
-                            iconSize: [34, 34],
-                        });
-                    },
-                });
+                            return makeClusterDivIcon(tone, cluster.getChildCount());
+                        },
+                    });
 
-                markerClusterLayer.addLayer(markerLayer);
-                layers.seniors.addLayer(markerClusterLayer);
-            } else {
-                layers.seniors.addLayer(markerLayer);
+                    markerClusterLayer.addLayer(markerLayer);
+                    layers.seniors.addLayer(markerClusterLayer);
+                } else {
+                    layers.seniors.addLayer(markerLayer);
+                }
             }
 
             focusMapOnActiveLayer(map, markerStats.visible.length ? markerStats.visible : activeFeatures);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}${overlayText}`, 'success');
+            setStatus(`${validationStatusText(activeFeatures.length, markerStats)}`, 'success');
             return;
         }
 
         if (isHeatmapMode(mode)) {
-            if (toggleGisLayer(map, mode, markerStats.visible)) {
+            if (await toggleGisLayer(map, mode, markerStats.visible)) {
                 return;
             }
 
@@ -5356,8 +5321,7 @@
             layers.heatmap.addLayer(heatLayer);
             setActiveHeatmapContext(map, mode, markerStats.visible);
             focusMapOnActiveLayer(map, markerStats.visible);
-            const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) also active.` : '';
-            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).${overlayText}`, 'success');
+            setStatus(`Heatmap uses ${points.length} generalized barangay point(s), weighted by actual backend data. Radius is based on local GIS spacing/boundaries (${radiusMeters}m).`, 'success');
             return;
         }
 
@@ -5368,8 +5332,7 @@
         }
         layers.seniors.addLayer(pointLayer);
         focusMapOnActiveLayer(map, markerStats.visible);
-        const overlayText = kdeOverlayResults.length ? ` ${kdeOverlayResults.length} KDE heatmap overlay(s) active.` : '';
-        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).${overlayText}`, 'success');
+        setStatus(`Overlay uses ${markerStats.visible.length} generalized barangay point(s).`, 'success');
     }
 
     function refreshRenderedLayer() {
@@ -5382,7 +5345,8 @@
             // have torn down and recreated the map in the event-loop gap.
             const map = el._leaflet_map_instance;
             if (!map) return;
-            renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+            Promise.resolve(renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection()))
+                .catch((error) => console.error('GIS render failed:', error));
         }, 0);
     }
 
@@ -5494,6 +5458,10 @@
             fadeAnimation: false,
             markerZoomAnimation: false,
             preferCanvas: true,
+            // Default canvas padding is only 0.1, so the canvas barely extends past
+            // the viewport and its edge can appear as a square while dragging/zooming.
+            // Enlarge it so canvas-rendered vectors always cover the screen.
+            renderer: window.L.canvas({ padding: 0.5 }),
         }).setView(PAGSANJAN_CENTER, DEFAULT_ZOOM);
         el._leaflet_map_instance = map;
         ensureMapPanes(map);
@@ -5502,8 +5470,17 @@
         applyMapZoomConstraints(map);
 
         createTileLayer().addTo(map);
+        createRecenterControl(map).addTo(map);
+        document.getElementById('gis-recenter-btn')?.addEventListener('click', () => {
+            focusMapOnPagsanjan(map);
+        });
 
-        map.on('zoomend moveend', debounce(() => refreshHeatmapLayersForZoom(map), 150));
+        map.on('zoomend moveend', debounce(() => {
+            refreshHeatmapLayersForZoom(map);
+            // Re-cut the exterior mask to the new viewport so it keeps covering the
+            // screen (its outer ring is viewport-sized to stay canvas-safe).
+            refreshMunicipalMask(map);
+        }, 150));
         map.on('click', (event) => {
             openBarangayPopupAt(map, event.latlng);
         });
@@ -5525,11 +5502,13 @@
                 latestFacilityGeoJson = facilityGeoJson;
                 latestMunicipalBoundaryGeoJson = municipalBoundaryGeoJson;
                 latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
+                prevalidateAllFeatures(seniorGeoJson.features || []);
                 initializeFilters(seniorGeoJson.features || []);
                 renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
                 applyMapBoundaryConstraints(map);
                 applyMapZoomConstraints(map);
-                renderDataLayers(map, seniorGeoJson, facilityGeoJson);
+                Promise.resolve(renderDataLayers(map, seniorGeoJson, facilityGeoJson))
+                    .catch((error) => console.error('GIS render failed:', error));
                 scheduleMapSizeSync(map);
             })
             .catch((error) => {
@@ -5542,7 +5521,12 @@
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
     document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID].includes(event.target?.id) || event.target?.matches?.(KDE_OVERLAY_SELECTOR)) {
+        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
+            if (event.target?.id === MODE_ID) {
+                // Swap the adaptive Risk/Health-Group filter immediately so the
+                // control updates before the debounced re-render runs.
+                syncSecondaryFilter();
+            }
             debouncedRefresh();
         }
     });

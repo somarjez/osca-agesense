@@ -2,6 +2,8 @@
 
 > **Authoritative guide:** [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) is the current recommended guide with full step-by-step instructions.
 > This file contains supplementary detail on export/import commands, verification queries, and privacy rules.
+>
+> **⚠️ Outdated figures:** Cluster/risk/count figures in this file are from earlier builds (`C1=75, C2=132, C3=76` = K=3/v1.1.1; `total 283` + `notebook_cache` = the pre-2026-06-11 state). **Current state (2026-06-11): v2.0.0 K=4, 290 seniors, `ENABLE_NOTEBOOK_OVERRIDES=false` (live model).** Live dashboard distribution: HIGH=56, MODERATE=196, LOW=38; clusters C1=61, C2=85, C3=77, C4=67; `prediction_source = live_model` for all 290. Authoritative numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md). The export/import commands and privacy rules in this file remain valid.
 
 This guide covers two approaches for keeping all three team devices in sync:
 

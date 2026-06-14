@@ -11,24 +11,28 @@ class RecommendationController extends Controller
     public function index(Request $request)
     {
         $stats = [
-            'total' => Recommendation::count(),
-            'pending' => Recommendation::where('status', 'pending')->count(),
-            'immediate' => Recommendation::where('urgency', 'immediate')->where('status', 'pending')->count(),
-            'seniors' => SeniorCitizen::active()->whereHas('recommendations')->count(),
+            'total' => Recommendation::current()->count(),
+            'pending' => Recommendation::current()->where('status', 'pending')->count(),
+            'immediate' => Recommendation::current()->where('urgency', 'immediate')->where('status', 'pending')->count(),
+            'seniors' => SeniorCitizen::active()->whereHas('currentRecommendations')->count(),
         ];
 
         $seniors = SeniorCitizen::active()
-            ->whereHas('recommendations')
+            ->whereHas('currentRecommendations')
             ->withCount([
-                'recommendations',
-                'recommendations as pending_count' => fn ($q) => $q->where('status', 'pending'),
-                'recommendations as immediate_count' => fn ($q) => $q->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending'),
+                'currentRecommendations as recommendations_count',
+                'currentRecommendations as pending_count' => fn ($q) => $q->where('status', 'pending'),
+                'currentRecommendations as immediate_count' => fn ($q) => $q->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending'),
             ])
             ->with(['latestMlResult'])
             ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
             ->when($request->risk, fn ($q) => $q->byRiskLevel($request->risk))
-            ->when($request->has_urgent, fn ($q) => $q->whereHas('recommendations', fn ($r) => $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
+            ->when($request->has_urgent, fn ($q) => $q->whereHas('currentRecommendations', fn ($r) => $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
             )
+            )
+            ->when($request->search, fn ($q, $term) => $q
+                ->where('osca_id', 'like', "%{$term}%")
+                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%'])
             )
             ->orderByDesc('immediate_count')
             ->orderByDesc('pending_count')
@@ -42,7 +46,7 @@ class RecommendationController extends Controller
 
     public function show(SeniorCitizen $senior)
     {
-        $recommendations = $senior->recommendations()
+        $recommendations = $senior->currentRecommendations()
             ->with('mlResult')
             ->orderBy('priority')
             ->get();

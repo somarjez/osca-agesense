@@ -1,6 +1,19 @@
 # Migration Guide — v1.1.1 Live Model Alignment
 
-This guide covers everything another device needs to do after pulling the `feat/live-model-alignment` branch (or after it merges into `main`). Follow the steps in order.
+> **⚠️ Historical migration record (v1.1.1 / K=3).** This guide documents the one-time
+> migration that aligned the live model to the notebook for the **v1.1.1, 3-cluster** build.
+> The current production build is **v2.0.0 with K=4** (four health groups, not three). All
+> references below to `model_version` `1.1.0`/`1.1.1`, the three clusters `C1/C2/C3`, and the
+> `75/132/76` cluster sizes describe that earlier build and are **not** the current state.
+> The procedure (notebook-cache seed → rebuild centroids → batch recompute → validate) is
+> still structurally how a model cutover works, but for the current build use the K=4
+> retraining/cutover steps in [UPDATING_THE_MODEL.md](UPDATING_THE_MODEL.md), and see
+> [model-validation-defensible-statements.md](model-validation-defensible-statements.md)
+> for the current v2.0.0 / K=4 cluster metrics. The latest re-sync (290 seniors,
+> live-model canonical) is recorded in
+> [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
+This guide covers everything another device needed to do after pulling the `feat/live-model-alignment` branch (or after it merged into `main`). Follow the steps in order.
 
 ---
 

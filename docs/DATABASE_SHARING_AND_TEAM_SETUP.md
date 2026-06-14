@@ -7,6 +7,8 @@
 >
 > Do not let each member work from a separate local database and compare results.
 
+> **⚠️ Current state (2026-06-11): 290 seniors, live-model canonical.** This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` — all 290 seniors are `prediction_source = live_model` (notebook_cache: 0), and the dashboard distribution is **HIGH=56, MODERATE=196, LOW=38** (clusters C1=61, C2=85, C3=77, C4=67). The tables below showing "Total 283", "MODERATE 191", and "Notebook-Validated Cache: 283" describe the earlier 283-senior / overrides-`true` state. Authoritative current numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 ---
 
 ## Official Validated Seed Result
@@ -25,7 +27,7 @@ Before any sharing, the main device must confirm these exact numbers:
 | Cluster C3 — Environmentally and Financially Vulnerable Seniors | 74 |
 | Cluster C4 — Low Functioning / Multi-Domain Priority Seniors | 65 |
 | Prediction Source | Notebook-Validated Cache: 283 |
-| Model Version | 1.1.0 |
+| Model Version | 2.0.0 |
 
 ---
 
@@ -267,10 +269,10 @@ Copy the `python/models/` directory from the main laptop (the same folder you sy
 **Option A — ZIP transfer (recommended for USB):**
 ```powershell
 # On the main laptop — create the ZIP:
-Compress-Archive -Path python/models -DestinationPath osca_models_v1.1.0.zip
+Compress-Archive -Path python/models -DestinationPath osca_models_v2.0.0.zip
 
 # On the target device — extract:
-Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+Expand-Archive -Path osca_models_v2.0.0.zip -DestinationPath . -Force
 ```
 
 **Option B — Direct folder copy:**
@@ -413,7 +415,7 @@ Open the Analysis Services page on each device. The **Database & System Status**
 - DB Host (should all show the same IP)
 - DB Database (should all show `osca_db`)
 - Notebook-Validated Cache count (should all show 283)
-- Model Version (should all show 1.1.0)
+- Model Version (should all show 2.0.0)
 
 All dashboards should show identical results.
 
@@ -614,7 +616,7 @@ php artisan config:clear
 php artisan cache:clear
 
 # Step 6 — Sync ML artifacts (copy python/models/ from main laptop, same as you do on main laptop)
-# ZIP option: Expand-Archive -Path osca_models_v1.1.0.zip -DestinationPath . -Force
+# ZIP option: Expand-Archive -Path osca_models_v2.0.0.zip -DestinationPath . -Force
 
 # Step 7 — Validate ML pipeline (all three must pass)
 python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py

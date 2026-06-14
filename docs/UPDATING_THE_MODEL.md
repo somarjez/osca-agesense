@@ -3,6 +3,8 @@
 > **Audience:** The developer who owns the Jupyter notebook and retrains the model.
 > Other machines (collaborators, other laptops) do not need the notebook — they just `git pull` and reseed.
 
+> **⚠️ Current state (2026-06-11): model v2.0.0, 290 seniors, live-model canonical (`ENABLE_NOTEBOOK_OVERRIDES=false`).** The 2026-06-11 retrain was deployed **non-destructively** (no full re-seed): copy artifacts → `python/models/` + `storage/app/ml_models/`, regenerate manifest/baseline, rebuild centroids, then `php artisan ml:batch-analyze --force` (live mode) or `ml:repair-notebook-cache --all` (only if overrides=`true`). Dashboard distribution under the canonical `false` mode: **HIGH=56, MODERATE=196, LOW=38**. "283 / HIGH=55 / MODERATE=191 / notebook_cache" figures below describe the older state. See [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+
 > **Scope — read this first:**
 > This file describes the retraining workflow. **Normal deployment and defense setup do not require running the notebook.**
 > For normal setup, follow [DEPLOYMENT.md](DEPLOYMENT.md) and [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) instead.
@@ -161,7 +163,7 @@ metrics = {
     "davies_bouldin":      float(db_score),
     "calinski_harabasz":   float(ch_score),
     "inertia":             float(kmeans.inertia_) if hasattr(kmeans, 'inertia_') else None,
-    "k_chosen":            3,
+    "k_chosen":            4,
     "generated_by":        "osca5.ipynb"
 }
 
@@ -201,7 +203,7 @@ Before committing, do a quick sanity check:
 1. Start the system: `start.bat`
 2. Go to `/ml/status` — confirm both services show `ok`
 3. Go to the dashboard — confirm the risk distribution matches your notebook output:
-   - HIGH: 56, MODERATE: 192, LOW: 38
+   - HIGH: 55, MODERATE: 191, LOW: 37
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
 If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
@@ -291,7 +293,7 @@ This:
 
 Expected output at the end: `ML success: 283, fallback: 0, errors: 0`
 
-Expected time: 10–20 minutes (the ML pipeline runs for all 275 seniors).
+Expected time: 10–20 minutes (the ML pipeline runs for all 283 seniors).
 
 ---
 
@@ -319,7 +321,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
-- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=192, LOW=38)
+- [ ] Dashboard shows correct distribution (HIGH=55, MODERATE=191, LOW=37)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
@@ -338,7 +340,7 @@ Quick checklist:
 - [ ] `validate_model_artifacts.py` → 51 PASS, 0 FAIL
 - [ ] `test_reproducibility.py` → 28 PASS, 0 FAIL
 - [ ] `test_staleness.py` → 20 PASS, 0 FAIL
-- [ ] Dashboard shows correct distribution (HIGH=56, MODERATE=192, LOW=38, Cache: 283)
+- [ ] Dashboard shows correct distribution (HIGH=55, MODERATE=191, LOW=37, Cache: 283)
 
 ---
 

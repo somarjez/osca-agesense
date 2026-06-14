@@ -2,7 +2,7 @@
 
 ## Overview
 
-The GIS module gives AgeSense a spatial view of senior citizen distribution, community facility access, and health-risk patterns across Pagsanjan, Laguna. It is designed for OSCA planning and monitoring, not household-level surveillance. Senior locations are displayed either as verified/manual points or as privacy-safe generalized barangay-level points.
+The GIS module gives AgeSense a spatial view of senior citizen distribution, community facility access, and health-risk patterns across Pagsanjan, Laguna. It is designed for OSCA planning and monitoring, not household-level surveillance. Senior locations are displayed as privacy-safe generalized barangay-level points (the manual household-pin capture in the profile form was removed — see §6).
 
 The module supports:
 
@@ -11,9 +11,9 @@ The module supports:
 - Public facility overlays.
 - Risk, cluster, density, and accessibility heatmaps.
 - Bulk barangay-level geocoding for records without coordinates.
-- Manual location pin capture during senior profiling.
 - GIS proximity scoring against important community facilities.
 - Road-network route distance lookup and caching.
+- OpenStreetMap facility import to replace approximate seeded facilities with real coordinates.
 - Privacy-safe GIS export for authorized administrators.
 
 ## Main GIS Functions
@@ -28,17 +28,24 @@ The GIS page is available at:
 
 It displays a Leaflet-based map centered on Pagsanjan. The page shows KPI cards for mapped seniors, high-risk seniors, barangays covered, and GIS data source status. It also includes a bulk geocode status panel so administrators can see whether senior records already have coordinates, approximate coordinates, verified/manual coordinates, or missing GIS data.
 
-The map supports several visualization modes:
+The map supports four visualization modes (selected from the **Visualization** dropdown):
 
-- Senior distribution points.
-- Barangay-level senior heatmap.
-- Generalized barangay-based risk heatmap.
-- Senior distribution and accessibility heatmap.
-- Barangay density view.
-- Risk indicator distribution.
-- Health group / cluster distribution.
+- **Senior Population Overview** — individual senior distribution points.
+- **Risk Indicator Distribution** — KDE risk surface weighted by composite risk score.
+- **Cluster / Health Groups Heatmap** — KDE surface colored by assigned health-group/cluster.
+- **Accessibility Heatmap** — KDE surface driven by backend accessibility/proximity data, with senior distribution points shown on top.
 
-Users can filter the map by barangay, risk level, and health group / cluster. The map also supports optional KDE heatmap overlays for risk, cluster, and accessibility analysis.
+Users can filter the map by barangay, risk level, and health group / cluster. The heatmap modes render as KDE overlays clipped to Pagsanjan.
+
+### Recent Health Cluster Heatmap UI Changes
+
+The Cluster / Health Groups Heatmap was adjusted to make the map easier to read during GIS review:
+
+- The cluster point toggle now reads `Show senior distribution points`.
+- The senior points shown on top of the cluster heatmap use the same point behavior as the senior/accessibility heatmap point layer, including clustered point display when zoomed out.
+- Those points still use health group / cluster colors so they remain consistent with the cluster heatmap.
+- Cluster heatmap contours were made clearer with fewer contour levels, whiter line color, and less blur.
+- Cluster heatmap rendering was tuned for smoother blob edges, softer group boundaries, and better performance during pan/zoom.
 
 ### 2. Senior GIS GeoJSON API
 
@@ -96,7 +103,6 @@ These endpoints serve local GeoJSON boundary files for the Pagsanjan municipal b
 Boundary data supports:
 
 - Clipping map overlays to Pagsanjan.
-- Validating manual pins.
 - Generating barangay-level approximate points.
 - Grouping and labeling barangay-level map data.
 
@@ -133,25 +139,11 @@ Important behavior:
 - A status file is written to `storage/app/gis/geocode_status.json`.
 - Generated locations are marked as approximate, not verified.
 
-### 6. Manual Location Pin in Profile Survey
+### 6. Manual Location Pin in Profile Survey — Removed
 
-The senior profile survey now includes map-based location capture. Encoders/admins can set a manual pin inside Pagsanjan while creating or editing a senior profile.
-
-The form validates:
-
-- Latitude and longitude numeric ranges.
-- Whether the selected point is inside the Pagsanjan municipal boundary.
-- Whether the coordinate pair is usable.
-
-When a valid manual pin is saved, the senior record is updated with:
-
-- Latitude.
-- Longitude.
-- `location_source = manual_pin`.
-- `location_accuracy = verified/manual`.
-- `location_verified_at`.
-
-This provides a pathway to gradually improve GIS accuracy as field staff collect more reliable coordinates.
+> **Removed.** The profile survey previously included a map-based "Verified Location Pin" picker that wrote `location_source = manual_pin` / `location_accuracy = verified/manual`. It was removed because `gis:geocode` already pre-fills approximate barangay-level coordinates, which made the editable lat/lng fields misleading (they looked like real household pins). All senior coordinates now come from `gis:geocode` only.
+>
+> The `latitude` / `longitude` / `location_source` / `location_accuracy` / `location_verified_at` columns remain on `senior_citizens`, and `gis:geocode` still refuses to overwrite any pre-existing `manual_pin` / `gps_capture` rows, but **no part of the UI writes verified pins anymore**. A future address-line-based capture workflow may reintroduce verified coordinates.
 
 ### 7. GIS Proximity Scoring
 
@@ -248,6 +240,30 @@ This provides an admin-only CSV export for GIS and accessibility planning. It ca
 
 The export is privacy-oriented and intended for planning, reporting, and accessibility review.
 
+### 11. OpenStreetMap Facility Import
+
+Command:
+
+```text
+php artisan facilities:import-osm
+```
+
+This command queries the OpenStreetMap Overpass API for Pagsanjan amenities (health centers, hospitals, pharmacies, markets, barangay halls) and imports them as `Facility` records with real coordinates and an `osm_id`. When an imported facility falls within ~50 m of an existing approximate/seeded facility, the seeded one is deactivated (superseded) so accessibility scoring uses the real location.
+
+Supported options:
+
+```text
+php artisan facilities:import-osm --dry-run
+php artisan facilities:import-osm --force
+php artisan facilities:import-osm --no-supersede
+```
+
+- `--dry-run` previews fetched/imported/superseded counts without writing.
+- `--force` re-imports facilities that already have an `osm_id`.
+- `--no-supersede` keeps matched approximate facilities active instead of deactivating them.
+
+After importing, re-run `php artisan gis:score-proximity` so accessibility metrics reflect the updated facility coordinates.
+
 ## Privacy and Safety Design
 
 The GIS module intentionally avoids treating every senior map point as an exact household location. Records can be displayed using generalized barangay-level points, and the UI clearly states that approximate points are not exact homes.
@@ -281,6 +297,7 @@ Key privacy protections:
 | `php artisan gis:geocode` | Assign approximate barangay-level coordinates |
 | `php artisan gis:score-proximity` | Calculate nearest facility distances and accessibility scores |
 | `php artisan gis:cache-route-distances` | Precompute road-route distances to nearby facilities |
+| `php artisan facilities:import-osm` | Import real facility coordinates from OpenStreetMap and supersede approximate seeded facilities |
 
 ## Modified and Added Files
 
@@ -300,6 +317,7 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | `app/Console/Commands/GeocodeSeniors.php` | Added privacy-safe barangay-level geocoding command for seniors missing coordinates. |
 | `app/Console/Commands/ScoreGisProximity.php` | Added command to calculate nearest facility distances and GIS accessibility scores. |
 | `app/Console/Commands/CacheGisRouteDistances.php` | Added command to precompute OpenRouteService route distances for senior/facility pairs. |
+| `app/Console/Commands/ImportOsmFacilities.php` | Added command to import real facility coordinates from the OpenStreetMap Overpass API and supersede approximate seeded facilities. |
 
 ### Controllers and Routes
 
@@ -307,7 +325,7 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | --- | --- |
 | `app/Http/Controllers/GisApiController.php` | Expanded GIS API to serve senior/facility GeoJSON, boundary data, route distances, route cache lookup, route failure handling, generalized barangay points, accessibility metadata, and GIS sample fallback data. |
 | `app/Http/Controllers/ReportController.php` | Added GIS page status data, admin bulk geocode action, geocode status calculation, and GIS accessibility CSV export. |
-| `routes/api.php` | Added GIS API routes for seniors, facilities, boundaries, and route distance lookup. |
+| `routes/web.php` | Added the GIS API routes (seniors, facilities, boundaries, route distance) **inside the authenticated session group** so browser `fetch` calls carry session auth. `routes/api.php` deliberately contains no GIS routes — it only points to `web.php`. |
 | `routes/reports.php` | Added admin GIS export and bulk geocode routes. |
 
 ### Models
@@ -326,15 +344,15 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | --- | --- |
 | `database/migrations/2026_05_26_000001_add_hospital_and_pharmacy_to_accessibility_metrics.php` | Added hospital and pharmacy nearest facility references and distance fields to accessibility metrics. |
 | `database/migrations/2026_05_27_000001_create_senior_facility_route_distances_table.php` | Added route distance and route failure cache tables. |
+| `database/migrations/2026_06_03_000001_add_osm_id_to_facilities_table.php` | Added `osm_id` to facilities so OpenStreetMap-imported facilities can be matched and deduplicated. |
 | `database/seeders/PagsanjanFacilitySeeder.php` | Updated seeded Pagsanjan facility data used by accessibility scoring and map overlays. |
 
 ### Frontend and Views
 
 | File | Change Description |
 | --- | --- |
-| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, and geocode status controls. |
-| `resources/views/reports/gis.blade.backup.php` | Backup copy of the GIS Blade view from development. |
-| `resources/views/livewire/surveys/profile-survey.blade.php` | Added manual location pin UI, map interaction, boundary validation, and coordinate capture fields. |
+| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. |
+| `resources/views/livewire/surveys/profile-survey.blade.php` | Added (then later **removed**) the manual location pin UI, map interaction, boundary validation, and coordinate capture fields. The picker is no longer part of the form. |
 | `resources/js/app.js` | Updated frontend bootstrap/import behavior to support GIS page assets/plugins. |
 
 ### Documentation
@@ -342,7 +360,6 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | File | Change Description |
 | --- | --- |
 | `docs/gis-geocoding.md` | Added operational documentation for bulk barangay-level geocoding. |
-| `docs/field-gps-workflow.md` | Added field workflow documentation for capturing verified/manual GPS pins. |
 | `docs/GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md` | Added this consolidated GIS functionality and modified-files reference. |
 
 ### GIS Data and Runtime Files
@@ -354,25 +371,17 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | `storage/app/gis/geocode_status.json` | Added geocode status tracking file written/read by GIS status features. |
 | `storage/app/certs/cacert.pem` | Added local certificate bundle for OpenRouteService SSL verification in environments that need it. |
 
-### Development Backup Files
-
-| File | Change Description |
-| --- | --- |
-| `backup-before-codex-continue.patch` | Development backup patch file. |
-| `backup-current-codex-changes.patch` | Development backup patch file. |
-
 ## Recommended Demo Script
 
 1. Open `/reports/gis`.
 2. Point out the KPI cards and the bulk geocode status panel.
 3. Explain that approximate points are barangay-level only and do not represent exact homes.
-4. Switch between Senior Distribution Points, Risk Indicator Distribution, Cluster Distribution, and Accessibility Heatmap.
+4. Switch between Senior Population Overview, Risk Indicator Distribution, Cluster / Health Groups Heatmap, and Accessibility Heatmap.
 5. Filter by barangay, risk level, and health group.
 6. Show facility markers and route/accessibility context in senior popups.
 7. Demonstrate the admin-only Run Bulk Geocode button.
-8. Open a senior profile and show the manual location pin workflow.
-9. Explain that proximity scoring can be recalculated with `php artisan gis:score-proximity`.
-10. Explain that road-route distances can be cached with `php artisan gis:cache-route-distances`.
+8. Explain that proximity scoring can be recalculated with `php artisan gis:score-proximity`.
+9. Explain that road-route distances can be cached with `php artisan gis:cache-route-distances`.
 
 ## Suggested One-Sentence Description
 

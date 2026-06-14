@@ -212,7 +212,10 @@
                                    class="sr-only peer">
                             <div class="text-center py-2 rounded-xl border-2 text-[13px] font-semibold transition-all
                                 border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570]
-                                peer-checked:border-forest-600 peer-checked:bg-forest-700 peer-checked:text-paper
+                                peer-checked:border-forest-500 peer-checked:bg-forest-600 peer-checked:text-white
+                                peer-checked:ring-2 peer-checked:ring-forest-400 peer-checked:ring-offset-2
+                                peer-checked:ring-offset-paper dark:peer-checked:ring-offset-[#1a221e]
+                                peer-checked:shadow-md peer-checked:scale-[1.04]
                                 hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400">
                                 {{ $val }}
                             </div>

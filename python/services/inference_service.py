@@ -977,6 +977,11 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             rec_code = str(row.get("recommendation_code", "") or "").strip() or None
             svc_provider = str(row.get("service_provider", "") or "").strip() or None
             evidence = str(row.get("evidence_source", "") or "").strip() or None
+            apa_ref = str(row.get("apa_reference", "") or "").strip() or None
+            src_type = str(row.get("source_type", "") or "").strip() or None
+            trig_summary = str(row.get("trigger_summary", "") or "").strip() or None
+            # domain falls back to category for CSVs that pre-date the v2 export
+            domain = str(row.get("domain", "") or "").strip() or category
             rhv_raw = str(row.get("requires_human_validation", "1")).strip()
             requires_hv = rhv_raw not in ("0", "false", "False", "")
             docs_raw = str(row.get("documents_needed", "") or "").strip()
@@ -987,7 +992,7 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
             actions.append({
                 "priority": len(actions) + 1,
                 "type": "domain",
-                "domain": category,
+                "domain": domain,
                 "category": category,
                 "action": str(row.get("recommendation", "") or row.get("action", "")),
                 "reason": str(row.get("reason", "")),
@@ -997,6 +1002,9 @@ def _load_notebook_recommendation_index() -> Dict[str, Dict[Any, Any]]:
                 "recommendation_code":       rec_code,
                 "service_provider":          svc_provider,
                 "evidence_source":           evidence,
+                "apa_reference":             apa_ref,
+                "source_type":               src_type,
+                "trigger_summary":           trig_summary,
                 "requires_human_validation": requires_hv,
                 "documents_needed":          docs_needed,
             })
@@ -1930,96 +1938,16 @@ def _build_recommendations(
 
     urgency = _recommendation_urgency(overall_level, priority_flag)
     risk_level_str = overall_level.lower()
-    income_enc = _safe_float(merged.get("income_enc"), 5.0)
-    eco_stability = _safe_float(merged.get("sec5_eco_stability"), 0.4)
 
-    all_recs: List[Dict[str, Any]] = []
-    all_recs.extend(_health_recs(merged, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_financial_recs(merged, income_enc, eco_stability, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_social_recs(merged, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_functional_recs(merged, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_hc_access_recs(merged, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_household_safety_recs(merged, urgency=urgency, risk_level=risk_level_str))
-    all_recs.extend(_assistive_device_recs(merged, urgency=urgency, risk_level=risk_level_str))
-
-    # Global cross-domain deduplication: each rule code and each action text
-    # should appear at most once regardless of which domain function added it.
-    # (Each domain function deduplicates internally, but codes like HLT-001
-    # can fire from both _health_recs and _functional_recs independently.)
-    seen_global_codes: set = set()
-    seen_global_actions: set = set()
-    deduped: List[Dict[str, Any]] = []
-    for rec in all_recs:
-        code   = rec.get("recommendation_code")
-        action = str(rec.get("action") or "").strip()
-        if code:
-            if code in seen_global_codes:
-                continue
-            seen_global_codes.add(code)
-        else:
-            if action in seen_global_actions:
-                continue
-            seen_global_actions.add(action)
-        deduped.append(rec)
-
-    # ── Category diversity: cap health in the priority slots ───────────────────
-    # Without diversity control, health dominates the top recommendations because
-    # _health_recs fires for almost every senior. We cap health at MAX 2 slots
-    # (3 if urgent/high risk) so that functional, social, financial, and access
-    # recommendations appear in top_recommendations for most seniors.
-    # All recommendations are still returned in all_recommendations (uncapped).
-    is_high_urgency = urgency in ("urgent", "immediate") or overall_level.upper() == "HIGH"
-    max_health_top = 3 if is_high_urgency else 2
-
-    health_q   = [r for r in deduped if r.get("category") == "health"]
-    non_health = [r for r in deduped if r.get("category") != "health"]
-
-    # Round-robin interleave across non-health categories so functional, social,
-    # financial, and access recommendations all surface in the top slots.
-    # Priority order determines which category leads each interleave round.
-    _PRIORITY_CATS = [
-        "functional", "healthcare_access", "social", "financial",
-        "mental_health", "livelihood", "other",
-    ]
-    from collections import defaultdict as _dd
-    _cat_groups: dict = _dd(list)
-    for _r in non_health:
-        _cat_groups[_r.get("category", "other")].append(_r)
-
-    # Sort categories: priority list first, then any remaining alphabetically
-    _ordered_cats = [c for c in _PRIORITY_CATS if c in _cat_groups]
-    _ordered_cats += sorted(c for c in _cat_groups if c not in _PRIORITY_CATS)
-
-    _queues = [list(_cat_groups[c]) for c in _ordered_cats]
-    non_health_interleaved: List[Dict[str, Any]] = []
-    while any(_queues):
-        for _q in _queues:
-            if _q:
-                non_health_interleaved.append(_q.pop(0))
-        _queues = [_q for _q in _queues if _q]
-
-    # Final order: health[:cap] → interleaved non-health → remaining health
-    diverse: List[Dict[str, Any]] = (
-        health_q[:max_health_top]
-        + non_health_interleaved
-        + health_q[max_health_top:]
+    import catalog_recommender as _cr
+    return _cr.build_recommendations(
+        merged,
+        urgency=urgency,
+        risk_level=risk_level_str,
+        cluster_id=named_id,
+        overall_level=overall_level,
+        priority_flag=priority_flag or "",
     )
-
-    # Add trigger_summary metadata to each recommendation
-    trigger_context = {
-        "cluster_id":    named_id,
-        "risk_level":    overall_level,
-        "urgency":       urgency,
-        "priority_flag": priority_flag or "",
-    }
-    for rec in diverse:
-        rec["trigger_summary"] = dict(trigger_context)
-
-    # Re-number priorities globally after diversity reordering
-    for idx, rec in enumerate(diverse, start=1):
-        rec["priority"] = idx
-
-    return diverse
 
 
 # ── Main inference ────────────────────────────────────────────────────────────

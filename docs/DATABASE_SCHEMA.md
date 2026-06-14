@@ -1,7 +1,7 @@
 # Database Schema — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-05-14 — Added consent columns, corrected activity_logs schema, updated jobs/job_batches notes.
+> **Last Updated:** 2026-06-04 — Added ml_results prediction-source/staleness/domain-risk/XAI columns, recommendation enrichment & citation columns, hospital/pharmacy accessibility metrics, route-distance/route-failure tables, and corrected GIS columns and default seeder accounts.
 > **Database:** MySQL 8.0+ / MariaDB 10.6+, charset `utf8mb4_unicode_ci`
 
 ---
@@ -41,7 +41,7 @@ users
 3. Each processed `qol_survey` triggers one `ml_result` (cluster + risk scores).
 4. Each `ml_result` generates one or more `recommendations`.
 
-**Soft deletes:** `senior_citizens` and `qol_surveys` use Laravel `SoftDeletes` — records are flagged with `deleted_at` rather than physically removed. Hard deletes cascade to all child records.
+**Soft deletes:** `senior_citizens`, `qol_surveys`, `ml_results`, and `recommendations` use Laravel `SoftDeletes` — records are flagged with `deleted_at` rather than physically removed. Hard deletes cascade to all child records.
 
 ---
 
@@ -54,7 +54,7 @@ Primary subject of all system operations. One record per registered senior citiz
 | Column | Type | Nullable | Description |
 |---|---|---|---|
 | `id` | `bigint unsigned` | NO | Auto-increment primary key |
-| `osca_id` | `varchar(20)` | NO | Unique — format `PAG-YYYY-NNNN` |
+| `osca_id` | `varchar(20)` | NO | Unique — format `{BRGY}-YYYY-NNNN`, where `{BRGY}` is the barangay's first 3 letters uppercased (e.g. `SAM-2026-0001`), except Barangay I/II (Poblacion) which use `BR1`/`BR2`. Sequence = max existing +1 **including soft-deleted rows** (see `SeniorCitizen::generateOscaId`). |
 | `first_name` | `varchar(100)` | NO | |
 | `middle_name` | `varchar(100)` | YES | |
 | `last_name` | `varchar(100)` | NO | |
@@ -221,6 +221,7 @@ One row per ML pipeline execution. A senior may have many results over time (one
 | `overall_risk_level` | `varchar(20)` | LOW / MODERATE / HIGH (uppercase). Urgency expressed via `priority_flag`. |
 | `wellbeing_score` | `decimal(5,4)` | Inverse of composite risk (0–1, higher = better) |
 | `section_scores` | `json` | Object: sec1_age_risk … overall_wellbeing |
+| `xai_data` | `json` | Explainability payload (per-feature contributions) for the model-insights view (nullable) |
 | `raw_output` | `json` | Full Python service response |
 | `model_version` | `varchar(30)` | Model artefact version tag |
 | `processed_at` | `timestamp` | When the pipeline ran |
@@ -228,6 +229,30 @@ One row per ML pipeline execution. A senior may have many results over time (one
 | `updated_at` | `timestamp` | |
 
 **Note on `section_scores` JSON keys:** `sec1_age_risk`, `sec2_family_support`, `sec3_hr_score`, `sec4_dependency_risk`, `sec5_eco_stability`, `sec6_health_score`, `overall_wellbeing`.
+
+### Prediction source & freshness
+
+These columns drive the two-path prediction system (see [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md)) and staleness tracking.
+
+| Column | Type | Description |
+|---|---|---|
+| `prediction_source` | `varchar(20)` | `notebook_cache` (283 seeded seniors) or `live_model` (default). |
+| `is_cached_prediction` | `boolean` | True when the result came from the notebook cache rather than a live model run. |
+| `critical_flag` | `boolean` | Set when the result requires urgent attention (drives `priority_flag` semantics). |
+| `is_stale` | `boolean` | True when the source survey/profile changed after this result was scored. |
+| `stale_reason` | `varchar(255)` | Why the result is stale (nullable). |
+| `stale_at` | `timestamp` | When the result was marked stale (nullable). |
+| `scored_at` | `timestamp` | When the prediction was scored (nullable). |
+
+### Rule-based domain risks & WHO sub-scores
+
+Added so the dashboard/reports can show per-domain risk breakdowns alongside the model's composite risk. All `decimal(5,4)`, nullable.
+
+| Column | Description |
+|---|---|
+| `risk_medical`, `risk_financial`, `risk_social`, `risk_functional`, `risk_housing`, `risk_hc_access`, `risk_sensory` | Rule-based domain risk scores (0–1). |
+| `rule_composite` | Weighted composite of all rule-based domain risks. |
+| `ic_score`, `env_score`, `func_score`, `qol_score` | WHO Intrinsic Capacity / Environment / Functional Ability / Quality of Life sub-scores. |
 
 ---
 
@@ -245,6 +270,14 @@ One row per generated recommendation. Each `ml_result` produces multiple recomme
 | `domain` | `varchar(20)` | `ic` / `env` / `func` / `general` |
 | `category` | `varchar(30)` | `health` / `financial` / `social` / `functional` / `hc_access` / `general` |
 | `action` | `text` | Plain-language recommended action |
+| `recommendation_code` | `varchar(50)` | Stable code for the recommendation template (nullable) |
+| `service_provider` | `varchar(255)` | Responsible agency/office for the action (nullable) |
+| `evidence_source` | `text` | Evidence/policy basis for the recommendation (nullable) |
+| `apa_reference` | `text` | APA-formatted citation for the evidence source (nullable) |
+| `source_type` | `varchar(100)` | Type of citation source, e.g. law / guideline / study (nullable) |
+| `eligibility_basis` | `text` | Why the senior is eligible for this service (nullable) |
+| `documents_needed` | `json` | Documents the senior must prepare (nullable) |
+| `requires_human_validation` | `boolean` | Default `true` — flags AI-generated actions for staff review |
 | `urgency` | `varchar(20)` | `immediate` / `urgent` / `planned` / `maintenance` |
 | `risk_level` | `varchar(20)` | Risk level that triggered this recommendation |
 | `status` | `varchar(20)` | `pending` / `in_progress` / `completed` / `dismissed` |
@@ -258,7 +291,7 @@ One row per generated recommendation. Each `ml_result` produces multiple recomme
 
 ## 6. Table: `users`
 
-Authentication table. Managed by Laravel Breeze / Fortify.
+Authentication table. Auth scaffolding is Laravel Breeze; roles and permissions are handled by `spatie/laravel-permission`. Every user has exactly one of three roles: `admin`, `encoder`, or `viewer` (stored in the `roles` / `model_has_roles` permission tables, not on this table).
 
 | Column | Type | Description |
 |---|---|---|
@@ -271,7 +304,15 @@ Authentication table. Managed by Laravel Breeze / Fortify.
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
 
-**Default account** (auto-created when table is empty): `admin@osca.local` / `password` — must be changed before production use.
+**Default accounts** (created by `UserSeeder`, idempotent via `updateOrCreate`):
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@osca.local` | `Admin@OSCA2026!` | admin |
+| `encoder@osca.local` | `Encoder@OSCA2026!` | encoder |
+| `viewer@osca.local` | `Viewer@OSCA2026!` | viewer |
+
+These seeded credentials must be changed before any production/public deployment.
 
 ---
 
@@ -297,7 +338,7 @@ Audit trail of all create/update/delete/restore operations on senior, survey, an
 
 ## 8. Table: `cluster_snapshots`
 
-Schema defined; population logic **not yet implemented**. Intended for longitudinal tracking of cluster composition over time.
+Longitudinal tracking of cluster composition over time. Populated by the `osca:snapshot-clusters` command (`SnapshotClusters`) and the admin-only `POST /reports/cluster/snapshot` action.
 
 | Column | Type | Description |
 |---|---|---|
@@ -413,10 +454,9 @@ The GIS module is implemented and live. It provides a Leaflet-based interactive 
 |---|---|---|
 | `latitude` | `decimal(10,7)` NULL | Generalized or barangay-centroid coordinate |
 | `longitude` | `decimal(10,7)` NULL | Generalized or barangay-centroid coordinate |
-| `address_line` | `varchar(255)` NULL | Optional address text |
-| `location_source` | `varchar(50)` NULL | `manual` / `geocoded` / `barangay_centroid` |
-| `location_accuracy` | `varchar(50)` NULL | `exact` / `generalized` / `barangay` |
-| `location_verified_at` | `timestamp` NULL | When coordinates were last verified |
+| `location_source` | `varchar(255)` NULL | `barangay_generalized` / `barangay_centroid` (generated by `gis:geocode`). `manual_pin` / `gps_capture` are **legacy verified sources** — recognized and protected from overwrite, but no longer written by the app (the profile coordinate picker was removed). |
+| `location_accuracy` | `varchar(255)` NULL | `barangay_level` / `approximate` (generated). `verified/manual` is legacy (see `location_source`). |
+| `location_verified_at` | `timestamp` NULL | When coordinates were last verified (set only for verified pins) |
 
 > For privacy, coordinates are generalized to barangay-centroid level by default and do not represent exact home addresses.
 
@@ -434,6 +474,7 @@ Stores public/community points of interest used as accessibility reference point
 | `latitude` | `decimal(10,7)` | |
 | `longitude` | `decimal(10,7)` | |
 | `source` | `varchar(255)` NULL | Data source (e.g. `osm`, `lgu`, `manual`) |
+| `osm_id` | `varchar` NULL | OpenStreetMap element id for facilities imported via `facilities:import-osm` (used for dedupe) |
 | `is_active` | `boolean` | Default `true` — inactive facilities excluded from map |
 | `created_at` / `updated_at` | `timestamp` | |
 
@@ -451,6 +492,10 @@ Derived proximity metrics per senior to their nearest key facilities. Calculated
 | `senior_citizen_id` | `bigint unsigned` | FK → `senior_citizens.id` (cascade delete) |
 | `nearest_health_center_id` | `bigint unsigned` NULL | FK → `facilities.id` (null on delete) |
 | `distance_to_health_center_m` | `decimal(10,2)` NULL | Distance in metres |
+| `nearest_hospital_id` | `bigint unsigned` NULL | FK → `facilities.id` |
+| `distance_to_hospital_m` | `decimal(10,2)` NULL | Distance in metres |
+| `nearest_pharmacy_id` | `bigint unsigned` NULL | FK → `facilities.id` |
+| `distance_to_pharmacy_m` | `decimal(10,2)` NULL | Distance in metres |
 | `nearest_barangay_hall_id` | `bigint unsigned` NULL | FK → `facilities.id` |
 | `distance_to_barangay_hall_m` | `decimal(10,2)` NULL | Distance in metres |
 | `nearest_market_id` | `bigint unsigned` NULL | FK → `facilities.id` |
@@ -461,14 +506,55 @@ Derived proximity metrics per senior to their nearest key facilities. Calculated
 
 **Indexes:** `senior_citizen_id`, `calculated_at`
 
+### Table: `senior_facility_route_distances`
+
+Caches OpenRouteService road-network distances per senior/facility pair so map popups don't repeatedly call the external API. Written by `gis:cache-route-distances` and the `route-distance` endpoint.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `bigint unsigned` | PK |
+| `senior_citizen_id` | `bigint unsigned` | FK → `senior_citizens.id` (cascade delete) |
+| `facility_id` | `bigint unsigned` | FK → `facilities.id` (cascade delete) |
+| `origin_latitude` / `origin_longitude` | `decimal(10,7)` | Senior coordinate used for the lookup |
+| `destination_latitude` / `destination_longitude` | `decimal(10,7)` | Facility coordinate used for the lookup |
+| `route_distance_m` | `decimal(10,2)` | Road-network distance in metres |
+| `route_duration_s` | `decimal(10,2)` NULL | Travel duration in seconds |
+| `provider` | `varchar(40)` | Default `openrouteservice` |
+| `calculated_at` | `timestamp` NULL | When the route was computed |
+| `created_at` / `updated_at` | `timestamp` | |
+
+**Unique:** `(senior_citizen_id, facility_id)`. **Indexes:** `(senior_citizen_id, route_distance_m)`, `facility_id`, `calculated_at`.
+
+### Table: `senior_facility_route_failures`
+
+Records permanent route lookup failures (e.g. no road route exists) so the system reuses the failure instead of re-calling the provider.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `bigint unsigned` | PK |
+| `senior_citizen_id` | `bigint unsigned` | FK → `senior_citizens.id` (cascade delete) |
+| `facility_id` | `bigint unsigned` | FK → `facilities.id` (cascade delete) |
+| `origin_latitude` / `origin_longitude` | `decimal(10,7)` | Senior coordinate |
+| `destination_latitude` / `destination_longitude` | `decimal(10,7)` | Facility coordinate |
+| `provider` | `varchar(40)` | Default `openrouteservice` |
+| `status_code` | `smallint unsigned` NULL | HTTP/error status from the provider |
+| `error_message` | `varchar(500)` NULL | Failure detail |
+| `failed_at` | `timestamp` NULL | When the failure was recorded |
+| `created_at` / `updated_at` | `timestamp` | |
+
+**Unique:** `(senior_citizen_id, facility_id)`. **Index:** `failed_at`.
+
 ### GIS API routes
+
+These are served from `routes/web.php` (inside the authenticated session group), **not** `routes/api.php`, so browser `fetch` calls are session-authenticated.
 
 | Route | Description |
 |---|---|
 | `GET /api/gis/seniors` | GeoJSON FeatureCollection of all active seniors (generalized coords, risk level, cluster) |
 | `GET /api/gis/facilities` | GeoJSON FeatureCollection of all active facilities |
 | `GET /api/gis/boundary/pagsanjan` | Municipal boundary GeoJSON |
-| `GET /api/gis/boundary/barangays` | Barangay-level boundary GeoJSON |
+| `GET /api/gis/boundary/barangays` | Barangay-level boundary GeoJSON (cached 24h) |
+| `GET /api/gis/route-distance` | Road-network distance/duration between an origin and destination (throttled 60/min/user; caches to `senior_facility_route_distances`) |
 
 ### Frontend dependencies
 

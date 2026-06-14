@@ -1024,6 +1024,7 @@ class MlService
                 'evidence_source' => $rec['evidence_source'] ?? null,
                 'apa_reference' => $rec['apa_reference'] ?? null,
                 'source_type' => $rec['source_type'] ?? null,
+                'trigger_summary' => $rec['trigger_summary'] ?? null,
                 'eligibility_basis' => $rec['eligibility_basis'] ?? null,
                 'documents_needed' => is_array($docsNeeded)
                                                 ? json_encode($docsNeeded)

@@ -23,9 +23,15 @@
             <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to records
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
+            @if (!empty($draftSurvey))
+            <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="btn btn-primary">
+                <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Continue draft
+            </a>
+            @else
             <a href="{{ route('surveys.qol.create', $senior) }}" class="btn">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> New QoL Survey
             </a>
+            @endif
 
             <div x-data="{
                     loading: false, done: false, err: '',
@@ -177,6 +183,7 @@
 
             {{-- Risk + Cluster --}}
             <div class="flex items-center gap-2.5 flex-shrink-0">
+                <span class="text-[10.5px] uppercase tracking-wide text-ink-400 dark:text-[#6b7570] font-semibold">Overall risk</span>
                 <x-risk-badge :level="$ml->overall_risk_level" />
                 @if ($ml->priority_flag === 'urgent')
                 <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 bg-orange-50 dark:bg-orange-50/10 px-2 py-0.5 rounded-full">
@@ -194,9 +201,9 @@
             {{-- Domain bars --}}
             <div class="flex gap-5 flex-1 min-w-0">
                 @foreach ([
-                    ['Physical', $ml->ic_risk],
+                    ['Intrinsic Capacity', $ml->ic_risk],
                     ['Environment', $ml->env_risk],
-                    ['Functioning', $ml->func_risk],
+                    ['Functional Ability', $ml->func_risk],
                 ] as [$label, $score])
                 <div class="flex-1 min-w-[80px]">
                     <div class="flex justify-between text-[11px] text-ink-500 dark:text-[#6b7570] mb-1">
@@ -248,9 +255,9 @@
     @php
         $xai = $ml->xai_data;
         $xaiDomains = [
-            'ic'   => ['label' => 'Physical Capacity',   'risk' => $ml->ic_risk_level],
+            'ic'   => ['label' => 'Intrinsic Capacity',  'risk' => $ml->ic_risk_level],
             'env'  => ['label' => 'Environment',          'risk' => $ml->env_risk_level],
-            'func' => ['label' => 'Daily Functioning',    'risk' => $ml->func_risk_level],
+            'func' => ['label' => 'Functional Ability',   'risk' => $ml->func_risk_level],
         ];
     @endphp
     <div class="card">
@@ -557,7 +564,11 @@
             @if ($senior->qolSurveys->isNotEmpty())
             <x-card title="QoL Survey History">
                 <x-slot name="actions">
+                    @if (!empty($draftSurvey))
+                    <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
+                    @else
                     <a href="{{ route('surveys.qol.create', $senior) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
+                    @endif
                 </x-slot>
                 <x-slot name="noPadding">true</x-slot>
                 <table class="w-full text-sm">

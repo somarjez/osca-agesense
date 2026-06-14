@@ -40,6 +40,8 @@ If you are a teammate contributing code, also read:
 | Know what has been built and what is planned | [ROADMAP.md](ROADMAP.md) |
 | Understand every feature in the system | [SYSTEM_FUNCTIONALITY.md](SYSTEM_FUNCTIONALITY.md) |
 | Review the GIS senior distribution/accessibility heatmap changes | [GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md) |
+| Understand the whole GIS module (endpoints, commands, files) | [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
+| Run privacy-safe barangay-level geocoding | [gis-geocoding.md](gis-geocoding.md) |
 | Explain why results are identical across devices | [REPRODUCIBILITY_AND_CONSISTENCY.md](REPRODUCIBILITY_AND_CONSISTENCY.md) |
 | Make defensible claims about the model in the defense | [model-validation-defensible-statements.md](model-validation-defensible-statements.md) |
 | Give the LGU a plain-language validation summary | [VALIDATION_SUMMARY_LGU.md](VALIDATION_SUMMARY_LGU.md) |
@@ -108,7 +110,13 @@ A plain-language summary of validation results for the LGU and non-technical eva
 
 Notes on schema migrations and how to apply them when moving between versions.
 
-> **Root context files:** [`../PRODUCT.md`](../PRODUCT.md) and [`../DESIGN.md`](../DESIGN.md) live at the project root. They capture the product strategy (users, purpose, principles) and the forest/ink visual design system for AI design tooling and new contributors.
+### GIS module docs
+
+- **[GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md)** — Consolidated functional reference for the GIS module: the analytics page, all `/api/gis/*` endpoints, the artisan commands (`gis:geocode`, `gis:score-proximity`, `gis:cache-route-distances`, `facilities:import-osm`), privacy design, and the route/command summaries.
+- **[GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md](GIS_SENIOR_DISTRIBUTION_ACCESSIBILITY_HEATMAP.md)** — Original change record for the senior accessibility heatmap, with a current-state note on the consolidated visualization modes.
+- **[gis-geocoding.md](gis-geocoding.md)** — How privacy-safe barangay-level geocoding (`gis:geocode`) works, what it stores, and its safety rules.
+
+> **Root context files:** [`../PRODUCT.md`](../PRODUCT.md) and [`../DESIGN.md`](../DESIGN.md) live at the project root. They capture the product strategy (users, purpose, principles) and the navy-and-paper "Field Ledger" visual design system — a warm paper-and-ink record framed in institutional navy — for AI design tooling and new contributors.
 
 ---
 

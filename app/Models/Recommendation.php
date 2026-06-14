@@ -16,7 +16,7 @@ class Recommendation extends Model
         'action', 'urgency', 'risk_level',
         // v2 enriched fields (nullable — backward compat with old ML payloads)
         'recommendation_code', 'service_provider', 'evidence_source',
-        'apa_reference', 'source_type',
+        'apa_reference', 'source_type', 'trigger_summary',
         'eligibility_basis', 'documents_needed', 'requires_human_validation',
         // workflow fields
         'status', 'notes', 'target_date', 'assigned_to',
@@ -52,6 +52,19 @@ class Recommendation extends Model
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
+    }
+
+    /**
+     * Limit to "current" recommendations — those belonging to each senior's
+     * latest ML result (max ml_result id per senior). Older assessments' recs
+     * remain in the table as history but are excluded here. Correlated subquery
+     * so it composes inside relationships, whereHas, withCount, and aggregates.
+     */
+    public function scopeCurrent($query)
+    {
+        return $query->whereRaw(
+            'recommendations.ml_result_id = (select max(id) from ml_results where ml_results.senior_citizen_id = recommendations.senior_citizen_id)'
+        );
     }
 
     public function scopeByCategory($query, string $category)

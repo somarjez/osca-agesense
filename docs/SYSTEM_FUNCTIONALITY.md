@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-05-15 — Reflects Phase 2 complete (RBAC, user management); GIS module in progress (data foundation + map prototype done); phase timeline revised; §18/19/20 updated to reflect actual implementation state, modal dark mode contrast fix, CI/CD pipeline setup, GIT_WORKFLOW guide, ML model update (UMAP, GBR/RFR retrain), UI terminology simplification (jargon reduction), cluster analysis archived-senior fix, Help Centre, sidebar reorganisation (Archives section, Assessment Tools section), GIS module planning, `setup.bat`/`start.bat` launcher workflow, model files relocated to `python/models/`, `ENABLE_NOTEBOOK_OVERRIDES` flag, notebook-validated prediction CSVs, Linux/macOS ML service startup script (`start_services.sh`), and 275 seniors seeded.
+> **Last Updated:** 2026-06-04 — Reflects the v2.0.0 / K=4 model (four health groups) and the completed GIS module (Phase 3): bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was removed — coordinates now come from `gis:geocode` only.) Phase 1 and Phase 2 complete (RBAC, user management, audit logging, encryption, Excel export, cluster snapshots). 283 seniors seeded.
 
 ---
 
@@ -27,7 +27,7 @@
 15. [Current Limitations](#15-current-limitations)
 16. [Security and Privacy Notes](#16-security-and-privacy-notes)
 17. [Known Missing Features and TODOs](#17-known-missing-features-and-todos)
-18. [GIS Module (In Progress)](#18-gis-module-in-progress)
+18. [GIS Module](#18-gis-module)
 19. [Suggested Future Improvements](#19-suggested-future-improvements)
 20. [Current System Status](#20-current-system-status)
 
@@ -62,7 +62,7 @@ The following capabilities are fully implemented and operational in the current 
 | Domain-specific risk scoring (IC, Environment, Functional) | Implemented |
 | Composite risk score and overall risk level classification | Implemented |
 | Prescriptive recommendation generation (5 domain functions: health, financial, social, functional, hc_access) | Implemented |
-| Disease-specific recommendation actions (200+ disease entries) | Implemented |
+| Disease-specific recommendation actions (22+ condition keyword mappings) | Implemented |
 | Interactive dashboard with real-time KPIs and charts | Implemented |
 | Dashboard barangay and risk level filter | Implemented |
 | Cluster analysis report with evaluation metrics | Implemented |
@@ -188,7 +188,7 @@ The dashboard provides a real-time overview of the senior citizen population. It
 
 **Charts (Chart.js 4):**
 - Risk Distribution doughnut (HIGH / MODERATE / LOW)
-- K-Means Cluster Distribution doughnut (Cluster 1 / 2 / 3)
+- Cluster Distribution doughnut (Cluster 1 / 2 / 3 / 4)
 - WHO Domain Scores radar (8 domains, population mean %)
 - Age Group Distribution bar chart (60–64, 65–69, 70–74, 75–79, 80–84, 85+)
 
@@ -361,7 +361,7 @@ Core identifying and socioeconomic fields:
 
 ### ML Results (`ml_results` table)
 
-- Cluster: `cluster_id` (0-indexed), `cluster_named_id` (1–3), `cluster_name`
+- Cluster: `cluster_id` (0-indexed), `cluster_named_id` (1–4), `cluster_name`
 - Risk scores (decimal 0–1): `ic_risk`, `env_risk`, `func_risk`, `composite_risk`, `wellbeing_score`
 - Risk levels: `ic_risk_level`, `env_risk_level`, `func_risk_level` (LOW/MODERATE/HIGH), `overall_risk_level` (LOW/MODERATE/HIGH), `priority_flag` (maintenance/planned_monitoring/priority_action/urgent)
 - `section_scores` (JSON): 6 composite section indices from preprocessing
@@ -433,7 +433,7 @@ Generates a PDF document using `barryvdh/laravel-dompdf` from the template `reso
 All dashboard data is computed in `MainDashboard.php` and filtered in real time by barangay and risk level:
 
 - **Risk distribution** by level (HIGH, MODERATE, LOW) with urgent sub-count for HIGH seniors
-- **Cluster distribution** (Cluster 1, 2, 3) via `ClusterAnalyticsService`
+- **Cluster distribution** (Cluster 1, 2, 3, 4) via `ClusterAnalyticsService`
 - **WHO domain scores** — population mean for 8 QoL domains
 - **Age group distribution** — six age brackets from 60–64 to 85+
 - **Barangay breakdown** — per-barangay total and HIGH risk counts
@@ -520,20 +520,21 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 
 ### Clustering — `python/services/inference_service.py`
 
-- **Algorithm:** K-Means (K=4), trained on the full OSCA Pagsanjan senior citizen dataset
-- **Input:** UMAP-reduced 10-dimensional feature vector (or scaled features if UMAP skipped)
-- **Output:** Cluster assignment with named interpretations:
+- **Algorithm:** K-Means (K=4), trained in `osca5.ipynb` on the full OSCA Pagsanjan senior citizen dataset (283 seniors). **Live inference does not call UMAP+KMeans per senior** — it uses deterministic nearest-centroid assignment in 31D scaled space (`cluster_centroids_scaled.json`) for cross-device reproducibility. See [ML_PIPELINE.md](ML_PIPELINE.md).
+- **Input (training):** UMAP-reduced 10-dimensional feature vector
+- **Output:** Cluster assignment with named interpretations (raw KMeans ID → named ID via `cluster_mapping.json` = `{"0":1,"1":2,"2":3,"3":4}`):
 
 | Cluster | Named ID | Profile |
 |---|---|---|
-| 0 (raw) | 1 | High Functioning — low overall risk, independent, good QoL |
-| 1 (raw) | 2 | Moderate / Mixed Needs — moderate risk across one or more domains |
-| 2 (raw) | 3 | Low Functioning / Multi-domain Risk — high risk across multiple domains |
+| 0 (raw) | 1 | High Functioning / Well-Supported — low overall risk, independent, good QoL |
+| 1 (raw) | 2 | Stable Ageing / Moderate Support Needs — moderate risk across one or more domains |
+| 2 (raw) | 3 | Environmentally & Financially Vulnerable — functionally capable but financial/housing stress |
+| 3 (raw) | 4 | Low Functioning / Multi-Domain Priority — high risk across multiple domains |
 
 - **Evaluation metrics** (loaded from `python/models/cluster_eval_metrics.json` — update automatically when the model is retrained and the file is regenerated):
-  - Silhouette Score: 0.412 (moderate — acceptable for population health data)
-  - Davies-Bouldin Index: 1.198
-  - Calinski-Harabász Index: 84.3
+  - Silhouette Score: 0.449 (K=4 — second-highest in the notebook K-sweep, after K=2)
+  - Davies-Bouldin Index: 0.804
+  - Calinski-Harabász Index: 415.0
 
 ---
 
@@ -584,7 +585,7 @@ The recommendation engine generates a prioritized list of actionable interventio
 
 ### Disease-Specific Recommendations
 
-`generate_health_recs` contains mappings for over 200 disease/condition entries in the `medical_concern` multi-select field, including:
+`generate_health_recs` matches the `medical_concern` text against the `DISEASE_RULE_MAP` keyword table (22+ condition keywords, matched as case-insensitive substrings; each maps to a primary recommendation rule code plus an optional secondary code for high-cost diseases), including:
 
 - **Coronary Heart Disease:** Cardiology referral, BP/HR monitoring, cardiac diet counseling, PhilHealth Z-Benefit enrollment
 - **Diabetes Mellitus:** Endocrinology referral, blood glucose monitoring, diet counseling
@@ -676,7 +677,7 @@ The following table defines terms as they are used throughout the codebase, data
 | **Domain Score** | A normalized (0–1) aggregate score for a single QoL domain, computed from the relevant survey items | `score_physical`, `score_psychological`, etc. in `qol_surveys`; computed by `QolSurvey::computeScores()` |
 | **Reverse-Scored Item** | A survey question where higher raw responses indicate worse outcomes; the item is inverted (`6 − response`) before inclusion in domain calculations | b2, b3, c3, d4 in the QoL survey; defined in `QolSurvey::REVERSE_SCORED` |
 | **Feature Vector** | A numerical representation of a senior's profile and QoL responses used as input to the ML model | Produced by `preprocess_service.py`; includes 35+ features, section scores, domain risks |
-| **K-Means Clustering** | An unsupervised machine learning algorithm that assigns each data point to one of K clusters based on feature similarity | Used to group seniors into 3 health-functioning clusters; executed in `inference_service.py` |
+| **K-Means Clustering** | An unsupervised machine learning algorithm that assigns each data point to one of K clusters based on feature similarity | Used to group seniors into 4 health-functioning clusters; trained in the notebook, applied live via deterministic nearest-centroid in `inference_service.py` |
 | **K=4** | The number of clusters chosen for the K-Means model, validated through silhouette analysis | Cluster names: High Functioning / Well-Supported, Stable Ageing / Moderate Support, Environmentally & Financially Vulnerable, Low Functioning / Multi-Domain Priority |
 | **Cluster** | One of four groups (Cluster 1, 2, 3, 4) that a senior is assigned to based on their feature profile | `ml_results.cluster_named_id`; displayed in badges, charts, and reports |
 | **UMAP** | Uniform Manifold Approximation and Projection — a dimensionality reduction algorithm used to project the feature vector to 10 dimensions before clustering | Applied in `preprocess_service.py`; loaded from `umap_reducer.pkl` |
@@ -698,9 +699,9 @@ The following table defines terms as they are used throughout the codebase, data
 | **Batch Inference** | Running the ML pipeline on multiple seniors simultaneously | `MlController::batchRun()`; processes 100 seniors per chunk |
 | **MlResult** | A database record containing the full output of one ML pipeline execution for one senior | `ml_results` table; related to one `QolSurvey` and one `SeniorCitizen` |
 | **Barangay** | A Philippine administrative subdivision equivalent to a village or neighborhood | Used throughout for geographic filtering and reporting; 16 barangays for Pagsanjan |
-| **Silhouette Score** | A metric (−1 to 1) evaluating cluster quality; higher values indicate better-defined clusters | Hardcoded value: 0.412; displayed on the Cluster Analysis report |
-| **Davies-Bouldin Index** | A cluster evaluation metric; lower values indicate better separation | Hardcoded value: 1.198 |
-| **Calinski-Harabász Index** | A cluster evaluation metric; higher values indicate denser, better-separated clusters | Hardcoded value: 84.3 |
+| **Silhouette Score** | A metric (−1 to 1) evaluating cluster quality; higher values indicate better-defined clusters | Read from `cluster_eval_metrics.json` (K=4: 0.449); displayed on the Cluster Analysis report |
+| **Davies-Bouldin Index** | A cluster evaluation metric; lower values indicate better separation | From `cluster_eval_metrics.json` (K=4: 0.804) |
+| **Calinski-Harabász Index** | A cluster evaluation metric; higher values indicate denser, better-separated clusters | From `cluster_eval_metrics.json` (K=4: 415.0) |
 | **Inertia (WCSS)** | Within-Cluster Sum of Squares — measures compactness of clusters | Displayed on cluster evaluation metrics panel |
 | **Soft Delete** | A deletion strategy that marks a record as deleted without removing it from the database | Applied to `senior_citizens` via Laravel's `SoftDeletes` trait; viewable in Archives |
 | **Survey Version** | A label identifying the version of the QoL instrument used | `qol_surveys.survey_version`; default `v1` |
@@ -762,7 +763,7 @@ The following table defines terms as they are used throughout the codebase, data
 
 - **Role-based access control:** Implemented via `spatie/laravel-permission`. Roles `admin`, `encoder`, and `viewer` are enforced at route and UI level. Only `admin` can permanently delete records, manage users, export data, or view the audit log.
 
-- **No API authentication:** There are no external API routes (`routes/api.php`). All access is through the web interface only.
+- **No token API / no public API surface:** `routes/api.php` defines no routes. The GIS data endpoints (`/api/gis/*`) are registered in `routes/web.php` inside the authenticated session group (`auth` + `role:admin,encoder,viewer`), so they are reachable only by a logged-in browser session — there is no token-based or unauthenticated API access.
 
 - **ML service communication:** Requests between the Laravel application and the Python microservices are made over localhost HTTP without authentication tokens or TLS. This is acceptable for single-machine deployment but would require securing for network-distributed deployment.
 
@@ -788,9 +789,10 @@ The following features are either partially implemented or explicitly absent fro
 | Survey instrument versioning UI | Partially implemented | `survey_version` field exists; no UI to manage multiple versions |
 | Senior citizen photo upload | Not implemented | No photo field or upload feature in the profile form |
 | Export full database to Excel | ✅ Implemented | `/reports/registry/export` — xlsx with all active seniors + latest ML result; sidebar under Administration |
-| GIS / interactive senior location map | 🔄 In Progress | Sprint 3.1 complete (map prototype live at `/reports/gis`); Sprint 3.2 pending — see §18 |
-| Proximity scoring in ML pipeline | Pending | Requires model retrain after GIS data collected |
-| GIS CSV export and coordinate picker | Pending | See §18 Sprint 3.2 |
+| GIS / interactive senior location map | ✅ Implemented | Live at `/reports/gis` with 4 visualization modes — see §18 |
+| Accessibility proximity scoring | ✅ Implemented | `gis:score-proximity` writes `senior_accessibility_metrics` |
+| GIS CSV export | ✅ Implemented | `/reports/gis/export` |
+| `gis_proximity_score` as an ML feature | Pending | Accessibility scores are computed but not yet wired into the GBR/RFR pipeline — requires model retrain |
 
 **Implemented in Phase 2 (May 2026):**
 
@@ -804,28 +806,33 @@ The following features are either partially implemented or explicitly absent fro
 
 ---
 
-## 18. GIS Module (In Progress)
+## 18. GIS Module
 
-The GIS (Geographic Information System) module provides geographic visualisation of senior citizen locations and proximity analysis to essential services within Pagsanjan, Laguna.
+The GIS (Geographic Information System) module provides geographic visualisation of senior citizen locations and proximity analysis to essential services within Pagsanjan, Laguna. It is complete; see [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) for the full reference.
 
 ### 18.1 Implementation Status
 
 | Component | Status | Notes |
 |---|---|---|
 | GIS fields on `senior_citizens` | ✅ Done | `latitude`, `longitude`, `location_source`, `location_accuracy`, `location_verified_at`; spatial index |
-| `facilities` table | ✅ Done | Stores health centres, hospitals, pharmacies, markets, barangay halls |
-| `senior_accessibility_metrics` table | ✅ Done | Links seniors to nearest facility per category; stores distances |
-| Pagsanjan facility seeder | ✅ Done | `PagsanjanFacilitySeeder` — 13 facilities across barangays |
+| `facilities` table | ✅ Done | Stores health centres, hospitals, pharmacies, markets, barangay halls (plus `osm_id` for OSM-imported facilities) |
+| `senior_accessibility_metrics` table | ✅ Done | Links seniors to nearest facility per category (health centre, hospital, pharmacy, market, barangay hall); stores distances |
+| Route-distance cache tables | ✅ Done | `senior_facility_route_distances` + `senior_facility_route_failures` |
+| Pagsanjan facility seeder | ✅ Done | `PagsanjanFacilitySeeder` — facilities across barangays; superseded by real OSM coordinates via `facilities:import-osm` |
 | GIS API — `/api/gis/seniors` | ✅ Done | Returns senior locations as GeoJSON FeatureCollection |
 | GIS API — `/api/gis/facilities` | ✅ Done | Returns active facilities as GeoJSON FeatureCollection |
 | GIS API — `/api/gis/boundary/*` | ✅ Done | Returns municipal and barangay boundary GeoJSON (from local storage files) |
-| GIS map view — `/reports/gis` | ✅ Done | Leaflet map prototype with senior pins, facility overlay, risk/barangay filters, stats panel |
-| Privacy-safe coordinate generalisation | ✅ Done | Hash-based scatter per senior around barangay anchor — no exact home addresses exposed |
-| Bulk geocode command | ⏳ Pending | `php artisan gis:geocode` — assign barangay centroids to seniors missing GPS data |
-| Map coordinate picker in profile form | ⏳ Pending | Embedded Leaflet map in senior profile edit form |
-| Proximity scoring in ML pipeline | ⏳ Pending | `gis_proximity_score` as optional preprocessing feature; requires model retrain |
-| GIS CSV export | ⏳ Pending | Download senior lat/lng + nearest facility distances |
-| Field GPS documentation | ⏳ Pending | Staff guide for capturing GPS coordinates in the field |
+| GIS API — `/api/gis/route-distance` | ✅ Done | Road-network distance/duration (OpenRouteService); throttled 60/min/user |
+| GIS map view — `/reports/gis` | ✅ Done | Leaflet map with 4 visualization modes, facility overlay, risk/barangay/health-group filters, KPI + geocode-status panels |
+| Privacy-safe coordinate generalisation | ✅ Done | Deterministic barangay-level points — no exact home addresses exposed |
+| Bulk geocode command | ✅ Done | `php artisan gis:geocode` — privacy-safe barangay-level coords for seniors missing GPS data |
+| Map coordinate picker in profile form | ❌ Removed | The Leaflet pin/boundary-validation picker was removed; `gis:geocode` is now the sole coordinate source |
+| Accessibility proximity scoring | ✅ Done | `php artisan gis:score-proximity` — nearest-facility distances + 0–1 accessibility score |
+| GIS CSV export | ✅ Done | Admin-only `/reports/gis/export` — lat/lng + nearest facility distances + accessibility score |
+| Road-network route caching | ✅ Done | `php artisan gis:cache-route-distances` (OpenRouteService) |
+| OpenStreetMap facility import | ✅ Done | `php artisan facilities:import-osm` — replaces approximate facilities with real coordinates |
+| Field GPS / geocoding documentation | ✅ Done | [gis-geocoding.md](gis-geocoding.md); manual-pin workflow covered in [GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md](GIS_FUNCTIONALITY_AND_MODIFIED_FILES.md) |
+| `gis_proximity_score` as an ML feature | ⏳ Pending | Accessibility scores computed but not yet wired into the GBR/RFR pipeline — requires model retrain |
 
 ### 18.2 Technical Stack
 
@@ -842,38 +849,29 @@ The GIS (Geographic Information System) module provides geographic visualisation
 ### 18.3 GIS API
 
 **Controller:** `app/Http/Controllers/GisApiController.php`
-**Routes:** `routes/api.php`
+**Routes:** registered in `routes/web.php` (authenticated session group, `role:admin,encoder,viewer`) — **not** `routes/api.php`, so browser `fetch` calls are session-authenticated.
 
 | Endpoint | Response | Notes |
 |---|---|---|
 | `GET /api/gis/seniors` | GeoJSON FeatureCollection | Returns all active seniors with risk level, cluster, composite risk; uses stored coords or barangay centroid fallback |
 | `GET /api/gis/facilities` | GeoJSON FeatureCollection | Returns all active facilities with name, type, barangay |
 | `GET /api/gis/boundary/pagsanjan` | GeoJSON | Municipal boundary from `storage/app/gis/boundaries/pagsanjan_boundary.geojson` |
-| `GET /api/gis/boundary/barangays` | GeoJSON | Barangay polygons from `storage/app/gis/boundaries/pagsanjan_barangays.geojson` |
+| `GET /api/gis/boundary/barangays` | GeoJSON | Barangay polygons from `storage/app/gis/boundaries/pagsanjan_barangays.geojson` (cached 24h) |
+| `GET /api/gis/route-distance` | JSON | Road-network distance/duration (OpenRouteService); throttled 60/min/user; caches to `senior_facility_route_distances` |
 
-### 18.4 Proximity Scoring (Pending)
+### 18.4 Accessibility Proximity Scoring
 
-When implemented, the `gis_proximity_score` (0–1) will reflect how well-served a senior is by nearby essential facilities:
+`php artisan gis:score-proximity` computes, for each geocoded senior, the distance to the nearest facility in each category (health centre, hospital, pharmacy, market, barangay hall) and a composite **accessibility score** (0–1, higher = better access), stored in `senior_accessibility_metrics`. The GIS page surfaces this as a percentage-style proximity indicator and drives the Accessibility Heatmap.
 
-```
-gis_proximity_score = weighted_average(
-    distance_to_health_centre    × 0.35,
-    distance_to_hospital         × 0.25,
-    distance_to_pharmacy         × 0.20,
-    distance_to_market           × 0.15,
-    distance_to_barangay_hall    × 0.05
-)
-```
-
-Distances are normalised against a 2 km reference radius. This score will be an optional input to the preprocessing pipeline — seniors without coordinates will use the existing pipeline unchanged.
+**Still pending — `gis_proximity_score` as an ML feature:** the accessibility score is computed and stored but is **not yet wired into the GBR/RFR preprocessing pipeline**. Integrating it as an optional model feature requires a model retrain; seniors without coordinates would continue to use the existing pipeline unchanged.
 
 ---
 
 ## 19. Suggested Future Improvements
 
-1. **Complete the GIS module.** Remaining work: bulk geocode command, coordinate picker in profile form, GIS CSV export, and wiring `gis_proximity_score` into the ML preprocessing pipeline. See Section 18 for the full specification.
+1. **Wire `gis_proximity_score` into the ML pipeline.** The GIS module is complete (mapping, geocoding, accessibility scoring, route distances, OSM import). The one remaining GIS enhancement is feeding the computed accessibility score into the GBR/RFR preprocessing pipeline as an optional feature — this requires a model retrain. See Section 18.
 
-2. **Collect and geocode senior coordinates.** Run the bulk geocode job to assign barangay centroids as initial coordinates for all existing seniors, then iteratively improve accuracy as field workers capture GPS coordinates during visits.
+2. **A future verified-coordinate workflow.** Bulk geocoding assigns privacy-safe barangay-level coordinates today. The manual pin picker was removed; a future address-line-based capture workflow could reintroduce verified per-senior coordinates, after which `gis:score-proximity` would be re-run.
 
 3. **Model versioning and retraining pipeline.** Add a database field or config entry for the active model version, and create a retraining workflow (even if offline) that updates the artefact files and records version history in `ml_results.model_version`.
 
@@ -895,7 +893,7 @@ Distances are normalised against a 2 km reference radius. This score will be an 
 
 ## 20. Current System Status
 
-AgeSense is a **pilot-ready system** with Phase 1 (Core) and Phase 2 (Production Hardening) fully complete. All primary workflows — senior profiling, QoL survey administration, ML pipeline execution, recommendation management, and role-based access control — are implemented and operational.
+AgeSense is a **pilot-ready system** with Phase 1 (Core), Phase 2 (Production Hardening), and Phase 3 (GIS Module) fully complete. All primary workflows — senior profiling, QoL survey administration, the v2.0.0 / K=4 ML pipeline, recommendation management, role-based access control, and the GIS spatial-analytics module — are implemented and operational.
 
 The dataset comprises **283 senior citizens** (all seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283.
 
@@ -905,17 +903,16 @@ The dataset comprises **283 senior citizens** (all seeded via `OscaCsvSeeder`). 
 |---|---|
 | Phase 1 — Core System | ✅ Complete (April 2026) |
 | Phase 2 — Production Hardening | ✅ Complete (May 2026) |
-| Phase 3 — GIS Module | 🔄 In Progress — data foundation and map prototype done; 5 items pending |
+| Phase 3 — GIS Module | ✅ Complete (June 2026) |
 | Phase 4 — Advanced Features | 📋 Planned (June–July 2026) |
 
 ### Remaining gaps
 
 | Priority | Gap |
 |---|---|
-| **Medium** | GIS bulk geocode command not yet built — senior pins currently use barangay centroid fallback |
-| **Medium** | Proximity scoring not yet wired into ML pipeline — requires model retrain after GIS data is collected |
+| **Medium** | `gis_proximity_score` not yet wired into the ML pipeline as a feature — accessibility scores are computed and stored, but feeding them to the GBR/RFR models requires a model retrain |
 | **Low** | No notification system — critical risk events are not automatically communicated to staff |
-| **Low** | GIS CSV export and coordinate picker in profile form not yet built |
+| **Low** | No automated/in-app model retraining pipeline — models are static committed artefacts |
 
 **Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested. Role-based access control (`spatie/laravel-permission`) is fully implemented with `admin`, `encoder`, and `viewer` roles enforced at route and UI level. The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines.
 

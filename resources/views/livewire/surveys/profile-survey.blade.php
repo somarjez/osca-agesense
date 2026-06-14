@@ -32,15 +32,31 @@
         </div>
     </div>
 
-    {{-- Success banner --}}
-    @if ($saved)
-    <x-alert type="success" title="Profile saved" class="mb-4">
-        OSCA ID: <strong>{{ $senior?->osca_id }}</strong>
-        <a href="{{ $senior ? route('surveys.qol.create', $senior->id) : '#' }}"
-           class="btn btn-primary ml-4 text-sm">
-            + Take QoL Survey →
-        </a>
-    </x-alert>
+    {{-- Success modal — forces an explicit next action --}}
+    @if ($saved && $senior)
+    <div x-data="{ open: true }">
+        <x-modal show="open" max-width="max-w-md" :closeable="false" aria-label="Profile saved confirmation">
+            <div class="text-center">
+                <div class="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3
+                            bg-forest-50 dark:bg-forest-900/40 text-forest-700 dark:text-forest-300">
+                    <x-heroicon-o-check-circle class="w-7 h-7" aria-hidden="true" />
+                </div>
+                <h2 class="font-display text-xl text-ink-900 dark:text-[#e4e1d8] mb-1">Profile Saved</h2>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] mb-1">OSCA ID</p>
+                <p class="font-mono text-lg font-bold tracking-wide text-forest-700 dark:text-forest-300 mb-5">
+                    {{ $senior->osca_id }}
+                </p>
+                <div class="flex flex-col gap-2">
+                    <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary justify-center">
+                        + Take QoL Survey →
+                    </a>
+                    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-secondary justify-center">
+                        ← Back to Profile
+                    </a>
+                </div>
+            </div>
+        </x-modal>
+    </div>
     @endif
 
     {{-- ── Form Card ── --}}
@@ -97,7 +113,6 @@
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Barangay <span class="text-critical-700" aria-hidden="true">*</span></label>
                     <select wire:model="barangay"
-                            data-location-barangay
                             class="form-select {{ $errors->has('barangay') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         <option value="">Select barangay…</option>
                         @foreach (\App\Models\SeniorCitizen::barangayList() as $b)
@@ -542,320 +557,3 @@
     </div>
     </form>
 </div>
-
-@once
-@push('scripts')
-<script>
-(function () {
-    const PAGSANJAN_CENTER = [14.2708, 121.4560];
-    const BARANGAY_CENTROIDS = {
-        'Anibong': [14.2782, 121.4588],
-        'BiÃ±an': [14.2757, 121.4506],
-        'Buboy': [14.2667, 121.4602],
-        'Calusiche': [14.2629, 121.4524],
-        'Cabanbanan': [14.2685, 121.4477],
-        'Dingin': [14.2738, 121.4621],
-        'Lambac': [14.2688, 121.4591],
-        'Layugan': [14.2712, 121.4495],
-        'Magdapio': [14.2748, 121.4562],
-        'Maulawin': [14.2737, 121.4625],
-        'Pinagsanjan': [14.2657, 121.4512],
-        'Barangay I (Poblacion)': [14.2719, 121.4551],
-        'Barangay II (Poblacion)': [14.2704, 121.4567],
-        'Sabang': [14.2752, 121.4529],
-        'Sampaloc': [14.2674, 121.4632],
-        'San Isidro': [14.2639, 121.4583],
-    };
-
-    function numberOrNull(value) {
-        if (value === null || value === undefined || String(value).trim() === '') {
-            return null;
-        }
-
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    function hasValidCoordinatePair(lat, lng) {
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
-
-        return Math.abs(lat) >= 0.000001 && Math.abs(lng) >= 0.000001;
-    }
-
-    function selectedBarangayCenter(select) {
-        return BARANGAY_CENTROIDS[select?.value] ?? PAGSANJAN_CENTER;
-    }
-
-    function setInputValue(input, value) {
-        if (!input) return;
-        input.value = Number(value).toFixed(7);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-
-        setLivewireModel(input, input.value);
-    }
-
-    function setLivewireModel(input, value) {
-        if (!input) return;
-
-        const componentRoot = input.closest('[wire\\:id]');
-        const componentId = componentRoot?.getAttribute('wire:id');
-        const modelName = input.getAttribute('wire:model') || input.getAttribute('wire:model.live');
-        const component = componentId && window.Livewire?.find ? window.Livewire.find(componentId) : null;
-        if (component && modelName) {
-            component.set(modelName, value);
-        }
-    }
-
-    function setStatus(statusEl, message, tone = 'neutral') {
-        if (!statusEl) return;
-        statusEl.textContent = message;
-        statusEl.className = 'text-[11px] font-medium text-right';
-        if (tone === 'error') {
-            statusEl.classList.add('text-red-600');
-        } else if (tone === 'success') {
-            statusEl.classList.add('text-emerald-700');
-        } else {
-            statusEl.classList.add('text-slate-500');
-        }
-    }
-
-    function pointInRing(point, ring) {
-        let inside = false;
-
-        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-            const xi = Number(ring[i][0]);
-            const yi = Number(ring[i][1]);
-            const xj = Number(ring[j][0]);
-            const yj = Number(ring[j][1]);
-
-            if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
-
-            const intersects = ((yi > point[1]) !== (yj > point[1])) &&
-                (point[0] < ((xj - xi) * (point[1] - yi)) / ((yj - yi) || Number.EPSILON) + xi);
-
-            if (intersects) inside = !inside;
-        }
-
-        return inside;
-    }
-
-    function pointInPolygon(point, polygonCoordinates) {
-        if (!Array.isArray(polygonCoordinates) || !polygonCoordinates.length) return false;
-        if (!pointInRing(point, polygonCoordinates[0])) return false;
-
-        return !polygonCoordinates.slice(1).some((hole) => pointInRing(point, hole));
-    }
-
-    function pointInsideBoundary(latlng, boundaryGeoJson) {
-        if (!Array.isArray(boundaryGeoJson?.features) || boundaryGeoJson.features.length === 0) {
-            return true;
-        }
-
-        const point = [latlng.lng, latlng.lat];
-
-        return boundaryGeoJson.features.some((feature) => {
-            const geometry = feature?.geometry;
-            const coordinates = geometry?.coordinates;
-
-            if (geometry?.type === 'Polygon') {
-                return pointInPolygon(point, coordinates);
-            }
-
-            if (geometry?.type === 'MultiPolygon') {
-                return Array.isArray(coordinates) &&
-                    coordinates.some((polygon) => pointInPolygon(point, polygon));
-            }
-
-            return false;
-        });
-    }
-
-    function updateValidity(latInput, lngInput, isInside) {
-        const message = isInside ? '' : 'Selected location must be inside the Pagsanjan municipal boundary.';
-        latInput?.setCustomValidity(message);
-        lngInput?.setCustomValidity(message);
-    }
-
-    function initializeLocationPicker(el) {
-        if (el._locationPickerInitialized || !window.L) {
-            if (el._locationPickerMap) {
-                setTimeout(() => el._locationPickerMap.invalidateSize(), 50);
-            }
-            return;
-        }
-        el._locationPickerInitialized = true;
-
-        const form = el.closest('form') ?? document;
-        const statusEl = form.querySelector('[data-location-status]');
-        const barangaySelect = form.querySelector('[data-location-barangay]');
-        const latInput = document.getElementById(el.dataset.latitudeInput);
-        const lngInput = document.getElementById(el.dataset.longitudeInput);
-        const touchedInput = document.getElementById(el.dataset.touchedInput);
-        let boundaryGeoJson = null;
-        let boundaryLayer = null;
-        let marker = null;
-        let lastValidLatLng = null;
-
-        const verifiedPinIcon = window.L.divIcon({
-            className: 'senior-location-pin',
-            html: '<span style="display:block;width:20px;height:20px;border-radius:9999px;background:#0f766e;border:3px solid #fff;box-shadow:0 2px 10px rgba(15,23,42,.35);"></span>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-        });
-
-        const initialLat = numberOrNull(latInput?.value || el.dataset.initialLatitude);
-        const initialLng = numberOrNull(lngInput?.value || el.dataset.initialLongitude);
-        const hasInitialPin = hasValidCoordinatePair(initialLat, initialLng);
-
-        const map = window.L.map(el, {
-            minZoom: 13,
-            maxZoom: 19,
-            zoomControl: true,
-            preferCanvas: true,
-        }).setView(PAGSANJAN_CENTER, 14);
-        el._locationPickerMap = map;
-
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors',
-        }).addTo(map);
-
-        function ensureMarker(latlng) {
-            if (!marker) {
-                marker = window.L.marker(latlng, {
-                    draggable: true,
-                    icon: verifiedPinIcon,
-                    keyboard: true,
-                    title: 'Verified senior location',
-                }).addTo(map);
-                marker.on('dragend', () => applyPin(marker.getLatLng(), true));
-            } else {
-                marker.setLatLng(latlng);
-            }
-        }
-
-        function markPinTouched() {
-            if (!touchedInput) return;
-            touchedInput.value = '1';
-            touchedInput.dispatchEvent(new Event('input', { bubbles: true }));
-            setLivewireModel(touchedInput, true);
-        }
-
-        function applyPin(latlng, fromMarker = false, markTouched = true) {
-            const isInside = pointInsideBoundary(latlng, boundaryGeoJson);
-
-            if (!isInside) {
-                updateValidity(latInput, lngInput, false);
-                setStatus(statusEl, 'Pin is outside Pagsanjan. Move it inside before saving.', 'error');
-
-                if (fromMarker && marker && lastValidLatLng) {
-                    marker.setLatLng(lastValidLatLng);
-                }
-
-                return false;
-            }
-
-            ensureMarker(latlng);
-            lastValidLatLng = window.L.latLng(latlng.lat, latlng.lng);
-
-            setInputValue(latInput, latlng.lat);
-            setInputValue(lngInput, latlng.lng);
-            if (markTouched) {
-                markPinTouched();
-            }
-
-            updateValidity(latInput, lngInput, true);
-            setStatus(statusEl, 'Verified pin inside Pagsanjan boundary.', 'success');
-
-            return true;
-        }
-
-        if (hasInitialPin) {
-            applyPin(window.L.latLng(initialLat, initialLng), false, false);
-            map.setView([initialLat, initialLng], 17, { animate: false });
-        } else {
-            latInput.value = '';
-            lngInput.value = '';
-            if (touchedInput) {
-                touchedInput.value = '';
-                setLivewireModel(touchedInput, false);
-            }
-            updateValidity(latInput, lngInput, true);
-            setStatus(statusEl, 'Click inside Pagsanjan to set the verified location.');
-        }
-
-        map.on('click', (event) => {
-            if (applyPin(event.latlng)) {
-                map.panTo(event.latlng, { animate: true });
-            }
-        });
-
-        [latInput, lngInput].forEach((input) => {
-            input?.addEventListener('change', () => {
-                const lat = numberOrNull(latInput?.value);
-                const lng = numberOrNull(lngInput?.value);
-                if (hasValidCoordinatePair(lat, lng)) {
-                    applyPin(window.L.latLng(lat, lng));
-                    map.setView([lat, lng], Math.max(map.getZoom(), 16));
-                }
-            });
-        });
-
-        barangaySelect?.addEventListener('change', () => {
-            if (!marker && !boundaryLayer?.getBounds().isValid()) {
-                map.setView(selectedBarangayCenter(barangaySelect), 15, { animate: true });
-            }
-        });
-
-        fetch(el.dataset.boundaryUrl, { headers: { Accept: 'application/json' } })
-            .then((response) => response.ok ? response.json() : null)
-            .then((geoJson) => {
-                if (!geoJson || !Array.isArray(geoJson.features)) return;
-                boundaryGeoJson = geoJson;
-                boundaryLayer = window.L.geoJSON(geoJson, {
-                    style: {
-                        color: '#0f766e',
-                        weight: 2,
-                        opacity: 0.9,
-                        fillOpacity: 0.04,
-                    },
-                }).addTo(map);
-
-                if (boundaryLayer.getBounds().isValid()) {
-                    const boundaryBounds = boundaryLayer.getBounds();
-                    map.setMaxBounds(boundaryBounds.pad(0.3));
-
-                    if (marker) {
-                        const markerBounds = window.L.latLngBounds([marker.getLatLng()]).extend(boundaryBounds);
-                        map.fitBounds(markerBounds.pad(0.05), { maxZoom: 17, animate: false });
-                    } else {
-                        map.fitBounds(boundaryBounds.pad(0.05), { maxZoom: 15, animate: false });
-                    }
-                }
-
-                if (marker) {
-                    applyPin(marker.getLatLng(), true, false);
-                }
-
-                setTimeout(() => map.invalidateSize(), 50);
-            })
-            .catch(() => setStatus(statusEl, 'Boundary could not load. Server validation still runs on save.', 'neutral'));
-
-        requestAnimationFrame(() => map.invalidateSize());
-        setTimeout(() => map.invalidateSize(), 150);
-        setTimeout(() => map.invalidateSize(), 450);
-    }
-
-    function initializeLocationPickers() {
-        document.querySelectorAll('[data-location-picker]').forEach(initializeLocationPicker);
-    }
-
-    document.addEventListener('DOMContentLoaded', initializeLocationPickers);
-    document.addEventListener('livewire:navigated', () => setTimeout(initializeLocationPickers, 0));
-    document.addEventListener('livewire:updated', () => setTimeout(initializeLocationPickers, 0));
-    new MutationObserver(() => initializeLocationPickers()).observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-@endpush
-@endonce
