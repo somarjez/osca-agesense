@@ -487,7 +487,13 @@
 
     function getCanvasRenderer(map) {
         if (!map._gisCanvasRenderer) {
-            map._gisCanvasRenderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
+            const renderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
+            renderer.on('add', () => {
+                if (renderer._container) {
+                    renderer._container.style.pointerEvents = 'none';
+                }
+            });
+            map._gisCanvasRenderer = renderer;
         }
         return map._gisCanvasRenderer;
     }
@@ -3729,6 +3735,20 @@
         return match;
     }
 
+    function openSeniorPopupAt(map, event) {
+        const seniorLayer = visibleSeniorLayerAtClick(map, event);
+        if (!seniorLayer) {
+            return false;
+        }
+
+        seniorLayer.fire('click', {
+            latlng: event.latlng,
+            originalEvent: event.originalEvent,
+        });
+
+        return true;
+    }
+
     async function updateRoadNetworkServices(layer, feature) {
         const popup = layer.getPopup?.();
         if (!popup) return;
@@ -3933,16 +3953,11 @@
 
                 marker.bindPopup(facilityPopupHtml(feature.properties));
                 marker.on('click', (event) => {
-                    const seniorLayer = visibleSeniorLayerAtClick(map, event);
                     if (event?.originalEvent) {
                         window.L.DomEvent.stopPropagation(event.originalEvent);
                     }
 
-                    if (seniorLayer) {
-                        seniorLayer.fire('click', {
-                            latlng: event.latlng,
-                            originalEvent: event.originalEvent,
-                        });
+                    if (openSeniorPopupAt(map, event)) {
                         return;
                     }
 
@@ -4065,7 +4080,7 @@
 
         if (!map.getPane('gis-facility-pane')) {
             map.createPane('gis-facility-pane');
-            map.getPane('gis-facility-pane').style.zIndex = 650;
+            map.getPane('gis-facility-pane').style.zIndex = 610;
         }
 
         if (!map.getPane('gis-senior-pane')) {
@@ -4693,6 +4708,7 @@
         }
 
         const markerClusterLayer = window.L.markerClusterGroup({
+            clusterPane: 'gis-senior-pane',
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
             disableClusteringAtZoom: 16,
@@ -4805,6 +4821,7 @@
         }
 
         const markerClusterLayer = window.L.markerClusterGroup({
+            clusterPane: 'gis-senior-pane',
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
             disableClusteringAtZoom: 16,
@@ -5405,6 +5422,7 @@
             if (showSeniorPoints) {
                 if (shouldClusterMarkers()) {
                     const markerClusterLayer = window.L.markerClusterGroup({
+                        clusterPane: 'gis-senior-pane',
                         showCoverageOnHover: false,
                         spiderfyOnMaxZoom: true,
                         disableClusteringAtZoom: 16,
@@ -5613,6 +5631,9 @@
             refreshMunicipalMask(map);
         }, 150));
         map.on('click', (event) => {
+            if (openSeniorPopupAt(map, event)) {
+                return;
+            }
             openBarangayPopupAt(map, event.latlng);
         });
 
