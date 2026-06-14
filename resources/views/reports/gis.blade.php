@@ -3680,6 +3680,7 @@
     }
 
     function attachSeniorPopup(layer, feature) {
+        layer._gisSeniorFeature = feature;
         layer.bindPopup(popupHtml(feature));
         layer.on('click', (event) => {
             if (event?.originalEvent) {
@@ -3688,6 +3689,44 @@
             layer.openPopup();
         });
         layer.on('popupopen', () => updateRoadNetworkServices(layer, feature));
+    }
+
+    function visibleSeniorLayerAtClick(map, event) {
+        const seniorLayers = map?._gisLayerRegistry?.seniors;
+        const clickPoint = event?.containerPoint
+            ?? (event?.originalEvent ? map.mouseEventToContainerPoint(event.originalEvent) : null)
+            ?? (event?.latlng ? map.latLngToContainerPoint(event.latlng) : null);
+
+        if (!seniorLayers || !clickPoint) {
+            return null;
+        }
+
+        let match = null;
+
+        const inspectLayer = (layer) => {
+            if (!layer || match) {
+                return;
+            }
+
+            if (layer._gisSeniorFeature && map.hasLayer(layer) && typeof layer.getLatLng === 'function') {
+                const markerPoint = map.latLngToContainerPoint(layer.getLatLng());
+                const radius = Number(layer.getRadius?.() ?? 7);
+                const hitRadius = Math.max(radius + 2, 9);
+
+                if (clickPoint.distanceTo(markerPoint) <= hitRadius) {
+                    match = layer;
+                    return;
+                }
+            }
+
+            if (typeof layer.eachLayer === 'function') {
+                layer.eachLayer(inspectLayer);
+            }
+        };
+
+        seniorLayers.eachLayer(inspectLayer);
+
+        return match;
     }
 
     async function updateRoadNetworkServices(layer, feature) {
@@ -3882,7 +3921,7 @@
         }
     }
 
-    function buildFacilityLayer(featureCollection) {
+    function buildFacilityLayer(map, featureCollection) {
         return window.L.geoJSON(featureCollection, {
             pointToLayer(feature, latlng) {
                 const marker = window.L.marker(latlng, {
@@ -3894,9 +3933,19 @@
 
                 marker.bindPopup(facilityPopupHtml(feature.properties));
                 marker.on('click', (event) => {
+                    const seniorLayer = visibleSeniorLayerAtClick(map, event);
                     if (event?.originalEvent) {
                         window.L.DomEvent.stopPropagation(event.originalEvent);
                     }
+
+                    if (seniorLayer) {
+                        seniorLayer.fire('click', {
+                            latlng: event.latlng,
+                            originalEvent: event.originalEvent,
+                        });
+                        return;
+                    }
+
                     marker.openPopup();
                 });
 
@@ -4016,7 +4065,7 @@
 
         if (!map.getPane('gis-facility-pane')) {
             map.createPane('gis-facility-pane');
-            map.getPane('gis-facility-pane').style.zIndex = 610;
+            map.getPane('gis-facility-pane').style.zIndex = 650;
         }
 
         if (!map.getPane('gis-senior-pane')) {
@@ -5302,7 +5351,7 @@
             return;
         }
 
-        const facilityLayer = buildFacilityLayer(facilityCollection);
+        const facilityLayer = buildFacilityLayer(map, facilityCollection);
         if (facilityGeoJson?.features?.length) {
             layers.facilities.addLayer(facilityLayer);
         }

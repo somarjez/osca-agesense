@@ -56,13 +56,16 @@ class Batch4GisAnalyticsTest extends TestCase
     }
 
     #[Test]
-    public function facility_markers_stay_below_senior_markers_and_escape_popup_fields(): void
+    public function facility_markers_remain_clickable_and_delegate_true_overlaps_to_seniors(): void
     {
         $this->actingAs($this->admin)
             ->get(route('reports.gis'))
             ->assertOk()
-            ->assertSee("map.getPane('gis-facility-pane').style.zIndex = 610;", false)
+            ->assertSee("map.getPane('gis-facility-pane').style.zIndex = 650;", false)
             ->assertSee("map.getPane('gis-senior-pane').style.zIndex = 620;", false)
+            ->assertSee('function visibleSeniorLayerAtClick(map, event)', false)
+            ->assertSee('const seniorLayer = visibleSeniorLayerAtClick(map, event);', false)
+            ->assertSee("seniorLayer.fire('click'", false)
             ->assertSee("const name = escapeHtml(p.name ?? 'N/A');", false)
             ->assertSee("const type = escapeHtml(p.type ?? 'N/A');", false)
             ->assertSee("const barangay = escapeHtml(p.barangay ?? 'N/A');", false)
