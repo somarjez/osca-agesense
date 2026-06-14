@@ -1196,6 +1196,28 @@ class GisApiController extends Controller
 
     private function accessibilityDistanceFacilities()
     {
+        $geoJsonFeatures = $this->facilityGeoJsonFeatures();
+
+        if ($geoJsonFeatures !== null) {
+            return collect($geoJsonFeatures)
+                ->map(function (array $feature) {
+                    $properties = $feature['properties'] ?? [];
+                    $coordinates = $feature['geometry']['coordinates'] ?? [];
+
+                    return (object) [
+                        'id' => null,
+                        'name' => (string) ($properties['name'] ?? 'Unnamed Facility'),
+                        'type' => (string) ($properties['type'] ?? 'Community Facility'),
+                        'latitude' => isset($coordinates[1]) ? (float) $coordinates[1] : null,
+                        'longitude' => isset($coordinates[0]) ? (float) $coordinates[0] : null,
+                    ];
+                })
+                ->filter(fn (object $facility) => $facility->latitude !== null
+                    && $facility->longitude !== null
+                    && $this->isAccessibilityDistanceFacility($facility))
+                ->values();
+        }
+
         return Facility::query()
             ->where('is_active', true)
             ->whereNotNull('latitude')
@@ -1205,7 +1227,7 @@ class GisApiController extends Controller
             ->values();
     }
 
-    private function isAccessibilityDistanceFacility(Facility $facility): bool
+    private function isAccessibilityDistanceFacility(object $facility): bool
     {
         $text = strtolower(trim($facility->type.' '.$facility->name));
 
