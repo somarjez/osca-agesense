@@ -399,6 +399,25 @@
         ['public market', 'market', 'transport hub', 'terminal'],
         ['church', 'chapel'],
     ];
+    const FACILITY_TYPE_COLORS = {
+        'Health Center': '#16a34a',
+        'Hospital': '#dc2626',
+        'Pharmacy': '#7c3aed',
+        'Senior Center': '#0f766e',
+        'Barangay Hall': '#2563eb',
+        'Municipal Hall': '#1d4ed8',
+        'Government Office': '#64748b',
+        'Police Station': '#1e3a8a',
+        'Fire Station': '#ea580c',
+        'Public Market': '#ca8a04',
+        'Supermarket': '#f59e0b',
+        'Community Store': '#84cc16',
+        'Food Service': '#db2777',
+        'Church': '#9333ea',
+        'Emergency Service': '#f97316',
+        'Community Facility': '#0891b2',
+    };
+    const DEFAULT_FACILITY_COLOR = '#0284c7';
     const routeDistanceCache = new Map();
     const warnedInvalidClusterValues = new Set();
 
@@ -747,7 +766,7 @@
                     <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
                     <span>Higher count</span>
                 </span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[3px] bg-sky-600 inline-block rotate-45"></span>Facility</span>
+                ${facilityLegendHtml()}
                 ${boundaryLegend}
             `;
             return;
@@ -788,7 +807,7 @@
                     <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
                         ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest health group color without blending groups. Markers show the actual senior health group.'
                         : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
+                    ${facilityLegendHtml()}
                     ${boundaryLegend}
                 `;
                 return;
@@ -805,7 +824,7 @@
                     <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:${gradient};"></span>
                     <span>${heatmapLabel[2]}</span>
                 </span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
+                ${facilityLegendHtml()}
                 ${boundaryLegend}
                 ${riskDotNote}
             `;
@@ -816,9 +835,44 @@
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Low</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>Moderate</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>High</span>
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>Facilities</span>
+            ${facilityLegendHtml()}
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>Outer Zone</span>
             ${boundaryLegend}
+        `;
+    }
+
+    function facilityType(featureOrProperties) {
+        const properties = featureOrProperties?.properties ?? featureOrProperties ?? {};
+        const value = String(properties.type || 'Community Facility').trim();
+
+        return value || 'Community Facility';
+    }
+
+    function facilityColor(typeOrFeature) {
+        const type = typeof typeOrFeature === 'string' ? typeOrFeature : facilityType(typeOrFeature);
+
+        return FACILITY_TYPE_COLORS[type] ?? DEFAULT_FACILITY_COLOR;
+    }
+
+    function facilityLegendHtml() {
+        const features = latestFacilityGeoJson?.features || [];
+        const types = [...new Set(features.map((feature) => facilityType(feature)))]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+
+        if (!types.length) {
+            return `<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[3px] bg-sky-600 inline-block rotate-45"></span>Facilities</span>`;
+        }
+
+        const items = types.map((type) => `
+            <span class="inline-flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-[3px] inline-block rotate-45 border border-white/80" style="background:${facilityColor(type)};"></span>${escapeHtml(type)}
+            </span>
+        `).join('');
+
+        return `
+            <span class="inline-flex items-center gap-1.5 font-semibold text-ink-700 dark:text-[#b0b5b2]">Facilities:</span>
+            ${items}
         `;
     }
 
@@ -3561,10 +3615,10 @@
         return { overlayGroup, pointLayer };
     }
 
-    function createFacilityIcon() {
+    function createFacilityIcon(color = DEFAULT_FACILITY_COLOR) {
         return window.L.divIcon({
             className: 'gis-facility-icon',
-            html: `<span style="display:block;width:16px;height:16px;border-radius:4px;background:#0284c7;border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);transform:rotate(45deg);"></span>`,
+            html: `<span style="display:block;width:16px;height:16px;border-radius:4px;background:${color};border:2px solid #ffffff;box-shadow:0 4px 10px rgba(15,23,42,0.18);transform:rotate(45deg);"></span>`,
             iconSize: [16, 16],
             iconAnchor: [8, 8],
             popupAnchor: [0, -8],
@@ -3811,12 +3865,19 @@
         return window.L.geoJSON(featureCollection, {
             pointToLayer(feature, latlng) {
                 const marker = window.L.marker(latlng, {
-                    icon: createFacilityIcon(),
+                    icon: createFacilityIcon(facilityColor(feature)),
                     keyboard: false,
+                    riseOnHover: true,
                     pane: 'gis-facility-pane',
                 });
 
                 marker.bindPopup(facilityPopupHtml(feature.properties));
+                marker.on('click', (event) => {
+                    if (event?.originalEvent) {
+                        window.L.DomEvent.stopPropagation(event.originalEvent);
+                    }
+                    marker.openPopup();
+                });
 
                 return marker;
             },
@@ -3934,7 +3995,7 @@
 
         if (!map.getPane('gis-facility-pane')) {
             map.createPane('gis-facility-pane');
-            map.getPane('gis-facility-pane').style.zIndex = 610;
+            map.getPane('gis-facility-pane').style.zIndex = 650;
         }
 
         if (!map.getPane('gis-senior-pane')) {
