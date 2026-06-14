@@ -50,6 +50,24 @@ class ImportOsmFacilitiesTest extends TestCase
     }
 
     #[Test]
+    public function facilities_table_accepts_long_osm_identifiers(): void
+    {
+        $osmId = 'relation:'.str_repeat('9', 32);
+
+        $facility = Facility::create([
+            'osm_id' => $osmId,
+            'name' => 'Long OSM Identifier Facility',
+            'type' => 'Community Facility',
+            'latitude' => 14.273,
+            'longitude' => 121.455,
+            'source' => 'openstreetmap',
+            'is_active' => true,
+        ]);
+
+        $this->assertSame($osmId, $facility->fresh()->osm_id);
+    }
+
+    #[Test]
     public function command_imports_hospital_node_from_overpass(): void
     {
         Http::fake([

@@ -54,4 +54,18 @@ class Batch4GisAnalyticsTest extends TestCase
             ->assertSee('C3 · Environmentally and Financially Vulnerable Seniors')
             ->assertSee('C4 · Low Functioning / Multi-Domain Priority Seniors');
     }
+
+    #[Test]
+    public function facility_markers_stay_below_senior_markers_and_escape_popup_fields(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('reports.gis'))
+            ->assertOk()
+            ->assertSee("map.getPane('gis-facility-pane').style.zIndex = 610;", false)
+            ->assertSee("map.getPane('gis-senior-pane').style.zIndex = 620;", false)
+            ->assertSee("const name = escapeHtml(p.name ?? 'N/A');", false)
+            ->assertSee("const type = escapeHtml(p.type ?? 'N/A');", false)
+            ->assertSee("const barangay = escapeHtml(p.barangay ?? 'N/A');", false)
+            ->assertSee("const source = escapeHtml(p.source ?? 'N/A');", false);
+    }
 }

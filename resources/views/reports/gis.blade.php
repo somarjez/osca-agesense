@@ -3841,12 +3841,17 @@
 
     function facilityPopupHtml(properties) {
         const p = properties || {};
+        const name = escapeHtml(p.name ?? 'N/A');
+        const type = escapeHtml(p.type ?? 'N/A');
+        const barangay = escapeHtml(p.barangay ?? 'N/A');
+        const source = escapeHtml(p.source ?? 'N/A');
+
         return `
             <div class="space-y-1 text-[12px] leading-snug">
-                <div><strong>Facility:</strong> ${p.name ?? 'N/A'}</div>
-                <div><strong>Type:</strong> ${p.type ?? 'N/A'}</div>
-                <div><strong>Barangay:</strong> ${p.barangay ?? 'N/A'}</div>
-                <div><strong>Source:</strong> ${p.source ?? 'N/A'}</div>
+                <div><strong>Facility:</strong> ${name}</div>
+                <div><strong>Type:</strong> ${type}</div>
+                <div><strong>Barangay:</strong> ${barangay}</div>
+                <div><strong>Source:</strong> ${source}</div>
             </div>
         `;
     }
@@ -4011,7 +4016,7 @@
 
         if (!map.getPane('gis-facility-pane')) {
             map.createPane('gis-facility-pane');
-            map.getPane('gis-facility-pane').style.zIndex = 650;
+            map.getPane('gis-facility-pane').style.zIndex = 610;
         }
 
         if (!map.getPane('gis-senior-pane')) {
