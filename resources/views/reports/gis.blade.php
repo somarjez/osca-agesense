@@ -3619,6 +3619,10 @@
                     : riskColor(feature.properties?.risk_level);
 
                 return window.L.circleMarker(latlng, {
+                    // Share the senior canvas (pointer-events:none) so zone dots
+                    // stay click-through; clicks are dispatched via openSeniorPopupAt
+                    // and facility markers underneath remain clickable.
+                    renderer: getCanvasRenderer(map),
                     radius: 8,
                     fillColor: color,
                     color: '#ffffff',
@@ -3708,9 +3712,10 @@
         }
 
         let match = null;
+        let bestDistance = Infinity;
 
         const inspectLayer = (layer) => {
-            if (!layer || match) {
+            if (!layer) {
                 return;
             }
 
@@ -3718,10 +3723,11 @@
                 const markerPoint = map.latLngToContainerPoint(layer.getLatLng());
                 const radius = Number(layer.getRadius?.() ?? 7);
                 const hitRadius = Math.max(radius + 2, 9);
+                const distance = clickPoint.distanceTo(markerPoint);
 
-                if (clickPoint.distanceTo(markerPoint) <= hitRadius) {
+                if (distance <= hitRadius && distance < bestDistance) {
+                    bestDistance = distance;
                     match = layer;
-                    return;
                 }
             }
 
