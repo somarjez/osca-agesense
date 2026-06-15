@@ -3948,13 +3948,16 @@
     }
 
     function buildFacilityLayer(map, featureCollection) {
-        return window.L.geoJSON(featureCollection, {
+        const markerLayer = window.L.geoJSON(featureCollection, {
             pointToLayer(feature, latlng) {
                 const marker = window.L.marker(latlng, {
                     icon: createFacilityIcon(facilityColor(feature)),
                     keyboard: false,
                     riseOnHover: true,
                     pane: 'gis-facility-pane',
+                    // Recorded so the cluster bubble can be toned by the
+                    // dominant facility category among its children.
+                    gisFacilityType: facilityType(feature),
                 });
 
                 marker.bindPopup(facilityPopupHtml(feature.properties));
@@ -3973,6 +3976,37 @@
                 return marker;
             },
         });
+
+        // Cluster the 150+ facility diamonds so only a handful of DOM nodes
+        // render when zoomed/panned out, and markercluster culls markers
+        // outside the viewport (removeOutsideVisibleBounds) when zoomed in.
+        // Individual diamonds reappear at zoom >= 16, matching senior markers.
+        const clusterLayer = window.L.markerClusterGroup({
+            clusterPane: 'gis-facility-pane',
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+            maxClusterRadius: 28,
+            iconCreateFunction(cluster) {
+                const counts = new Map();
+
+                cluster.getAllChildMarkers().forEach((marker) => {
+                    const type = marker.options.gisFacilityType;
+                    if (!type) return;
+
+                    counts.set(type, (counts.get(type) ?? 0) + 1);
+                });
+
+                const majority = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+                const tone = majority ? facilityColor(majority[0]) : DEFAULT_FACILITY_COLOR;
+
+                return makeFacilityClusterDivIcon(tone, cluster.getChildCount());
+            },
+        });
+
+        clusterLayer.addLayer(markerLayer);
+
+        return clusterLayer;
     }
 
     function boundaryLabel(properties) {
@@ -4675,6 +4709,16 @@
             html: `<div style="background:${tone};color:#fff;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 8px 18px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${count}</div>`,
             className: 'gis-cluster-icon',
             iconSize: [34, 34],
+        });
+    }
+
+    function makeFacilityClusterDivIcon(tone, count) {
+        // Squared bubble (vs. the circular senior cluster) so facility clusters
+        // read as facilities at a glance; tone = majority facility category color.
+        return window.L.divIcon({
+            html: `<div style="background:${tone};color:#fff;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.95);box-shadow:0 6px 14px rgba(15,23,42,0.18);font-size:11px;font-weight:700;">${count}</div>`,
+            className: 'gis-facility-cluster-icon',
+            iconSize: [32, 32],
         });
     }
 
