@@ -960,15 +960,19 @@
 @push('scripts')
 <script>
 (function () {
+    let leafletWaitAttempts = 0;
+    const LEAFLET_MAX_ATTEMPTS = 40; // ~2s of 50ms polls, then give up
     function initSeniorMiniMap() {
         const el = document.getElementById('senior-mini-map');
         const dataEl = document.getElementById('senior-map-data');
         if (!el || !dataEl) return;
         if (el._leaflet_id) return;            // already initialized on this element
         if (!window.L) {                       // app.js (deferred module) hasn't run yet
+            if (leafletWaitAttempts++ >= LEAFLET_MAX_ATTEMPTS) return; // Leaflet failed to load
             setTimeout(initSeniorMiniMap, 50); // retry once Leaflet is on window
             return;
         }
+        leafletWaitAttempts = 0;               // reset so a later re-init can wait again
 
         let data;
         try { data = JSON.parse(dataEl.textContent); } catch (e) { return; }

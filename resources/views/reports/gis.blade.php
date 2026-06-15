@@ -713,9 +713,16 @@
 
     // Toggle the map loading overlay. Shown while the initial GIS layers load so
     // the bare basemap doesn't flash; faded out once the data layers are rendered.
+    let mapLoadingHideTimer = null;
     function setMapLoading(isLoading) {
         const overlay = document.getElementById('gis-map-loading');
         if (!overlay) return;
+        // Cancel any in-flight fade-out so a re-show can't be clobbered by a stale
+        // hide timer (two renderMap() calls within the fade window).
+        if (mapLoadingHideTimer !== null) {
+            window.clearTimeout(mapLoadingHideTimer);
+            mapLoadingHideTimer = null;
+        }
         if (isLoading) {
             overlay.style.display = 'flex';
             void overlay.offsetWidth; // reflow so opacity transitions back in on re-show
@@ -725,7 +732,10 @@
             overlay.style.opacity = '0';
             overlay.style.pointerEvents = 'none';
             const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            window.setTimeout(() => { overlay.style.display = 'none'; }, reduce ? 0 : 320);
+            mapLoadingHideTimer = window.setTimeout(() => {
+                overlay.style.display = 'none';
+                mapLoadingHideTimer = null;
+            }, reduce ? 0 : 320);
         }
     }
 
