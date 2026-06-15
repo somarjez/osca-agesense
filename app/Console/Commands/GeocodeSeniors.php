@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\SeniorCitizen;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 
 class GeocodeSeniors extends Command
@@ -12,7 +13,8 @@ class GeocodeSeniors extends Command
         {--dry-run : Preview changes without saving}
         {--barangay= : Process only one barangay}
         {--force : Rebuild only non-verified generated coordinates}
-        {--limit= : Limit records processed for testing}';
+        {--limit= : Limit records processed for testing}
+        {--skip-recompute : Do not recompute proximity scores / route cache after geocoding}';
 
     protected $description = 'Assign privacy-safe barangay-level approximate coordinates to seniors missing GIS coordinates.';
 
@@ -156,6 +158,21 @@ class GeocodeSeniors extends Command
         }
 
         $this->line('Generated coordinates are barangay-level approximations only. No records were marked verified.');
+
+        // Keep the accessibility data aligned with the new coordinates. Proximity
+        // scoring is local and quick, so run it inline; the ORS route cache is the
+        // slow, rate-limited part, so queue it to run in the background. The route
+        // cache is freshness-aware, so moved seniors are recomputed automatically.
+        if (! $dryRun && ! $this->option('skip-recompute') && $stats['updated'] > 0) {
+            $this->newLine();
+            $this->info('Recomputing accessibility (proximity) scores for the updated coordinates…');
+            $this->call('gis:score-proximity', array_filter([
+                '--barangay' => $barangay,
+            ]));
+
+            $this->info('Queuing ORS route-distance recompute (runs in the background)…');
+            Artisan::queue('gis:cache-route-distances');
+        }
 
         return self::SUCCESS;
     }

@@ -54,6 +54,17 @@ Generated points are validated against the Pagsanjan municipal boundary. When a
 barangay polygon is available, generated points are also validated against the
 assigned barangay polygon.
 
+## Recompute chain (keeps accessibility data aligned)
+
+When the command changes any coordinates (and is not `--dry-run` / `--skip-recompute`), it then keeps the dependent GIS data in sync automatically:
+
+1. Runs `gis:score-proximity` inline (local, fast) so accessibility scores follow the new coordinates.
+2. Queues `gis:cache-route-distances` so road-network route distances are recomputed in the background (the route cache is freshness-aware, so moved seniors are re-routed without `--force`).
+
+Notes:
+- A **queue worker** must be running for the queued route recompute to execute, and it must be restarted after code changes (`php artisan queue:restart`) or it runs stale code.
+- If 0 seniors needed coordinates, nothing is recomputed.
+
 ## Options
 
 ```bash
@@ -61,12 +72,14 @@ php artisan gis:geocode --dry-run
 php artisan gis:geocode --barangay=Cabanbanan
 php artisan gis:geocode --limit=25
 php artisan gis:geocode --force
+php artisan gis:geocode --skip-recompute
 ```
 
 - `--dry-run` previews how many records would be updated.
 - `--barangay=` processes one barangay.
 - `--limit=` limits records for testing.
 - `--force` rebuilds only non-verified/generated coordinates.
+- `--skip-recompute` geocodes only, without the proximity/route recompute chain.
 
 ## Exact Coordinates
 

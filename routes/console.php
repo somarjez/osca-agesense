@@ -12,3 +12,20 @@ Artisan::command('inspire', function () {
 Schedule::command('osca:snapshot-clusters')
     ->dailyAt('23:55')
     ->appendOutputTo(storage_path('logs/snapshot.log'));
+
+// Daily GIS road-route backfill (03:30) — caches ORS road distances for the
+// nearest facility per type. It resumes where it left off (skips fresh-cached
+// pairs) and self-limits, so coverage completes over a few days within the ORS
+// free-tier daily quota without manual re-runs. withoutOverlapping guards against
+// a slow run still going when the next fires.
+Schedule::command('gis:cache-route-distances --facilities=12')
+    ->dailyAt('03:30')
+    ->withoutOverlapping(120)
+    ->appendOutputTo(storage_path('logs/gis-route-cache.log'));
+
+// After the backfill, refresh accessibility scores so newly-cached seniors flip
+// from straight-line to road-based distance (local, fast).
+Schedule::command('gis:score-proximity')
+    ->dailyAt('05:00')
+    ->withoutOverlapping(30)
+    ->appendOutputTo(storage_path('logs/gis-score.log'));

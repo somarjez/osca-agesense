@@ -129,6 +129,7 @@ php artisan gis:geocode --dry-run
 php artisan gis:geocode --barangay=Cabanbanan
 php artisan gis:geocode --limit=25
 php artisan gis:geocode --force
+php artisan gis:geocode --skip-recompute
 ```
 
 Important behavior:
@@ -138,6 +139,7 @@ Important behavior:
 - Points are validated against barangay and municipal boundaries.
 - A status file is written to `storage/app/gis/geocode_status.json`.
 - Generated locations are marked as approximate, not verified.
+- **Recompute chain:** when it changes any coordinates, the command then runs `gis:score-proximity` inline and queues `gis:cache-route-distances`, so accessibility scores and road-route distances follow the new coordinates automatically. `--skip-recompute` disables this. A queue worker must be running for the queued route recompute (and must be restarted after code changes — see Deployment notes).
 
 ### 6. Manual Location Pin in Profile Survey — Removed
 
@@ -164,6 +166,8 @@ Facility categories used in scoring:
 - Barangay hall.
 
 The score is stored as a 0 to 1 accessibility score. Higher values indicate better access based on proximity to nearby facilities. The GIS page displays this as a percentage-style GIS proximity score.
+
+**Road-network distance.** The score uses the cached OpenRouteService **road-network distance** to each category's nearest facility (when a coordinate-fresh route is cached), falling back to **straight-line** distance where a route isn't cached yet. This makes the score reflect real travel distance and stay consistent with the "X min drive" routes shown on the profile and map. The `distance_to_*_m` columns still record the straight-line distance. Because road distance ≥ straight-line, scores are slightly more conservative than before. Re-run the command after the route cache grows to upgrade more seniors from straight-line to road-based. It is a deterministic formula, not a machine-learning model.
 
 Supported options:
 
@@ -199,14 +203,15 @@ Command:
 php artisan gis:cache-route-distances
 ```
 
-This command precomputes road-network route distances from senior points to nearby senior-relevant facilities.
+This command precomputes road-network route distances from senior points to nearby senior-relevant facilities. It caches the **nearest facility of each type** per senior (the same per-type set the profile panel and map popup display, so cached pairs match what's shown). Default `--facilities=12`.
 
 Useful options:
 
 ```text
 php artisan gis:cache-route-distances --dry-run
 php artisan gis:cache-route-distances --seniors=50
-php artisan gis:cache-route-distances --facilities=5
+php artisan gis:cache-route-distances --senior-id=123
+php artisan gis:cache-route-distances --facilities=12
 php artisan gis:cache-route-distances --max-requests=1500
 php artisan gis:cache-route-distances --force
 ```
@@ -216,8 +221,11 @@ The command includes safeguards for external API use:
 - Request limits.
 - Sleep delay between requests.
 - Rate-limit stopping behavior.
-- Cached route skipping.
+- **Freshness-aware** cached route skipping — a cached route is only skipped if its stored endpoints still match the senior's and facility's current coordinates, so a geocode that moves a senior re-routes it automatically (no `--force`).
 - Permanent route failure storage.
+- Dedicated **patient ORS timeouts** for the batch (`services.openrouteservice.batch_*`: 15s connect / 40s / 2 retries), independent of the live popup's short timeouts, so the free tier's variable latency doesn't fall back to OSRM.
+
+Full coverage (≈283 seniors × ~9 types ≈ 2,500 pairs) exceeds the ORS free-tier daily quota (~2,000), so it takes a few re-runs; each run resumes where it left off. It is also queued automatically after a `gis:geocode` that changes coordinates.
 
 ### 10. GIS Export
 
@@ -314,9 +322,9 @@ Key privacy protections:
 
 | Command | Purpose |
 | --- | --- |
-| `php artisan gis:geocode` | Assign approximate barangay-level coordinates |
-| `php artisan gis:score-proximity` | Calculate nearest facility distances and accessibility scores |
-| `php artisan gis:cache-route-distances` | Precompute road-route distances to nearby facilities |
+| `php artisan gis:geocode` | Assign approximate barangay-level coordinates; auto-recompute scores/routes when coordinates change |
+| `php artisan gis:score-proximity` | Calculate accessibility scores using cached road-network distance (falling back to straight-line) |
+| `php artisan gis:cache-route-distances` | Precompute road-route distances to the nearest facility of each type per senior |
 | `php artisan facilities:sync-geojson` | Synchronize the committed 155-record facility dataset into the database |
 | `php artisan facilities:import-osm` | Import real facility coordinates from OpenStreetMap and supersede approximate seeded facilities |
 
@@ -373,7 +381,9 @@ The following files were changed on the GIS branch compared with `origin/main`.
 
 | File | Change Description |
 | --- | --- |
-| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. |
+| `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. The senior popup lists the nearest facility **per type** (live-routing the nearest ~5, straight-line for the rest) and shows a loading overlay until layers render. |
+| `resources/views/seniors/show.blade.php` | Senior profile: full-width Location & Accessibility card (mini-map beside facility-access score + nearest-per-type facility list), segmented section selector, and the mini-map init fix (waits for `DOMContentLoaded` so Leaflet is loaded). |
+| `app/Http/Controllers/SeniorCitizenController.php` | `locationPanel()` builds the profile's Location & Accessibility view-model: nearest facility per senior-relevant type by local haversine, with cached ORS road routes where fresh. Zero live routing calls. |
 | `resources/views/livewire/surveys/profile-survey.blade.php` | Added (then later **removed**) the manual location pin UI, map interaction, boundary validation, and coordinate capture fields. The picker is no longer part of the form. |
 | `resources/js/app.js` | Updated frontend bootstrap/import behavior to support GIS page assets/plugins. |
 

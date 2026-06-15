@@ -14,11 +14,12 @@ The GIS module gives OSCA staff an interactive Pagsanjan map showing senior dist
 | File | Role |
 |---|---|
 | `app/Http/Controllers/GisApiController.php` | Serves all 5 `/api/gis/*` JSON endpoints |
-| `app/Console/Commands/GeocodeSeniors.php` | Step 1 — assign barangay-level coordinates to seniors |
-| `app/Console/Commands/ScoreGisProximity.php` | Step 2 — calculate accessibility scores from coordinates to nearby facilities |
-| `app/Console/Commands/CacheGisRouteDistances.php` | Step 3 — precompute ORS road-network route distances for senior popups |
+| `app/Console/Commands/GeocodeSeniors.php` | Step 1 — assign barangay-level coordinates; auto-chains Steps 2 & 3 when coordinates change |
+| `app/Console/Commands/ScoreGisProximity.php` | Step 2 — accessibility scores using **road-network distance** (cached ORS, falling back to straight-line) |
+| `app/Console/Commands/CacheGisRouteDistances.php` | Step 3 — precompute ORS road-network distances for the **nearest facility per type** per senior |
 | `resources/views/reports/gis.blade.php` | The Leaflet map UI (~4800 lines, inline JS) |
-| `app/Livewire/Surveys/ProfileSurvey.php` | GPS pin capture and manual location in the senior profile survey |
+| `app/Http/Controllers/SeniorCitizenController.php` | `locationPanel()` builds the profile "Location & Accessibility" card (nearest facility per type, cached ORS routes) |
+| `resources/views/seniors/show.blade.php` | Senior profile incl. the full-width Location & Accessibility card + mini-map |
 | `storage/app/gis/boundaries/` | GeoJSON boundary files (barangays + municipal boundary) |
 | `storage/app/certs/cacert.pem` | Optional CA bundle for ORS SSL — only used if `OPENROUTESERVICE_CA_BUNDLE` is set |
 
@@ -28,11 +29,18 @@ The GIS module gives OSCA staff an interactive Pagsanjan map showing senior dist
 
 ```
 1. gis:geocode          → assigns lat/lng to seniors (barangay centroid)
-2. gis:score-proximity  → writes SeniorAccessibilityMetric rows
+2. gis:score-proximity  → writes SeniorAccessibilityMetric rows (road-distance aware)
 3. gis:cache-route-distances → writes SeniorFacilityRouteDistance rows (requires ORS API key)
 ```
 
 Each step is idempotent. Steps 1 and 2 are safe to re-run at any time. Step 3 calls an external API and burns quota — use `--dry-run` first.
+
+**Auto-chaining:** `gis:geocode` now runs Steps 2 and 3 itself whenever it changes any coordinates — it runs `gis:score-proximity` inline (local, fast) and **queues** `gis:cache-route-distances` (the throttled ORS part). So a geocode keeps the accessibility data aligned automatically. Opt out with `gis:geocode --skip-recompute`. **A queue worker must be running** for the queued route recompute to execute, and the worker must be **restarted after code changes** (`php artisan queue:restart`) or it runs stale code (see Gotchas).
+
+**Where computation happens:**
+- *Profile page* — never calls ORS live. It ranks the nearest facility per senior-relevant type by local haversine and shows the **cached** ORS road route where fresh, else straight-line.
+- *Map popup* — for the nearest ~5 it calls the `route-distance` endpoint (cache-first; live ORS on a miss, then persists); the rest of the listed types show straight-line.
+- *Bulk precompute* (`gis:cache-route-distances`) — the only step that fills road routes for everyone.
 
 ---
 
@@ -57,7 +65,12 @@ php artisan gis:geocode --barangay="Poblacion 1"
 
 # Limit rows for testing
 php artisan gis:geocode --dry-run --limit=10
+
+# Geocode only, skip the proximity/route recompute chain
+php artisan gis:geocode --skip-recompute
 ```
+
+When it changes any coordinates (and not `--dry-run` / `--skip-recompute`), it then runs `gis:score-proximity` inline and queues `gis:cache-route-distances` so accessibility data follows the new coordinates. If 0 seniors needed coordinates, nothing is recomputed.
 
 Expected output columns: `Total seniors checked`, `Seniors updated`, `Skipped because already verified`, `Skipped because existing coordinates are present`.
 
@@ -71,7 +84,7 @@ php artisan gis:geocode --dry-run
 
 ### Step 2 — `gis:score-proximity`
 
-Calculates accessibility scores (0.0–1.0) from each geocoded senior to the 5 nearest facility categories. Writes to `senior_accessibility_metrics`. No external API calls.
+Calculates accessibility scores (0.0–1.0) from each geocoded senior to the 5 facility categories (health center, hospital, pharmacy, market, barangay hall). Writes to `senior_accessibility_metrics`. No external API calls of its own — it **reads the cached ORS road-network distance** for each category's nearest facility (coordinate-fresh) and uses that in the score, **falling back to straight-line** where a route isn't cached yet. So the % reflects real travel distance and stays consistent with the routes shown on the profile/map. (The `distance_to_*_m` columns still record the straight-line distance.) Run it again after the route cache grows to upgrade more seniors from straight-line to road-based.
 
 ```bash
 # Preview scores without saving
@@ -93,7 +106,9 @@ Score interpretation: 1.0 = perfectly close to all facility types; 0.0 = at or b
 
 ### Step 3 — `gis:cache-route-distances`
 
-Calls OpenRouteService (ORS) API to precompute road-network distances for senior popup accessibility panels. **Requires `OPENROUTESERVICE_API_KEY` in `.env`** (and `php artisan config:clear` after adding it).
+Calls OpenRouteService (ORS) API to precompute road-network distances. It caches the **nearest facility of each type** per senior (the same set the profile panel and map popup display, so the cached pairs match what's shown), ordered by distance. **Requires `OPENROUTESERVICE_API_KEY` in `.env`** (and `php artisan config:clear` after adding it).
+
+The skip-check is **freshness-aware**: a cached route counts as present only if its stored endpoints still match the senior's and facility's current coordinates. So after a geocode moves a senior, its stale routes are recomputed automatically — no `--force` needed. The run resumes where it left off (re-run to continue after hitting a cap/quota).
 
 ```bash
 # Always dry-run first to see how many ORS requests will be needed
@@ -102,8 +117,11 @@ php artisan gis:cache-route-distances --dry-run
 # Limited run (test with 5 seniors)
 php artisan gis:cache-route-distances --seniors=5 --sleep-ms=1000
 
-# Production run (default: 1500 max requests, 2500ms sleep)
-php artisan gis:cache-route-distances
+# Production run (default: --facilities=12, 1500 max requests, 2500ms sleep)
+php artisan gis:cache-route-distances --facilities=12
+
+# Recompute one senior (used by the geocode auto-chain)
+php artisan gis:cache-route-distances --senior-id=42
 
 # Re-cache everything (overwrites cached pairs)
 php artisan gis:cache-route-distances --force
@@ -113,14 +131,15 @@ Key flags:
 | Flag | Default | Meaning |
 |---|---|---|
 | `--seniors=N` | all | Max seniors to process |
-| `--facilities=N` | 5 | Nearby facilities per senior |
+| `--senior-id=N` | — | Cache a single senior only (post-geocode recompute) |
+| `--facilities=N` | 12 | Nearest facilities (per type) to cache per senior |
 | `--max-requests=N` | 1500 | ORS request cap for this run |
 | `--stop-after-rate-limits=N` | 1 | Stop after N rate-limit (429) or auth (401/403) errors |
 | `--sleep-ms=N` | 2500 | Delay between ORS requests (ms) |
 | `--dry-run` | false | Count pairs without calling ORS |
 | `--force` | false | Recalculate existing cached pairs |
 
-ORS free tier: **2000 requests/day**. Check remaining quota before large runs.
+The batch uses its own **patient ORS timeouts** (`services.openrouteservice.batch_*`: 15s connect / 40s / 2 retries) so the free tier's variable latency doesn't time out into the OSRM fallback; the live popup keeps short timeouts. ORS free tier: **2000 requests/day**. Full coverage (≈283 seniors × ~9 types ≈ 2,500 pairs) exceeds the daily quota, so it takes a few re-runs (it resumes automatically).
 
 ---
 
@@ -159,7 +178,13 @@ All 5 endpoints require authentication (`auth` + `role:admin,encoder,viewer`). T
 After adding/changing `OPENROUTESERVICE_API_KEY` in `.env`, always run `php artisan config:clear` (or `php artisan config:cache`) to pick up the new value. Using `env()` directly in PHP code does not work after config caching.
 
 **ORS free-tier quota**
-The free tier allows ~2000 requests/day. One full run for all 283 seniors × 5 facilities = up to 1415 requests. Use `--dry-run` to count before running. Set `--max-requests=200` for partial runs.
+The free tier allows ~2000 requests/day. A full run for all 283 seniors × ~9 senior-relevant types ≈ 2,500 requests — more than one day's quota, so it stops on a 429 and must be re-run (it resumes, skipping fresh-cached pairs). Use `--dry-run` to count before running.
+
+**Queue worker runs stale code (recompute won't fire)**
+The geocode → score/route recompute chain runs through the queue. A long-running `php artisan queue:work` process loads code at boot and does **not** pick up changes until restarted. After deploying/pulling, run `php artisan queue:restart`, or newly-geocoded seniors will get coordinates but no accessibility score/routes. Quick manual fix: `php artisan gis:score-proximity`.
+
+**Front-end assets are gitignored — rebuild after pulling**
+`public/build/` is not committed. GIS/profile UI changes add Tailwind classes that only exist after `npm run build`. After pulling GIS UI changes, run `npm run build` (no migration is needed for the GIS feature work — it reuses existing tables).
 
 **OSRM fallback is a demo server**
 When ORS is unreachable, the command falls back to `router.project-osrm.org`. This is a public demo server — do not use it for production bulk runs. It has been known to rate-limit IPs.

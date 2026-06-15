@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Facility;
 use App\Models\SeniorAccessibilityMetric;
 use App\Models\SeniorCitizen;
+use App\Models\SeniorFacilityRouteDistance;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -68,16 +69,25 @@ class ScoreGisProximity extends Command
 
         $dryRun = (bool) $this->option('dry-run');
         $processed = 0;
+        $roadScored = 0;
+
+        // Preload cached road-network routes for these seniors so the score can use
+        // real travel distance (falling back to straight-line where uncached).
+        $routesBySenior = $this->roadRoutesBySenior($seniors->pluck('id')->all());
 
         $this->info(sprintf(
-            '%s GIS proximity for %d senior(s). Model retraining is required before gis_proximity_score is used as an ML feature.',
+            '%s GIS proximity for %d senior(s). Uses cached ORS road distance where available, else straight-line.',
             $dryRun ? 'Previewing' : 'Scoring',
             $seniors->count()
         ));
 
         foreach ($seniors as $senior) {
-            $payload = $this->scoreSenior($senior, $facilities);
+            $payload = $this->scoreSenior($senior, $facilities, $routesBySenior[$senior->id] ?? collect());
             $scorePercent = round(($payload['accessibility_score'] ?? 0) * 100, 2);
+            if (($payload['_road_components'] ?? 0) > 0) {
+                $roadScored++;
+            }
+            unset($payload['_road_components']);
 
             if (! $dryRun) {
                 SeniorAccessibilityMetric::updateOrCreate(
@@ -100,8 +110,37 @@ class ScoreGisProximity extends Command
             ? "Dry run complete. {$processed} senior(s) calculated; no database rows were written."
             : "GIS proximity scoring complete. {$processed} senior accessibility metric row(s) saved."
         );
+        $this->line("Scored with at least one road-network distance: {$roadScored}/{$processed} (rest used straight-line where routes aren't cached yet).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Cached, coordinate-fresh road routes grouped by senior, keyed by facility id.
+     * Origin freshness (route computed from the senior's current pin) is enforced
+     * here; destination freshness is checked per facility in scoreSenior().
+     *
+     * @return array<int, \Illuminate\Support\Collection>
+     */
+    private function roadRoutesBySenior(array $seniorIds): array
+    {
+        if (empty($seniorIds)) {
+            return [];
+        }
+
+        return SeniorFacilityRouteDistance::query()
+            ->whereIn('senior_citizen_id', $seniorIds)
+            ->whereNotNull('route_distance_m')
+            ->get()
+            ->groupBy('senior_citizen_id')
+            ->map(fn ($rows) => $rows->keyBy('facility_id'))
+            ->all();
+    }
+
+    /** Two stored coordinate values refer to the same point (1e-6 tolerance). */
+    private function coordinatesMatch(mixed $stored, float $current): bool
+    {
+        return $stored !== null && abs((float) $stored - $current) <= 0.000001;
     }
 
     private function seniorQuery()
@@ -148,7 +187,7 @@ class ScoreGisProximity extends Command
         })->values();
     }
 
-    private function scoreSenior(SeniorCitizen $senior, array $facilitiesByCategory): array
+    private function scoreSenior(SeniorCitizen $senior, array $facilitiesByCategory, $routes): array
     {
         $payload = [
             'calculated_at' => now(),
@@ -156,24 +195,60 @@ class ScoreGisProximity extends Command
         $totalWeight = (float) array_sum(array_column(self::CATEGORY_CONFIG, 'weight'));
         $weightedTotal = 0.0;
         $availableWeight = 0.0;
+        $roadComponents = 0;
 
         foreach (self::CATEGORY_CONFIG as $category => $config) {
             $nearest = $this->nearestFacility($senior, $facilitiesByCategory[$category] ?? collect());
-            $payload[$config['id_column']] = $nearest['facility']?->id;
+            $facility = $nearest['facility'];
+
+            // distance_to_* columns keep their meaning (straight-line to nearest);
+            // the SCORE prefers cached road-network distance, falling back to it.
+            $payload[$config['id_column']] = $facility?->id;
             $payload[$config['distance_column']] = $nearest['distance'];
 
-            if ($nearest['distance'] !== null) {
-                $component = max(0, 1 - ($nearest['distance'] / $config['cap_m']));
+            $road = $this->freshRoadDistance($routes, $facility, $senior);
+            $scoringDistance = $road ?? $nearest['distance'];
+
+            if ($scoringDistance !== null) {
+                $component = max(0, 1 - ($scoringDistance / $config['cap_m']));
                 $weightedTotal += $component * $config['weight'];
                 $availableWeight += $config['weight'];
+
+                if ($road !== null) {
+                    $roadComponents++;
+                }
             }
         }
 
         $payload['accessibility_score'] = $availableWeight > 0
             ? round($weightedTotal / $totalWeight, 4)
             : null;
+        $payload['_road_components'] = $roadComponents;
 
         return $payload;
+    }
+
+    /**
+     * Cached road-network distance to a facility, but only if the route's stored
+     * endpoints still match the senior's and facility's current coordinates.
+     */
+    private function freshRoadDistance($routes, ?Facility $facility, SeniorCitizen $senior): ?float
+    {
+        if (! $facility || $routes->isEmpty()) {
+            return null;
+        }
+
+        $route = $routes->get($facility->id);
+        if (! $route || $route->route_distance_m === null) {
+            return null;
+        }
+
+        $fresh = $this->coordinatesMatch($route->origin_latitude, (float) $senior->latitude)
+            && $this->coordinatesMatch($route->origin_longitude, (float) $senior->longitude)
+            && $this->coordinatesMatch($route->destination_latitude, (float) $facility->latitude)
+            && $this->coordinatesMatch($route->destination_longitude, (float) $facility->longitude);
+
+        return $fresh ? (float) $route->route_distance_m : null;
     }
 
     private function nearestFacility(SeniorCitizen $senior, Collection $facilities): array

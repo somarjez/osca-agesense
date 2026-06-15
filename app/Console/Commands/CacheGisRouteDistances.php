@@ -14,7 +14,8 @@ class CacheGisRouteDistances extends Command
 {
     protected $signature = 'gis:cache-route-distances
         {--seniors= : Maximum number of senior GIS records to process}
-        {--facilities=5 : Number of nearby senior-relevant facilities to cache per senior}
+        {--senior-id= : Limit caching to a single senior_citizens.id (used after a geocode)}
+        {--facilities=12 : Number of nearby senior-relevant facilities to cache per senior (nearest per type)}
         {--max-requests=1500 : Maximum OpenRouteService requests to send in this run}
         {--stop-after-rate-limits=1 : Stop the run after this many rate-limit/API-limit errors}
         {--dry-run : Count route pairs that need OpenRouteService without sending requests}
@@ -66,6 +67,14 @@ class CacheGisRouteDistances extends Command
 
                 return self::FAILURE;
             }
+        }
+
+        $seniorIdFilter = $this->option('senior-id') !== null ? (int) $this->option('senior-id') : null;
+        if ($seniorIdFilter !== null) {
+            $seniorFeatures = array_values(array_filter(
+                $seniorFeatures,
+                fn ($feature) => (int) ($feature['properties']['senior_id'] ?? 0) === $seniorIdFilter
+            ));
         }
 
         if ($seniorLimit !== null) {
@@ -128,9 +137,17 @@ class CacheGisRouteDistances extends Command
                     continue;
                 }
 
+                // Freshness-aware: only treat a cached route as present when its
+                // endpoints still match the senior's and facility's current
+                // coordinates. A geocode that moves a senior makes the old route
+                // stale, so it is recomputed automatically without --force.
                 $hasCachedRoute = SeniorFacilityRouteDistance::query()
                     ->where('senior_citizen_id', $seniorId)
                     ->where('facility_id', $facilityId)
+                    ->where('origin_latitude', round($origin['lat'], 7))
+                    ->where('origin_longitude', round($origin['lng'], 7))
+                    ->where('destination_latitude', round($destination['lat'], 7))
+                    ->where('destination_longitude', round($destination['lng'], 7))
                     ->exists();
                 $hasCachedFailure = SeniorFacilityRouteFailure::query()
                     ->where('senior_citizen_id', $seniorId)
@@ -251,6 +268,7 @@ class CacheGisRouteDistances extends Command
             return [
                 'feature' => $feature,
                 'point' => $point,
+                'type' => $feature['properties']['type'] ?? 'Service',
                 'priority' => $this->facilityPriority($feature),
                 'straight_distance' => $this->haversineMeters($origin, $point),
             ];
@@ -259,10 +277,23 @@ class CacheGisRouteDistances extends Command
         $relevant = array_values(array_filter($candidates, fn (array $candidate) => $candidate['priority'] < count(self::FACILITY_PRIORITY)));
         $source = $relevant ?: $candidates;
 
-        usort($source, fn (array $a, array $b) => $a['priority'] <=> $b['priority']
-            ?: $a['straight_distance'] <=> $b['straight_distance']);
+        // Cache the nearest facility of each type — the same per-type set the
+        // profile panel and the map popup display, so the cached pairs line up
+        // with what's shown.
+        usort($source, fn (array $a, array $b) => $a['straight_distance'] <=> $b['straight_distance']);
 
-        return array_slice($source, 0, $limit);
+        $nearestByType = [];
+        foreach ($source as $candidate) {
+            $type = $candidate['type'];
+            if (! isset($nearestByType[$type])) {
+                $nearestByType[$type] = $candidate;
+            }
+        }
+
+        $perType = array_values($nearestByType);
+        usort($perType, fn (array $a, array $b) => $a['straight_distance'] <=> $b['straight_distance']);
+
+        return array_slice($perType, 0, $limit);
     }
 
     private function facilityPriority(array $feature): int
@@ -332,11 +363,11 @@ class CacheGisRouteDistances extends Command
             'Content-Type' => 'application/json',
         ])
             ->withOptions(['verify' => $verify])
-            ->connectTimeout((int) config('services.openrouteservice.connect_timeout', 10))
-            ->timeout((int) config('services.openrouteservice.timeout', 30))
+            ->connectTimeout((int) config('services.openrouteservice.batch_connect_timeout', 15))
+            ->timeout((int) config('services.openrouteservice.batch_timeout', 40))
             ->retry(
-                (int) config('services.openrouteservice.retry_times', 1),
-                (int) config('services.openrouteservice.retry_sleep_ms', 1000)
+                (int) config('services.openrouteservice.batch_retry_times', 2),
+                (int) config('services.openrouteservice.batch_retry_sleep_ms', 2000)
             )
             ->post("{$baseUrl}/v2/directions/driving-car/json", [
                 'coordinates' => [
