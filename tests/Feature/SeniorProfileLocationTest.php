@@ -40,6 +40,12 @@ class SeniorProfileLocationTest extends TestCase
             ['name' => 'OSCA Admin', 'password' => Hash::make('password')]
         );
         $this->admin->syncRoles(['admin']);
+
+        // Tests run against the shared DB (no separate test connection), and the
+        // Location panel now ranks ALL active facilities by distance. Deactivate
+        // existing facilities so each test's own facility is the only active
+        // candidate (rolled back by DatabaseTransactions; UPDATE avoids FK issues).
+        Facility::query()->update(['is_active' => false]);
     }
 
     private function makeSenior(array $overrides = []): SeniorCitizen
@@ -54,6 +60,25 @@ class SeniorProfileLocationTest extends TestCase
             'num_children' => 0,
             'num_working_children' => 0,
         ], $overrides));
+    }
+
+    /**
+     * The panel now ranks all senior-relevant facilities, so it derives the
+     * straight-line distance from coordinates (haversine) rather than the
+     * metric's stored per-category value. Mirror that here for the expectation.
+     */
+    private function expectedDistanceLabel(float $lat1, float $lng1, float $lat2, float $lng2): string
+    {
+        $earthRadius = 6371000.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        $meters = $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $meters < 1000
+            ? round($meters).' m'
+            : number_format($meters / 1000, 1).' km';
     }
 
     #[Test]
@@ -105,7 +130,8 @@ class SeniorProfileLocationTest extends TestCase
         $response->assertSee('121.455000');
         $response->assertSee('Verified pin');
         $response->assertSee('Pagsanjan Rural Health Unit');
-        $response->assertSee('320 m');           // straight-line distance
+        // Straight-line distance, now computed from coordinates (haversine).
+        $response->assertSee($this->expectedDistanceLabel(14.273000, 121.455000, 14.2719, 121.4551));
         $response->assertSee('4 min drive');      // 240s cached route duration
         $response->assertSee('78%');              // accessibility score
         $response->assertSee('Good access');
@@ -156,7 +182,8 @@ class SeniorProfileLocationTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
 
         $response->assertOk();
-        $response->assertSee('410 m');           // straight-line still shown
+        // Straight-line still shown, computed from coordinates (haversine).
+        $response->assertSee($this->expectedDistanceLabel(14.275000, 121.456000, 14.2719, 121.4551));
         $response->assertDontSee('30 min drive'); // stale 1800s route suppressed
         $response->assertSee('straight-line');    // fell back to straight-line label
     }
