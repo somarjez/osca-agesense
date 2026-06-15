@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Facility;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
@@ -64,12 +65,9 @@ class SeniorCitizenController extends Controller
             'qolSurveys' => fn ($q) => $q->latest()->limit(5),
             'latestMlResult.recommendations',
             'mlResults' => fn ($q) => $q->latest()->limit(3),
-            // Accessibility panel — all read from cache, never a live ORS call.
-            'latestAccessibilityMetric.nearestHealthCenter',
-            'latestAccessibilityMetric.nearestHospital',
-            'latestAccessibilityMetric.nearestPharmacy',
-            'latestAccessibilityMetric.nearestBarangayHall',
-            'latestAccessibilityMetric.nearestMarket',
+            // Accessibility panel — score from the metric, distances computed
+            // locally from the Facility table; cached routes only, never a live ORS call.
+            'latestAccessibilityMetric',
             'facilityRouteDistances',
         ]);
 
@@ -87,59 +85,59 @@ class SeniorCitizenController extends Controller
      *   - senior_facility_route_distances (ORS road distances, precomputed in bulk)
      * The profile therefore renders with zero live OpenRouteService calls.
      */
+    /** How many nearest facilities the profile's Location panel lists. */
+    private const NEAREST_FACILITY_LIMIT = 10;
+
     private function locationPanel(SeniorCitizen $senior): array
     {
         $metric = $senior->latestAccessibilityMetric;
-        $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
         $seniorLat = $senior->latitude !== null ? (float) $senior->latitude : null;
         $seniorLng = $senior->longitude !== null ? (float) $senior->longitude : null;
 
-        $definitions = [
-            ['key' => 'health_center', 'label' => 'Health Center', 'relation' => 'nearestHealthCenter', 'distance' => 'distance_to_health_center_m'],
-            ['key' => 'hospital',      'label' => 'Hospital',      'relation' => 'nearestHospital',      'distance' => 'distance_to_hospital_m'],
-            ['key' => 'pharmacy',      'label' => 'Pharmacy',      'relation' => 'nearestPharmacy',      'distance' => 'distance_to_pharmacy_m'],
-            ['key' => 'barangay_hall', 'label' => 'Barangay Hall', 'relation' => 'nearestBarangayHall',  'distance' => 'distance_to_barangay_hall_m'],
-            ['key' => 'market',        'label' => 'Public Market', 'relation' => 'nearestMarket',        'distance' => 'distance_to_market_m'],
-        ];
-
         $facilities = [];
 
-        if ($metric) {
-            foreach ($definitions as $definition) {
-                $facility = $metric->{$definition['relation']};
-                if (! $facility || $facility->latitude === null || $facility->longitude === null) {
-                    continue;
-                }
+        if ($seniorLat !== null && $seniorLng !== null) {
+            $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
 
+            // The N nearest facilities of any type, ranked by straight-line distance.
+            // Haversine is computed locally over the Facility table, so the profile
+            // still makes zero live routing calls (cached road routes only).
+            $ranked = Facility::query()
+                ->where('is_active', true)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude'])
+                ->each(fn ($facility) => $facility->straight_m = $this->haversineMeters(
+                    $seniorLat, $seniorLng, (float) $facility->latitude, (float) $facility->longitude
+                ))
+                ->sortBy('straight_m')
+                ->take(self::NEAREST_FACILITY_LIMIT);
+
+            foreach ($ranked as $facility) {
                 $facilityLat = (float) $facility->latitude;
                 $facilityLng = (float) $facility->longitude;
-                $straight = $metric->{$definition['distance']};
 
                 // Only trust a cached road distance whose endpoints still match the
                 // senior's and facility's current coordinates — same staleness
                 // contract GisApiController uses before serving a cached route.
                 $route = $routeByFacility->get($facility->id);
                 $routeFresh = $route
-                    && $seniorLat !== null && $seniorLng !== null
                     && $this->coordinatesMatch($route->origin_latitude, $seniorLat)
                     && $this->coordinatesMatch($route->origin_longitude, $seniorLng)
                     && $this->coordinatesMatch($route->destination_latitude, $facilityLat)
                     && $this->coordinatesMatch($route->destination_longitude, $facilityLng);
 
                 $facilities[] = [
-                    'key' => $definition['key'],
-                    'label' => $definition['label'],
+                    'key' => $this->facilityTypeKey($facility->type),
+                    'label' => $facility->type ?: 'Service',
                     'name' => $facility->name,
                     'lat' => $facilityLat,
                     'lng' => $facilityLng,
-                    'straight_m' => $straight !== null ? (float) $straight : null,
+                    'straight_m' => (float) $facility->straight_m,
                     'route_m' => $routeFresh ? (float) $route->route_distance_m : null,
                     'route_s' => $routeFresh && $route->route_duration_s !== null ? (int) round($route->route_duration_s) : null,
                 ];
             }
-
-            // Nearest first by straight-line distance; missing distances sink last.
-            usort($facilities, fn ($a, $b) => ($a['straight_m'] ?? INF) <=> ($b['straight_m'] ?? INF));
         }
 
         $score = $metric && $metric->accessibility_score !== null ? (float) $metric->accessibility_score : null;
@@ -153,6 +151,40 @@ class SeniorCitizenController extends Controller
             'percent' => $percent,
             'status' => $this->accessibilityStatusLabel($percent),
         ];
+    }
+
+    /** Great-circle distance in metres between two lat/lng points. */
+    private function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371000.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    /** Map a Facility `type` to the icon key the profile view understands. */
+    private function facilityTypeKey(?string $type): string
+    {
+        return match ($type) {
+            'Health Center'    => 'health_center',
+            'Hospital'         => 'hospital',
+            'Pharmacy'         => 'pharmacy',
+            'Barangay Hall'    => 'barangay_hall',
+            'Municipal Hall'   => 'municipal_hall',
+            'Government Office' => 'gov_office',
+            'Public Market'    => 'market',
+            'Supermarket'      => 'supermarket',
+            'Community Store'  => 'store',
+            'Food Service'     => 'food',
+            'Church'           => 'church',
+            'Police Station'   => 'police',
+            'Fire Station'     => 'fire',
+            'Senior Center'    => 'senior_center',
+            default            => 'other',
+        };
     }
 
     /**

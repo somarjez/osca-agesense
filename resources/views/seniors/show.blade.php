@@ -788,7 +788,16 @@
             'hospital'      => 'heroicon-o-building-office-2',
             'pharmacy'      => 'heroicon-o-beaker',
             'barangay_hall' => 'heroicon-o-building-library',
+            'municipal_hall'=> 'heroicon-o-building-library',
+            'gov_office'    => 'heroicon-o-building-office',
             'market'        => 'heroicon-o-shopping-bag',
+            'supermarket'   => 'heroicon-o-shopping-cart',
+            'store'         => 'heroicon-o-building-storefront',
+            'food'          => 'heroicon-o-building-storefront',
+            'church'        => 'heroicon-o-home-modern',
+            'police'        => 'heroicon-o-shield-check',
+            'fire'          => 'heroicon-o-fire',
+            'senior_center' => 'heroicon-o-user-group',
         ];
 
         $fmtDist = function ($m) {

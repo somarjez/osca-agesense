@@ -3222,14 +3222,38 @@
         const relevant = features.filter((item) => isSeniorRelevantFacility(item.facility));
         const source = relevant.length ? relevant : features;
 
-        // Candidate ranking favors senior-needed services first, then nearby
-        // facilities. The final displayed order is based on road-route distance.
-        return source
-            .sort((a, b) =>
-                seniorFacilityPriority(a.facility) - seniorFacilityPriority(b.facility)
-                || a.straightDistance - b.straightDistance
-            )
-            .slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
+        // `source` arrives sorted nearest-first. Keep the nearest facility of each
+        // type so the popup shows a diverse mix (health, pharmacy, hall, market, …)
+        // instead of filling every slot with the densest category.
+        const nearestByType = new Map();
+        for (const item of source) {
+            const type = facilityType(item.facility);
+            if (!nearestByType.has(type)) {
+                nearestByType.set(type, item);
+            }
+        }
+
+        // Senior-needed services first, then nearer ones. The final displayed
+        // order is still based on road-route distance once routes resolve.
+        const diverse = [...nearestByType.values()].sort((a, b) =>
+            seniorFacilityPriority(a.facility) - seniorFacilityPriority(b.facility)
+            || a.straightDistance - b.straightDistance
+        );
+
+        // Fewer distinct types than the limit: top up with the next-nearest
+        // facilities overall so the list still fills out.
+        if (diverse.length < ROUTE_SERVICE_CANDIDATE_LIMIT) {
+            const chosen = new Set(diverse);
+            for (const item of source) {
+                if (diverse.length >= ROUTE_SERVICE_CANDIDATE_LIMIT) break;
+                if (!chosen.has(item)) {
+                    diverse.push(item);
+                    chosen.add(item);
+                }
+            }
+        }
+
+        return diverse.slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
     }
 
     function routeCandidatesForFeature(feature) {
