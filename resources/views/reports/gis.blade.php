@@ -182,13 +182,26 @@
                 </label>
             </div>
 
-            <div id="gis-map"
-                 class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[460px]"
-                 data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
-                 data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
-                 data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
-                 data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
-                 data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
+            <div class="relative">
+                <div id="gis-map"
+                     class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[460px]"
+                     data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
+                     data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
+                     data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
+                     data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
+                     data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
+                </div>
+
+                {{-- Loading overlay — masks the basemap until GIS layers finish loading --}}
+                <div id="gis-map-loading"
+                     class="absolute inset-0 z-[1200] flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#f2efe9] dark:bg-[#161b18] text-ink-500 dark:text-[#8a958f] transition-opacity duration-300"
+                     role="status" aria-live="polite">
+                    <svg class="w-7 h-7 animate-spin motion-reduce:animate-none text-forest-600 dark:text-forest-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    <p class="text-[12.5px] font-medium">Loading map…</p>
+                </div>
             </div>
             <div>
                 <p id="gis-map-status" class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Loading barangay-level GIS data...</p>
@@ -695,6 +708,24 @@
             statusEl.classList.add('text-high-700', 'dark:text-[#e08070]');
         } else {
             statusEl.classList.add('text-ink-400', 'dark:text-[#6b7570]');
+        }
+    }
+
+    // Toggle the map loading overlay. Shown while the initial GIS layers load so
+    // the bare basemap doesn't flash; faded out once the data layers are rendered.
+    function setMapLoading(isLoading) {
+        const overlay = document.getElementById('gis-map-loading');
+        if (!overlay) return;
+        if (isLoading) {
+            overlay.style.display = 'flex';
+            void overlay.offsetWidth; // reflow so opacity transitions back in on re-show
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        } else {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.setTimeout(() => { overlay.style.display = 'none'; }, reduce ? 0 : 320);
         }
     }
 
@@ -5626,7 +5657,7 @@
 
     function renderMap() {
         const el = document.getElementById(MAP_ID);
-        if (!el || !window.L) return;
+        if (!el || !window.L) { setMapLoading(false); return; }
         const requestId = ++latestRequestId;
         latestSeniorGeoJson = null;
         latestFacilityGeoJson = null;
@@ -5634,6 +5665,7 @@
         latestBarangayBoundaryGeoJson = null;
         latestRouteDistanceUrl = el.dataset.routeDistanceUrl || null;
         setStatus('Loading GIS layers for Pagsanjan...', 'neutral');
+        setMapLoading(true);
 
         if (el._leaflet_id) {
             if (el._leaflet_map_instance) {
@@ -5710,12 +5742,17 @@
                 applyMapBoundaryConstraints(map);
                 applyMapZoomConstraints(map);
                 Promise.resolve(renderDataLayers(map, seniorGeoJson, facilityGeoJson))
-                    .catch((error) => console.error('GIS render failed:', error));
+                    .then(() => setMapLoading(false))
+                    .catch((error) => {
+                        setMapLoading(false);
+                        console.error('GIS render failed:', error);
+                    });
                 scheduleMapSizeSync(map);
             })
             .catch((error) => {
                 if (requestId !== latestRequestId) return;
 
+                setMapLoading(false);
                 console.error('Failed to load GIS data:', error);
                 setStatus('GIS data could not be loaded.', 'error');
             });
