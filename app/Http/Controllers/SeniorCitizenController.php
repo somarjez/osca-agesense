@@ -88,6 +88,21 @@ class SeniorCitizenController extends Controller
     /** How many nearest facilities the profile's Location panel lists. */
     private const NEAREST_FACILITY_LIMIT = 10;
 
+    /**
+     * Keywords for services that matter to a senior's access. Mirrors the GIS
+     * map's SENIOR_RELEVANT_FACILITY_PRIORITY so both surfaces agree on what
+     * counts as a "senior service" (excludes sari-sari stores, eateries, etc.).
+     * Substring match, so 'market' also covers "Supermarket".
+     */
+    private const SENIOR_RELEVANT_KEYWORDS = [
+        'health center', 'hospital', 'clinic', 'rural health',
+        'pharmacy', 'drugstore', 'medicine',
+        'senior center', 'senior citizens', 'osca',
+        'barangay hall', 'municipal hall',
+        'public market', 'market', 'transport hub', 'terminal',
+        'church', 'chapel',
+    ];
+
     private function locationPanel(SeniorCitizen $senior): array
     {
         $metric = $senior->latestAccessibilityMetric;
@@ -99,14 +114,15 @@ class SeniorCitizenController extends Controller
         if ($seniorLat !== null && $seniorLng !== null) {
             $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
 
-            // The N nearest facilities of any type, ranked by straight-line distance.
-            // Haversine is computed locally over the Facility table, so the profile
-            // still makes zero live routing calls (cached road routes only).
+            // The N nearest senior-relevant facilities, ranked by straight-line
+            // distance. Haversine is computed locally over the Facility table, so
+            // the profile still makes zero live routing calls (cached routes only).
             $ranked = Facility::query()
                 ->where('is_active', true)
                 ->whereNotNull('latitude')
                 ->whereNotNull('longitude')
                 ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude'])
+                ->filter(fn ($facility) => $this->isSeniorRelevantFacility($facility))
                 ->each(fn ($facility) => $facility->straight_m = $this->haversineMeters(
                     $seniorLat, $seniorLng, (float) $facility->latitude, (float) $facility->longitude
                 ))
@@ -130,7 +146,7 @@ class SeniorCitizenController extends Controller
                 $facilities[] = [
                     'key' => $this->facilityTypeKey($facility->type),
                     'label' => $facility->type ?: 'Service',
-                    'name' => $facility->name,
+                    'name' => $facility->name ?: ($facility->type ?: 'Senior service'),
                     'lat' => $facilityLat,
                     'lng' => $facilityLng,
                     'straight_m' => (float) $facility->straight_m,
@@ -151,6 +167,20 @@ class SeniorCitizenController extends Controller
             'percent' => $percent,
             'status' => $this->accessibilityStatusLabel($percent),
         ];
+    }
+
+    /** Whether a facility is a senior-relevant service (type or name keyword). */
+    private function isSeniorRelevantFacility(Facility $facility): bool
+    {
+        $text = strtolower(trim(($facility->type ?? '') . ' ' . ($facility->name ?? '')));
+
+        foreach (self::SENIOR_RELEVANT_KEYWORDS as $keyword) {
+            if ($text !== '' && str_contains($text, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Great-circle distance in metres between two lat/lng points. */
