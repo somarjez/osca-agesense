@@ -402,8 +402,9 @@
     const ROAD_ROUTE_SERVICE_URL = 'https://router.project-osrm.org/route/v1/driving';
     const TILE_LIGHT_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const TILE_LIGHT_ATTRIBUTION = '&copy; OpenStreetMap contributors';
-    const ROUTE_SERVICE_CANDIDATE_LIMIT = 5;
-    const ROUTE_SERVICE_RESULT_LIMIT = ROUTE_SERVICE_CANDIDATE_LIMIT;
+    const ROUTE_SERVICE_CANDIDATE_LIMIT = 5;          // nearest facilities that get a live road route per popup
+    const ROUTE_SERVICE_DISPLAY_LIMIT = 12;           // facilities listed in a popup (covers all senior-relevant types)
+    const ROUTE_SERVICE_RESULT_LIMIT = ROUTE_SERVICE_DISPLAY_LIMIT;
     const SENIOR_RELEVANT_FACILITY_PRIORITY = [
         ['health center', 'hospital', 'clinic', 'rural health'],
         ['pharmacy', 'drugstore', 'medicine'],
@@ -3223,8 +3224,8 @@
         const source = relevant.length ? relevant : features;
 
         // `source` arrives sorted nearest-first. Keep the nearest facility of each
-        // type so the popup shows a diverse mix (health, pharmacy, hall, market, …)
-        // instead of filling every slot with the densest category.
+        // type, ordered by distance — the same per-type set the profile's Location
+        // panel lists, so the two surfaces stay consistent.
         const nearestByType = new Map();
         for (const item of source) {
             const type = facilityType(item.facility);
@@ -3233,27 +3234,9 @@
             }
         }
 
-        // Senior-needed services first, then nearer ones. The final displayed
-        // order is still based on road-route distance once routes resolve.
-        const diverse = [...nearestByType.values()].sort((a, b) =>
-            seniorFacilityPriority(a.facility) - seniorFacilityPriority(b.facility)
-            || a.straightDistance - b.straightDistance
-        );
-
-        // Fewer distinct types than the limit: top up with the next-nearest
-        // facilities overall so the list still fills out.
-        if (diverse.length < ROUTE_SERVICE_CANDIDATE_LIMIT) {
-            const chosen = new Set(diverse);
-            for (const item of source) {
-                if (diverse.length >= ROUTE_SERVICE_CANDIDATE_LIMIT) break;
-                if (!chosen.has(item)) {
-                    diverse.push(item);
-                    chosen.add(item);
-                }
-            }
-        }
-
-        return diverse.slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
+        return [...nearestByType.values()]
+            .sort((a, b) => a.straightDistance - b.straightDistance)
+            .slice(0, ROUTE_SERVICE_DISPLAY_LIMIT);
     }
 
     function routeCandidatesForFeature(feature) {
@@ -3313,10 +3296,16 @@
         }
 
         const items = candidates
-            .slice(0, ROUTE_SERVICE_RESULT_LIMIT)
+            .slice(0, ROUTE_SERVICE_DISPLAY_LIMIT)
             .map((candidate, index) => {
                 const label = escapeHtml(serviceBaseLabel(candidate.facility));
-                return `<li class="pl-1 leading-snug" data-gis-route-item="${index}">${label} - calculating route...</li>`;
+                // Only the nearest few get a live road route; the rest show their
+                // straight-line distance immediately to keep popup cost bounded.
+                if (index < ROUTE_SERVICE_CANDIDATE_LIMIT) {
+                    return `<li class="pl-1 leading-snug" data-gis-route-item="${index}">${label} - calculating route...</li>`;
+                }
+                const straight = escapeHtml(`${formatServiceDistance(candidate.straightDistance)} straight-line`);
+                return `<li class="pl-1 leading-snug">${label} - ${straight}</li>`;
             })
             .join('');
 
@@ -3845,9 +3834,12 @@
             return;
         }
 
-        const routed = [];
+        // Live-route only the nearest few; items beyond that already show their
+        // straight-line distance (from routeLoadingListHtml), matching the profile
+        // and keeping each popup to at most ROUTE_SERVICE_CANDIDATE_LIMIT calls.
+        const liveCandidates = candidates.slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
 
-        await Promise.all(candidates.map(async (candidate, index) => {
+        await Promise.all(liveCandidates.map(async (candidate, index) => {
             let item = null;
 
             try {
@@ -3871,43 +3863,21 @@
 
             const currentElement = document.getElementById(elementId);
             const routeItem = currentElement?.querySelector(`[data-gis-route-item="${index}"]`);
+            if (!routeItem) {
+                return;
+            }
 
-            if (item && routeItem) {
+            if (item) {
                 routeItem.textContent = serviceLabel(item.facility, item.routeDistance, {
                     route: true,
                     duration: item.routeDuration,
                     provider: item.routeProvider,
                 });
-            } else if (routeItem) {
-                routeItem.textContent = `${serviceBaseLabel(candidate.facility)} - route unavailable`;
-            }
-
-            if (item) {
-                routed.push(item);
+            } else {
+                // Live route failed — fall back to the straight-line distance.
+                routeItem.textContent = `${serviceBaseLabel(candidate.facility)} - ${formatServiceDistance(candidate.straightDistance)} straight-line`;
             }
         }));
-
-        if (layer._gisRouteRequestId !== requestId || layer.isPopupOpen?.() === false) {
-            return;
-        }
-
-        const currentElement = document.getElementById(elementId);
-        if (!currentElement) {
-            return;
-        }
-
-        if (!routed.length) {
-            currentElement.innerHTML = serviceListHtml('Road route unavailable for mapped services');
-            return;
-        }
-
-        currentElement.innerHTML = serviceListHtml(routed
-            .sort((a, b) => a.routeDistance - b.routeDistance)
-            .map((item) => serviceLabel(item.facility, item.routeDistance, {
-                route: true,
-                duration: item.routeDuration,
-                provider: item.routeProvider,
-            })));
     }
 
     function accessibilityComputationEnabled() {

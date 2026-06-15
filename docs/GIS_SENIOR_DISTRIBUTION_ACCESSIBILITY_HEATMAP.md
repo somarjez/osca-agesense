@@ -39,6 +39,8 @@ The backend calculates these values from real data:
 
 - It prefers saved `SeniorAccessibilityMetric` distance fields when available.
 - If saved metric distances are missing, it calculates nearest facility distance server-side using actual senior coordinates and active facility coordinates.
+
+> **Note on distance basis.** This heatmap's distance grouping uses the metric's `distance_to_*_m` fields, which remain **straight-line** (haversine). The separate `accessibility_score` (the profile "Facility access %" / GIS proximity score) is computed from **road-network distance** (cached ORS, falling back to straight-line) — see `gis:score-proximity` in the GIS functionality reference.
 - It filters facilities to senior-relevant services such as health centers, hospitals, pharmacies, markets, barangay halls, and senior centers.
 - It calculates distance thresholds from the current senior dataset, then assigns accessibility groups:
   - `Nearest`

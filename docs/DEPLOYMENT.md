@@ -207,6 +207,31 @@ If any check fails, the artifact bundle is incomplete. Re-transfer from the main
 
 ---
 
+## 3b. Updating an existing deployment (pulling changes)
+
+After `git pull` on a machine that's already set up:
+
+```bash
+composer install            # only if composer.lock changed
+npm install                 # only if package-lock.json changed
+npm run build               # ALWAYS — public/build/ is gitignored, so compiled CSS/JS must be rebuilt
+php artisan migrate          # apply any new migrations (the GIS facility/route work added none)
+php artisan config:clear     # pick up config/.env changes (e.g. ORS timeouts)
+php artisan view:clear       # drop stale compiled Blade
+php artisan queue:restart    # IMPORTANT: queue workers cache code; restart so chained jobs (e.g. geocode → recompute) run the new code
+```
+
+**GIS road-distance data is not in the repo** — it lives in the database. If this machine has its own database and you want road-network distances (the profile/map "X min drive" and the road-based accessibility score), populate them after coordinates exist:
+
+```bash
+php artisan gis:score-proximity                       # accessibility scores (local, fast)
+php artisan gis:cache-route-distances --facilities=12  # ORS road routes (needs OPENROUTESERVICE_API_KEY; re-run until coverage completes)
+```
+
+Both also run automatically after a `gis:geocode` that changes coordinates (with a queue worker running).
+
+---
+
 ## 4. Starting the System
 
 ### Recommended — start.bat

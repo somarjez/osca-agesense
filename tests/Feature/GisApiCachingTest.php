@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -99,6 +100,10 @@ class GisApiCachingTest extends TestCase
     #[Test]
     public function geocode_dispatch_busts_seniors_geojson_cache(): void
     {
+        // The geocode command now chains a queued ORS route recompute; fake the
+        // queue so the dispatch test never makes a real ORS call.
+        Queue::fake();
+
         Cache::put('gis.seniors_geojson', ['dummy' => true], now()->addMinutes(5));
         $this->assertTrue(Cache::has('gis.seniors_geojson'));
 
