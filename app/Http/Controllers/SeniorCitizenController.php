@@ -85,7 +85,7 @@ class SeniorCitizenController extends Controller
      *   - senior_facility_route_distances (ORS road distances, precomputed in bulk)
      * The profile therefore renders with zero live OpenRouteService calls.
      */
-    /** How many nearest facilities the profile's Location panel lists. */
+    /** Max number of facility types the profile's Location panel lists (nearest per type). */
     private const NEAREST_FACILITY_LIMIT = 10;
 
     /**
@@ -114,9 +114,10 @@ class SeniorCitizenController extends Controller
         if ($seniorLat !== null && $seniorLng !== null) {
             $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
 
-            // The N nearest senior-relevant facilities, ranked by straight-line
-            // distance. Haversine is computed locally over the Facility table, so
-            // the profile still makes zero live routing calls (cached routes only).
+            // The nearest facility of each senior-relevant type (one per type),
+            // ordered by distance — mirrors the GIS map popup so both surfaces
+            // draw from the same set. Haversine is computed locally over the
+            // Facility table, so the profile still makes zero live routing calls.
             $ranked = Facility::query()
                 ->where('is_active', true)
                 ->whereNotNull('latitude')
@@ -127,7 +128,11 @@ class SeniorCitizenController extends Controller
                     $seniorLat, $seniorLng, (float) $facility->latitude, (float) $facility->longitude
                 ))
                 ->sortBy('straight_m')
-                ->take(self::NEAREST_FACILITY_LIMIT);
+                ->groupBy('type')                     // one entry per facility type…
+                ->map(fn ($group) => $group->first()) // …the nearest of that type
+                ->sortBy('straight_m')                // order the winners by distance
+                ->take(self::NEAREST_FACILITY_LIMIT)
+                ->values();
 
             foreach ($ranked as $facility) {
                 $facilityLat = (float) $facility->latitude;
