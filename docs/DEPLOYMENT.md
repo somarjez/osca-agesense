@@ -230,6 +230,8 @@ php artisan gis:cache-route-distances --facilities=12  # ORS road routes (needs 
 
 Both also run automatically after a `gis:geocode` that changes coordinates (with a queue worker running).
 
+**Scheduler (auto-completes route coverage).** Full road-route coverage exceeds the ORS free-tier daily quota, so `routes/console.php` schedules `gis:cache-route-distances` daily (03:30) and `gis:score-proximity` daily (05:00); coverage self-completes over a few days and stays fresh. This requires the **Laravel scheduler** to be running — add a cron entry (`* * * * * php artisan schedule:run`) on the server, or run `php artisan schedule:work` during development. (A **queue worker** is also needed for the geocode-triggered recompute: `php artisan queue:work`.)
+
 ---
 
 ## 4. Starting the System
