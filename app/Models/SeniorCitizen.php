@@ -87,6 +87,55 @@ class SeniorCitizen extends Model
         return $this->date_of_birth?->diffInYears(now()) ?? 0;
     }
 
+    /**
+     * Resolve how this senior's location should be presented on the profile.
+     *
+     * Returns a small view-model the profile and any map can render directly:
+     *   status  — 'verified'    a field-captured GPS pin (exact home location)
+     *             'approximate' barangay-level coordinate, no verified pin
+     *             'none'        no coordinate stored yet (not geocoded)
+     *   lat/lng — floats when present, otherwise null
+     *   label   — staff-facing precision note
+     *
+     * Verified sources mirror GisApiController / GeocodeSeniors so the profile,
+     * the map, and the geocode pipeline agree on what "verified" means.
+     */
+    public function locationDisplay(): array
+    {
+        $lat = $this->latitude !== null ? (float) $this->latitude : null;
+        $lng = $this->longitude !== null ? (float) $this->longitude : null;
+
+        // Reject missing, out-of-range, or null-island (0,0) coordinates — same
+        // validity bar GisApiController applies before plotting a senior.
+        $valid = $lat !== null && $lng !== null
+            && $lat >= -90 && $lat <= 90
+            && $lng >= -180 && $lng <= 180
+            && ! ($lat === 0.0 && $lng === 0.0);
+
+        if (! $valid) {
+            return [
+                'status' => 'none',
+                'lat' => null,
+                'lng' => null,
+                'label' => 'No location recorded yet',
+                'source' => $this->location_source,
+            ];
+        }
+
+        $source = strtolower((string) $this->location_source);
+        $verified = in_array($source, ['manual_pin', 'gps_capture'], true);
+
+        return [
+            'status' => $verified ? 'verified' : 'approximate',
+            'lat' => $lat,
+            'lng' => $lng,
+            'label' => $verified
+                ? 'Field-verified GPS pin'
+                : 'Approximate — barangay-level, no GPS pin',
+            'source' => $this->location_source,
+        ];
+    }
+
     // ── Relationships ─────────────────────────────────────────────────────────
 
     public function qolSurveys(): HasMany

@@ -64,11 +64,121 @@ class SeniorCitizenController extends Controller
             'qolSurveys' => fn ($q) => $q->latest()->limit(5),
             'latestMlResult.recommendations',
             'mlResults' => fn ($q) => $q->latest()->limit(3),
+            // Accessibility panel — all read from cache, never a live ORS call.
+            'latestAccessibilityMetric.nearestHealthCenter',
+            'latestAccessibilityMetric.nearestHospital',
+            'latestAccessibilityMetric.nearestPharmacy',
+            'latestAccessibilityMetric.nearestBarangayHall',
+            'latestAccessibilityMetric.nearestMarket',
+            'facilityRouteDistances',
         ]);
 
         $draftSurvey = $senior->qolSurveys()->where('status', 'draft')->latest()->first();
+        $locationPanel = $this->locationPanel($senior);
 
-        return view('seniors.show', compact('senior', 'draftSurvey'));
+        return view('seniors.show', compact('senior', 'draftSurvey', 'locationPanel'));
+    }
+
+    /**
+     * Assemble the profile's "Location & Accessibility" view-model.
+     *
+     * Every value here is read from already-computed tables:
+     *   - senior_accessibility_metrics  (local haversine distances + score)
+     *   - senior_facility_route_distances (ORS road distances, precomputed in bulk)
+     * The profile therefore renders with zero live OpenRouteService calls.
+     */
+    private function locationPanel(SeniorCitizen $senior): array
+    {
+        $metric = $senior->latestAccessibilityMetric;
+        $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
+        $seniorLat = $senior->latitude !== null ? (float) $senior->latitude : null;
+        $seniorLng = $senior->longitude !== null ? (float) $senior->longitude : null;
+
+        $definitions = [
+            ['key' => 'health_center', 'label' => 'Health Center', 'relation' => 'nearestHealthCenter', 'distance' => 'distance_to_health_center_m'],
+            ['key' => 'hospital',      'label' => 'Hospital',      'relation' => 'nearestHospital',      'distance' => 'distance_to_hospital_m'],
+            ['key' => 'pharmacy',      'label' => 'Pharmacy',      'relation' => 'nearestPharmacy',      'distance' => 'distance_to_pharmacy_m'],
+            ['key' => 'barangay_hall', 'label' => 'Barangay Hall', 'relation' => 'nearestBarangayHall',  'distance' => 'distance_to_barangay_hall_m'],
+            ['key' => 'market',        'label' => 'Public Market', 'relation' => 'nearestMarket',        'distance' => 'distance_to_market_m'],
+        ];
+
+        $facilities = [];
+
+        if ($metric) {
+            foreach ($definitions as $definition) {
+                $facility = $metric->{$definition['relation']};
+                if (! $facility || $facility->latitude === null || $facility->longitude === null) {
+                    continue;
+                }
+
+                $facilityLat = (float) $facility->latitude;
+                $facilityLng = (float) $facility->longitude;
+                $straight = $metric->{$definition['distance']};
+
+                // Only trust a cached road distance whose endpoints still match the
+                // senior's and facility's current coordinates — same staleness
+                // contract GisApiController uses before serving a cached route.
+                $route = $routeByFacility->get($facility->id);
+                $routeFresh = $route
+                    && $seniorLat !== null && $seniorLng !== null
+                    && $this->coordinatesMatch($route->origin_latitude, $seniorLat)
+                    && $this->coordinatesMatch($route->origin_longitude, $seniorLng)
+                    && $this->coordinatesMatch($route->destination_latitude, $facilityLat)
+                    && $this->coordinatesMatch($route->destination_longitude, $facilityLng);
+
+                $facilities[] = [
+                    'key' => $definition['key'],
+                    'label' => $definition['label'],
+                    'name' => $facility->name,
+                    'lat' => $facilityLat,
+                    'lng' => $facilityLng,
+                    'straight_m' => $straight !== null ? (float) $straight : null,
+                    'route_m' => $routeFresh ? (float) $route->route_distance_m : null,
+                    'route_s' => $routeFresh && $route->route_duration_s !== null ? (int) round($route->route_duration_s) : null,
+                ];
+            }
+
+            // Nearest first by straight-line distance; missing distances sink last.
+            usort($facilities, fn ($a, $b) => ($a['straight_m'] ?? INF) <=> ($b['straight_m'] ?? INF));
+        }
+
+        $score = $metric && $metric->accessibility_score !== null ? (float) $metric->accessibility_score : null;
+        $percent = $score !== null
+            ? (int) round(max(0, min(100, $score <= 1 ? $score * 100 : $score)))
+            : null;
+
+        return [
+            'location' => $senior->locationDisplay(),
+            'facilities' => $facilities,
+            'percent' => $percent,
+            'status' => $this->accessibilityStatusLabel($percent),
+        ];
+    }
+
+    /**
+     * Two stored coordinate values refer to the same point (within rounding).
+     * Mirrors GisApiController's 1e-6 tolerance for cached-route freshness.
+     */
+    private function coordinatesMatch(mixed $stored, float $current): bool
+    {
+        return $stored !== null && abs((float) $stored - $current) <= 0.000001;
+    }
+
+    /**
+     * Plain-language band for an accessibility percentage.
+     * Matches the thresholds GisApiController uses on the map.
+     */
+    private function accessibilityStatusLabel(?int $percent): ?string
+    {
+        if ($percent === null) {
+            return null;
+        }
+
+        return match (true) {
+            $percent >= 75 => 'Good access',
+            $percent >= 50 => 'Moderate access',
+            default => 'Needs attention',
+        };
     }
 
     public function edit(SeniorCitizen $senior)
