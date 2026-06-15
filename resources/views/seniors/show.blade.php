@@ -768,6 +768,171 @@
                 @endforelse
             </x-card>
 
+            {{-- ── Location & Accessibility ── --}}
+            @php
+                $loc        = $locationPanel['location'];
+                $hasCoords  = $loc['status'] !== 'none';
+                $isVerified = $loc['status'] === 'verified';
+                $facilities = $locationPanel['facilities'];
+                $percent    = $locationPanel['percent'];
+
+                $facilityIcons = [
+                    'health_center' => 'heroicon-o-plus-circle',
+                    'hospital'      => 'heroicon-o-building-office-2',
+                    'pharmacy'      => 'heroicon-o-beaker',
+                    'barangay_hall' => 'heroicon-o-building-library',
+                    'market'        => 'heroicon-o-shopping-bag',
+                ];
+
+                $fmtDist = function ($m) {
+                    if ($m === null) return null;
+                    return $m < 1000 ? round($m) . ' m' : number_format($m / 1000, 1) . ' km';
+                };
+                $fmtDrive = function ($s) {
+                    if ($s === null) return null;
+                    return max(1, (int) round($s / 60)) . ' min drive';
+                };
+
+                $mapData = [
+                    'senior' => [
+                        'lat'    => $loc['lat'],
+                        'lng'    => $loc['lng'],
+                        'status' => $loc['status'],
+                        'name'   => $senior->full_name,
+                    ],
+                    'facilities' => collect($facilities)->map(fn ($f) => [
+                        'lat'   => $f['lat'],
+                        'lng'   => $f['lng'],
+                        'name'  => $f['name'],
+                        'label' => $f['label'],
+                    ])->values(),
+                ];
+            @endphp
+
+            <x-card title="Location & Accessibility">
+                <x-slot name="actions">
+                    <a href="{{ route('reports.gis') }}"
+                       class="btn btn-ghost text-[11px] px-2.5 py-1 gap-1">
+                        <x-heroicon-o-map class="w-3 h-3" />
+                        Full map
+                    </a>
+                </x-slot>
+                <x-slot name="noPadding">true</x-slot>
+
+                @if ($hasCoords)
+                    {{-- Mini-map — reads cached coordinates only, no live routing calls --}}
+                    <div class="px-5 pt-4">
+                        <div id="senior-mini-map"
+                             class="h-48 w-full rounded-xl border border-paper-rule dark:border-[#2b3530] overflow-hidden z-0"
+                             role="img"
+                             aria-label="Map of {{ $senior->full_name }} and nearby facilities in {{ $senior->barangay }}"></div>
+                        <script type="application/json" id="senior-map-data">@json($mapData)</script>
+                    </div>
+
+                    {{-- Coordinates + precision --}}
+                    <div class="px-5 pt-3.5 pb-1">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <span class="eyebrow">Coordinates</span>
+                                <p class="mt-1 font-mono tnum text-[13px] text-ink-900 dark:text-[#e4e1d8] leading-tight">
+                                    {{ number_format($loc['lat'], 6) }}, {{ number_format($loc['lng'], 6) }}
+                                </p>
+                            </div>
+                            @if ($isVerified)
+                            <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold text-low-700 bg-low-50 dark:bg-low-50/10 px-2 py-0.5 rounded-full flex-shrink-0">
+                                <x-heroicon-s-check-badge class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                Verified pin
+                            </span>
+                            @else
+                            <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold text-moderate-700 bg-moderate-50 dark:bg-moderate-50/10 px-2 py-0.5 rounded-full flex-shrink-0">
+                                <x-heroicon-s-flag class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                Approximate
+                            </span>
+                            @endif
+                        </div>
+                        @unless ($isVerified)
+                        <p class="mt-1.5 text-[11px] text-ink-400 dark:text-[#6b7570]">
+                            Barangay-level estimate — no field-verified GPS pin on record.
+                            <a href="{{ route('seniors.edit', $senior) }}" class="text-forest-700 dark:text-forest-400 font-semibold hover:text-forest-900">Capture pin →</a>
+                        </p>
+                        @endunless
+                    </div>
+                @else
+                    {{-- No coordinate stored yet --}}
+                    <div class="px-5 pt-5 pb-1 flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-paper-2 dark:bg-[#1a201d] grid place-items-center flex-shrink-0">
+                            <x-heroicon-o-map-pin class="w-5 h-5 text-ink-400" />
+                        </div>
+                        <div>
+                            <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc] font-medium">No location on record</p>
+                            <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-0.5">
+                                This senior has not been geocoded.
+                                <a href="{{ route('seniors.edit', $senior) }}" class="text-forest-700 dark:text-forest-400 font-semibold hover:text-forest-900">Add a location →</a>
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Accessibility score --}}
+                @if ($percent !== null)
+                <div class="px-5 pt-3.5">
+                    <div class="flex items-baseline justify-between mb-1.5">
+                        <span class="eyebrow">Facility access</span>
+                        <span class="text-[11px] font-semibold {{ $percent >= 75 ? 'text-low-700 dark:text-low-500' : ($percent >= 50 ? 'text-moderate-700 dark:text-moderate-500' : 'text-high-700 dark:text-high-500') }}">
+                            {{ $locationPanel['status'] }}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="bar flex-1">
+                            <div class="bar-fill {{ $percent >= 50 ? 'bar-fill-forest' : 'bar-fill-critical' }}" style="width: {{ $percent }}%"></div>
+                        </div>
+                        <span class="font-mono tnum text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8] w-9 text-right">{{ $percent }}%</span>
+                    </div>
+                    <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-1">Closeness to the nearest health, civic, and market services.</p>
+                </div>
+                @endif
+
+                {{-- Nearest facilities --}}
+                @if (!empty($facilities))
+                <div class="mt-3.5 border-t border-paper-rule dark:border-[#2b3530]">
+                    <div class="px-5 py-2 bg-paper-2 dark:bg-[#1a201d]">
+                        <span class="eyebrow">Nearest facilities</span>
+                    </div>
+                    <ul class="divide-y divide-paper-rule dark:divide-[#2b3530]">
+                        @foreach ($facilities as $facility)
+                        <li class="px-5 py-2.5 flex items-center gap-3">
+                            <span class="w-7 h-7 rounded-lg bg-forest-50 dark:bg-forest-900/15 grid place-items-center flex-shrink-0">
+                                <x-dynamic-component :component="$facilityIcons[$facility['key']] ?? 'heroicon-o-map-pin'" class="w-3.5 h-3.5 text-forest-700 dark:text-forest-400" aria-hidden="true" />
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12.5px] font-medium text-ink-900 dark:text-[#e4e1d8] truncate leading-tight">{{ $facility['name'] }}</p>
+                                <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570]">{{ $facility['label'] }}</p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                @if ($facility['straight_m'] !== null)
+                                <p class="font-mono tnum text-[12px] font-semibold text-ink-700 dark:text-[#c8c4bc] leading-tight">{{ $fmtDist($facility['straight_m']) }}</p>
+                                @endif
+                                @if ($facility['route_s'] !== null)
+                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDrive($facility['route_s']) }}</p>
+                                @elseif ($facility['route_m'] !== null)
+                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDist($facility['route_m']) }} by road</p>
+                                @else
+                                <p class="text-[10px] text-ink-300 dark:text-[#4b554f]">straight-line</p>
+                                @endif
+                            </div>
+                        </li>
+                        @endforeach
+                    </ul>
+                </div>
+                @elseif ($hasCoords)
+                <div class="px-5 py-4 mt-2 text-[12px] text-ink-400 dark:text-[#6b7570] border-t border-paper-rule dark:border-[#2b3530]">
+                    Facility distances are not calculated yet for this senior.
+                </div>
+                @else
+                <div class="pb-4"></div>
+                @endif
+            </x-card>
+
         </div>
     </div>
 
@@ -775,3 +940,90 @@
                   signatory="OSCA Officer / Reviewer" />
 </div>
 @endsection
+
+@push('styles')
+<style>
+/* Soft land tone behind the mini-map so brief tile gaps during load/zoom read
+   as map background rather than Leaflet's default grey or the dark panel. */
+#senior-mini-map { background: #f2efe9; }
+#senior-mini-map .leaflet-popup-content { font-size: 12px; line-height: 1.45; }
+#senior-mini-map .leaflet-popup-content strong { font-weight: 600; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    const el = document.getElementById('senior-mini-map');
+    const dataEl = document.getElementById('senior-map-data');
+    if (!el || !dataEl || !window.L) return;
+
+    let data;
+    try { data = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    if (!data.senior || data.senior.lat == null || data.senior.lng == null) return;
+
+    const L = window.L;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const verified = data.senior.status === 'verified';
+
+    // Popups set innerHTML, so any DB-sourced name must be HTML-escaped first.
+    const esc = function (value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+
+    const map = L.map(el, {
+        zoomControl: true,
+        scrollWheelZoom: false,
+        attributionControl: true,
+        zoomAnimation: !reduce,
+        fadeAnimation: !reduce,
+        markerZoomAnimation: !reduce,
+    }).setView([data.senior.lat, data.senior.lng], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+
+    const bounds = [];
+
+    // Nearby facilities — muted navy dots so the senior point stays dominant.
+    (data.facilities || []).forEach(function (f) {
+        if (f.lat == null || f.lng == null) return;
+        const marker = L.circleMarker([f.lat, f.lng], {
+            radius: 6,
+            color: '#ffffff',
+            weight: 2,
+            fillColor: '#27406b',
+            fillOpacity: 0.95,
+        }).addTo(map);
+        marker.bindPopup('<strong>' + esc(f.name || 'Facility') + '</strong><br>' + esc(f.label || ''));
+        bounds.push([f.lat, f.lng]);
+    });
+
+    // Senior point — bright accent (verified) or amber dashed ring (approximate).
+    const senior = L.circleMarker([data.senior.lat, data.senior.lng], {
+        radius: 9,
+        color: '#ffffff',
+        weight: 3,
+        fillColor: verified ? '#2657aa' : '#b4882a',
+        fillOpacity: 1,
+        dashArray: verified ? null : '3,3',
+    }).addTo(map);
+    senior.bindPopup(
+        '<strong>' + esc(data.senior.name || 'Senior') + '</strong><br>' +
+        (verified ? 'Field-verified GPS pin' : 'Approximate — barangay level')
+    );
+    bounds.push([data.senior.lat, data.senior.lng]);
+
+    if (bounds.length > 1) {
+        map.fitBounds(bounds, { padding: [26, 26], maxZoom: 16, animate: !reduce });
+    }
+
+    // The card lays out after script runs; recompute tile size once settled.
+    setTimeout(function () { map.invalidateSize(); }, 80);
+})();
+</script>
+@endpush
