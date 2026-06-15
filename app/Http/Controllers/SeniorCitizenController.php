@@ -77,14 +77,6 @@ class SeniorCitizenController extends Controller
         return view('seniors.show', compact('senior', 'draftSurvey', 'locationPanel'));
     }
 
-    /**
-     * Assemble the profile's "Location & Accessibility" view-model.
-     *
-     * Every value here is read from already-computed tables:
-     *   - senior_accessibility_metrics  (local haversine distances + score)
-     *   - senior_facility_route_distances (ORS road distances, precomputed in bulk)
-     * The profile therefore renders with zero live OpenRouteService calls.
-     */
     /** Max number of facility types the profile's Location panel lists (nearest per type). */
     private const NEAREST_FACILITY_LIMIT = 10;
 
@@ -103,6 +95,16 @@ class SeniorCitizenController extends Controller
         'church', 'chapel',
     ];
 
+    /**
+     * Assemble the profile's "Location & Accessibility" view-model.
+     *
+     * Reads only already-computed data, so it renders with zero live
+     * OpenRouteService calls:
+     *   - senior_accessibility_metrics    (accessibility score)
+     *   - the Facility table              (nearest senior-relevant facility per
+     *                                      type, ranked by local haversine)
+     *   - senior_facility_route_distances (cached ORS road distance, if fresh)
+     */
     private function locationPanel(SeniorCitizen $senior): array
     {
         $metric = $senior->latestAccessibilityMetric;
@@ -177,7 +179,7 @@ class SeniorCitizenController extends Controller
     /** Whether a facility is a senior-relevant service (type or name keyword). */
     private function isSeniorRelevantFacility(Facility $facility): bool
     {
-        $text = strtolower(trim(($facility->type ?? '') . ' ' . ($facility->name ?? '')));
+        $text = strtolower(trim(($facility->type ?? '').' '.($facility->name ?? '')));
 
         foreach (self::SENIOR_RELEVANT_KEYWORDS as $keyword) {
             if ($text !== '' && str_contains($text, $keyword)) {
@@ -204,21 +206,21 @@ class SeniorCitizenController extends Controller
     private function facilityTypeKey(?string $type): string
     {
         return match ($type) {
-            'Health Center'    => 'health_center',
-            'Hospital'         => 'hospital',
-            'Pharmacy'         => 'pharmacy',
-            'Barangay Hall'    => 'barangay_hall',
-            'Municipal Hall'   => 'municipal_hall',
+            'Health Center' => 'health_center',
+            'Hospital' => 'hospital',
+            'Pharmacy' => 'pharmacy',
+            'Barangay Hall' => 'barangay_hall',
+            'Municipal Hall' => 'municipal_hall',
             'Government Office' => 'gov_office',
-            'Public Market'    => 'market',
-            'Supermarket'      => 'supermarket',
-            'Community Store'  => 'store',
-            'Food Service'     => 'food',
-            'Church'           => 'church',
-            'Police Station'   => 'police',
-            'Fire Station'     => 'fire',
-            'Senior Center'    => 'senior_center',
-            default            => 'other',
+            'Public Market' => 'market',
+            'Supermarket' => 'supermarket',
+            'Community Store' => 'store',
+            'Food Service' => 'food',
+            'Church' => 'church',
+            'Police Station' => 'police',
+            'Fire Station' => 'fire',
+            'Senior Center' => 'senior_center',
+            default => 'other',
         };
     }
 

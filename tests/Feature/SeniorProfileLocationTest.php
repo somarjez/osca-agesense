@@ -77,8 +77,8 @@ class SeniorProfileLocationTest extends TestCase
         $meters = $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
 
         return $meters < 1000
-            ? round($meters) . ' m'
-            : number_format($meters / 1000, 1) . ' km';
+            ? round($meters).' m'
+            : number_format($meters / 1000, 1).' km';
     }
 
     #[Test]
