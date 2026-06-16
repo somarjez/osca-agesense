@@ -138,6 +138,7 @@ Key flags:
 | `--sleep-ms=N` | 2500 | Delay between ORS requests (ms) |
 | `--dry-run` | false | Count pairs without calling ORS |
 | `--force` | false | Recalculate existing cached pairs |
+| `--osrm-on-quota` | false | On an ORS quota/rate-limit error (403/429), fall back to public OSRM instead of stopping (still road-network distance). Use to finish coverage when the ORS free-tier quota is exhausted. |
 
 The batch uses its own **patient ORS timeouts** (`services.openrouteservice.batch_*`: 15s connect / 40s / 2 retries) so the free tier's variable latency doesn't time out into the OSRM fallback; the live popup keeps short timeouts. ORS free tier: **2000 requests/day**. Full coverage (≈283 seniors × ~9 types ≈ 2,500 pairs) exceeds the daily quota, so it takes a few re-runs (it resumes automatically).
 

@@ -20,6 +20,7 @@ class CacheGisRouteDistances extends Command
         {--stop-after-rate-limits=1 : Stop the run after this many rate-limit/API-limit errors}
         {--dry-run : Count route pairs that need OpenRouteService without sending requests}
         {--force : Recalculate and overwrite existing cached route distances}
+        {--osrm-on-quota : When ORS returns a quota/rate-limit error (403/429), fall back to public OSRM instead of stopping (still road-network distance)}
         {--sleep-ms=2500 : Milliseconds to sleep after each OpenRouteService request}';
 
     protected $description = 'Precompute GIS road-network route distances for senior popup accessibility services.';
@@ -56,6 +57,7 @@ class CacheGisRouteDistances extends Command
         $stopAfterRateLimits = max(0, (int) $this->option('stop-after-rate-limits'));
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
+        $osrmOnQuota = (bool) $this->option('osrm-on-quota');
         $sleepMs = max(0, (int) $this->option('sleep-ms'));
         $orsVerify = true;
 
@@ -175,7 +177,7 @@ class CacheGisRouteDistances extends Command
 
                 try {
                     $orsRequestsSent++;
-                    $route = $this->openRouteServiceRoute($apiKey, $origin, $destination, $orsVerify);
+                    $route = $this->openRouteServiceRoute($apiKey, $origin, $destination, $orsVerify, $osrmOnQuota);
                     SeniorFacilityRouteDistance::query()->updateOrCreate(
                         [
                             'senior_citizen_id' => $seniorId,
@@ -201,7 +203,11 @@ class CacheGisRouteDistances extends Command
                     $failed++;
                     if ($this->isOpenRouteServiceLimitError($exception)) {
                         $rateLimitOrApiErrors++;
-                        if ($stopAfterRateLimits > 0 && $rateLimitOrApiErrors >= $stopAfterRateLimits) {
+                        // With --osrm-on-quota we expect ORS quota errors and route
+                        // around them via OSRM, so they must not trip the stop guard
+                        // (even when an OSRM fallback also fails — that pair is just
+                        // skipped and retried on the next run).
+                        if (! $osrmOnQuota && $stopAfterRateLimits > 0 && $rateLimitOrApiErrors >= $stopAfterRateLimits) {
                             $hitRequestCap = true;
                         }
                     }
@@ -329,18 +335,24 @@ class CacheGisRouteDistances extends Command
         return $earthRadius * 2 * atan2(sqrt($haversine), sqrt(1 - $haversine));
     }
 
-    private function openRouteServiceRoute(string $apiKey, array $origin, array $destination, bool|string $verify): array
+    private function openRouteServiceRoute(string $apiKey, array $origin, array $destination, bool|string $verify, bool $osrmOnQuota = false): array
     {
         try {
             return $this->openRouteServiceRouteOnly($apiKey, $origin, $destination, $verify);
         } catch (\Throwable $exception) {
-            if (! $this->shouldFallbackToOsrm($exception)) {
+            // Normally only transient/connection errors fall back to OSRM. With
+            // --osrm-on-quota, a quota/rate-limit error (403/429) also falls back
+            // so coverage can finish via OSRM road routing instead of stopping.
+            $fallback = $this->shouldFallbackToOsrm($exception)
+                || ($osrmOnQuota && $this->isOpenRouteServiceLimitError($exception));
+
+            if (! $fallback) {
                 throw $exception;
             }
 
             try {
                 $route = $this->osrmRoute($origin, $destination);
-                $this->warn('OpenRouteService unavailable; cached route using OSRM fallback.');
+                $this->warn('OpenRouteService unavailable/quota-limited; cached route using OSRM fallback.');
 
                 return $route;
             } catch (\Throwable $fallbackException) {
@@ -409,8 +421,12 @@ class CacheGisRouteDistances extends Command
         $response = Http::acceptJson()
             ->withHeaders(['User-Agent' => 'AgeSense-OSCA/1.0 (osca-agesense)'])
             ->withOptions(['verify' => $verify])
-            ->connectTimeout((int) config('services.osrm.connect_timeout', 10))
-            ->timeout((int) config('services.osrm.timeout', 30))
+            ->connectTimeout((int) config('services.osrm.batch_connect_timeout', 15))
+            ->timeout((int) config('services.osrm.batch_timeout', 45))
+            ->retry(
+                (int) config('services.osrm.batch_retry_times', 2),
+                (int) config('services.osrm.batch_retry_sleep_ms', 2000)
+            )
             ->get("{$baseUrl}/route/v1/driving/{$coordinates}", [
                 'overview' => 'false',
             ]);

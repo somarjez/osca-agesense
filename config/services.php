@@ -69,6 +69,12 @@ return [
         'base_url' => env('OSRM_BASE_URL', 'https://router.project-osrm.org'),
         'connect_timeout' => env('OSRM_CONNECT_TIMEOUT', 3),
         'timeout' => env('OSRM_TIMEOUT', 8),
+        // Background backfill fallback (gis:cache-route-distances --osrm-on-quota):
+        // the public OSRM demo is slow, so allow more time + a retry here.
+        'batch_connect_timeout' => env('OSRM_BATCH_CONNECT_TIMEOUT', 15),
+        'batch_timeout' => env('OSRM_BATCH_TIMEOUT', 45),
+        'batch_retry_times' => env('OSRM_BATCH_RETRY_TIMES', 2),
+        'batch_retry_sleep_ms' => env('OSRM_BATCH_RETRY_SLEEP_MS', 2000),
     ],
 
 ];
