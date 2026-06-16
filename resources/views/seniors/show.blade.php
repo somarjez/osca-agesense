@@ -913,13 +913,19 @@
                                 <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570]">{{ $facility['label'] }}</p>
                             </div>
                             <div class="text-right flex-shrink-0">
-                                @if ($facility['straight_m'] !== null)
-                                <p class="font-mono tnum text-[12px] font-semibold text-ink-700 dark:text-[#c8c4bc] leading-tight">{{ $fmtDist($facility['straight_m']) }}</p>
+                                @php
+                                    // Show the road distance as the primary number when a fresh
+                                    // cached route exists, so the distance and the drive time come
+                                    // from the same source and agree with the GIS map popup.
+                                    $primaryM = $facility['route_m'] ?? $facility['straight_m'];
+                                @endphp
+                                @if ($primaryM !== null)
+                                <p class="font-mono tnum text-[12px] font-semibold text-ink-700 dark:text-[#c8c4bc] leading-tight">{{ $fmtDist($primaryM) }}</p>
                                 @endif
                                 @if ($facility['route_s'] !== null)
                                 <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDrive($facility['route_s']) }}</p>
                                 @elseif ($facility['route_m'] !== null)
-                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDist($facility['route_m']) }} by road</p>
+                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">by road</p>
                                 @else
                                 <p class="text-[10px] text-ink-300 dark:text-[#4b554f]">straight-line</p>
                                 @endif

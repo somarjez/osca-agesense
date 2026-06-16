@@ -862,7 +862,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 
 ### 18.4 Accessibility Proximity Scoring
 
-`php artisan gis:score-proximity` computes, for each geocoded senior, the distance to the nearest facility in each category (health centre, hospital, pharmacy, market, barangay hall) and a composite **accessibility score** (0–1, higher = better access), stored in `senior_accessibility_metrics`. The GIS page surfaces this as a percentage-style proximity indicator and drives the Accessibility Heatmap.
+`php artisan gis:score-proximity` computes, for each geocoded senior, the distance to the nearest facility in each category (health centre, hospital, pharmacy, market, barangay hall) and a composite **accessibility score** (0–1, higher = better access), stored in `senior_accessibility_metrics`. The score uses cached road-network distance (falling back to straight-line), with a detour guard that rejects implausible barangay-centroid routes and a 1.4× cap recalibration so rural barangays aren't scored to ~0%. The GIS page surfaces this as a percentage-style proximity indicator and drives the Accessibility Heatmap.
 
 **Still pending — `gis_proximity_score` as an ML feature:** the accessibility score is computed and stored but is **not yet wired into the GBR/RFR preprocessing pipeline**. Integrating it as an optional model feature requires a model retrain; seniors without coordinates would continue to use the existing pipeline unchanged.
 

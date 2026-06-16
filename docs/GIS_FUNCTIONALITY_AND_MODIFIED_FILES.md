@@ -167,7 +167,14 @@ Facility categories used in scoring:
 
 The score is stored as a 0 to 1 accessibility score. Higher values indicate better access based on proximity to nearby facilities. The GIS page displays this as a percentage-style GIS proximity score.
 
-**Road-network distance.** The score uses the cached OpenRouteService **road-network distance** to each category's nearest facility (when a coordinate-fresh route is cached), falling back to **straight-line** distance where a route isn't cached yet. This makes the score reflect real travel distance and stay consistent with the "X min drive" routes shown on the profile and map. The `distance_to_*_m` columns still record the straight-line distance. Because road distance ≥ straight-line, scores are slightly more conservative than before. Re-run the command after the route cache grows to upgrade more seniors from straight-line to road-based. It is a deterministic formula, not a machine-learning model.
+**Road-network distance.** The score uses the cached OpenRouteService **road-network distance** to each category's nearest facility (when a coordinate-fresh route is cached), falling back to **straight-line** distance where a route isn't cached yet. This makes the score reflect real travel distance and stay consistent with the "X min drive" routes shown on the profile and map. The `distance_to_*_m` columns still record the straight-line distance. Re-run the command after the route cache grows to upgrade more seniors from straight-line to road-based. It is a deterministic formula, not a machine-learning model.
+
+**Detour guard + cap recalibration.** Barangay-level seniors share a barangay-centroid coordinate that does not always snap to the OSM routing graph, so ORS can return grossly inflated routes (observed up to ~16× the straight-line distance). Two safeguards keep these artifacts from collapsing the score for whole barangays:
+
+- **Guard (`MAX_TRUSTED_DETOUR = 3.0`):** a cached road distance is used only when its detour over the straight-line distance is ≤ 3× (≈ the observed p90); above that it is treated as an artifact and the score falls back to straight-line for that facility.
+- **Cap recalibration (`ROAD_DETOUR_FACTOR = 1.4`):** the per-category `cap_m` thresholds were calibrated for straight-line distance, so they are widened by 1.4× (the observed median road/straight detour) before scoring, keeping road- and straight-line-scored components on the same scale.
+
+Both constants live in `app/Console/Commands/ScoreGisProximity.php`.
 
 Supported options:
 
@@ -383,7 +390,7 @@ The following files were changed on the GIS branch compared with `origin/main`.
 | --- | --- |
 | `resources/views/reports/gis.blade.php` | Major GIS page implementation with Leaflet map, filters, heatmaps, boundary overlays, facilities, cluster/risk/accessibility visualization, route distance popup behavior, geocode status controls, refined health-cluster heatmap contours, and senior distribution point display for cluster heatmap review. The senior popup lists the nearest facility **per type** (live-routing the nearest ~5, straight-line for the rest) and shows a loading overlay until layers render. |
 | `resources/views/seniors/show.blade.php` | Senior profile: full-width Location & Accessibility card (mini-map beside facility-access score + nearest-per-type facility list), segmented section selector, and the mini-map init fix (waits for `DOMContentLoaded` so Leaflet is loaded). |
-| `app/Http/Controllers/SeniorCitizenController.php` | `locationPanel()` builds the profile's Location & Accessibility view-model: nearest facility per senior-relevant type by local haversine, with cached ORS road routes where fresh. Zero live routing calls. |
+| `app/Http/Controllers/SeniorCitizenController.php` | `locationPanel()` builds the profile's Location & Accessibility view-model: nearest facility per senior-relevant type by local haversine, with cached ORS road routes where fresh. The view shows the **road distance** as the primary number when a fresh route exists (so the distance and the "X min drive" come from one source and match the GIS map popup), falling back to straight-line otherwise. Zero live routing calls. |
 | `resources/views/livewire/surveys/profile-survey.blade.php` | Added (then later **removed**) the manual location pin UI, map interaction, boundary validation, and coordinate capture fields. The picker is no longer part of the form. |
 | `resources/js/app.js` | Updated frontend bootstrap/import behavior to support GIS page assets/plugins. |
 

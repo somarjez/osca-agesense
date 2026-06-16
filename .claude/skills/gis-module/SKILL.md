@@ -38,7 +38,7 @@ Each step is idempotent. Steps 1 and 2 are safe to re-run at any time. Step 3 ca
 **Auto-chaining:** `gis:geocode` now runs Steps 2 and 3 itself whenever it changes any coordinates — it runs `gis:score-proximity` inline (local, fast) and **queues** `gis:cache-route-distances` (the throttled ORS part). So a geocode keeps the accessibility data aligned automatically. Opt out with `gis:geocode --skip-recompute`. **A queue worker must be running** for the queued route recompute to execute, and the worker must be **restarted after code changes** (`php artisan queue:restart`) or it runs stale code (see Gotchas).
 
 **Where computation happens:**
-- *Profile page* — never calls ORS live. It ranks the nearest facility per senior-relevant type by local haversine and shows the **cached** ORS road route where fresh, else straight-line.
+- *Profile page* — never calls ORS live. It ranks the nearest facility per senior-relevant type by local haversine, then shows the **cached** ORS road route where fresh (road distance as the primary number + the "X min drive", matching the map popup), else straight-line.
 - *Map popup* — for the nearest ~5 it calls the `route-distance` endpoint (cache-first; live ORS on a miss, then persists); the rest of the listed types show straight-line.
 - *Bulk precompute* (`gis:cache-route-distances`) — the only step that fills road routes for everyone.
 
@@ -85,6 +85,8 @@ php artisan gis:geocode --dry-run
 ### Step 2 — `gis:score-proximity`
 
 Calculates accessibility scores (0.0–1.0) from each geocoded senior to the 5 facility categories (health center, hospital, pharmacy, market, barangay hall). Writes to `senior_accessibility_metrics`. No external API calls of its own — it **reads the cached ORS road-network distance** for each category's nearest facility (coordinate-fresh) and uses that in the score, **falling back to straight-line** where a route isn't cached yet. So the % reflects real travel distance and stays consistent with the routes shown on the profile/map. (The `distance_to_*_m` columns still record the straight-line distance.) Run it again after the route cache grows to upgrade more seniors from straight-line to road-based.
+
+**Detour guard + cap recalibration** (in `ScoreGisProximity.php`): barangay-centroid origins that don't snap to the OSM graph can yield absurd ORS routes (observed up to ~16×). A cached road distance is trusted only when its detour over straight-line is ≤ `MAX_TRUSTED_DETOUR` (3.0×); above that the score falls back to straight-line. The per-category caps were calibrated for straight-line, so they are widened by `ROAD_DETOUR_FACTOR` (1.4×, the observed median detour) before scoring. Without these, whole rural barangays scored near 0%.
 
 ```bash
 # Preview scores without saving

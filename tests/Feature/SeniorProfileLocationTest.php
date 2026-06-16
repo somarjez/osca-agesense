@@ -130,8 +130,9 @@ class SeniorProfileLocationTest extends TestCase
         $response->assertSee('121.455000');
         $response->assertSee('Verified pin');
         $response->assertSee('Pagsanjan Rural Health Unit');
-        // Straight-line distance, now computed from coordinates (haversine).
-        $response->assertSee($this->expectedDistanceLabel(14.273000, 121.455000, 14.2719, 121.4551));
+        // Road distance is now the primary number (matches the GIS map popup),
+        // so the distance and the drive time come from the same cached route.
+        $response->assertSee('540 m');            // cached ORS road distance, not haversine
         $response->assertSee('4 min drive');      // 240s cached route duration
         $response->assertSee('78%');              // accessibility score
         $response->assertSee('Good access');
