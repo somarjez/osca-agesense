@@ -18,6 +18,23 @@ class ScoreGisProximity extends Command
 
     protected $description = 'Calculate GIS proximity scores from senior coordinates to nearby facilities.';
 
+    /**
+     * Median road/straight-line detour observed across the cached Pagsanjan
+     * routes (p50 ≈ 1.37). The `cap_m` thresholds below were calibrated for
+     * straight-line distance; the score now feeds road distance into them, so
+     * the caps are widened by this factor to keep road-based scores on the same
+     * scale the caps were designed for.
+     */
+    private const ROAD_DETOUR_FACTOR = 1.4;
+
+    /**
+     * Maximum trustworthy road/straight-line ratio. Barangay-centroid origins
+     * that don't snap to the OSM routing graph yield absurd routes (observed up
+     * to 16x, p90 ≈ 2.5); above this ratio the cached road distance is treated
+     * as an artifact and the scorer falls back to straight-line.
+     */
+    private const MAX_TRUSTED_DETOUR = 3.0;
+
     private const CATEGORY_CONFIG = [
         'health_center' => [
             'id_column' => 'nearest_health_center_id',
@@ -207,14 +224,25 @@ class ScoreGisProximity extends Command
             $payload[$config['distance_column']] = $nearest['distance'];
 
             $road = $this->freshRoadDistance($routes, $facility, $senior);
-            $scoringDistance = $road ?? $nearest['distance'];
+            $straight = $nearest['distance'];
+
+            // Trust a cached road distance only when its detour over the
+            // straight-line distance is plausible; reject centroid-snapping
+            // artifacts and fall back to straight-line for those.
+            $useRoad = $road !== null
+                && $straight !== null && $straight > 0
+                && ($road / $straight) <= self::MAX_TRUSTED_DETOUR;
+            $scoringDistance = $useRoad ? $road : $straight;
 
             if ($scoringDistance !== null) {
-                $component = max(0, 1 - ($scoringDistance / $config['cap_m']));
+                // Caps are calibrated for straight-line distance; widen them to
+                // road scale so road- and straight-line-scored components match.
+                $cap = $config['cap_m'] * self::ROAD_DETOUR_FACTOR;
+                $component = max(0, 1 - ($scoringDistance / $cap));
                 $weightedTotal += $component * $config['weight'];
                 $availableWeight += $config['weight'];
 
-                if ($road !== null) {
+                if ($useRoad) {
                     $roadComponents++;
                 }
             }
