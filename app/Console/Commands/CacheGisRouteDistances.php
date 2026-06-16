@@ -203,7 +203,11 @@ class CacheGisRouteDistances extends Command
                     $failed++;
                     if ($this->isOpenRouteServiceLimitError($exception)) {
                         $rateLimitOrApiErrors++;
-                        if ($stopAfterRateLimits > 0 && $rateLimitOrApiErrors >= $stopAfterRateLimits) {
+                        // With --osrm-on-quota we expect ORS quota errors and route
+                        // around them via OSRM, so they must not trip the stop guard
+                        // (even when an OSRM fallback also fails — that pair is just
+                        // skipped and retried on the next run).
+                        if (! $osrmOnQuota && $stopAfterRateLimits > 0 && $rateLimitOrApiErrors >= $stopAfterRateLimits) {
                             $hitRequestCap = true;
                         }
                     }
@@ -417,8 +421,12 @@ class CacheGisRouteDistances extends Command
         $response = Http::acceptJson()
             ->withHeaders(['User-Agent' => 'AgeSense-OSCA/1.0 (osca-agesense)'])
             ->withOptions(['verify' => $verify])
-            ->connectTimeout((int) config('services.osrm.connect_timeout', 10))
-            ->timeout((int) config('services.osrm.timeout', 30))
+            ->connectTimeout((int) config('services.osrm.batch_connect_timeout', 15))
+            ->timeout((int) config('services.osrm.batch_timeout', 45))
+            ->retry(
+                (int) config('services.osrm.batch_retry_times', 2),
+                (int) config('services.osrm.batch_retry_sleep_ms', 2000)
+            )
             ->get("{$baseUrl}/route/v1/driving/{$coordinates}", [
                 'overview' => 'false',
             ]);
