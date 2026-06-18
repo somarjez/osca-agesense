@@ -67,7 +67,9 @@
         },
         "audit": {
             "ignore": {
-                "CVE-2026-48019": "No patch for Laravel 11; mitigated by using email:filter rule. Upgrade to Laravel 12.60+ planned."
+                "CVE-2026-48019": "No patch for Laravel 11; mitigated by using email:filter rule. Upgrade to Laravel 12.60+ planned.",
+                "PKSA-3r5d-mb8f-1qw9": "Same CRLF-in-default-email-rule issue as CVE-2026-48019 (no-CVE advisory record). No Laravel 11 patch (fixed in 12.60); mitigated via email:filter rule. Upgrade to Laravel 12.61+ planned.",
+                "PKSA-m5cs-t1y6-qpcs": "Temporary signed URL path confusion. No Laravel 11 patch (fixed in 12.61.1); app generates/validates no temporary signed URLs, so no exposed surface. Upgrade to Laravel 12.61+ planned."
             }
         }
     },

@@ -98,12 +98,18 @@ class SeniorCitizenController extends Controller
     /**
      * Assemble the profile's "Location & Accessibility" view-model.
      *
-     * Reads only already-computed data, so it renders with zero live
+     * Reads only already-computed data, so the page renders with zero live
      * OpenRouteService calls:
      *   - senior_accessibility_metrics    (accessibility score)
      *   - the Facility table              (nearest senior-relevant facility per
      *                                      type, ranked by local haversine)
      *   - senior_facility_route_distances (cached ORS road distance, if fresh)
+     *
+     * Facilities without a fresh cached road route fall back to straight-line
+     * here and carry the `facility_id`; the profile view then lazily upgrades
+     * those rows to road distance client-side (after render) via the same
+     * /api/gis/route-distance proxy the GIS map popup uses, persisting the
+     * result so the next render serves it from cache.
      */
     private function locationPanel(SeniorCitizen $senior): array
     {
@@ -151,6 +157,7 @@ class SeniorCitizenController extends Controller
                     && $this->coordinatesMatch($route->destination_longitude, $facilityLng);
 
                 $facilities[] = [
+                    'facility_id' => $facility->id,
                     'key' => $this->facilityTypeKey($facility->type),
                     'label' => $facility->type ?: 'Service',
                     'name' => $facility->name ?: ($facility->type ?: 'Senior service'),

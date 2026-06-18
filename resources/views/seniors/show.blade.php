@@ -902,9 +902,38 @@
                 @if (!empty($facilities))
                 <div class="p-5">
                     <span class="eyebrow">Nearest facilities</span>
-                    <ul class="mt-2 grid sm:grid-cols-2 sm:gap-x-8">
+                    {{-- Rows with a fresh cached road route render road distance server-side.
+                         Rows that fell back to straight-line carry data-needs-route so the
+                         inline script below can lazily fetch a road route from the same
+                         endpoint the GIS map popup uses (cache-first, then live ORS/OSRM),
+                         upgrading them in place without blocking the page render. --}}
+                    <ul class="mt-2 grid sm:grid-cols-2 sm:gap-x-8"
+                        id="senior-facility-list"
+                        data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
+                        data-senior-id="{{ $senior->id }}"
+                        data-origin-lat="{{ $loc['lat'] }}"
+                        data-origin-lng="{{ $loc['lng'] }}">
                         @foreach ($facilities as $facility)
-                        <li class="flex items-center gap-3 py-2.5 border-b border-paper-rule dark:border-[#2b3530] last:border-b-0">
+                        @php
+                            // Road distance is the primary number when a fresh cached route
+                            // exists, so the distance and drive time share one source and
+                            // agree with the GIS map popup; otherwise fall back to straight-line.
+                            $primaryM = $facility['route_m'] ?? $facility['straight_m'];
+                            // A row can be lazily upgraded only when it has no cached road
+                            // route yet but does have the coordinates needed to look one up.
+                            $needsRoute = $facility['route_m'] === null
+                                && !empty($facility['facility_id'])
+                                && $facility['lat'] !== null
+                                && $facility['lng'] !== null;
+                        @endphp
+                        <li class="flex items-center gap-3 py-2.5 border-b border-paper-rule dark:border-[#2b3530] last:border-b-0"
+                            @if ($needsRoute)
+                            data-needs-route="1"
+                            data-facility-id="{{ $facility['facility_id'] }}"
+                            data-dest-lat="{{ $facility['lat'] }}"
+                            data-dest-lng="{{ $facility['lng'] }}"
+                            @endif
+                            >
                             <span class="w-7 h-7 rounded-lg bg-forest-50 dark:bg-forest-900/15 grid place-items-center flex-shrink-0">
                                 <x-dynamic-component :component="$facilityIcons[$facility['key']] ?? 'heroicon-o-map-pin'" class="w-3.5 h-3.5 text-forest-700 dark:text-forest-400" aria-hidden="true" />
                             </span>
@@ -913,21 +942,15 @@
                                 <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570]">{{ $facility['label'] }}</p>
                             </div>
                             <div class="text-right flex-shrink-0">
-                                @php
-                                    // Show the road distance as the primary number when a fresh
-                                    // cached route exists, so the distance and the drive time come
-                                    // from the same source and agree with the GIS map popup.
-                                    $primaryM = $facility['route_m'] ?? $facility['straight_m'];
-                                @endphp
                                 @if ($primaryM !== null)
-                                <p class="font-mono tnum text-[12px] font-semibold text-ink-700 dark:text-[#c8c4bc] leading-tight">{{ $fmtDist($primaryM) }}</p>
+                                <p data-route-distance class="font-mono tnum text-[12px] font-semibold text-ink-700 dark:text-[#c8c4bc] leading-tight">{{ $fmtDist($primaryM) }}</p>
                                 @endif
                                 @if ($facility['route_s'] !== null)
-                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDrive($facility['route_s']) }}</p>
+                                <p data-route-sublabel class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">{{ $fmtDrive($facility['route_s']) }}</p>
                                 @elseif ($facility['route_m'] !== null)
-                                <p class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">by road</p>
+                                <p data-route-sublabel class="text-[10px] text-ink-400 dark:text-[#6b7570] tnum">by road</p>
                                 @else
-                                <p class="text-[10px] text-ink-300 dark:text-[#4b554f]">straight-line</p>
+                                <p data-route-sublabel class="text-[10px] text-ink-300 dark:text-[#4b554f]">straight-line</p>
                                 @endif
                             </div>
                         </li>
@@ -1066,6 +1089,111 @@
         initSeniorMiniMap();
     }
     document.addEventListener('livewire:navigated', initSeniorMiniMap);
+})();
+</script>
+
+<script>
+(function () {
+    // Lazily upgrade straight-line facility rows to road-network distance. The
+    // page renders zero live routing calls; this runs AFTER render and only for
+    // rows the bulk cache hasn't filled yet (data-needs-route). It reuses the
+    // same /api/gis/route-distance proxy the GIS map popup uses (cache-first,
+    // then live ORS), with a public-OSRM fallback, so the profile and map agree
+    // and a fetched route is persisted for every later view.
+    const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
+
+    const fmtDist = function (m) {
+        return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
+    };
+    const fmtDrive = function (s) {
+        return Math.max(1, Math.round(s / 60)) + ' min drive';
+    };
+
+    async function orsRoute(url, origin, dest, seniorId, facilityId) {
+        const params = new URLSearchParams({
+            origin_lat: origin.lat,
+            origin_lng: origin.lng,
+            destination_lat: dest.lat,
+            destination_lng: dest.lng,
+        });
+        if (seniorId) params.set('senior_id', seniorId);
+        if (facilityId) params.set('facility_id', facilityId);
+
+        const response = await fetch(`${url}?${params.toString()}`, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`route proxy ${response.status}`);
+        const payload = await response.json();
+        if (!Number.isFinite(Number(payload.distance))) throw new Error('no usable route');
+        return {
+            distance: Number(payload.distance),
+            duration: Number.isFinite(Number(payload.duration)) ? Number(payload.duration) : null,
+        };
+    }
+
+    async function osrmRoute(origin, dest) {
+        const response = await fetch(
+            `${OSRM_URL}/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false&alternatives=false&steps=false`,
+            { headers: { Accept: 'application/json' } }
+        );
+        if (!response.ok) throw new Error(`OSRM ${response.status}`);
+        const route = (await response.json())?.routes?.[0];
+        if (!route || !Number.isFinite(route.distance)) throw new Error('OSRM no usable route');
+        return { distance: route.distance, duration: Number.isFinite(route.duration) ? route.duration : null };
+    }
+
+    function applyRoute(row, route) {
+        const distEl = row.querySelector('[data-route-distance]');
+        const subEl = row.querySelector('[data-route-sublabel]');
+        if (distEl) distEl.textContent = fmtDist(route.distance);
+        if (subEl) {
+            subEl.textContent = route.duration !== null ? fmtDrive(route.duration) : 'by road';
+            // Drop the muted straight-line tone now that this is a real road route.
+            subEl.classList.remove('text-ink-300', 'dark:text-[#4b554f]');
+            subEl.classList.add('text-ink-400', 'dark:text-[#6b7570]', 'tnum');
+        }
+        row.removeAttribute('data-needs-route');
+    }
+
+    function upgradeFacilityRoutes() {
+        const list = document.getElementById('senior-facility-list');
+        if (!list || list.dataset.routesUpgrading === '1') return;
+
+        const url = list.dataset.routeDistanceUrl;
+        const seniorId = list.dataset.seniorId;
+        const originLat = parseFloat(list.dataset.originLat);
+        const originLng = parseFloat(list.dataset.originLng);
+        if (!url || !Number.isFinite(originLat) || !Number.isFinite(originLng)) return;
+
+        const rows = Array.from(list.querySelectorAll('li[data-needs-route="1"]'));
+        if (!rows.length) return;
+        list.dataset.routesUpgrading = '1';
+
+        const origin = { lat: originLat, lng: originLng };
+
+        rows.forEach(async function (row) {
+            const dest = { lat: parseFloat(row.dataset.destLat), lng: parseFloat(row.dataset.destLng) };
+            const facilityId = row.dataset.facilityId;
+            if (!Number.isFinite(dest.lat) || !Number.isFinite(dest.lng)) return;
+
+            try {
+                let route;
+                try {
+                    route = await orsRoute(url, origin, dest, seniorId, facilityId);
+                } catch (e) {
+                    route = await osrmRoute(origin, dest);
+                }
+                applyRoute(row, route);
+            } catch (e) {
+                // Both road-route sources failed — leave the straight-line row as-is.
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', upgradeFacilityRoutes);
+    } else {
+        upgradeFacilityRoutes();
+    }
+    document.addEventListener('livewire:navigated', upgradeFacilityRoutes);
 })();
 </script>
 @endpush

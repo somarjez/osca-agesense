@@ -190,6 +190,314 @@ class SeniorProfileLocationTest extends TestCase
     }
 
     #[Test]
+    public function profile_exposes_lazy_route_lookup_data_for_uncached_facilities(): void
+    {
+        // A senior + facility with NO cached road route: the profile shows the
+        // straight-line distance, but must also expose the hooks the client needs
+        // to lazily fetch a road route from /api/gis/route-distance (same endpoint
+        // the GIS map popup uses), so the straight-line row upgrades to road on view.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $healthCenter = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => 14.2719,
+            'longitude' => 121.4551,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'nearest_health_center_id' => $healthCenter->id,
+            'distance_to_health_center_m' => 320.0,
+            'accessibility_score' => 0.78,
+            'calculated_at' => now(),
+        ]);
+
+        // No SeniorFacilityRouteDistance row — this pair is uncached.
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('Pagsanjan Rural Health Unit');
+        $response->assertSee('straight-line');                       // current fallback
+        // Lazy-lookup hooks for the client:
+        $response->assertSee(route('api.gis.route-distance', [], false), false);
+        $response->assertSee('data-senior-id="'.$senior->id.'"', false);
+        $response->assertSee('data-needs-route="1"', false);
+        $response->assertSee('data-facility-id="'.$healthCenter->id.'"', false);
+    }
+
+    #[Test]
+    public function profile_does_not_flag_already_cached_facility_for_route_lookup(): void
+    {
+        // A facility with a fresh cached road route already shows road distance,
+        // so it must NOT be flagged for a (redundant) live lookup.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $healthCenter = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => 14.2719,
+            'longitude' => 121.4551,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'nearest_health_center_id' => $healthCenter->id,
+            'distance_to_health_center_m' => 320.0,
+            'accessibility_score' => 0.78,
+            'calculated_at' => now(),
+        ]);
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $healthCenter->id,
+            'origin_latitude' => 14.273000,
+            'origin_longitude' => 121.455000,
+            'destination_latitude' => 14.2719,
+            'destination_longitude' => 121.4551,
+            'route_distance_m' => 540.0,
+            'route_duration_s' => 240.0,
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('540 m');                 // cached road distance
+        // The per-row lazy-lookup attributes (data-facility-id / data-dest-*) are
+        // emitted only on rows that fell back to straight-line. A cached row must
+        // carry none. (We assert on data-facility-id rather than data-needs-route
+        // because the inline upgrade script references the latter literally.)
+        $response->assertDontSee('data-facility-id="'.$healthCenter->id.'"', false);
+    }
+
+    #[Test]
+    public function profile_renders_cached_road_distance_in_km_and_drive_time(): void
+    {
+        // Mirrors what staff see in the field: a cached road route renders the
+        // road distance (km when >= 1000 m) as the primary number plus the drive
+        // time derived from the same cached route (e.g. "15 min drive").
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $hospital = Facility::create([
+            'name' => 'Pagsanjan District Hospital',
+            'type' => 'Hospital',
+            'latitude' => 14.2801,
+            'longitude' => 121.4490,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'distance_to_hospital_m' => 1200.0,
+            'accessibility_score' => 0.55,
+            'calculated_at' => now(),
+        ]);
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $hospital->id,
+            'origin_latitude' => 14.273000,
+            'origin_longitude' => 121.455000,
+            'destination_latitude' => 14.2801,
+            'destination_longitude' => 121.4490,
+            'route_distance_m' => 1500.0,   // -> "1.5 km"
+            'route_duration_s' => 900.0,    // -> "15 min drive"
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('Pagsanjan District Hospital');
+        $response->assertSee('1.5 km');        // road distance, km formatting
+        $response->assertSee('15 min drive');  // 900s cached duration
+        // A cached row must not be flagged for a redundant lazy lookup. (We can't
+        // assertDontSee('straight-line') here: the inline upgrade script mentions
+        // that word in a comment, so we assert on the per-row marker instead.)
+        $response->assertDontSee('data-facility-id="'.$hospital->id.'"', false);
+    }
+
+    #[Test]
+    public function profile_labels_cached_route_without_duration_as_by_road(): void
+    {
+        // A cached road distance with no duration still shows road distance, but
+        // the sublabel reads "by road" rather than a drive time.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $pharmacy = Facility::create([
+            'name' => 'Botika ng Bayan',
+            'type' => 'Pharmacy',
+            'latitude' => 14.2725,
+            'longitude' => 121.4548,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'distance_to_pharmacy_m' => 300.0,
+            'accessibility_score' => 0.7,
+            'calculated_at' => now(),
+        ]);
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $pharmacy->id,
+            'origin_latitude' => 14.273000,
+            'origin_longitude' => 121.455000,
+            'destination_latitude' => 14.2725,
+            'destination_longitude' => 121.4548,
+            'route_distance_m' => 800.0,    // -> "800 m"
+            'route_duration_s' => null,     // no duration -> "by road"
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('800 m');
+        $response->assertSee('by road');
+        // No lazy-lookup marker: this row already has a cached road route.
+        // (The inline script contains the literals "min drive"/"straight-line",
+        // so we verify via the per-row marker rather than assertDontSee on text.)
+        $response->assertDontSee('data-facility-id="'.$pharmacy->id.'"', false);
+    }
+
+    #[Test]
+    public function profile_mixes_road_routes_and_straight_line_rows_correctly(): void
+    {
+        // Two facilities of different types: one with a fresh cached route (road),
+        // one without (straight-line + lazy-lookup hooks). Only the uncached row
+        // should carry the per-row lazy attributes.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $cached = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => 14.2719,
+            'longitude' => 121.4551,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        $uncached = Facility::create([
+            'name' => 'Pagsanjan Public Market',
+            'type' => 'Public Market',
+            'latitude' => 14.2740,
+            'longitude' => 121.4560,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'nearest_health_center_id' => $cached->id,
+            'distance_to_health_center_m' => 320.0,
+            'accessibility_score' => 0.66,
+            'calculated_at' => now(),
+        ]);
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $cached->id,
+            'origin_latitude' => 14.273000,
+            'origin_longitude' => 121.455000,
+            'destination_latitude' => 14.2719,
+            'destination_longitude' => 121.4551,
+            'route_distance_m' => 540.0,
+            'route_duration_s' => 240.0,
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+        // No route row for $uncached -> straight-line + lazy hooks.
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('540 m');          // cached row -> road
+        $response->assertSee('4 min drive');
+        $response->assertSee('straight-line');  // uncached row fell back
+        // Only the uncached facility is flagged for a lazy road-route lookup.
+        $response->assertSee('data-facility-id="'.$uncached->id.'"', false);
+        $response->assertDontSee('data-facility-id="'.$cached->id.'"', false);
+    }
+
+    #[Test]
+    public function profile_lazy_attributes_carry_origin_and_destination_coordinates(): void
+    {
+        // The client needs both endpoints to request a road route, and they must
+        // match the coordinates the controller uses for cache-freshness so a
+        // fetched route is treated as fresh on the next render.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $facility = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => 14.2719,
+            'longitude' => 121.4551,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'nearest_health_center_id' => $facility->id,
+            'distance_to_health_center_m' => 320.0,
+            'accessibility_score' => 0.7,
+            'calculated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('data-origin-lat="14.273"', false);
+        $response->assertSee('data-origin-lng="121.455"', false);
+        $response->assertSee('data-dest-lat="14.2719"', false);
+        $response->assertSee('data-dest-lng="121.4551"', false);
+        $response->assertSee('data-senior-id="'.$senior->id.'"', false);
+    }
+
+    #[Test]
     public function profile_marks_barangay_level_seniors_as_approximate(): void
     {
         $senior = $this->makeSenior([

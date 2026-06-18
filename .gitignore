@@ -5,11 +5,10 @@ osca_normalized.csv
 python/models/predictions/senior_predictions.csv
 python/models/predictions/senior_recommendations_flat.csv
 
-# Database dumps — contain personal senior citizen data, never commit
-database/backups/*.sql
-database/backups/*.dump
-database/backups/*.gz
-database/backups/*.zip
+# Database dumps — contain personal senior citizen data, never commit.
+# Ignore the entire backups directory but keep the folder via .gitkeep.
+database/backups/*
+!database/backups/.gitkeep
 
 # Laravel / PHP
 /.phpunit.cache
