@@ -3299,13 +3299,15 @@
             .slice(0, ROUTE_SERVICE_DISPLAY_LIMIT)
             .map((candidate, index) => {
                 const label = escapeHtml(serviceBaseLabel(candidate.facility));
-                // Only the nearest few get a live road route; the rest show their
-                // straight-line distance immediately to keep popup cost bounded.
+                // The nearest few show "calculating" while their route loads; the
+                // rest show straight-line immediately. Every row keeps a
+                // data-gis-route-item slot so updateRoadNetworkServices can upgrade
+                // it to a road route (cache-first, so usually free) once resolved.
                 if (index < ROUTE_SERVICE_CANDIDATE_LIMIT) {
                     return `<li class="pl-1 leading-snug" data-gis-route-item="${index}">${label} - calculating route...</li>`;
                 }
                 const straight = escapeHtml(`${formatServiceDistance(candidate.straightDistance)} straight-line`);
-                return `<li class="pl-1 leading-snug">${label} - ${straight}</li>`;
+                return `<li class="pl-1 leading-snug" data-gis-route-item="${index}">${label} - ${straight}</li>`;
             })
             .join('');
 
@@ -3834,10 +3836,13 @@
             return;
         }
 
-        // Live-route only the nearest few; items beyond that already show their
-        // straight-line distance (from routeLoadingListHtml), matching the profile
-        // and keeping each popup to at most ROUTE_SERVICE_CANDIDATE_LIMIT calls.
-        const liveCandidates = candidates.slice(0, ROUTE_SERVICE_CANDIDATE_LIMIT);
+        // Resolve a road route for every displayed service, not just the nearest
+        // few. The route-distance endpoint is cache-first and the cache is
+        // precomputed for the nearest facility per type, so this is almost always
+        // served from cache (near-zero live ORS calls) and matches the profile,
+        // which now shows road distance for every facility it lists. Any row whose
+        // route misses or fails degrades to the straight-line distance shown.
+        const liveCandidates = candidates.slice(0, ROUTE_SERVICE_DISPLAY_LIMIT);
 
         await Promise.all(liveCandidates.map(async (candidate, index) => {
             let item = null;
