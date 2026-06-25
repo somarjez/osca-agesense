@@ -69,21 +69,21 @@ class XaiFeatureLabels
      * Used to explain — in officer-friendly terms — what each risk driver covers.
      */
     public static array $sectionDescriptions = [
-        'Physical Health'    => 'general health, energy, pain, and medical check-up habits.',
-        'Psychological'      => 'mood, happiness, peace of mind, and sense of self-worth.',
-        'Functional Health'  => 'independence and the ability to carry out daily activities.',
+        'Physical Health' => 'general health, energy, pain, and medical check-up habits.',
+        'Psychological' => 'mood, happiness, peace of mind, and sense of self-worth.',
+        'Functional Health' => 'independence and the ability to carry out daily activities.',
         'Economic Stability' => 'income adequacy and the ability to cover everyday expenses.',
-        'Social Connection'  => 'relationships, community participation, and feeling respected.',
-        'Environment'        => 'home comfort and safety, neighbourhood, and service access.',
+        'Social Connection' => 'relationships, community participation, and feeling respected.',
+        'Environment' => 'home comfort and safety, neighbourhood, and service access.',
         'Family & Household' => 'household size, living arrangement, and family support.',
-        'Human Capital'      => 'education, skills, and community experience.',
+        'Human Capital' => 'education, skills, and community experience.',
         'Age & Demographics' => 'age and basic demographic factors.',
     ];
 
     public static function sectionDescription(string $section): string
     {
         return self::$sectionDescriptions[$section]
-            ?? 'factors grouped under ' . $section . '.';
+            ?? 'factors grouped under '.$section.'.';
     }
 
     /**
@@ -92,11 +92,11 @@ class XaiFeatureLabels
      * lookups in sectionForFeature() / sectionDescription().
      */
     public static array $sectionDisplayLabels = [
-        'Psychological'      => 'Mental & Emotional Wellbeing',
-        'Functional Health'  => 'Daily Functioning',
+        'Psychological' => 'Mental & Emotional Wellbeing',
+        'Functional Health' => 'Daily Functioning',
         'Economic Stability' => 'Finances',
-        'Social Connection'  => 'Social Life',
-        'Human Capital'      => 'Education & Skills',
+        'Social Connection' => 'Social Life',
+        'Human Capital' => 'Education & Skills',
         'Age & Demographics' => 'Age & Background',
         // Physical Health, Environment, Family & Household already read plainly.
     ];
@@ -112,24 +112,24 @@ class XaiFeatureLabels
      * risk driver back to the specific features that cause it.
      */
     public static array $sectionGroups = [
-        'Physical Health'    => ['sec6_phy_score', 'sec6_health_score', 'checkup_enc', 'phy_energy', 'phy_pain_r',
-                                 'phy_health_limit_r', 'phy_mobility_outside', 'phy_mobility_indoor'],
-        'Psychological'      => ['sec6_psy_score', 'psych_happiness', 'psych_peace',
-                                 'psych_lonely_r', 'psych_confidence'],
-        'Functional Health'  => ['sec6_func_score', 'func_independence', 'func_autonomy', 'func_control'],
+        'Physical Health' => ['sec6_phy_score', 'sec6_health_score', 'checkup_enc', 'phy_energy', 'phy_pain_r',
+            'phy_health_limit_r', 'phy_mobility_outside', 'phy_mobility_indoor'],
+        'Psychological' => ['sec6_psy_score', 'psych_happiness', 'psych_peace',
+            'psych_lonely_r', 'psych_confidence'],
+        'Functional Health' => ['sec6_func_score', 'func_independence', 'func_autonomy', 'func_control'],
         'Economic Stability' => ['sec5_eco_stability', 'sec5_income_norm', 'sec5_real_asset_score',
-                                 'sec5_movable_asset_score', 'sec5_income_source_score',
-                                 'env_fin_medical', 'env_fin_household', 'env_fin_personal',
-                                 'env_income_limit_r', 'income_enc', 'has_pension'],
-        'Social Connection'  => ['soc_social_support', 'soc_close_friend', 'soc_participation',
-                                 'soc_opportunity', 'soc_respect'],
-        'Environment'        => ['env_safe_home', 'env_safe_neighborhood', 'env_home_comfort',
-                                 'env_service_access'],
+            'sec5_movable_asset_score', 'sec5_income_source_score',
+            'env_fin_medical', 'env_fin_household', 'env_fin_personal',
+            'env_income_limit_r', 'income_enc', 'has_pension'],
+        'Social Connection' => ['soc_social_support', 'soc_close_friend', 'soc_participation',
+            'soc_opportunity', 'soc_respect'],
+        'Environment' => ['env_safe_home', 'env_safe_neighborhood', 'env_home_comfort',
+            'env_service_access'],
         'Family & Household' => ['sec2_family_support', 'sec2_family_size_norm', 'sec4_lives_alone',
-                                 'sec4_household_risk', 'sec4_dependency_risk', 'living_with_count'],
-        'Human Capital'      => ['sec3_education_norm', 'sec3_skill_score', 'sec3_community_score',
-                                 'sec3_hr_score', 'education_enc',
-                                 'community_service_count'],
+            'sec4_household_risk', 'sec4_dependency_risk', 'living_with_count'],
+        'Human Capital' => ['sec3_education_norm', 'sec3_skill_score', 'sec3_community_score',
+            'sec3_hr_score', 'education_enc',
+            'community_service_count'],
         'Age & Demographics' => ['sec1_age_risk', 'age'],
     ];
 
@@ -140,6 +140,7 @@ class XaiFeatureLabels
                 return $section;
             }
         }
+
         return 'Other';
     }
 }
