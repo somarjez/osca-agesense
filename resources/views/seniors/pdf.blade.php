@@ -8,16 +8,16 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .page { padding: 32px 36px; }
 
 /* Senior name block */
-.senior-name-block { background: #f1f5f2; border: 1px solid #cfe0d6; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: table; width: 100%; }
+.senior-name-block { background: #f5f5f4; border: 1px solid #e2e1dd; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: table; width: 100%; }
 .senior-name-block .snb-left { display: table-cell; vertical-align: middle; width: 75%; }
 .senior-name-block .snb-right { display: table-cell; vertical-align: middle; text-align: right; width: 25%; }
-.senior-name { font-size: 17px; font-weight: bold; color: #1b3a2b; }
-.senior-meta { font-size: 10px; color: #2d6a4f; margin-top: 3px; }
-.risk-badge { padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: bold; }
-.risk-HIGH     { background: #ffedd5; color: #ea580c; }
-.risk-MODERATE { background: #fef3c7; color: #d97706; }
-.risk-LOW      { background: #dcfce7; color: #16a34a; }
-.risk-NONE     { background: #f1f5f9; color: #64748b; }
+.senior-name { font-size: 17px; font-weight: bold; color: #111827; }
+.senior-meta { font-size: 10px; color: #475569; margin-top: 3px; }
+.risk-badge { padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: bold; border: 1px solid transparent; }
+.risk-HIGH     { background: #1f2937; color: #ffffff; border-color: #1f2937; }
+.risk-MODERATE { background: #6b7280; color: #ffffff; border-color: #6b7280; }
+.risk-LOW      { background: #ffffff; color: #374151; border-color: #9ca3af; }
+.risk-NONE     { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
 
 /* Section */
 .section { margin-bottom: 14px; }
@@ -39,11 +39,11 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 
 /* Tag list */
 .tags { margin-top: 3px; }
-.tag { display: inline-block; background: #f1f5f9; color: #475569; font-size: 9px; padding: 2px 6px; border-radius: 99px; margin: 1px 2px 1px 0; }
-.tag-teal   { background: #e3efe8; color: #2d6a4f; }
-.tag-amber  { background: #fef3c7; color: #92400e; }
-.tag-red    { background: #fee2e2; color: #b91c1c; }
-.tag-sky    { background: #e0f2fe; color: #0369a1; }
+.tag { display: inline-block; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; font-size: 9px; padding: 2px 6px; border-radius: 99px; margin: 1px 2px 1px 0; }
+.tag-teal   { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.tag-amber  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.tag-red    { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.tag-sky    { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 
 /* Risk score table */
 .score-table { width: 100%; border-collapse: collapse; }
@@ -59,10 +59,10 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .rec-text { display: table-cell; font-size: 10px; color: #334155; }
 .rec-urg { display: table-cell; width: 80px; text-align: right; vertical-align: top; }
 .urgency { font-size: 8px; font-weight: bold; padding: 1px 5px; border-radius: 99px; white-space: nowrap; }
-.urg-immediate { background: #fee2e2; color: #dc2626; }
-.urg-urgent    { background: #ffedd5; color: #c2410c; }
-.urg-planned   { background: #fef3c7; color: #b45309; }
-.urg-maintenance { background: #dcfce7; color: #15803d; }
+.urg-immediate { background: #1f2937; color: #ffffff; }
+.urg-urgent    { background: #4b5563; color: #ffffff; }
+.urg-planned   { background: #e5e7eb; color: #374151; }
+.urg-maintenance { background: #f3f4f6; color: #6b7280; }
 
 /* Footer (old simple) */
 .footer { border-top: 1px solid #e2e8f0; margin-top: 8px; padding-top: 8px; display: table; width: 100%; }
@@ -70,10 +70,10 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
 .footer .f-right { display: table-cell; font-size: 8px; color: #94a3b8; text-align: right; }
 
 /* Formal letterhead */
-.letterhead { display: table; width: 100%; border-bottom: 2px solid #2d6a4f; padding-bottom: 12px; margin-bottom: 6px; }
+.letterhead { display: table; width: 100%; border-bottom: 2px solid #111827; padding-bottom: 12px; margin-bottom: 6px; }
 .letterhead .lh-left { display: table-cell; vertical-align: middle; width: 70%; }
 .letterhead .lh-right { display: table-cell; vertical-align: middle; text-align: right; width: 30%; }
-.letterhead .lh-org { font-size: 14px; font-weight: bold; color: #2d6a4f; letter-spacing: 0.02em; }
+.letterhead .lh-org { font-size: 14px; font-weight: bold; color: #111827; letter-spacing: 0.02em; }
 .letterhead .lh-sub { font-size: 9.5px; color: #475569; margin-top: 2px; }
 .letterhead .lh-title { font-size: 13px; font-weight: bold; color: #1e293b; }
 .letterhead .lh-meta { font-size: 8.5px; color: #94a3b8; margin-top: 2px; }
@@ -348,10 +348,10 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
             @php
                 $pct = round(($score ?? 0) * 100);
                 $barColor = match(strtoupper($level ?? '')) {
-                    'HIGH'    => '#ea580c',
-                    'MODERATE'=> '#d97706',
-                    'LOW'     => '#16a34a',
-                    default   => '#94a3b8',
+                    'HIGH'    => '#374151',
+                    'MODERATE'=> '#6b7280',
+                    'LOW'     => '#9ca3af',
+                    default   => '#cbd5e1',
                 };
             @endphp
             <tr>

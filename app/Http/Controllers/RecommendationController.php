@@ -34,6 +34,8 @@ class RecommendationController extends Controller
                 ->where('osca_id', 'like', "%{$term}%")
                 ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%'])
             )
+            ->when($request->quick === 'pending', fn ($q) => $q->having('pending_count', '>', 0))
+            ->when($request->quick === 'done', fn ($q) => $q->having('pending_count', '=', 0))
             ->orderByDesc('immediate_count')
             ->orderByDesc('pending_count')
             ->paginate(20)

@@ -24,6 +24,42 @@ document.addEventListener('alpine:init', () => {
             localStorage.setItem('darkMode', String(this.dark))
         },
     }))
+
+    // ── Hover tooltip ─────────────────────────────────────────────────────────
+    // Reliable replacement for x-teleport/x-show/x-transition (which were flaky
+    // under Livewire's bundled Alpine). On hover we move the panel to <body> and
+    // position it `fixed` so it escapes the scrollable main content / sidebar
+    // overflow clipping, clamped to the viewport so it never lands off-screen.
+    Alpine.data('hoverTip', () => ({
+        show() {
+            const trigger = this.$refs.trigger
+            const panel = this.$refs.panel
+            if (!trigger || !panel) return
+            if (panel.parentElement !== document.body) document.body.appendChild(panel)
+
+            panel.style.display = 'block'          // make measurable
+            const r = trigger.getBoundingClientRect()
+            const pw = panel.offsetWidth
+            const ph = panel.offsetHeight
+            const pos = panel.dataset.pos || 'top'
+            const gap = 6
+            let top, left
+
+            if (pos === 'bottom')      { left = r.left + r.width / 2 - pw / 2; top = r.bottom + gap }
+            else if (pos === 'left')   { left = r.left - gap - pw;             top = r.top + r.height / 2 - ph / 2 }
+            else if (pos === 'right')  { left = r.right + gap;                 top = r.top + r.height / 2 - ph / 2 }
+            else                       { left = r.left + r.width / 2 - pw / 2; top = r.top - gap - ph }
+
+            // Clamp inside the viewport (8px margin) so it's always fully visible.
+            left = Math.max(8, Math.min(left, window.innerWidth - pw - 8))
+            top = Math.max(8, Math.min(top, window.innerHeight - ph - 8))
+            panel.style.left = left + 'px'
+            panel.style.top = top + 'px'
+        },
+        hide() {
+            if (this.$refs.panel) this.$refs.panel.style.display = 'none'
+        },
+    }))
 })
 
 // ── Chart.js global defaults ─────────────────────────────────────────────────
