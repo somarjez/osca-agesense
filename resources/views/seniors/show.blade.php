@@ -274,6 +274,24 @@
                     $domainXai = $xai[$domainKey] ?? [];
                     $sectionDrivers = $domainXai['section_drivers'] ?? [];
                     $featureDrivers = $domainXai['feature_drivers'] ?? [];
+                    // Some model features are collinear representations of one concept
+                    // (e.g. raw `education_enc` and normalized `sec3_education_norm` both
+                    // read as "Education Level"). Collapse by display label so the same
+                    // thing isn't listed twice — keep the strongest-contributing signal.
+                    $seenLabels = [];
+                    $featureDrivers = collect($featureDrivers)
+                        ->sortByDesc('contribution_pct')
+                        ->filter(function ($f) use (&$seenLabels) {
+                            $lbl = \App\Support\XaiFeatureLabels::label($f['feature'] ?? '');
+                            if (isset($seenLabels[$lbl])) {
+                                return false;
+                            }
+                            $seenLabels[$lbl] = true;
+
+                            return true;
+                        })
+                        ->values()
+                        ->all();
                 @endphp
                 <div x-data="{ expanded: false }" class="bg-paper rounded-xl border border-paper-rule p-4">
                     <div class="flex items-center justify-between mb-3">
