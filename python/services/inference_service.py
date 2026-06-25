@@ -419,7 +419,9 @@ CLUSTER_PROFILES = {
 
 # Section grouping for XAI section-level summary
 _XAI_SECTION_GROUPS: Dict[str, List[str]] = {
-    "Physical Health":    ["sec6_phy_score", "sec6_health_score", "phy_energy", "phy_pain_r",
+    # checkup_enc is a component of sec6_health_score (Section VI / Health), so it
+    # belongs with Physical Health — NOT Human Capital (sec3 = education/skills).
+    "Physical Health":    ["sec6_phy_score", "sec6_health_score", "checkup_enc", "phy_energy", "phy_pain_r",
                            "phy_health_limit_r", "phy_mobility_outside", "phy_mobility_indoor"],
     "Psychological":      ["sec6_psy_score", "psych_happiness", "psych_peace",
                            "psych_lonely_r", "psych_confidence"],
@@ -435,7 +437,7 @@ _XAI_SECTION_GROUPS: Dict[str, List[str]] = {
     "Family & Household": ["sec2_family_support", "sec2_family_size_norm", "sec4_lives_alone",
                            "sec4_household_risk", "sec4_dependency_risk", "living_with_count"],
     "Human Capital":      ["sec3_education_norm", "sec3_skill_score", "sec3_community_score",
-                           "sec3_hr_score", "education_enc", "checkup_enc",
+                           "sec3_hr_score", "education_enc",
                            "community_service_count"],
     "Age & Demographics": ["sec1_age_risk", "age"],
 }

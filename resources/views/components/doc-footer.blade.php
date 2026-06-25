@@ -7,9 +7,10 @@
     $control = $control ?? 'OSCA-PSG-' . now()->format('Ymd-His');
 @endphp
 {{-- Official document footer for senior records and reports: control number,
-     system-generated provenance, and a signatory line. Subtle on screen,
-     formal on paper. --}}
-<footer {{ $attributes->merge(['class' => 'doc-footer']) }}>
+     system-generated provenance, and a signatory line. Chrome for paper only —
+     hidden on screen, revealed when printing / saving to PDF via the project's
+     print utilities (.print-only in resources/css/app.css). --}}
+<footer {{ $attributes->merge(['class' => 'doc-footer hidden print-only']) }}>
     <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
         <div class="space-y-1 min-w-0">
             <div>Control No. <span class="doc-footer-control">{{ $control }}</span></div>

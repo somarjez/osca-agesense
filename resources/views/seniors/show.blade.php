@@ -264,7 +264,7 @@
         <div class="card-head">
             <div>
                 <div class="card-title">Risk Drivers</div>
-                <div class="card-sub">Key factors behind this assessment · <span class="text-red-600 font-semibold">↑ raises risk</span> · <span class="text-emerald-600 font-semibold">↓ lowers risk</span></div>
+                <div class="card-sub">What&rsquo;s driving this senior&rsquo;s score. The <span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">Impact</span> bar shows how much each thing affects the score · <span class="text-emerald-700 dark:text-emerald-300 font-semibold">Protective</span> = helping (lowers risk) · <span class="text-red-700 dark:text-red-300 font-semibold">Risk factor</span> = a concern (raises risk) · hover any item to see why.</div>
             </div>
         </div>
         <div class="card-body">
@@ -286,18 +286,43 @@
                         @php
                             $isUp  = ($driver['direction'] ?? 'up') === 'up';
                             $pct   = $driver['contribution_pct'] ?? 0;
-                            $arrow = $isUp ? '↑' : '↓';
-                            $barColor  = $isUp ? 'bg-red-400'   : 'bg-emerald-400';
-                            $textColor = $isUp ? 'text-red-700' : 'text-emerald-700';
                             $barWidth  = min(100, $pct);
+                            $secName   = \App\Support\XaiFeatureLabels::sectionDisplayLabel($driver['section']);
+                            $glossary  = \App\Support\XaiFeatureLabels::sectionDescription($driver['section']);
+                            // Attribute this section back to the specific features that cause it.
+                            $causes = collect($featureDrivers)
+                                ->filter(fn ($f) => \App\Support\XaiFeatureLabels::sectionForFeature($f['feature'] ?? '') === $driver['section'])
+                                ->sortByDesc('contribution_pct')
+                                ->take(3);
+                            $rank = $pct >= 50 ? 'the biggest factor' : ($pct >= 25 ? 'a major factor' : 'a smaller factor');
+                            $why = 'This is ' . ($isUp ? '<strong>pushing up</strong>' : '<strong>helping lower</strong>')
+                                . " this senior's risk, and it's <strong>" . $rank . '</strong> here (about <strong>'
+                                . number_format($pct, 0) . '%</strong>). It covers ' . e($glossary);
+                            if ($causes->isNotEmpty()) {
+                                $why .= '<br><span class="font-semibold">Mainly because:</span>';
+                                foreach ($causes as $c) {
+                                    $cLabel = \App\Support\XaiFeatureLabels::label($c['feature']);
+                                    $cCmp   = ($c['value'] ?? 0) >= ($c['mean'] ?? 0) ? 'higher' : 'lower';
+                                    $why .= '<br>&bull; ' . e($cLabel) . ' (' . number_format($c['value'] ?? 0, 2)
+                                          . ') is ' . $cCmp . ' than other seniors (avg ' . number_format($c['mean'] ?? 0, 2) . ')';
+                                }
+                            } else {
+                                $why .= '<br>Expand <em>feature detail</em> below to see the specific factors.';
+                            }
                         @endphp
                         <div>
-                            <div class="flex items-center justify-between text-[12px] mb-0.5">
-                                <span class="{{ $textColor }} font-semibold">{{ $arrow }} {{ $driver['section'] }}</span>
-                                <span class="text-ink-500 font-mono text-[11px]">{{ number_format($pct, 1) }}%</span>
+                            <div class="flex items-center justify-between gap-2 text-[12px] mb-1">
+                                <x-tooltip :text="$why" position="top" width="w-72">
+                                    <span class="font-semibold text-ink-900 dark:text-[#d8d4cb] underline decoration-dotted decoration-ink-300 underline-offset-2 cursor-help">{{ $secName }}</span>
+                                </x-tooltip>
+                                <x-driver-tag :up="$isUp" />
                             </div>
-                            <div class="bg-paper-rule rounded-full h-1.5">
-                                <div class="{{ $barColor }} h-1.5 rounded-full transition-all" style="width: {{ $barWidth }}%"></div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[9px] uppercase tracking-wide text-ink-400 font-semibold">Impact</span>
+                                <div class="flex-1 bg-paper-rule rounded-full h-1.5">
+                                    <div class="bg-ink-400 h-1.5 rounded-full transition-all" style="width: {{ $barWidth }}%"></div>
+                                </div>
+                                <span class="text-ink-500 font-mono text-[11px]">{{ number_format($pct, 1) }}%</span>
                             </div>
                         </div>
                         @empty
@@ -315,22 +340,31 @@
                         @php
                             $isUp  = ($feat['direction'] ?? 'up') === 'up';
                             $pct   = $feat['contribution_pct'] ?? 0;
-                            $arrow = $isUp ? '↑' : '↓';
-                            $barColor  = $isUp ? 'bg-red-300'   : 'bg-emerald-300';
-                            $textColor = $isUp ? 'text-red-600' : 'text-emerald-600';
                             $barWidth  = min(100, $pct);
                             $featLabel = \App\Support\XaiFeatureLabels::label($feat['feature']);
+                            $featVal   = $feat['value'] ?? 0;
+                            $featMean  = $feat['mean'] ?? 0;
+                            $cmpWord   = $featVal >= $featMean ? 'higher' : 'lower';
+                            $featWhy = 'This senior&rsquo;s <strong>' . e($featLabel) . '</strong> ('
+                                . number_format($featVal, 2) . ') is <strong>' . $cmpWord
+                                . '</strong> than other seniors (avg ' . number_format($featMean, 2)
+                                . '), which <strong>' . ($isUp ? 'adds to' : 'helps lower') . '</strong> their risk.';
                         @endphp
                         <div>
-                            <div class="flex items-center justify-between text-[11px] mb-0.5">
-                                <span class="{{ $textColor }}">{{ $arrow }} {{ $featLabel }}</span>
+                            <div class="flex items-center justify-between gap-2 text-[11px] mb-0.5">
+                                <x-tooltip :text="$featWhy" position="top" width="w-60">
+                                    <span class="text-ink-700 dark:text-[#c8c4bc] underline decoration-dotted decoration-ink-300 underline-offset-2 cursor-help">{{ $featLabel }}</span>
+                                </x-tooltip>
+                                <x-driver-tag :up="$isUp" class="scale-90 origin-right" />
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 bg-paper-rule rounded-full h-1">
+                                    <div class="bg-ink-300 h-1 rounded-full" style="width: {{ $barWidth }}%"></div>
+                                </div>
                                 <span class="text-ink-400 font-mono text-[10px]">{{ number_format($pct, 1) }}%</span>
                             </div>
-                            <div class="bg-paper-rule rounded-full h-1">
-                                <div class="{{ $barColor }} h-1 rounded-full" style="width: {{ $barWidth }}%"></div>
-                            </div>
                             <div class="text-[10px] text-ink-400 mt-0.5">
-                                Senior: {{ number_format($feat['value'], 2) }} · Cluster avg: {{ number_format($feat['mean'], 2) }}
+                                This senior: {{ number_format($featVal, 2) }} · Other seniors: {{ number_format($featMean, 2) }} <span class="text-ink-300">({{ $cmpWord }})</span>
                             </div>
                         </div>
                         @endforeach
@@ -980,6 +1014,7 @@
         @endif
     </x-card>
 
+    {{-- Official document footer (print/PDF only — see x-doc-footer). --}}
     <x-doc-footer :control="'OSCA-PSG-' . now()->format('Y') . '-' . str_pad((string) $senior->id, 5, '0', STR_PAD_LEFT)"
                   signatory="OSCA Officer / Reviewer" />
 </div>

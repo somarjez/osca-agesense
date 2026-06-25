@@ -14,19 +14,16 @@
         <x-kpi label="Immediate / Urgent"   :value="number_format($stats['immediate'])" accent="high" />
     </div>
 
-    {{-- ── Filters ── --}}
+    {{-- ── Filters (compact toolbar) ── --}}
     <form method="GET" class="card">
-        <div class="card-head">
-            <div class="card-title">Filter</div>
-        </div>
-        <div class="card-body flex flex-wrap items-end gap-4">
-            <div class="min-w-[200px] flex-1">
-                <label class="eyebrow block mb-1.5">Search</label>
+        <div class="card-body flex flex-wrap items-end gap-3 py-3">
+            <div class="flex-1 min-w-[200px]">
+                <label class="eyebrow block mb-1">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
                        placeholder="Name or OSCA ID…" class="form-input w-full">
             </div>
-            <div class="min-w-[160px]">
-                <label class="eyebrow block mb-1.5">Barangay</label>
+            <div class="min-w-[150px]">
+                <label class="eyebrow block mb-1">Barangay</label>
                 <select name="barangay" class="form-select">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
@@ -34,8 +31,8 @@
                     @endforeach
                 </select>
             </div>
-            <div class="min-w-[140px]">
-                <label class="eyebrow block mb-1.5">Risk Level</label>
+            <div class="min-w-[130px]">
+                <label class="eyebrow block mb-1">Risk</label>
                 <select name="risk" class="form-select">
                     <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
@@ -43,23 +40,39 @@
                     @endforeach
                 </select>
             </div>
-            <div class="flex items-center gap-2 self-end pb-2">
-                <input type="checkbox" name="has_urgent" value="1" id="has_urgent"
-                       class="rounded border-paper-rule text-forest-600 focus:ring-forest-500"
-                       {{ request('has_urgent') ? 'checked' : '' }}>
-                <label for="has_urgent" class="text-[13px] text-ink-700 cursor-pointer select-none">Has pending urgent actions</label>
-            </div>
-            <div class="flex gap-2 self-end">
+            {{-- Preserve the active quick filter when searching --}}
+            <input type="hidden" name="quick" value="{{ request('quick') }}">
+            <input type="hidden" name="has_urgent" value="{{ request('has_urgent') }}">
+            <div class="flex gap-2">
                 <button type="submit" class="btn btn-primary">
-                    <x-heroicon-o-funnel class="w-3.5 h-3.5" />
-                    Filter
+                    <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
-                @if (request()->hasAny(['barangay','risk','has_urgent','search']))
+                @if (request()->hasAny(['barangay','risk','has_urgent','search','quick']))
                 <a href="{{ route('recommendations.index') }}" class="btn">Clear</a>
                 @endif
             </div>
         </div>
     </form>
+
+    {{-- ── Quick filters: navigate the whole list without scrolling ── --}}
+    @php
+        $base      = array_filter(request()->only(['search','barangay','risk']));
+        $quick     = request('quick');
+        $hasUrgent = request('has_urgent');
+        $isAll     = ! $quick && ! $hasUrgent;
+        $qBase = 'px-3 py-1.5 rounded-lg text-[12px] font-medium leading-tight transition-all duration-100 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-500/30';
+        $qOn   = 'bg-white dark:bg-[#202a26] text-accent-700 dark:text-accent-400 font-semibold shadow-sm ring-1 ring-paper-rule dark:ring-[#2b3530]';
+        $qOff  = 'text-ink-500 dark:text-[#8a958f] hover:text-ink-900 dark:hover:text-[#c8c4bc] hover:bg-white/60 dark:hover:bg-[#202a26]/60';
+    @endphp
+    <div role="tablist" aria-label="Quick filters"
+         class="flex flex-wrap gap-1 p-1 rounded-xl bg-paper-2 dark:bg-[#171c19] border border-paper-rule dark:border-[#2b3530]">
+        <a href="{{ route('recommendations.index', $base) }}" class="{{ $qBase }} {{ $isAll ? $qOn : $qOff }}">All</a>
+        <a href="{{ route('recommendations.index', $base + ['has_urgent' => 1]) }}" class="{{ $qBase }} {{ $hasUrgent ? $qOn : $qOff }}">
+            <x-heroicon-o-exclamation-triangle class="w-3.5 h-3.5" /> Needs attention
+        </a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'pending']) }}" class="{{ $qBase }} {{ $quick === 'pending' ? $qOn : $qOff }}">Pending</a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'done']) }}" class="{{ $qBase }} {{ $quick === 'done' ? $qOn : $qOff }}">All done</a>
+    </div>
 
     {{-- ── Seniors Table ── --}}
     <div class="card overflow-hidden">
