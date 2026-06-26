@@ -335,13 +335,21 @@
         {{-- Visual evidence --}}
         <div>
             <div class="eyebrow mb-3">Visual evidence</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 @include('reports.partials.validation-figure', ['plot' => 'k_selection_umap', 'title' => 'Figure 1 — Cluster selection', 'caption' => 'Internal validation scores across candidate group counts; the chosen split balances separation with usefulness.'])
                 @include('reports.partials.validation-figure', ['plot' => 'cluster_umap_scatter', 'title' => 'Figure 2 — Group separation map', 'caption' => 'Seniors projected to 2-D (UMAP). Distinct colour regions show the groups occupy different areas of the profile space.'])
-                @include('reports.partials.validation-figure', ['plot' => 'cluster_radar', 'title' => 'Figure 3 — Profile shapes', 'caption' => 'WHO-domain signature of each care group — how the four profiles differ across capacity, environment, and function.'])
                 @include('reports.partials.validation-figure', ['plot' => 'cluster_heatmap', 'title' => 'Figure 4 — Feature heatmap', 'caption' => 'Average of each survey signal per group; darker cells mark the signals that most distinguish a group.'])
-                @include('reports.partials.validation-figure', ['plot' => 'silhouette_plot', 'title' => 'Figure 5 — Silhouette profile', 'caption' => 'Per-senior silhouette widths; consistently positive widths indicate members sit inside their assigned group.'])
-                @include('reports.partials.validation-figure', ['plot' => 'section_scores_by_cluster', 'title' => 'Figure 6 — Section scores by group', 'caption' => 'Survey-section averages per group, confirming the profiles separate on real, measured characteristics.'])
+                {{-- Figures 3 + 6 stacked to fill the column beside the heatmap, leaving no gap --}}
+                <div class="grid gap-4">
+                    @include('reports.partials.validation-figure', ['plot' => 'cluster_radar', 'title' => 'Figure 3 — Profile shapes', 'caption' => 'WHO-domain signature of each care group — how the four profiles differ across capacity, environment, and function.'])
+                    @include('reports.partials.validation-figure', ['plot' => 'section_scores_by_cluster', 'title' => 'Figure 6 — Section scores by group', 'caption' => 'Survey-section averages per group, confirming the profiles separate on real, measured characteristics.'])
+                </div>
+            </div>
+            {{-- Figure 5 centered on its own row --}}
+            <div class="flex justify-center mt-4">
+                <div class="w-full md:w-1/2">
+                    @include('reports.partials.validation-figure', ['plot' => 'silhouette_plot', 'title' => 'Figure 5 — Silhouette profile', 'caption' => 'Per-senior silhouette widths; consistently positive widths indicate members sit inside their assigned group.'])
+                </div>
             </div>
         </div>
     </section>
