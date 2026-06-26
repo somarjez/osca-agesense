@@ -74,7 +74,7 @@ class ModelValidation
         foreach (['clustering_evaluation.csv', 'risk_mae_rmse.csv'] as $file) {
             $mirror = storage_path('app/ml_validation/reports/'.$file);
             if (is_file($mirror)) {
-                return (new \DateTimeImmutable())->setTimestamp(filemtime($mirror));
+                return (new \DateTimeImmutable)->setTimestamp(filemtime($mirror));
             }
         }
 
