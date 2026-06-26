@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorFacilityRouteFailure;
+use App\Support\AccessibilityBand;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -54,7 +55,6 @@ class GisApiController extends Controller
 
             $groups = $this->groupSeniorsByBarangay($seniors);
             $accessibilityFacilities = $this->accessibilityDistanceFacilities();
-            $accessibilityThresholds = $this->accessibilityConcernThresholds($seniors, $accessibilityFacilities);
             $features = [];
             $matchedSeniorCount = 0;
 
@@ -92,7 +92,7 @@ class GisApiController extends Controller
                     ? (float) $accessibilityMetric->accessibility_score
                     : null;
                 $accessibilityScorePercent = $this->accessibilityScorePercent($accessibilityScore);
-                $accessibilityConcern = $this->accessibilityConcernPayload($senior, $accessibilityMetric, $accessibilityThresholds, $accessibilityScore, $accessibilityFacilities);
+                $accessibilityConcern = $this->accessibilityConcernPayload($senior, $accessibilityMetric, $accessibilityScore, $accessibilityFacilities);
 
                 $matchedSeniorCount++;
 
@@ -629,19 +629,9 @@ class GisApiController extends Controller
 
     private function accessibilityStatus(?float $score): string
     {
-        if ($score === null) {
-            return 'No accessibility score available';
-        }
+        $band = AccessibilityBand::classify($score);
 
-        if ($score >= 75) {
-            return 'Good';
-        }
-
-        if ($score >= 50) {
-            return 'Moderate';
-        }
-
-        return 'Needs attention';
+        return $band['short'] ?? 'No accessibility score available';
     }
 
     private function coordinatesForSenior(SeniorCitizen $senior): array
@@ -1074,83 +1064,31 @@ class GisApiController extends Controller
         return false;
     }
 
-    private function accessibilityConcernThresholds($seniors, $facilities): ?array
-    {
-        $distances = $seniors
-            ->map(fn ($senior) => $this->nearestFacilityDistance($senior->latestAccessibilityMetric, $senior, $facilities))
-            ->filter(fn ($distance) => $distance !== null)
-            ->sort()
-            ->values();
-
-        if ($distances->isEmpty()) {
-            return null;
-        }
-
-        return [
-            'min' => (float) $distances->first(),
-            'max' => (float) $distances->last(),
-            'q25' => $this->quantile($distances->all(), 0.25),
-            'q60' => $this->quantile($distances->all(), 0.60),
-            'q85' => $this->quantile($distances->all(), 0.85),
-        ];
-    }
-
-    private function quantile(array $sortedValues, float $percentile): ?float
-    {
-        if (! $sortedValues) {
-            return null;
-        }
-
-        $position = (count($sortedValues) - 1) * $percentile;
-        $lower = (int) floor($position);
-        $upper = (int) ceil($position);
-
-        if ($lower === $upper) {
-            return (float) $sortedValues[$lower];
-        }
-
-        return (float) $sortedValues[$lower]
-            + (((float) $sortedValues[$upper] - (float) $sortedValues[$lower]) * ($position - $lower));
-    }
-
-    private function accessibilityConcernPayload(SeniorCitizen $senior, mixed $metric, ?array $thresholds, ?float $accessibilityScore, $facilities): array
+    /**
+     * Heatmap "concern" payload, unified onto the AccessibilityBand classification so
+     * the surface tells the same story as the popups and the profile card.
+     *   - score:      continuous heat weight (1 - accessibility_score); higher = poorer access.
+     *   - level:      discrete band key (good/moderate/limited/priority) for legend + colour.
+     *   - distance_m: nearest senior-relevant facility distance, kept for popups.
+     */
+    private function accessibilityConcernPayload(SeniorCitizen $senior, mixed $metric, ?float $accessibilityScore, $facilities): array
     {
         $distance = $this->nearestFacilityDistance($metric, $senior, $facilities);
 
-        if ($distance !== null && $thresholds) {
-            $level = 'Farthest';
-            $score = 0.95;
-
-            if ($distance <= (float) $thresholds['q25']) {
-                $level = 'Nearest';
-                $score = 0.05;
-            } elseif ($distance <= (float) $thresholds['q60']) {
-                $level = 'Mid';
-                $score = 0.45;
-            } elseif ($distance <= (float) $thresholds['q85']) {
-                $level = 'Far';
-                $score = 0.68;
-            }
-
+        if ($accessibilityScore === null) {
             return [
                 'distance_m' => $distance,
-                'score' => $score,
-                'level' => $level,
-            ];
-        }
-
-        if ($accessibilityScore !== null) {
-            return [
-                'distance_m' => null,
-                'score' => round(max(0.0, min(1.0, 1 - $accessibilityScore)), 4),
+                'score' => null,
                 'level' => null,
             ];
         }
 
+        $band = AccessibilityBand::classify($accessibilityScore);
+
         return [
-            'distance_m' => null,
-            'score' => null,
-            'level' => null,
+            'distance_m' => $distance,
+            'score' => round(max(0.0, min(1.0, 1 - $accessibilityScore)), 4),
+            'level' => $band['key'] ?? null,
         ];
     }
 

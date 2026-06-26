@@ -15,7 +15,9 @@ use Tests\TestCase;
  * barangay-centroid routing artifact: ORS routes from un-snapped centroids can
  * be many times the straight-line distance (observed up to 16x), which would
  * otherwise zero out the score for whole barangays. The scorer guards against
- * implausible road routes and recalibrates the distance caps to road scale.
+ * implausible road routes and widens the distance caps to road scale — but only
+ * for components actually scored on road distance; straight-line fallbacks keep
+ * the original (unwidened) calibration.
  */
 class ScoreGisProximityTest extends TestCase
 {
@@ -108,14 +110,14 @@ class ScoreGisProximityTest extends TestCase
     }
 
     #[Test]
-    public function caps_are_recalibrated_to_road_scale(): void
+    public function straight_line_components_use_the_unwidened_cap(): void
     {
-        // Place the health center at exactly the OLD straight-line cap (3000 m).
-        // Under the old caps that scored 0; the widened caps must score > 0.
+        // No cached road route → the component is scored on straight-line distance.
+        // The road-detour widening must NOT apply, so the original 3000 m cap is used.
         $senior = $this->makeSenior(14.2700, 121.4500);
 
-        // 3000 m due north ≈ 0.026969° latitude.
-        $facLat = 14.2700 + (3000.0 / 6371000.0) * (180.0 / M_PI);
+        // ~1500 m due north.
+        $facLat = 14.2700 + (1500.0 / 6371000.0) * (180.0 / M_PI);
         $hc = Facility::create([
             'name' => 'Pagsanjan Rural Health Unit',
             'type' => 'Health Center',
@@ -131,9 +133,56 @@ class ScoreGisProximityTest extends TestCase
 
         $metric = SeniorAccessibilityMetric::where('senior_citizen_id', $senior->id)->first();
 
-        // health_center: cap 3000 m, weight 0.25; total weight 1.0.
+        // health_center: UNWIDENED cap 3000 m, weight 0.25; total weight 1.0.
+        $component = max(0.0, 1 - $straight / 3000.0);
+        $expected = round($component * 0.25 / 1.0, 4);
+
+        $this->assertGreaterThan(0.0, (float) $metric->accessibility_score);
+        $this->assertEqualsWithDelta($expected, (float) $metric->accessibility_score, 0.0005);
+    }
+
+    #[Test]
+    public function road_scored_components_use_the_widened_cap(): void
+    {
+        // A fresh, plausible cached road route → the component is scored on road
+        // distance, which IS graded against the 1.4x-widened cap (4200 m here).
+        $senior = $this->makeSenior(14.2700, 121.4500);
+
+        // ~1500 m due north (same geometry as the straight-line case).
+        $facLat = 14.2700 + (1500.0 / 6371000.0) * (180.0 / M_PI);
+        $hc = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => $facLat,
+            'longitude' => 121.4500,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        $straight = $this->straightMeters(14.2700, 121.4500, $facLat, 121.4500);
+        // Detour ratio 1.4 (≤ MAX_TRUSTED_DETOUR 3.0), so the road route is trusted.
+        $road = $straight * 1.4;
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $hc->id,
+            'origin_latitude' => 14.2700,
+            'origin_longitude' => 121.4500,
+            'destination_latitude' => $facLat,
+            'destination_longitude' => 121.4500,
+            'route_distance_m' => $road,
+            'route_duration_s' => 600.0,
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+
+        $this->artisan('gis:score-proximity')->assertSuccessful();
+
+        $metric = SeniorAccessibilityMetric::where('senior_citizen_id', $senior->id)->first();
+
+        // health_center: WIDENED cap 3000 m * 1.4, weight 0.25; total weight 1.0.
         $widenedCap = 3000.0 * self::ROAD_DETOUR_FACTOR;
-        $component = max(0.0, 1 - $straight / $widenedCap);
+        $component = max(0.0, 1 - $road / $widenedCap);
         $expected = round($component * 0.25 / 1.0, 4);
 
         $this->assertGreaterThan(0.0, (float) $metric->accessibility_score);

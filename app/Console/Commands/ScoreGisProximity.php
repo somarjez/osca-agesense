@@ -21,9 +21,10 @@ class ScoreGisProximity extends Command
     /**
      * Median road/straight-line detour observed across the cached Pagsanjan
      * routes (p50 ≈ 1.37). The `cap_m` thresholds below were calibrated for
-     * straight-line distance; the score now feeds road distance into them, so
-     * the caps are widened by this factor to keep road-based scores on the same
-     * scale the caps were designed for.
+     * straight-line distance; when a component is scored on road distance the
+     * cap is widened by this factor to keep road-based scores on the same scale
+     * the caps were designed for. Straight-line fallbacks use the unwidened cap
+     * (see scoreSenior()) so they retain the original calibration.
      */
     private const ROAD_DETOUR_FACTOR = 1.4;
 
@@ -235,9 +236,12 @@ class ScoreGisProximity extends Command
             $scoringDistance = $useRoad ? $road : $straight;
 
             if ($scoringDistance !== null) {
-                // Caps are calibrated for straight-line distance; widen them to
-                // road scale so road- and straight-line-scored components match.
-                $cap = $config['cap_m'] * self::ROAD_DETOUR_FACTOR;
+                // Caps are calibrated for straight-line distance; only widen them
+                // to road scale when this component is actually scored on road-network
+                // distance, so straight-line fallbacks keep their original calibration.
+                $cap = $useRoad
+                    ? $config['cap_m'] * self::ROAD_DETOUR_FACTOR
+                    : $config['cap_m'];
                 $component = max(0, 1 - ($scoringDistance / $cap));
                 $weightedTotal += $component * $config['weight'];
                 $availableWeight += $config['weight'];

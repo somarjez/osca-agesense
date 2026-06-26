@@ -321,6 +321,9 @@
         0.85: '#ef4444',
         1.00: '#991b1b',
     };
+    // Facility-access classification bands — single source of truth shared with the
+    // profile card and backend (App\Support\AccessibilityBand). Ordered high → low.
+    const ACCESSIBILITY_BANDS = @json(\App\Support\AccessibilityBand::all());
     const CLUSTER_HEATMAP_GRADIENT = {
         0.00: '#e8f4f8',
         0.25: '#74c2e8',
@@ -873,6 +876,12 @@
                 ? '<span class="text-ink-400 dark:text-[#6b7570]">Dots are individual seniors; color shows local risk density. A senior in a sparsely populated area may appear as a dot with little surrounding color.</span>'
                 : '';
 
+            // The accessibility surface is a continuous need gradient; annotate it with the
+            // discrete access bands so the heatmap and the senior popups read consistently.
+            const accessibilityBandRow = mode === 'senior-distribution-accessibility-heatmap'
+                ? `<div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">${accessibilityBandLegendHtml()}</div>`
+                : '';
+
             legendEl.innerHTML = `
                 <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
                     <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
@@ -883,6 +892,7 @@
                     </span>
                     ${riskDotNote}
                 </div>
+                ${accessibilityBandRow}
                 <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
                     ${facilityLegendHtml()}
                     ${boundaryLegend}
@@ -936,6 +946,31 @@
 
         return `
             <span class="inline-flex items-center gap-1.5 font-semibold text-ink-700 dark:text-[#b0b5b2]">Facilities:</span>
+            ${items}
+        `;
+    }
+
+    // Swatch colors for the access bands — the design-system risk ramp -500 shades
+    // keyed by each band's tone (low → moderate → high → critical).
+    const ACCESSIBILITY_BAND_TONE_COLORS = {
+        low: '#4a8a68',
+        moderate: '#c19a3b',
+        high: '#e0621a',
+        critical: '#b94a3a',
+    };
+
+    function accessibilityBandLegendHtml() {
+        const items = ACCESSIBILITY_BANDS.map((band) => {
+            const color = ACCESSIBILITY_BAND_TONE_COLORS[band.tone] ?? '#6b7269';
+            const range = band.min >= 75 ? '≥75%'
+                : band.min >= 50 ? '50–74%'
+                : band.min >= 25 ? '25–49%'
+                : '<25%';
+            return `<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block border border-white/70" style="background:${color};"></span>${escapeHtml(band.short)} <span class="text-ink-400 dark:text-[#6b7570]">${range}</span></span>`;
+        }).join('');
+
+        return `
+            <span class="inline-flex items-center gap-1.5 font-semibold text-ink-700 dark:text-[#b0b5b2]">Facility access:</span>
             ${items}
         `;
     }
@@ -1268,67 +1303,13 @@
         return numericValue(properties?.accessibility_distance_m ?? properties?.nearest_facility_distance_m);
     }
 
-    function quantile(sortedValues, percentile) {
-        if (!sortedValues.length) return null;
-        const position = (sortedValues.length - 1) * percentile;
-        const lower = Math.floor(position);
-        const upper = Math.ceil(position);
-        if (lower === upper) return sortedValues[lower];
-
-        return sortedValues[lower] + ((sortedValues[upper] - sortedValues[lower]) * (position - lower));
-    }
-
-    function accessibilityConcernStats(features) {
-        const distances = features
-            .map((feature) => accessibilityDistanceMeters(feature.properties || {}))
-            .filter((distance) => distance !== null)
-            .sort((a, b) => a - b);
-
-        if (!distances.length) {
-            return null;
-        }
-
-        return {
-            min: distances[0],
-            max: distances[distances.length - 1],
-            q25: quantile(distances, 0.25),
-            q60: quantile(distances, 0.60),
-            q85: quantile(distances, 0.85),
-        };
-    }
-
-    function accessibilityConcernFromDistance(distance, stats = null) {
-        if (distance === null || !stats) {
-            return null;
-        }
-
-        const range = stats.max - stats.min;
-        const score = range > 0 ? clampUnit((distance - stats.min) / range) : 0.5;
-        let level = 'Farthest';
-
-        if (distance <= stats.q25) {
-            level = 'Nearest';
-        } else if (distance <= stats.q60) {
-            level = 'Mid';
-        } else if (distance <= stats.q85) {
-            level = 'Far';
-        }
-
-        return { score, level };
-    }
-
-    function backendAccessibilityConcern(properties, stats = null) {
-        const score = accessibilityNeedWeight(properties, { allowDistance: false });
+    // Heatmap "concern" weight + discrete band, unified onto the backend
+    // AccessibilityBand classification (continuous score for intensity, band key for
+    // the legend/level). No relative quantile bucketing — the score is absolute.
+    function backendAccessibilityConcern(properties) {
+        const score = accessibilityNeedWeight(properties);
         if (score === null) {
-            const distanceConcern = accessibilityConcernFromDistance(accessibilityDistanceMeters(properties), stats);
-            if (distanceConcern) {
-                return distanceConcern;
-            }
-
-            const fallbackScore = accessibilityNeedWeight(properties);
-            return fallbackScore === null
-                ? null
-                : { score: fallbackScore, level: properties?.accessibility_level || null };
+            return null;
         }
 
         return {
@@ -1337,15 +1318,19 @@
         };
     }
 
+    // Plain-language band label for a 0–100 percent (or 0–1 score), read from the
+    // shared AccessibilityBand table so the map matches the profile and backend.
     function accessibilityStatus(score) {
         if (score === null || score === undefined || !Number.isFinite(Number(score))) {
             return 'No accessibility score available';
         }
 
-        const value = Number(score);
-        if (value >= 75) return 'Good';
-        if (value >= 50) return 'Moderate';
-        return 'Needs attention';
+        let value = Number(score);
+        if (value <= 1) value *= 100;
+        value = Math.max(0, Math.min(100, value));
+
+        const band = ACCESSIBILITY_BANDS.find((b) => value >= b.min);
+        return band ? band.short : 'No accessibility score available';
     }
 
     function heatmapWeight(feature, mode) {
@@ -4459,12 +4444,10 @@
     }
 
     function accessibilityDistributionPoints(features, referenceFeatures = null) {
-        const stats = accessibilityConcernStats(referenceFeatures || features);
-
         return features
             .map((feature) => {
                 const latlng = featureLatLng(feature);
-                const concern = backendAccessibilityConcern(feature.properties || {}, stats);
+                const concern = backendAccessibilityConcern(feature.properties || {});
 
                 if (!latlng || !concern) {
                     return null;
@@ -4875,11 +4858,10 @@
     }
 
     function buildAccessibilitySeniorPointLayer(map, featureCollection) {
-        const stats = accessibilityConcernStats(featureCollection.features || []);
         const markerLayer = window.L.geoJSON(featureCollection, {
             pointToLayer(feature, latlng) {
                 const kind = coordinateKind(feature);
-                const concern = backendAccessibilityConcern(feature.properties || {}, stats);
+                const concern = backendAccessibilityConcern(feature.properties || {});
                 const colorChannels = concern
                     ? colorForGradientValue(concern.score, gradientStopsFromStops(ACCESSIBILITY_DISTRIBUTION_RAMP))
                     : hexToRgb(barangayColor(feature.properties?.barangay));

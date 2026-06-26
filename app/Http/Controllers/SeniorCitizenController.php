@@ -7,6 +7,7 @@ use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
+use App\Support\AccessibilityBand;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -175,11 +176,14 @@ class SeniorCitizenController extends Controller
             ? (int) round(max(0, min(100, $score <= 1 ? $score * 100 : $score)))
             : null;
 
+        $band = AccessibilityBand::classify($percent);
+
         return [
             'location' => $senior->locationDisplay(),
             'facilities' => $facilities,
             'percent' => $percent,
-            'status' => $this->accessibilityStatusLabel($percent),
+            'status' => $band['label'] ?? null,
+            'band' => $band,
         ];
     }
 
@@ -238,23 +242,6 @@ class SeniorCitizenController extends Controller
     private function coordinatesMatch(mixed $stored, float $current): bool
     {
         return $stored !== null && abs((float) $stored - $current) <= 0.000001;
-    }
-
-    /**
-     * Plain-language band for an accessibility percentage.
-     * Matches the thresholds GisApiController uses on the map.
-     */
-    private function accessibilityStatusLabel(?int $percent): ?string
-    {
-        if ($percent === null) {
-            return null;
-        }
-
-        return match (true) {
-            $percent >= 75 => 'Good access',
-            $percent >= 50 => 'Moderate access',
-            default => 'Needs attention',
-        };
     }
 
     public function edit(SeniorCitizen $senior)

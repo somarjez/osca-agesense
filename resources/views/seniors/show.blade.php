@@ -933,20 +933,38 @@
 
                 {{-- Accessibility score --}}
                 @if ($percent !== null)
+                @php
+                    // Tone comes from AccessibilityBand (low→moderate→high→critical). Literal
+                    // class strings are kept here so Tailwind's JIT scans them (it does not
+                    // scan app/), keyed by the band tone.
+                    $bandTone = $locationPanel['band']['tone'] ?? 'low';
+                    $bandTextClass = [
+                        'low' => 'text-low-700 dark:text-low-500',
+                        'moderate' => 'text-moderate-700 dark:text-moderate-500',
+                        'high' => 'text-high-700 dark:text-high-500',
+                        'critical' => 'text-critical-700 dark:text-critical-500',
+                    ][$bandTone] ?? 'text-low-700 dark:text-low-500';
+                    $bandBarClass = [
+                        'low' => 'bar-fill-low',
+                        'moderate' => 'bar-fill-moderate',
+                        'high' => 'bar-fill-high',
+                        'critical' => 'bar-fill-critical',
+                    ][$bandTone] ?? 'bar-fill-low';
+                @endphp
                 <div class="p-5 border-b border-paper-rule dark:border-[#2b3530]">
                     <div class="flex items-baseline justify-between mb-1.5">
-                        <span class="eyebrow">Facility access</span>
-                        <span class="text-[11px] font-semibold {{ $percent >= 75 ? 'text-low-700 dark:text-low-500' : ($percent >= 50 ? 'text-moderate-700 dark:text-moderate-500' : 'text-high-700 dark:text-high-500') }}">
+                        <span class="eyebrow" title="Good ≥75% · Moderate 50–74% · Limited 25–49% · Priority &lt;25%">Facility access</span>
+                        <span class="text-[11px] font-semibold {{ $bandTextClass }}">
                             {{ $locationPanel['status'] }}
                         </span>
                     </div>
                     <div class="flex items-center gap-2.5">
                         <div class="bar flex-1">
-                            <div class="bar-fill {{ $percent >= 50 ? 'bar-fill-forest' : 'bar-fill-critical' }}" style="width: {{ $percent }}%"></div>
+                            <div class="bar-fill {{ $bandBarClass }}" style="width: {{ $percent }}%"></div>
                         </div>
                         <span class="font-mono tnum text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8] w-9 text-right">{{ $percent }}%</span>
                     </div>
-                    <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-1">Closeness to the nearest health, civic, and market services.</p>
+                    <p class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-1">{{ $locationPanel['band']['description'] ?? 'Closeness to the nearest health, civic, and market services.' }}</p>
                 </div>
                 @endif
 
