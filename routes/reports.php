@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ModelValidationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\XaiController;
 
@@ -25,5 +26,9 @@ Route::prefix('reports')->name('reports.')->group(function () {
         Route::delete('/cluster/snapshot/{date}', [ReportController::class, 'destroySnapshot'])->name('cluster.snapshot.destroy');
         Route::get('/registry', [ReportController::class, 'registryIndex'])->name('registry');
         Route::get('/registry/export', [ReportController::class, 'exportRegistry'])->name('registry.export');
+
+        // System Validation — model evaluation evidence (admin only)
+        Route::get('/validation', [ModelValidationController::class, 'index'])->name('validation');
+        Route::get('/validation/plot/{name}', [ModelValidationController::class, 'plot'])->name('validation.plot');
     });
 });

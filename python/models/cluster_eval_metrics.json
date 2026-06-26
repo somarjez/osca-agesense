@@ -1,8 +1,8 @@
 {
-  "silhouette": 0.4487,
-  "davies_bouldin": 0.8038,
-  "calinski_harabasz": 415.0,
-  "inertia": null,
-  "k_chosen": 4,
-  "generated_by": "osca5.ipynb (K=4, 31-feature set); values verified against osca_output/reports/clustering_evaluation.csv"
+    "silhouette": 0.4717,
+    "davies_bouldin": 0.7721,
+    "calinski_harabasz": 485.2,
+    "inertia": null,
+    "k_chosen": 4,
+    "generated_by": "ml:sync-validation"
 }
