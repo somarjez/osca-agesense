@@ -175,6 +175,13 @@
                  class="eyebrow px-3 pt-5 pb-2">Administration</div>
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
+            <a href="{{ route('reports.validation') }}"
+               class="nav-link {{ request()->routeIs('reports.validation') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'System Validation'">
+                <x-heroicon-o-chart-bar-square class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">System Validation</span>
+            </a>
             <a href="{{ route('activity-log.index') }}"
                class="nav-link {{ request()->routeIs('activity-log*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
