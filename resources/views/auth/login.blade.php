@@ -10,10 +10,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css'])
     <style>
-        /* Rise + blur entrance — honors reduced-motion. */
+        /* Rise entrance — honors reduced-motion. The blur() was dropped: it is
+           software-rendered on GPU-less devices, making the reveal stutter. */
         @keyframes ageReveal {
-            from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
-            to   { opacity: 1; transform: none; filter: blur(0); }
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: none; }
         }
         .reveal   { animation: ageReveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .reveal-2 { animation-delay: 0.09s; }

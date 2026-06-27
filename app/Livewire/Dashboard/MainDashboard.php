@@ -9,6 +9,7 @@ use App\Models\SeniorCitizen;
 use App\Services\ClusterAnalyticsService;
 use App\Support\DbHelper;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -46,12 +47,31 @@ class MainDashboard extends Component
         ]);
     }
 
+    /**
+     * Cache key for the "latest ML result id per active senior" set. This subset
+     * is filter-independent (filters are applied on top of it via whereIn), so a
+     * single global key serves every barangay/risk combination and every user.
+     */
+    public const LATEST_IDS_CACHE_KEY = 'dashboard.latest_ml_ids';
+
     private function latestMlIds(): Collection
     {
-        return $this->_latestIds ??= MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereHas('seniorCitizen', fn ($q) => $q->active())
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        // Memoized per-request, and cached across requests for a short window.
+        // This MAX(id) GROUP BY is the shared denominator of getStats(),
+        // getRiskDistribution(), and getBarangayBreakdown() — recomputing it on
+        // every render (initial load + each filter change) is the dashboard's
+        // most-repeated query. It only changes when ML results change; the 5-min
+        // TTL matches the existing GIS GeoJSON cache convention and self-heals.
+        // Cached as a plain array (cheaper/safer to serialize than a Collection).
+        return $this->_latestIds ??= collect(Cache::remember(
+            self::LATEST_IDS_CACHE_KEY,
+            now()->addMinutes(5),
+            fn () => MlResult::select(DB::raw('MAX(id) as id'))
+                ->whereHas('seniorCitizen', fn ($q) => $q->active())
+                ->groupBy('senior_citizen_id')
+                ->pluck('id')
+                ->all()
+        ));
     }
 
     private function getStats(): array

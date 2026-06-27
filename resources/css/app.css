@@ -108,7 +108,7 @@
            hover:border-ink-300 hover:text-ink-900 hover:bg-paper-2
            active:scale-[0.97] active:shadow-none
            disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-           transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-forest-500/25;
+           transition duration-150 select-none focus:outline-none focus:ring-2 focus:ring-forest-500/25;
   }
   .btn-primary {
     @apply bg-accent-600 text-paper border-accent-600
@@ -194,12 +194,15 @@
   .rise-3  { animation-delay: 0.17s; }
   .rise-4  { animation-delay: 0.23s; }
 
-  /* Subtle hover lift for interactive surfaces (KPIs, list/chart cards). */
+  /* Subtle hover lift for interactive surfaces (KPIs, list/chart cards).
+     Only `transform` is transitioned — animating the multi-layer box-shadow
+     recomputes blur every frame across ~20 cards, which janks GPU-less devices.
+     The hover shadow still applies (just snaps in), preserving the visual cue. */
   .card-lift {
-    transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease;
+    transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), border-color 0.18s ease;
   }
   .card-lift:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
-  .kpi { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease; }
+  .kpi { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1); }
   .kpi:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
 
   /* Collapsible priorities rail (dashboard). Width animates on toggle; the
@@ -222,7 +225,9 @@
   .bar-thick {
     @apply h-2.5;
   }
-  .bar-fill { @apply h-full rounded-full transition-all duration-500; }
+  /* Animate only `width` (the value that changes) instead of `all`, and shorten
+     it — 50+ bars transitioning every property for 500ms is needless work. */
+  .bar-fill { @apply h-full rounded-full transition-[width] duration-300; }
   .bar-fill-low      { @apply bg-low-500; }
   .bar-fill-moderate { @apply bg-moderate-500; }
   .bar-fill-high     { @apply bg-high-500; }
@@ -264,7 +269,7 @@
 
   /* Sidebar nav link — navy is the chrome/"where you are" colour. */
   .nav-link {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-ink-700 font-medium transition-all duration-150 relative;
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-ink-700 font-medium transition-colors duration-150 relative;
   }
   .nav-link:hover {
     @apply bg-navy-50 text-navy-700;
@@ -289,7 +294,7 @@
   .sidebar-icon-btn {
     @apply w-7 h-7 flex items-center justify-center rounded-lg text-ink-500
            hover:text-ink-900 hover:bg-paper-2
-           transition-all duration-150 focus:outline-none;
+           transition-colors duration-150 focus:outline-none;
   }
 
   /* KPI gradient accent modifiers — subtle top-left wash of accent colour */
@@ -306,7 +311,7 @@
            rounded-xl px-3.5 h-[34px]
            hover:border-ink-300 dark:hover:border-[#3d4d46]
            focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-500/20
-           transition-all duration-150 w-full;
+           transition-colors duration-150 w-full;
   }
   .topbar-search input {
     @apply bg-transparent border-0 outline-none text-ink-900 dark:text-[#e4e1d8]

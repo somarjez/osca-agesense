@@ -74,6 +74,11 @@ Chart.defaults.plugins.tooltip.titleFont       = { weight: '600', size: 12 }
 Chart.defaults.plugins.tooltip.bodyFont        = { size: 11 }
 Chart.defaults.scale.grid.color               = 'rgba(0, 0, 0, 0.04)'
 Chart.defaults.scale.ticks.color              = '#94a3b8'
+// Entry animation default — Chart.js ships 1000ms. On GPU-less devices, six
+// dashboard charts animating at once (and re-animating on every filter) is the
+// worst CPU spike on the page. 300ms keeps a snappy reveal everywhere without
+// changing chart type, data, or interactivity. Per-chart configs inherit this.
+Chart.defaults.animation.duration             = 300
 
 // Make Chart.js available globally for Blade scripts
 window.Chart = Chart

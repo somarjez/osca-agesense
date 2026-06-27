@@ -72,7 +72,7 @@
         };
     }
 
-    const doughnutAnim = { animateRotate: true, animateScale: true, duration: 750, easing: 'easeOutQuart' };
+    const doughnutAnim = { animateRotate: true, animateScale: true, duration: 300, easing: 'easeOutQuart' };
 
     // Draw the value above each bar.
     const barValuePlugin = {
@@ -198,7 +198,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 750, easing: 'easeOutQuart' },
+                animation: { duration: 300, easing: 'easeOutQuart' },
                 scales: {
                     r: {
                         grid: { color: C.grid },
@@ -230,7 +230,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 700, easing: 'easeOutQuart' },
+                animation: { duration: 300, easing: 'easeOutQuart' },
                 scales: {
                     r: {
                         beginAtZero: true,
@@ -262,7 +262,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 700, easing: 'easeOutQuart' },
+                animation: { duration: 300, easing: 'easeOutQuart' },
                 layout: { padding: { top: 18 } },
                 plugins: { legend: { display: false } },
                 scales: {
@@ -303,7 +303,7 @@
                 rotation: -90,
                 circumference: 180,
                 cutout: '70%',
-                animation: { duration: 900, easing: 'easeOutQuart' },
+                animation: { duration: 400, easing: 'easeOutQuart' },
                 plugins: { legend: { display: false }, tooltip: { enabled: false } },
             },
             plugins: [gaugeTextPlugin(hasWb ? String(Math.round(wb)) : '—', hasWb)],
