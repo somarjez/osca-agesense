@@ -53,7 +53,12 @@ function probe {
         return $r
     } catch {
         $sc = $null; try { $sc = [int]$_.Exception.Response.StatusCode } catch {}
-        err $Label (if ($null -ne $sc) { $sc } else { $_.Exception.Message })
+        # Assign the if to a variable first: an inline if-expression passed
+        # directly as an argument — err $Label (if ...) — is PS7-only and parse-
+        # errors on Windows PowerShell 5.1 (this machine). `$x = if {} else {}`
+        # is valid on 5.1, so compute the detail, then pass it.
+        $detail = if ($null -ne $sc) { $sc } else { $_.Exception.Message }
+        err $Label $detail
         return $null
     }
 }
