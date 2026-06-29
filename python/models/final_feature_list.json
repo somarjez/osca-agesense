@@ -37,8 +37,8 @@
     "env_home_comfort",
     "env_service_access",
     "income_enc",
+    "soc_social_support",
     "soc_close_friend",
-    "soc_participation",
     "soc_opportunity",
     "soc_respect",
     "community_service_count",
@@ -70,8 +70,8 @@
     "env_home_comfort",
     "env_service_access",
     "income_enc",
+    "soc_social_support",
     "soc_close_friend",
-    "soc_participation",
     "soc_opportunity",
     "soc_respect",
     "living_with_count",
@@ -86,6 +86,6 @@
     "sec3_skill_score",
     "sec2_family_support"
   ],
-  "decision": "31 features used for final UMAP+KMeans clustering. 5 features excluded via ablation (domain redundancy / multicollinearity): ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Note: sec3_skill_score and sec5_real_asset_score are Kruskal-significant but removed for domain redundancy (subsumed by composite section scores). Silhouette baseline (36-feat): 0.4075, final (31-feat): 0.4717.",
+  "decision": "31 features used for final UMAP+KMeans clustering. 5 features excluded via ablation (domain redundancy / multicollinearity): ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Note: sec3_skill_score and sec5_real_asset_score are Kruskal-significant but removed for domain redundancy (subsumed by composite section scores). Silhouette baseline (36-feat): 0.3899, final (31-feat): 0.4321.",
   "note": "The final 31-feature clustering set was selected based on feature ablation and clustering performance. Excluded features may still be used for scoring, recommendations, reports, and WHO-domain interpretation."
 }
