@@ -78,6 +78,10 @@ class MagdapioImportSeeder extends Seeder
         'Needs hearing aid'                 => 'Uses hearing aid',
     ];
 
+    private const MARITAL_STATUS_MAP = [
+        'Legally Separated' => 'Separated',
+    ];
+
     private const INCOME_SOURCE_MAP = [
         'Spouse Salary'   => 'Spouse salary',
         'Spouse Pension'  => 'Spouse pension',
@@ -178,7 +182,7 @@ class MagdapioImportSeeder extends Seeder
                 'date_of_birth'             => $dob,
                 'contact_number'            => null,
                 'place_of_birth'            => null,
-                'marital_status'            => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
+                'marital_status'            => $this->enumOrNull(self::MARITAL_STATUS_MAP[$row['marital_status'] ?? ''] ?? ($row['marital_status'] ?? null), ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
                 'gender'                    => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
                 'religion'                  => null,
                 'ethnic_origin'             => null,

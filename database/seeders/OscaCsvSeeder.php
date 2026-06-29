@@ -94,6 +94,10 @@ class OscaCsvSeeder extends Seeder
         'Needs hearing aid' => 'Uses hearing aid',
     ];
 
+    private const MARITAL_STATUS_MAP = [
+        'Legally Separated' => 'Separated',
+    ];
+
     private const PROBLEMS_NEEDS_EXTRA_MAP = [
         // Free-text entry preserved as custom "Others" value
         'Herbal' => 'Others: Herbal',
@@ -153,7 +157,7 @@ class OscaCsvSeeder extends Seeder
                 'date_of_birth' => $this->parseDate($row['dob'] ?? null, dobMode: true),
                 'contact_number' => $this->strVal($row['contact_number'] ?? null),
                 'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
-                'marital_status' => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
+                'marital_status' => $this->enumOrNull(self::MARITAL_STATUS_MAP[$row['marital_status'] ?? ''] ?? ($row['marital_status'] ?? null), ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
                 'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
                 'religion' => $this->strVal($row['religion'] ?? null),
                 'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
