@@ -140,6 +140,41 @@ php artisan test
 
 ---
 
+## Verify a change / PR (build → migrate → test)
+
+The standard end-to-end check after editing app code (used when verifying a PR
+before opening it). Run from the project root, in order:
+
+```powershell
+# 1. Frontend assets — REQUIRED after any Blade/CSS/JS change (public/build is
+#    gitignored, so classes/bundles only exist after a build). Validates the
+#    Vite build compiles too.
+npm run build
+
+# 2. PHP syntax — fast, no DB needed. Works even with MySQL offline.
+php -l app/Path/To/Changed.php
+#    (Blade files are fine to lint too: php -l resources/views/...blade.php)
+
+# 3. Apply any new migrations.
+php artisan migrate --force
+
+# 4. Full test suite (currently ~96 tests / ~660 assertions, ~6 min).
+php artisan test
+```
+
+**MySQL must be running for steps 3–4 and for `smoke.ps1`.** Start Laragon first.
+`phpunit.xml` sets `DB_CONNECTION=mysql` against the `osca_db` database — there is
+**no `.env.testing` and no sqlite fallback**, so the suite hits real MySQL. With
+MySQL offline you get `SQLSTATE[HY000] [2002] ... target machine actively refused
+it`. Steps 1–2 (`npm run build`, `php -l`) need no DB and can run offline.
+
+`smoke.ps1` additionally needs the **web app running** (Laragon vhost or
+`php artisan serve`) and the **Python ML services** on :5001/:5002 for a full
+14/14 pass. A quick liveness check without the ML services: serve the app and
+`curl` `/login` for a 200.
+
+---
+
 ## Check service ports
 
 ```powershell

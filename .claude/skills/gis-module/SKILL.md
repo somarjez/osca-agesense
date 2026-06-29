@@ -177,6 +177,24 @@ All 5 endpoints require authentication (`auth` + `role:admin,encoder,viewer`). T
 
 ## Gotchas
 
+**Map rendering is already performance-optimized — don't redo it**
+The heavy client-side render costs in `reports/gis.blade.php` have already been
+fixed and shipped. Don't reintroduce the slow patterns or "re-optimize" from
+scratch. Already in place:
+- **Canvas markers** — seniors render via `L.circleMarker` on a shared
+  `L.canvas()` renderer (`getCanvasRenderer(map)`), not per-marker DivIcons.
+- **Boundary mask** — heatmap clipping uses a rasterized inside/outside bitmap
+  (`buildBoundaryMask` / `getRasterBoundaryMask`), not per-pixel point-in-polygon
+  ray-casting.
+- **Pan vs. zoom** — heat layers reposition on pan and only repaint on
+  zoom/resize; raster resolution is capped; per-senior boundary validation is
+  memoized once per data load (`prevalidateAllFeatures`).
+
+If the map feels slow, profile first (DevTools Performance) and confirm which of
+these regressed before adding new machinery. Note the system-wide render work
+(Chart.js double-load, dashboard chart animations, CSS motion) lives **outside**
+this file — see the `osca-performance` skill.
+
 **`config:cache` breaks ORS key**
 After adding/changing `OPENROUTESERVICE_API_KEY` in `.env`, always run `php artisan config:clear` (or `php artisan config:cache`) to pick up the new value. Using `env()` directly in PHP code does not work after config caching.
 
