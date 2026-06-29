@@ -77,32 +77,126 @@
         </div>
     </div>
 
-    {{-- ── Executive verdict + scope ── --}}
+    {{-- ── System confidence + scope ── --}}
     @php
         $goodCount = collect($score)->filter(fn ($s) => $s[2]['good'])->count();
         $overallGood = $goodCount >= 3;
+        $confGood = $confidence['good'] ?? false;
     @endphp
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="card lg:col-span-2 {{ $overallGood ? 'ring-1 ring-low-500/30' : '' }}">
-            <div class="card-body flex items-start gap-4">
-                <div class="w-11 h-11 rounded-2xl grid place-items-center flex-shrink-0 {{ $overallGood ? 'bg-low-50 dark:bg-low-900/30' : 'bg-moderate-50 dark:bg-moderate-900/30' }}">
-                    <x-heroicon-o-shield-check class="w-6 h-6 {{ $overallGood ? 'text-low-600' : 'text-moderate-600' }}" />
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="eyebrow">Overall verdict</span>
-                        <span class="badge {{ $overallGood ? 'badge-low' : 'badge-moderate' }}">{{ $overallGood ? 'PASS' : 'Review' }}</span>
+
+        {{-- System confidence card --}}
+        <div class="card lg:col-span-2 {{ $confGood ? 'ring-1 ring-low-500/30' : 'ring-1 ring-moderate-500/30' }}"
+             x-data="{ open: false }">
+            <div class="card-body">
+
+                {{-- Headline row --}}
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-start gap-4 min-w-0">
+                        <div class="w-11 h-11 rounded-2xl grid place-items-center flex-shrink-0
+                                    {{ $confGood ? 'bg-low-50 dark:bg-low-900/30' : 'bg-moderate-50 dark:bg-moderate-900/30' }}">
+                            <x-heroicon-o-shield-check class="w-6 h-6 {{ $confGood ? 'text-low-600' : 'text-moderate-600' }}" />
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="eyebrow">System confidence</span>
+                                <span class="badge {{ $confGood ? 'badge-low' : 'badge-moderate' }}">
+                                    {{ $confidence['band'] }}
+                                </span>
+                                <span class="badge badge-neutral text-[10px]">
+                                    {{ ucfirst($confidence['scope']) }}
+                                </span>
+                            </div>
+                            <p class="text-[12px] text-ink-400 dark:text-[#8a9087] mt-1 leading-snug">
+                                Soundness, reproducibility &amp; coverage — not a clinical-accuracy claim.
+                            </p>
+                        </div>
                     </div>
-                    <p class="text-[13.5px] text-ink-600 dark:text-[#a8b0ab] mt-2 leading-relaxed">
-                        Defensible for thesis-level <strong class="text-ink-800 dark:text-[#e4e1d8]">decision support</strong>:
-                        {{ $goodCount }} of {{ count($score) }} evaluation pillars pass. The grouping is stable and interpretable,
-                        feature differences are statistically significant, risk-indicator cross-validation is strong, and the
-                        machine-learning outputs align with the transparent rule engine. Very high scores (≥ 0.70) are carried as
-                        <strong class="text-ink-800 dark:text-[#e4e1d8]">High&nbsp;+ Priority Flag</strong> rather than a separate class.
-                    </p>
+
+                    {{-- Big score --}}
+                    <div class="text-right flex-shrink-0">
+                        <div class="font-serif text-5xl font-semibold leading-none tnum
+                                    {{ $confGood ? 'text-low-700 dark:text-[#6dd89e]' : 'text-moderate-700 dark:text-[#e0c060]' }}">
+                            {{ $confidence['pct'] }}<span class="text-2xl font-normal text-ink-300">%</span>
+                        </div>
+                        <div class="text-[10px] uppercase tracking-wider text-ink-400 mt-1">
+                            Confidence score
+                        </div>
+                    </div>
                 </div>
+
+                {{-- Per-pillar contribution bars --}}
+                <div class="mt-5 space-y-2.5">
+                    @foreach ($confidence['pillars'] as $cp)
+                    <div class="flex items-center gap-3">
+                        <div class="w-32 flex-shrink-0">
+                            <div class="text-[12px] font-medium text-ink-700 dark:text-[#c8c4bc]">{{ $cp['label'] }}</div>
+                            <div class="text-[10.5px] text-ink-400">×{{ $cp['weight_pct'] }}% weight</div>
+                        </div>
+                        <div class="flex-1 bar h-2.5">
+                            <div class="bar-fill" style="width: {{ round($cp['score'] * 100) }}%; background: #2657aa;"></div>
+                        </div>
+                        <div class="w-12 text-right font-mono font-semibold tnum text-[12.5px] text-ink-800 dark:text-[#c8c4bc]">
+                            {{ round($cp['score'] * 100) }}%
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+
+                {{-- Collapsible methodology --}}
+                <div class="mt-4 pt-4 border-t border-paper-rule dark:border-[#2b3530]">
+                    <button type="button"
+                            @click="open = !open"
+                            class="flex items-center gap-2 text-[12px] text-ink-500 dark:text-[#8a9087] hover:text-ink-700 dark:hover:text-[#c8c4bc] transition-colors">
+                        <x-heroicon-o-calculator class="w-3.5 h-3.5 flex-shrink-0" />
+                        <span x-text="open ? 'Hide methodology' : 'How this is computed'"></span>
+                        <x-heroicon-o-chevron-down class="w-3.5 h-3.5 transition-transform" ::class="open ? 'rotate-180' : ''" />
+                    </button>
+
+                    <div x-show="open" x-collapse x-cloak class="mt-3 space-y-4">
+                        {{-- Per-pillar component breakdown --}}
+                        @foreach ($confidence['pillars'] as $cp)
+                        <div>
+                            <div class="text-[11px] font-semibold uppercase tracking-wider text-ink-500 dark:text-[#8a9087] mb-1.5">
+                                {{ $cp['label'] }} &middot; weight {{ $cp['weight_pct'] }}%
+                            </div>
+                            <div class="space-y-1">
+                                @foreach ($cp['components'] as [$cLabel, $cVal])
+                                <div class="flex items-center gap-2 text-[11.5px]">
+                                    <span class="w-44 flex-shrink-0 text-ink-600 dark:text-[#a8b0ab]">{{ $cLabel }}</span>
+                                    <div class="flex-1 bar h-1.5">
+                                        <div class="bar-fill" style="width: {{ round($cVal * 100) }}%; background: #5689d6;"></div>
+                                    </div>
+                                    <span class="w-10 text-right font-mono tnum text-ink-500">{{ round($cVal * 100) }}%</span>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endforeach
+
+                        {{-- Band scale --}}
+                        <div class="rounded-xl bg-paper-2 dark:bg-[#131917] border border-paper-rule dark:border-[#2b3530] p-3">
+                            <div class="text-[11px] font-semibold uppercase tracking-wider text-ink-400 mb-2">Confidence bands</div>
+                            <div class="flex gap-3 flex-wrap">
+                                @foreach ($confidence['bands'] as $band)
+                                <div class="flex items-center gap-1.5">
+                                    <span class="badge badge-{{ $band['tone'] }} text-[10px]">{{ $band['label'] }}</span>
+                                    <span class="text-[11px] text-ink-400">&ge;{{ $band['min'] }}%</span>
+                                </div>
+                                @endforeach
+                            </div>
+                            <p class="text-[11px] text-ink-400 dark:text-[#8a9087] mt-2 leading-relaxed">
+                                Each component is normalised: 0% = at the minimum acceptable threshold, 100% = target
+                                benchmark. Pillar scores are the mean of their components; the overall is the weighted sum.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
+
+        {{-- Scope & limits --}}
         <div class="card bg-paper-2/50 dark:bg-[#131917]">
             <div class="card-body">
                 <div class="flex items-center gap-2 mb-2">
@@ -114,8 +208,17 @@
                     priorities — it does not diagnose medical conditions, confirm clinical outcomes, or replace professional
                     judgment. Findings are from a single municipality and a one-time survey.
                 </p>
+
+                <div class="mt-4 pt-3 border-t border-paper-rule dark:border-[#2b3530]">
+                    <div class="eyebrow mb-2">Overall evaluation verdict</div>
+                    <div class="flex items-center gap-2">
+                        <span class="badge {{ $overallGood ? 'badge-low' : 'badge-moderate' }}">{{ $overallGood ? 'PASS' : 'Review' }}</span>
+                        <span class="text-[12px] text-ink-500 dark:text-[#8a9087]">{{ $goodCount }} of {{ count($score) }} pillars pass</span>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 
     {{-- ── Sticky in-page nav ── --}}

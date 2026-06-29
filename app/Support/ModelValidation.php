@@ -532,6 +532,148 @@ class ModelValidation
         ];
     }
 
+    // ── System confidence ────────────────────────────────────────────────
+
+    /**
+     * Aggregate the four pillar scores into a single system-confidence number.
+     *
+     * Receives the already-computed pillar arrays so no additional file reads
+     * are needed. Every component is normalised to 0–1 and labelled so the
+     * blade can render a transparent "how this is computed" breakdown.
+     *
+     * Scope: *internal validation confidence* — soundness, reproducibility,
+     * and coverage against the same dataset used to train the model.  It is
+     * NOT a clinical-accuracy claim or an external-validation result.
+     */
+    public function confidence(
+        array $clustering,
+        array $regression,
+        array $classification,
+        array $xai,
+        array $recs,
+    ): array {
+        // ── Pillar 1 · Care groups (weight 0.25) ───────────────────────
+        $silhouette = (float) ($clustering['chosen']['silhouette'] ?? 0);
+        $davies     = (float) ($clustering['chosen']['davies_bouldin'] ?? 99);
+        $stable     = (bool)  ($clustering['stability']['stable'] ?? false);
+
+        $c1 = [
+            ['Separation (Silhouette)',   $this->norm($silhouette, 0.25, 0.50)],
+            // Davies–Bouldin: lower is better → floor > target
+            ['Distinctness (Davies–Bouldin)', $this->norm($davies, 1.50, 0.70)],
+            ['Reproducibility',           $stable ? 1.0 : 0.0],
+        ];
+        $s1 = collect($c1)->avg(fn ($x) => $x[1]);
+
+        // ── Pillar 2 · Risk estimation (weight 0.35) ────────────────────
+        $meanCvR2   = (float) ($regression['mean_cv_r2']  ?? 0);
+        $meanRho    = (float) ($regression['mean_rho']    ?? 0);
+        $calibDiff  = (float) ($regression['mean_abs_diff'] ?? 1);
+        $leakPass   = (bool)  ($regression['leakage']['pass'] ?? false);
+        $acc        = (float) ($classification['accuracy']   ?? 0);
+        $highRecall = (float) ($classification['high_recall'] ?? 0);
+
+        $c2 = [
+            ['Accuracy (CV R²)',         $this->norm($meanCvR2, 0.70, 0.95)],
+            ['Rubric agreement (ρ)',     $this->norm($meanRho,  0.70, 0.95)],
+            // Calibration error: lower is better → floor > target
+            ['Calibration fidelity',     $this->norm($calibDiff, 0.15, 0.05)],
+            ['Level accuracy',           $this->norm($acc,        0.50, 0.85)],
+            ['High-risk sensitivity',    $this->norm($highRecall, 0.60, 0.90)],
+            ['No data leakage',          $leakPass ? 1.0 : 0.0],
+        ];
+        $s2 = collect($c2)->avg(fn ($x) => $x[1]);
+
+        // ── Pillar 3 · Explainability (weight 0.20) ─────────────────────
+        $sigRatio = $xai['kruskal_total']
+            ? ($xai['kruskal_significant'] / $xai['kruskal_total'])
+            : 0;
+        $vifOk   = (bool) ($xai['vif']['all_below']  ?? false);
+        $sanOk   = (bool) ($xai['sanity_all_pass']   ?? false);
+
+        $c3 = [
+            ['Feature significance',     $sigRatio],
+            ['Multicollinearity (VIF)',  $vifOk  ? 1.0 : 0.0],
+            ['Rule-domain sanity',       $sanOk  ? 1.0 : 0.0],
+        ];
+        $s3 = collect($c3)->avg(fn ($x) => $x[1]);
+
+        // ── Pillar 4 · Recommendations (weight 0.20) ────────────────────
+        $coverage = (float) ($recs['coverage'] ?? 0);
+
+        $c4 = [
+            ['Population coverage',      $coverage],
+        ];
+        $s4 = collect($c4)->avg(fn ($x) => $x[1]);
+
+        // ── Overall weighted aggregate ───────────────────────────────────
+        $weights = [
+            'clustering' => 0.25,
+            'risk'       => 0.35,
+            'xai'        => 0.20,
+            'recs'       => 0.20,
+        ];
+        $score = $s1 * $weights['clustering']
+               + $s2 * $weights['risk']
+               + $s3 * $weights['xai']
+               + $s4 * $weights['recs'];
+
+        $band = match (true) {
+            $score >= 0.85 => 'High',
+            $score >= 0.70 => 'Substantial',
+            $score >= 0.55 => 'Moderate',
+            default        => 'Developing',
+        };
+
+        return [
+            'score'   => round($score, 4),
+            'pct'     => (int) round($score * 100),
+            'band'    => $band,
+            'good'    => $score >= 0.70,
+            'scope'   => 'internal validation',
+            'pillars' => [
+                [
+                    'key'        => 'clustering',
+                    'label'      => 'Care groups',
+                    'weight'     => $weights['clustering'],
+                    'weight_pct' => (int) round($weights['clustering'] * 100),
+                    'score'      => round($s1, 4),
+                    'components' => $c1,
+                ],
+                [
+                    'key'        => 'risk',
+                    'label'      => 'Risk estimates',
+                    'weight'     => $weights['risk'],
+                    'weight_pct' => (int) round($weights['risk'] * 100),
+                    'score'      => round($s2, 4),
+                    'components' => $c2,
+                ],
+                [
+                    'key'        => 'xai',
+                    'label'      => 'Explainability',
+                    'weight'     => $weights['xai'],
+                    'weight_pct' => (int) round($weights['xai'] * 100),
+                    'score'      => round($s3, 4),
+                    'components' => $c3,
+                ],
+                [
+                    'key'        => 'recs',
+                    'label'      => 'Recommendations',
+                    'weight'     => $weights['recs'],
+                    'weight_pct' => (int) round($weights['recs'] * 100),
+                    'score'      => round($s4, 4),
+                    'components' => $c4,
+                ],
+            ],
+            'bands' => [
+                ['label' => 'High',        'min' => 85, 'tone' => 'low'],
+                ['label' => 'Substantial', 'min' => 70, 'tone' => 'moderate'],
+                ['label' => 'Moderate',    'min' => 55, 'tone' => 'moderate'],
+                ['label' => 'Developing',  'min' => 0,  'tone' => 'high'],
+            ],
+        ];
+    }
+
     // ── Provenance ──────────────────────────────────────────────────────
 
     public function provenance(): array
@@ -590,6 +732,21 @@ class ModelValidation
     private function verdict(bool $good, string $strong, string $weak): array
     {
         return ['good' => $good, 'label' => $good ? $strong : $weak];
+    }
+
+    /**
+     * Normalise $v to [0,1] between $floor (→ 0) and $target (→ 1).
+     * For "lower is better" metrics, pass floor > target — the fraction
+     * inverts automatically and is still clamped to [0,1].
+     */
+    private function norm(float $v, float $floor, float $target): float
+    {
+        $range = $target - $floor;
+        if ($range == 0) {
+            return $v >= $target ? 1.0 : 0.0;
+        }
+
+        return (float) max(0.0, min(1.0, ($v - $floor) / $range));
     }
 
     /** Parse a Python-style dict string (e.g. tuned hyperparameters) into an array. */
