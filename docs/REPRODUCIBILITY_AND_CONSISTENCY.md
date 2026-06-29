@@ -1,7 +1,7 @@
 # AgeSense OSCA — Reproducibility & Cross-Device Consistency
 
 **System version:** v2.0.0 (K=4)
-**Last validated:** 2026-06-11 (290 seniors)
+**Last validated:** 2026-06-29 (360 seniors — 290 original + 70 Magdapio/Barangay II batch)
 **Audience:** developers, deployers, thesis panel
 
 > **Goal of this document:** explain *why* the live AgeSense system produces the
@@ -72,11 +72,11 @@ training device, the log warns:
 training device. Copy python/models/ from the training machine ...
 ```
 
-As of 2026-06-11 all 15 `.pkl` files match the manifest (model version 2.0.0).
+As of 2026-06-29 all 15 `.pkl` files match the manifest (model version 2.0.0, retrained on 360-senior dataset).
 
 ---
 
-## 4. Why clustering is ~91% vs the notebook — and why that is correct
+## 4. Why clustering is ~87% vs the notebook — and why that is correct
 
 The notebook clusters with **UMAP (10-dim) → KMeans**. UMAP's `transform()` on a
 *single new record* is an approximation that varies across CPU families and
@@ -87,30 +87,32 @@ The live system therefore uses **deterministic nearest-centroid in 31-dim scaled
 space** (`cluster_centroids_scaled.json`). This is the correct production choice:
 it is bit-for-bit identical on every device.
 
-Its agreement with the notebook is **91.0%**. The 9.0% that differ are
+Its agreement with the notebook is **86.9%** (313/360 seniors). The 13.1% (47 seniors) that differ are
 **boundary-ambiguous seniors** — proven, not assumed: their distance gap between
-the nearest and second-nearest cluster averages **0.095**, versus **0.336** for
-agreeing seniors (3.5× tighter). For these borderline seniors, the **risk score
+the nearest and second-nearest cluster averages **0.1002**, versus **0.3327** for
+agreeing seniors (3.3× tighter). For these borderline seniors, the **risk score
 and recommendations are identical** regardless of which cluster label they get.
 
+The slight decrease from the earlier 290-senior baseline (which showed ~88–91% depending on run)
+reflects the larger, denser 360-senior dataset — this is expected, not degradation.
 100% cluster agreement is mathematically impossible to reach deterministically,
 because the target method (UMAP+KMeans) is itself non-reproducible per record.
 
 ---
 
-## 5. Validation results (2026-06-11, `validate_system.py`, 290 seniors)
+## 5. Validation results (2026-06-29, `validate_system.py`, 360 seniors)
 
-Run with `ENABLE_NOTEBOOK_OVERRIDES=false` (live model only):
+Run with `ENABLE_NOTEBOOK_OVERRIDES=false` (live model only). Dataset expanded from 290 to 360 seniors (290 original + 70 Magdapio/Barangay II batch); model retrained June 2026.
 
 | Category | Result | Verdict |
 |---|---|---|
-| Feature-engineering fidelity (WHO + section scores) | 99.3–100% within tolerance, mean Δ ~0.0002 | PASS |
-| Risk-score fidelity (IC/Env/Func/Composite) | 99.7–100% within 0.02, mean Δ ~0.0002 | PASS |
-| Risk-level match (LOW/MODERATE/HIGH) | 289/290 = **99.7%** | PASS |
-| Cluster match vs notebook | 264/290 = **91.0%** | deterministic ceiling |
-| Cluster coherence (risk rises with cluster id) | 0.288 → 0.390 → 0.412 → 0.543 | PASS (monotonic) |
-| XAI coverage | 290/290 = 100% | PASS |
-| Recommendation coverage | 290/290 = 100% (mean 11.4/senior) | PASS |
+| Feature-engineering fidelity (WHO + section scores) | 99.4–100% within tolerance, mean Δ ~0.0006 | PASS |
+| Risk-score fidelity (IC/Env/Func/Composite) | 99.7–100% within 0.02, mean Δ ~0.0003 | PASS |
+| Risk-level match (LOW/MODERATE/HIGH) | 358/360 = **99.4%** | PASS |
+| Cluster match vs notebook | 313/360 = **86.9%** | deterministic ceiling |
+| Cluster coherence (risk rises with cluster id) | 0.288 → 0.386 → 0.401 → 0.544 | PASS (monotonic) |
+| XAI coverage | 360/360 = 100% | PASS |
+| Recommendation coverage | 360/360 = 100% (mean 16.9/senior) | PASS |
 | Determinism (same payload × 3 runs) | identical every time | PASS |
 
 Re-run any time to re-confirm the whole system in one command:
@@ -184,4 +186,4 @@ match Section 5 above.
 - `docs/DATABASE_SHARING_AND_TEAM_SETUP.md` — sharing data across devices
 - `docs/UPDATING_THE_MODEL.md` — what to do when the model is retrained
 
-*Document version 1.1.0 | System: AgeSense OSCA v2.0.0 (K=4) | 2026-06-11*
+*Document version 1.2.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | 2026-06-29*

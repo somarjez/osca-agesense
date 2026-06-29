@@ -4,48 +4,34 @@ namespace Database\Seeders;
 
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
-use App\Services\MlService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
-class OscaCsvSeeder extends Seeder
+/**
+ * Non-destructive seeder for the 70-row Magdapio/Pagsanjan CSV batch.
+ *
+ * Reads osca_normalized.csv (360 rows), skips any row whose
+ * first_name + last_name + date_of_birth + barangay already exists in the DB,
+ * and inserts only the genuinely new records.  Does NOT call clearCurrentData()
+ * and does NOT auto-run the ML pipeline (use ml:repair-notebook-cache --all
+ * after seeding to score all seniors consistently against the retrained model).
+ *
+ * Run: php artisan db:seed --class=MagdapioImportSeeder
+ */
+class MagdapioImportSeeder extends Seeder
 {
-    // ── Canonical value maps (CSV/Google Form text → UI option text) ─────────
-
-    private const PROBLEMS_NEEDS_MAP = [
-        // Income variants
-        'Lack of source of income/resources' => 'Lack of income/resources',
-        'Lack of source of income' => 'Lack of income/resources',
-        'Lack of income' => 'Lack of income/resources',
-        'Loss of source of income/resources' => 'Loss of income/resources',
-        'Loss of source of income' => 'Loss of income/resources',
-        'Loss of income' => 'Loss of income/resources',
-        // Casing / wording fixes
-        'Livelihood Opportunities' => 'Livelihood opportunities',
-        'Health-Related Issues' => 'Health Related Issues',
-        'Lack of access to health care services' => 'Lack of access to healthcare services',
-        'High cost of medicine' => 'High cost of medicines',
-        'Lack of Social Support' => 'Lack of social support',
-        // Spelling / wording fixes
-        'Limited Mobillity/Transportation' => 'Limited Mobility/Transportation difficulty',
-        'Limited Mobility/Transportation' => 'Limited Mobility/Transportation difficulty',
-    ];
-
-    private const INCOME_SOURCE_MAP = [
-        'Spouse Salary' => 'Spouse salary',
-        'Spouse Pension' => 'Spouse pension',
-    ];
+    // ── Canonical value maps (mirrors OscaCsvSeeder) ─────────────────────────
+    // Prostate / Pneumonia / Sinusitis are now canonical form options → NOT remapped.
+    // Sinusutis (data typo) IS remapped to the canonical Sinusitis.
 
     private const MEDICAL_CONCERN_MAP = [
         'Arthritis/Gout' => 'Arthritis / Gout',
         'Mental Health Condition (Depression/Anxiety)' => 'Mental Health Condition (Depression / Anxiety)',
         'Tuberculosis(TB)' => 'Tuberculosis (TB)',
         'Chronic Heart Disease' => 'Coronary Heart Disease',
-        // Free-text conditions from Google Form → nearest canonical bucket
         'Heart Enlargement' => 'Coronary Heart Disease',
         'Scoliosis' => 'Physical Disability',
-        'Prostate' => 'Other Chronic Disease',
+        'Sinusutis' => 'Sinusitis',   // data typo
         'Cholesterol' => 'Other Chronic Disease',
         'Anlodipin' => 'Other Chronic Disease',
         'Lungs' => 'Other Chronic Disease',
@@ -62,7 +48,6 @@ class OscaCsvSeeder extends Seeder
         'Lack Social Support' => 'Lack social support',
         'Lack liesure/recreational activites' => 'Lack leisure activities',
         'Lack SC-friendly Environment' => 'Living in a healthy environment',
-        // Free-text stress entries
         'Stress' => 'Feeling Depressed/Anxiety',
         'Apo stress' => 'Feeling Depressed/Anxiety',
     ];
@@ -76,21 +61,20 @@ class OscaCsvSeeder extends Seeder
     private const OPTICAL_CONCERN_MAP = [
         'Blurred Vision' => 'Blurred vision',
         'Healthy eyes' => 'Healthy Eyes',
-        // Free-text optical conditions from Google Form → nearest canonical bucket
         'Astigmatism' => 'Eye impairment',
         'half-eyed problem' => 'Eye impairment',
-        'Ploaters' => 'Eye impairment',   // floaters
+        'Ploaters' => 'Eye impairment',
         'Eye Stroke' => 'Eye impairment',
         'Pugita Eye' => 'Eye impairment',
-        'Malinaw pero malabo mata' => 'Blurred vision',  // Filipino: "clear but blurry eyes"
-        'Maintenance patak' => 'Needs eye care',  // maintenance eye drops
+        'Malinaw pero malabo mata' => 'Blurred vision',
+        'Maintenance patak' => 'Needs eye care',
         'Affected by diabetes' => 'Needs eye care',
     ];
 
     private const HEARING_CONCERN_MAP = [
         'Partial Hearing Loss' => 'Partial hearing loss',
         'Difficulty hearing converstaions' => 'Difficulty hearing conversations',
-        'Hearing Impairment' => 'Hearing impairment',  // case fix
+        'Hearing Impairment' => 'Hearing impairment',
         'Needs hearing aid' => 'Uses hearing aid',
     ];
 
@@ -98,70 +82,113 @@ class OscaCsvSeeder extends Seeder
         'Legally Separated' => 'Separated',
     ];
 
-    private const PROBLEMS_NEEDS_EXTRA_MAP = [
-        // Free-text entry preserved as custom "Others" value
-        'Herbal' => 'Others: Herbal',
+    private const INCOME_SOURCE_MAP = [
+        'Spouse Salary' => 'Spouse salary',
+        'Spouse Pension' => 'Spouse pension',
     ];
+
+    private const PROBLEMS_NEEDS_MAP = [
+        'Lack of source of income/resources' => 'Lack of income/resources',
+        'Lack of source of income' => 'Lack of income/resources',
+        'Lack of income' => 'Lack of income/resources',
+        'Loss of source of income/resources' => 'Loss of income/resources',
+        'Loss of source of income' => 'Loss of income/resources',
+        'Loss of income' => 'Loss of income/resources',
+        'Livelihood Opportunities' => 'Livelihood opportunities',
+        'Health-Related Issues' => 'Health Related Issues',
+        'Lack of access to health care services' => 'Lack of access to healthcare services',
+        'High cost of medicine' => 'High cost of medicines',
+        'Lack of Social Support' => 'Lack of social support',
+        'Limited Mobillity/Transportation' => 'Limited Mobility/Transportation difficulty',
+        'Limited Mobility/Transportation' => 'Limited Mobility/Transportation difficulty',
+    ];
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public function run(): void
     {
-        // Check project root first, then one level up (legacy placement)
-        $csvPath = file_exists(base_path('osca.csv'))
-            ? base_path('osca.csv')
-            : base_path('../osca.csv');
+        $csvPath = file_exists(base_path('osca_normalized.csv'))
+            ? base_path('osca_normalized.csv')
+            : base_path('../osca_normalized.csv');
 
         if (! file_exists($csvPath)) {
-            $this->command->error('osca.csv not found. Place it in the project root or one folder above, then re-run.');
+            $this->command->error('osca_normalized.csv not found. Expected at the project root or one folder above.');
 
             return;
         }
 
-        $this->command->info('Clearing current OSCA data...');
-        $this->clearCurrentData();
-
-        $this->command->info('Importing OSCA data from osca.csv...');
+        $this->command->info("Reading: {$csvPath}");
 
         $fp = fopen($csvPath, 'r');
         if (! $fp) {
-            $this->command->error('Unable to open osca.csv');
+            $this->command->error('Unable to open osca_normalized.csv');
 
             return;
+        }
+
+        // Strip BOM if present
+        $firstBytes = fread($fp, 3);
+        if ($firstBytes !== "\xef\xbb\xbf") {
+            rewind($fp);
         }
 
         $header = fgetcsv($fp);
         if (! $header) {
             fclose($fp);
-            $this->command->error('osca.csv appears empty');
+            $this->command->error('osca_normalized.csv appears empty');
 
             return;
         }
 
-        // Strip UTF-8 BOM from the first column header if present (Google Sheets / Excel export artefact)
-        if (str_starts_with($header[0], "\xef\xbb\xbf")) {
-            $header[0] = substr($header[0], 3);
-        }
-
-        // ── Pass 1: insert all seniors + surveys ──────────────────────────────
-        $pairs = [];
+        $inserted = 0;
+        $skippedDup = 0;
+        $skippedMissing = 0;
 
         while (($line = fgetcsv($fp)) !== false) {
             $row = $this->rowToAssoc($header, $line);
 
+            // ── Required-field guard ────────────────────────────────────────
+            $firstName = $this->strVal($row['first_name'] ?? null);
+            $lastName = $this->strVal($row['last_name'] ?? null);
+            $barangay = $this->strVal($row['barangay'] ?? null);
+            $dob = $this->parseDate($row['dob'] ?? null, dobMode: true);
+
+            if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
+                $skippedMissing++;
+                $this->command->warn("  SKIP (missing required): {$firstName} {$lastName} / {$barangay}");
+
+                continue;
+            }
+
+            // ── Dedupe guard (mirrors BulkUploadController, line 246-257) ──
+            $alreadyExists = SeniorCitizen::where('first_name', $firstName)
+                ->where('last_name', $lastName)
+                ->where('date_of_birth', $dob)
+                ->where('barangay', $barangay)
+                ->exists();
+
+            if ($alreadyExists) {
+                $skippedDup++;
+
+                continue;
+            }
+
+            // ── Insert senior ───────────────────────────────────────────────
             $senior = SeniorCitizen::create([
-                'osca_id' => SeniorCitizen::generateOscaId((string) ($row['barangay'] ?? 'Unknown')),
-                'first_name' => $this->strVal($row['first_name'] ?? null),
+                'osca_id' => SeniorCitizen::generateOscaId($barangay),
+                'first_name' => $firstName,
                 'middle_name' => $this->strVal($row['middle_name'] ?? null),
-                'last_name' => $this->strVal($row['last_name'] ?? null),
-                'name_extension' => $this->strVal($row['name_ext'] ?? null),
-                'barangay' => $this->strVal($row['barangay'] ?? null) ?: 'Unknown',
-                'date_of_birth' => $this->parseDate($row['dob'] ?? null, dobMode: true),
-                'contact_number' => $this->strVal($row['contact_number'] ?? null),
-                'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
+                'last_name' => $lastName,
+                'name_extension' => null,
+                'barangay' => $barangay,
+                'date_of_birth' => $dob,
+                'contact_number' => null,
+                'place_of_birth' => null,
                 'marital_status' => $this->enumOrNull(self::MARITAL_STATUS_MAP[$row['marital_status'] ?? ''] ?? ($row['marital_status'] ?? null), ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
                 'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
-                'religion' => $this->strVal($row['religion'] ?? null),
-                'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
-                'blood_type' => $this->strVal($row['blood_type'] ?? null),
+                'religion' => null,
+                'ethnic_origin' => null,
+                'blood_type' => null,
                 'num_children' => $this->intVal($row['num_children'] ?? null),
                 'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
                 'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
@@ -176,7 +203,7 @@ class OscaCsvSeeder extends Seeder
                 'real_assets' => $this->toList($row['real_assets'] ?? null),
                 'movable_assets' => $this->toList($row['movable_assets'] ?? null),
                 'monthly_income_range' => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
-                'problems_needs' => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
+                'problems_needs' => $this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP),
                 'medical_concern' => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
                 'dental_concern' => $this->toList($row['dental_concern'] ?? null),
                 'optical_concern' => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
@@ -189,6 +216,7 @@ class OscaCsvSeeder extends Seeder
                 'encoded_by' => 'CSV Import',
             ]);
 
+            // ── Insert QoL survey ───────────────────────────────────────────
             $surveyDate = $this->parseDate($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
             $survey = QolSurvey::create([
                 'senior_citizen_id' => $senior->id,
@@ -213,6 +241,8 @@ class OscaCsvSeeder extends Seeder
                 'd4_income_limits' => $this->scoreVal($row['env_income_limit_r'] ?? null),
                 'e1_social_support' => $this->scoreVal($row['soc_social_support'] ?? null),
                 'e2_close_person' => $this->scoreVal($row['soc_close_friend'] ?? null),
+                // Note: e3/e4 intentionally swap soc_participation ↔ soc_opportunity
+                // (matches OscaCsvSeeder line 212-213 and export_normalized_db.py QOL_DB_MAP)
                 'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
                 'e4_participation' => $this->scoreVal($row['soc_opportunity'] ?? null),
                 'e5_respect' => $this->scoreVal($row['soc_respect'] ?? null),
@@ -229,42 +259,25 @@ class OscaCsvSeeder extends Seeder
             ]);
 
             $survey->computeScores();
-            $pairs[] = ['senior' => $senior, 'survey' => $survey];
+            $inserted++;
+
+            if ($inserted % 10 === 0) {
+                $this->command->info("  ... inserted {$inserted} so far");
+            }
         }
 
         fclose($fp);
 
-        $rows = count($pairs);
-        $this->command->info("Inserted {$rows} seniors + surveys. Running ML batch pipeline...");
-
-        // ── Pass 2: one Python subprocess for all seniors ─────────────────────
-        $mlService = app(MlService::class);
-        $results = $mlService->runBatchPipeline($pairs);
-
-        $mlSuccess = count(array_filter($results, fn ($r) => $r['success'] && ! str_contains(strtolower((string) ($r['result']?->raw_output['status'] ?? '')), 'fallback')));
-        $mlFallback = count(array_filter($results, fn ($r) => $r['success'] && str_contains(strtolower((string) ($r['result']?->raw_output['status'] ?? '')), 'fallback')));
-        $mlErrors = count(array_filter($results, fn ($r) => ! $r['success']));
-
-        $this->command->info("Imported rows:  {$rows}");
-        $this->command->info("ML success: {$mlSuccess}, fallback: {$mlFallback}, errors: {$mlErrors}");
+        $this->command->info('');
+        $this->command->info('=== MagdapioImportSeeder complete ===');
+        $this->command->info("  Inserted (new):        {$inserted}");
+        $this->command->info("  Skipped (duplicate):   {$skippedDup}");
+        $this->command->info("  Skipped (missing req): {$skippedMissing}");
+        $this->command->info('');
+        $this->command->info('Next: php artisan ml:repair-notebook-cache --all');
     }
 
-    private function clearCurrentData(): void
-    {
-        DB::transaction(function () {
-            DB::table('recommendations')->delete();
-            DB::table('ml_results')->delete();
-            DB::table('qol_surveys')->delete();
-            DB::table('senior_citizens')->delete();
-            DB::table('cluster_snapshots')->delete();
-
-            if (DB::getDriverName() === 'sqlite') {
-                foreach (['recommendations', 'ml_results', 'qol_surveys', 'senior_citizens', 'cluster_snapshots'] as $table) {
-                    DB::statement("DELETE FROM sqlite_sequence WHERE name = '{$table}'");
-                }
-            }
-        });
-    }
+    // ── Helpers (identical to OscaCsvSeeder) ─────────────────────────────────
 
     private function rowToAssoc(array $header, array $line): array
     {
@@ -331,13 +344,6 @@ class OscaCsvSeeder extends Seeder
         return array_values(array_filter($parts, fn ($x) => $x !== ''));
     }
 
-    /**
-     * Parse a date string from CSV.
-     *
-     * @param  bool  $dobMode  When true, a value containing a time suffix (e.g. " 0:00") is treated
-     *                         as a Google-Form date-picker export in Philippine locale (d/m/Y).
-     *                         Set to false for timestamps, which Google exports in m/d/Y H:i.
-     */
     private function parseDate($value, bool $dobMode = false): ?string
     {
         $v = $this->strVal($value);
@@ -345,7 +351,6 @@ class OscaCsvSeeder extends Seeder
             return null;
         }
 
-        // Regex intentionally omits $ so it matches even when a time suffix like " 0:00" is present.
         $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
 
         if ($hasSlashDate) {
@@ -353,14 +358,11 @@ class OscaCsvSeeder extends Seeder
             $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
 
             if ((int) $m[1] > 12) {
-                // Day-first unambiguous (day can't be a month): always d/m/Y.
                 try {
                     return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
                 } catch (\Throwable $e) {
                 }
             } elseif ($dobMode && $hasTimeSuffix) {
-                // DOB from Google Form date-picker: Philippine locale exports d/m/Y H:i.
-                // Strip the time and parse as d/m/Y regardless of whether day ≤ 12.
                 try {
                     return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
                 } catch (\Throwable $e) {
@@ -368,7 +370,6 @@ class OscaCsvSeeder extends Seeder
             }
         }
 
-        // Fallback: try common formats. Timestamps are m/d/Y H:i (Google's export locale).
         $formats = ['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'];
         foreach ($formats as $fmt) {
             try {
@@ -405,7 +406,6 @@ class OscaCsvSeeder extends Seeder
         if ($v === null) {
             return null;
         }
-
         if ($v === '60, 000 and above') {
             return '60,000 and above';
         }

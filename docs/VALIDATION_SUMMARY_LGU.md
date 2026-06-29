@@ -1,7 +1,7 @@
 # AgeSense OSCA System — Validation Summary
 **For:** OSCA Pagsanjan Office and Local Government Unit
-**Date:** May 29, 2026
-**System version:** v2.0.0 (K=4)
+**Date:** June 29, 2026
+**System version:** v2.0.0 (K=4, retrained June 2026)
 
 ---
 
@@ -16,25 +16,27 @@ The system does three things automatically:
 
 ---
 
-## What Did the System Find? (283 Pagsanjan Seniors)
+## What Did the System Find? (360 Pagsanjan Seniors)
+
+*This includes the original 290 seniors plus 70 newly enrolled seniors from Barangay Magdapio and Barangay II (Poblacion), added June 2026.*
 
 ### Health Groups
 
 | Health Group | Number of Seniors | Percentage | What It Means for OSCA |
 |---|---|---|---|
-| **Group 1: High Functioning / Well-Supported** | 60 seniors | 21% | Generally active and healthy — needs routine wellness programs and annual monitoring |
-| **Group 2: Stable Ageing / Moderate Support Needs** | 84 seniors | 30% | Has some care needs — benefits from planned check-ins, targeted referrals, and social programs |
-| **Group 3: Environmentally & Financially Vulnerable** | 74 seniors | 26% | Functionally capable but facing financial/housing stress — needs livelihood, housing, and social-protection referrals |
-| **Group 4: Low Functioning / Multi-Domain Priority** | 65 seniors | 23% | Multiple health, financial, or social challenges — needs active case management and priority home visits |
+| **Group 1: High Functioning / Well-Supported** | 69 seniors | 19% | Generally active and healthy — needs routine wellness programs and annual monitoring |
+| **Group 2: Stable Ageing / Moderate Support Needs** | 94 seniors | 26% | Has some care needs — benefits from planned check-ins, targeted referrals, and social programs |
+| **Group 3: Environmentally & Financially Vulnerable** | 91 seniors | 25% | Functionally capable but facing financial/housing stress — needs livelihood, housing, and social-protection referrals |
+| **Group 4: Low Functioning / Multi-Domain Priority** | 106 seniors | 29% | Multiple health, financial, or social challenges — needs active case management and priority home visits |
 
 ### Risk Levels
 
 | Risk Level | Number of Seniors | Percentage | Recommended OSCA Response |
 |---|---|---|---|
 | **High Risk — Urgent** | See dashboard | See dashboard | Immediate home visit + coordinated referrals; do not delay |
-| **High Risk — Priority Action** | (part of 55 total HIGH) | (part of 19%) | Schedule visit within the week; referrals to health and social programs |
-| **Moderate Risk** | 191 seniors | 68% | Planned monitoring visit this quarter; connect to relevant programs |
-| **Low Risk** | 37 seniors | 13% | Maintain current wellness program participation; annual check-in |
+| **High Risk — Priority Action** | (part of 77 total HIGH) | (part of 21%) | Schedule visit within the week; referrals to health and social programs |
+| **Moderate Risk** | 233 seniors | 65% | Planned monitoring visit this quarter; connect to relevant programs |
+| **Low Risk** | 50 seniors | 14% | Maintain current wellness program participation; annual check-in |
 
 > **To see which specific seniors are Urgent:** Open the AgeSense dashboard. Urgent seniors are shown at the top of the priority queue with a red badge.
 
@@ -46,12 +48,12 @@ Yes. The system was independently tested by comparing its results to the origina
 
 | Test | Result | What It Means |
 |---|---|---|
-| Health group match with study | **258 of 283 seniors (91%)** | Consistent with research findings |
-| Risk level match with study | **282 of 283 seniors (99.6%)** | Near-perfect agreement |
-| Maximum score difference | Less than 1% per senior | Differences are negligible in practice |
+| Health group match with study | **313 of 360 seniors (86.9%)** | Consistent with research findings |
+| Risk level match with study | **358 of 360 seniors (99.4%)** | Near-perfect agreement |
+| Maximum score difference | Less than 2% per senior | Differences are negligible in practice |
 | Stability check (same result every run) | **Passed — zero failures** | Results are consistent and reproducible |
 
-The small differences that do exist (about 25 seniors out of 283 near the boundary between groups) are fully explained by the difference between how a research study computes scores versus how a live system operates. These seniors sit almost exactly between two health groups, so the care plans recommended for them are the same either way.
+The small differences that do exist (about 47 seniors out of 360 near the boundary between groups) are fully explained by the difference between how a research study computes scores versus how a live system operates. These seniors sit almost exactly between two health groups, so the care plans recommended for them are the same either way.
 
 ---
 
@@ -87,4 +89,4 @@ Contact the AgeSense development team for technical questions, or the OSCA chapt
 
 ---
 
-*AgeSense OSCA System v2.0.0 (K=4) | Validated: 2026-05-29 | Pagsanjan, Laguna*
+*AgeSense OSCA System v2.0.0 (K=4, N=360) | Validated: 2026-06-29 | Pagsanjan, Laguna*
