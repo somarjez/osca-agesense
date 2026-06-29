@@ -311,6 +311,7 @@ class ProfileSurvey extends Component
             'Housekeeping', 'Carpenter', 'Plumber', 'Barber/Hairdresser', 'Mason',
             'Sewing/Tailoring', 'Driving', 'Small Business', 'Entrepreneurship',
             'Computer/Digital Skills', 'Caregiving', 'Social Service', 'Factory Worker',
+            'Cashier', 'Office Worker', 'Photographer', 'Tourist Guide',
         ];
     }
 
@@ -340,8 +341,9 @@ class ProfileSurvey extends Component
             'Chronic Kidney Disease', 'Alzheimer\'s / Dementia', 'COPD',
             'Asthma', 'Stroke', 'Osteoporosis', 'Parkinson\'s Disease', 'Cancer',
             'Tuberculosis (TB)', 'UTI', 'Anemia', 'Physical Disability',
-            'Mental Health Condition (Depression / Anxiety)', 'Other Chronic Disease',
-            'Physically Healthy',
+            'Mental Health Condition (Depression / Anxiety)',
+            'Prostate', 'Pneumonia', 'Sinusitis',
+            'Other Chronic Disease', 'Physically Healthy',
         ];
     }
 
