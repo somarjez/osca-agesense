@@ -554,8 +554,8 @@ class ModelValidation
     ): array {
         // ── Pillar 1 · Care groups (weight 0.25) ───────────────────────
         $silhouette = (float) ($clustering['chosen']['silhouette'] ?? 0);
-        $davies     = (float) ($clustering['chosen']['davies_bouldin'] ?? 99);
-        $stable     = (bool)  ($clustering['stability']['stable'] ?? false);
+        $davies = (float) ($clustering['chosen']['davies_bouldin'] ?? 99);
+        $stable = (bool) ($clustering['stability']['stable'] ?? false);
 
         $c1 = [
             ['Separation (Silhouette)',   $this->norm($silhouette, 0.25, 0.50)],
@@ -566,19 +566,19 @@ class ModelValidation
         $s1 = collect($c1)->avg(fn ($x) => $x[1]);
 
         // ── Pillar 2 · Risk estimation (weight 0.35) ────────────────────
-        $meanCvR2   = (float) ($regression['mean_cv_r2']  ?? 0);
-        $meanRho    = (float) ($regression['mean_rho']    ?? 0);
-        $calibDiff  = (float) ($regression['mean_abs_diff'] ?? 1);
-        $leakPass   = (bool)  ($regression['leakage']['pass'] ?? false);
-        $acc        = (float) ($classification['accuracy']   ?? 0);
+        $meanCvR2 = (float) ($regression['mean_cv_r2'] ?? 0);
+        $meanRho = (float) ($regression['mean_rho'] ?? 0);
+        $calibDiff = (float) ($regression['mean_abs_diff'] ?? 1);
+        $leakPass = (bool) ($regression['leakage']['pass'] ?? false);
+        $acc = (float) ($classification['accuracy'] ?? 0);
         $highRecall = (float) ($classification['high_recall'] ?? 0);
 
         $c2 = [
             ['Accuracy (CV R²)',         $this->norm($meanCvR2, 0.70, 0.95)],
-            ['Rubric agreement (ρ)',     $this->norm($meanRho,  0.70, 0.95)],
+            ['Rubric agreement (ρ)',     $this->norm($meanRho, 0.70, 0.95)],
             // Calibration error: lower is better → floor > target
             ['Calibration fidelity',     $this->norm($calibDiff, 0.15, 0.05)],
-            ['Level accuracy',           $this->norm($acc,        0.50, 0.85)],
+            ['Level accuracy',           $this->norm($acc, 0.50, 0.85)],
             ['High-risk sensitivity',    $this->norm($highRecall, 0.60, 0.90)],
             ['No data leakage',          $leakPass ? 1.0 : 0.0],
         ];
@@ -588,13 +588,13 @@ class ModelValidation
         $sigRatio = $xai['kruskal_total']
             ? ($xai['kruskal_significant'] / $xai['kruskal_total'])
             : 0;
-        $vifOk   = (bool) ($xai['vif']['all_below']  ?? false);
-        $sanOk   = (bool) ($xai['sanity_all_pass']   ?? false);
+        $vifOk = (bool) ($xai['vif']['all_below'] ?? false);
+        $sanOk = (bool) ($xai['sanity_all_pass'] ?? false);
 
         $c3 = [
             ['Feature significance',     $sigRatio],
-            ['Multicollinearity (VIF)',  $vifOk  ? 1.0 : 0.0],
-            ['Rule-domain sanity',       $sanOk  ? 1.0 : 0.0],
+            ['Multicollinearity (VIF)',  $vifOk ? 1.0 : 0.0],
+            ['Rule-domain sanity',       $sanOk ? 1.0 : 0.0],
         ];
         $s3 = collect($c3)->avg(fn ($x) => $x[1]);
 
@@ -609,9 +609,9 @@ class ModelValidation
         // ── Overall weighted aggregate ───────────────────────────────────
         $weights = [
             'clustering' => 0.25,
-            'risk'       => 0.35,
-            'xai'        => 0.20,
-            'recs'       => 0.20,
+            'risk' => 0.35,
+            'xai' => 0.20,
+            'recs' => 0.20,
         ];
         $score = $s1 * $weights['clustering']
                + $s2 * $weights['risk']
@@ -622,46 +622,46 @@ class ModelValidation
             $score >= 0.85 => 'High',
             $score >= 0.70 => 'Substantial',
             $score >= 0.55 => 'Moderate',
-            default        => 'Developing',
+            default => 'Developing',
         };
 
         return [
-            'score'   => round($score, 4),
-            'pct'     => (int) round($score * 100),
-            'band'    => $band,
-            'good'    => $score >= 0.70,
-            'scope'   => 'internal validation',
+            'score' => round($score, 4),
+            'pct' => (int) round($score * 100),
+            'band' => $band,
+            'good' => $score >= 0.70,
+            'scope' => 'internal validation',
             'pillars' => [
                 [
-                    'key'        => 'clustering',
-                    'label'      => 'Care groups',
-                    'weight'     => $weights['clustering'],
+                    'key' => 'clustering',
+                    'label' => 'Care groups',
+                    'weight' => $weights['clustering'],
                     'weight_pct' => (int) round($weights['clustering'] * 100),
-                    'score'      => round($s1, 4),
+                    'score' => round($s1, 4),
                     'components' => $c1,
                 ],
                 [
-                    'key'        => 'risk',
-                    'label'      => 'Risk estimates',
-                    'weight'     => $weights['risk'],
+                    'key' => 'risk',
+                    'label' => 'Risk estimates',
+                    'weight' => $weights['risk'],
                     'weight_pct' => (int) round($weights['risk'] * 100),
-                    'score'      => round($s2, 4),
+                    'score' => round($s2, 4),
                     'components' => $c2,
                 ],
                 [
-                    'key'        => 'xai',
-                    'label'      => 'Explainability',
-                    'weight'     => $weights['xai'],
+                    'key' => 'xai',
+                    'label' => 'Explainability',
+                    'weight' => $weights['xai'],
                     'weight_pct' => (int) round($weights['xai'] * 100),
-                    'score'      => round($s3, 4),
+                    'score' => round($s3, 4),
                     'components' => $c3,
                 ],
                 [
-                    'key'        => 'recs',
-                    'label'      => 'Recommendations',
-                    'weight'     => $weights['recs'],
+                    'key' => 'recs',
+                    'label' => 'Recommendations',
+                    'weight' => $weights['recs'],
                     'weight_pct' => (int) round($weights['recs'] * 100),
-                    'score'      => round($s4, 4),
+                    'score' => round($s4, 4),
                     'components' => $c4,
                 ],
             ],
