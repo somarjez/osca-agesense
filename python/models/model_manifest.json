@@ -1,21 +1,11 @@
 {
-  "model_version": "2.0.0",
-  "generated_at": "2026-06-29T12:26:07",
+  "generated_at": "2026-06-30T22:39:30",
+  "model_dir": "C:\\Users\\jramo\\OneDrive\\Desktop\\02. AgeSense\\osca-system\\osca-system\\python/models",
   "sha256": {
-    "edu_encoder.pkl": "1f7b032692491122f002b23e29da87a3420c1eff8091aa298be4d4912b47c40d",
-    "gbr_env_risk.pkl": "0a22f44e598f8247e8c89cc251217a90266c079f038b773a3ac78757759f9067",
-    "gbr_func_risk.pkl": "c07b13cd631a720c5fb0c50be8360a19eb380879ab46fb18c09049c6e01e7ba4",
-    "gbr_ic_risk.pkl": "694779fbc8ab8cf9b8fbb541a82d1b85ffd37938231a3394df4e3d2697e6d9d1",
-    "hdbscan.pkl": "a6bc5c94870660d83bdbabb1ed207a1fa33cc4ce9099fb706f840d99d4ce3aa2",
-    "income_encoder.pkl": "a88fb349c5d0ce7902a4e2b20402567c9e3c2176c24de6861c77da0ada54de3d",
-    "kmeans.pkl": "2a1f368a4fa8747fccb15e9ad09430e080dad053b6e0064ee96bf0dc7391086f",
-    "kmeans_model.pkl": "2a1f368a4fa8747fccb15e9ad09430e080dad053b6e0064ee96bf0dc7391086f",
-    "rfr_env_risk.pkl": "02f542ead3461cd9c18b440bc30f333d29e4ba904d5710b6df5418c70bd4a51b",
-    "rfr_func_risk.pkl": "50a508993c451ea1013d5db080a9a60cbd8a51c976a9411cfd3ddffd30e27c87",
-    "rfr_ic_risk.pkl": "7a0408625e249faf21ee764dbb623f3f57eeb36f7dd16e750dde67f35f5ba7a0",
-    "scaler.pkl": "835de6a7a06c38ba31c844cecddf8d9a750392d9221ddb216a6a3a687497bdac",
-    "umap_2d.pkl": "824aa0cd122a7752d5f87ac38da261f2a07aff97287b64effbcdbac00854c1fa",
-    "umap_nd.pkl": "fbe174714a0b92ee7d2adae25ab772f4bdcb9701d39a510d6b289f0831109e7b",
-    "umap_reducer.pkl": "fbe174714a0b92ee7d2adae25ab772f4bdcb9701d39a510d6b289f0831109e7b"
+    "scaler.pkl": "334ac05d4ed4f9c1c57fd3052f176d63372698eea47622dcd587eb96acdc8593",
+    "kmeans.pkl": "5c061b12449c225be73d0545b2493a51e3eb6d1d27202584052deef8445769cf",
+    "umap_nd.pkl": "7d02b8b35c05053bd28bc36ba59f421f9127907f8f7df1714072a5b0e7965b06",
+    "feature_list.json": "7daea1f41511dd7f79f68e95c302b11c591d18dc9b9f18083e107a1656f23063",
+    "cluster_mapping.json": "d4f31e69314af5d0a9b3817a8ad791cf7b4f64700dc09018060e205fb3247731"
   }
 }

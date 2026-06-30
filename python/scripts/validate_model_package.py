@@ -58,7 +58,9 @@ EXPECTED_N_FEATURES       = 30
 EXPECTED_KMEANS_K         = 4
 EXPECTED_UMAP_N_COMPONENTS = 10
 EXPECTED_KNN_LABEL_SET    = {1, 2, 3, 4}
-REPORTS_DIR               = os.path.join(BASE_DIR, "osca_output", "reports")
+_reports_primary  = os.path.join(BASE_DIR, "osca_output", "reports")
+_reports_fallback = os.path.abspath(os.path.join(BASE_DIR, "..", "osca_output", "reports"))
+REPORTS_DIR       = _reports_primary if os.path.isdir(_reports_primary) else _reports_fallback
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 PASS_COUNT = 0
