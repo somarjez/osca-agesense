@@ -219,7 +219,12 @@ class ReimportRecommendations extends Command
     private function mapRiskLevel(string $riskLevel): ?string
     {
         $r = strtolower(trim($riskLevel));
+        // Fold critical→high: live app is 3-level display; urgency is surfaced via
+        // priority_flag='urgent' (wired in MlService::persistResults) not a 4th level.
+        if ($r === 'critical') {
+            $r = 'high';
+        }
 
-        return in_array($r, ['low', 'moderate', 'high', 'critical'], true) ? $r : null;
+        return in_array($r, ['low', 'moderate', 'high'], true) ? $r : null;
     }
 }

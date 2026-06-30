@@ -11,7 +11,6 @@
   "func_independence",
   "func_autonomy",
   "func_control",
-  "env_income_limit_r",
   "env_fin_household",
   "env_fin_medical",
   "env_fin_personal",

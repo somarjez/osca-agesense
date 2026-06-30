@@ -425,7 +425,7 @@
     "last_name": "Basa",
     "barangay": "San Isidro",
     "cluster_named_id": 4,
-    "overall_risk_level": "CRITICAL",
+    "overall_risk_level": "HIGH",
     "ic_risk": 0.9641517358716851,
     "env_risk": 0.7990927473755159,
     "func_risk": 0.9877780261665015,
@@ -1034,7 +1034,7 @@
   {
     "key": "erlinda|dasmarinas|cabanbanan",
     "first_name": "Erlinda",
-    "last_name": "Dasmari\u00f1as",
+    "last_name": "Dasmariñas",
     "barangay": "Cabanbanan",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
@@ -1202,7 +1202,7 @@
   {
     "key": "rodolfo|delapena|cabanbanan",
     "first_name": "Rodolfo",
-    "last_name": "Dela Pe\u00f1a",
+    "last_name": "Dela Peña",
     "barangay": "Cabanbanan",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
@@ -1525,7 +1525,7 @@
   },
   {
     "key": "elanor|gimena|calusiche",
-    "first_name": "Ela\u00f1or",
+    "first_name": "Elañor",
     "last_name": "Gimena",
     "barangay": "Calusiche",
     "cluster_named_id": 2,
@@ -1598,7 +1598,7 @@
   {
     "key": "elma|harino|buboy",
     "first_name": "Elma",
-    "last_name": "Hari\u00f1o",
+    "last_name": "Hariño",
     "barangay": "Buboy",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
@@ -2186,7 +2186,7 @@
   {
     "key": "lilia|montanez|cabanbanan",
     "first_name": "Lilia",
-    "last_name": "Monta\u00f1ez",
+    "last_name": "Montañez",
     "barangay": "Cabanbanan",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
@@ -2366,7 +2366,7 @@
   {
     "key": "alejandro|opena|cabanbanan",
     "first_name": "Alejandro",
-    "last_name": "Ope\u00f1a",
+    "last_name": "Opeña",
     "barangay": "Cabanbanan",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
@@ -3122,7 +3122,7 @@
   {
     "key": "corazon|taino|pinagsanjan",
     "first_name": "Corazon",
-    "last_name": "Tai\u00f1o",
+    "last_name": "Taiño",
     "barangay": "Pinagsanjan",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
@@ -3134,7 +3134,7 @@
   {
     "key": "elena|taino|cabanbanan",
     "first_name": "Elena",
-    "last_name": "Tai\u00f1o",
+    "last_name": "Taiño",
     "barangay": "Cabanbanan",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
@@ -3146,7 +3146,7 @@
   {
     "key": "francisco|taino|cabanbanan",
     "first_name": "Francisco",
-    "last_name": "Tai\u00f1o",
+    "last_name": "Taiño",
     "barangay": "Cabanbanan",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
@@ -3605,7 +3605,7 @@
     "last_name": "Bie",
     "barangay": "Magdapio",
     "cluster_named_id": 4,
-    "overall_risk_level": "CRITICAL",
+    "overall_risk_level": "HIGH",
     "ic_risk": 0.8945416473693978,
     "env_risk": 0.8904860329961429,
     "func_risk": 0.8598484948331246,
@@ -4046,7 +4046,7 @@
   {
     "key": "edna|waperina|magdapio",
     "first_name": "Edna",
-    "last_name": "Waperi\u00f1a",
+    "last_name": "Waperiña",
     "barangay": "Magdapio",
     "cluster_named_id": 1,
     "overall_risk_level": "MODERATE",
@@ -4106,7 +4106,7 @@
   {
     "key": "negacia|perena|magdapio",
     "first_name": "Negacia",
-    "last_name": "Pere\u00f1a",
+    "last_name": "Pereña",
     "barangay": "Magdapio",
     "cluster_named_id": 1,
     "overall_risk_level": "MODERATE",
@@ -4130,7 +4130,7 @@
   {
     "key": "carmencita|lavina|magdapio",
     "first_name": "Carmencita",
-    "last_name": "Lavi\u00f1a",
+    "last_name": "Laviña",
     "barangay": "Magdapio",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",

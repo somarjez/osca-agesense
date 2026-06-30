@@ -128,7 +128,11 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 MODEL_DIR = _resolve_model_dir()
 ENABLE_NOTEBOOK_OVERRIDES = _env_flag("ENABLE_NOTEBOOK_OVERRIDES", True)
-# Default True: nearest-centroid in scaled space is deterministic across devices.
+# KNN classifier (k=5) trained on batch labels — primary inference path.
+# Achieves ~92.8% consistency with notebook UMAP cluster labels vs ~87.5% for nearest-centroid.
+# Set ENABLE_KNN_CLUSTER=false in .env to skip KNN and fall through to nearest-centroid.
+ENABLE_KNN_CLUSTER = _env_flag("ENABLE_KNN_CLUSTER", True)
+# Nearest-centroid in scaled space — secondary path when KNN model is unavailable.
 # Set ENABLE_DETERMINISTIC_CLUSTER=false in .env only for debugging UMAP behaviour.
 ENABLE_DETERMINISTIC_CLUSTER = _env_flag("ENABLE_DETERMINISTIC_CLUSTER", True)
 
@@ -146,9 +150,9 @@ MODEL_VERSION = "2.0.0"
 
 # Expected artifact dimensions (must match the notebook training run).
 # These constants let startup validation catch mismatched bundles early.
-_EXPECTED_SCALER_N_FEATURES  = 39   # scaler.feature_names_in_ length
+_EXPECTED_SCALER_N_FEATURES  = 30   # scaler.feature_names_in_ length (MinMaxScaler on 30-feature set)
 _EXPECTED_UMAP_N_COMPONENTS  = 10   # umap_nd.pkl n_components
-_EXPECTED_UMAP_INPUT_N_FEATS = 31   # feature_list.json length (UMAP raw input)
+_EXPECTED_UMAP_INPUT_N_FEATS = 30   # feature_list.json length (UMAP raw input)
 _EXPECTED_KMEANS_N_CLUSTERS  = 4    # kmeans.pkl n_clusters
 _EXPECTED_KMEANS_N_FEATURES  = 10   # kmeans.pkl n_features_in_ (== UMAP output)
 _EXPECTED_CLUSTER_RAW_IDS    = {0, 1, 2, 3}  # all raw KMeans IDs must be in cluster_mapping.json
@@ -290,13 +294,23 @@ def _validate_artifacts_at_startup() -> None:
         if not os.path.exists(os.path.join(MODEL_DIR, fn)):
             _warn(f"{fn} missing — risk indicator ensemble will use fallback scores.")
 
-    # ── cluster_centroids_scaled.json (required for deterministic clustering) ──
+    # ── cluster_centroids_scaled.json (fallback path after KNN) ─────────────
     cc_path = os.path.join(MODEL_DIR, "cluster_centroids_scaled.json")
     if not os.path.exists(cc_path):
         _warn(
-            "cluster_centroids_scaled.json missing — deterministic cluster assignment "
-            "will fall back to UMAP (non-deterministic). "
+            "cluster_centroids_scaled.json missing — nearest-centroid fallback "
+            "will not be available (service will use UMAP if KNN also misses). "
             "Run: python/venv/Scripts/python.exe python/scripts/generate_cluster_centroids.py"
+        )
+
+    # ── cluster_assignment_knn_k5.pkl (primary cluster assignment path) ────────────────────
+    knn_path = os.path.join(MODEL_DIR, "cluster_assignment_knn_k5.pkl")
+    if not os.path.exists(knn_path):
+        logger.info(
+            "cluster_assignment_knn_k5.pkl not found in MODEL_DIR='%s' — cluster assignment will "
+            "use nearest-centroid fallback (UMAP as last resort). "
+            "Run: python/venv/Scripts/python.exe python/scripts/generate_knn_classifier.py",
+            MODEL_DIR,
         )
 
     # ── model_manifest.json SHA-256 cross-check ──────────────────────────────
@@ -367,11 +381,11 @@ def _read_laravel_env() -> Dict[str, str]:
 
 
 RISK_THRESHOLDS = {
+    "critical": 0.70,  # urgent review flag — not a clinical diagnosis
     "high": 0.50,
     "moderate": 0.30,
 }
-# Scores >= 0.70 are still HIGH but flagged as urgent-priority internally.
-URGENT_PRIORITY_THRESHOLD = 0.70
+URGENT_PRIORITY_THRESHOLD = RISK_THRESHOLDS["critical"]
 
 CLUSTER_PROFILES = {
     1: {
@@ -391,7 +405,13 @@ CLUSTER_PROFILES = {
         "description": (
             "Moderate alignment across IC, Environment, and Functional domains. "
             "Targeted support recommended for identified needs. "
-            "Mixed domain performance with manageable risk."
+            "Mixed domain performance with manageable risk. "
+            "Note: cluster membership is determined by WHO domain profile similarity, "
+            "not by composite risk score. A subset of seniors in this cluster may carry "
+            "HIGH composite risk due to compounding stressors (e.g., chronic illness "
+            "combined with financial or access barriers) even while their overall "
+            "IC/env/func profile is moderate — reflecting cluster-level heterogeneity "
+            "that is addressed through individual risk-based recommendations."
         ),
     },
     3: {
@@ -401,7 +421,13 @@ CLUSTER_PROFILES = {
         "description": (
             "Intrinsic Capacity and functional ability relatively preserved, but "
             "environmental and financial stressors require targeted intervention. "
-            "Financial, housing, and service-access support focus."
+            "Financial, housing, and service-access support focus. "
+            "This cluster is proportionally large because environmental and financial "
+            "vulnerability is the dominant pattern in the survey population: many seniors "
+            "maintain reasonable physical and cognitive function but face systemic barriers "
+            "such as low income, housing insecurity, and limited service access — "
+            "consistent with the socioeconomic context of the barangay catchment area. "
+            "The cluster size reflects prevalence of need, not model imbalance."
         ),
     },
     4: {
@@ -764,6 +790,42 @@ def _deterministic_cluster_assign(
     return best_id
 
 
+@lru_cache(maxsize=1)
+def _load_knn_classifier() -> Optional[Any]:
+    """Load cluster_assignment_knn_k5.pkl from MODEL_DIR (cached after first load)."""
+    path = os.path.join(MODEL_DIR, "cluster_assignment_knn_k5.pkl")
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def _knn_cluster_assign(
+    vector: List[float],
+    feature_names: List[str],
+) -> Optional[int]:
+    """
+    Assign named cluster ID (1-4) using the KNN k=5 classifier in scaled space.
+    Returns None if cluster_assignment_knn_k5.pkl is missing or if feature alignment fails.
+    """
+    knn = _load_knn_classifier()
+    if knn is None:
+        return None
+    try:
+        knn_features: Optional[List[str]] = getattr(knn, "_osca_feature_names", None)
+        if knn_features is not None and knn_features != feature_names:
+            logger.warning(
+                "cluster_assignment_knn_k5.pkl feature list does not match feature_list.json — "
+                "skipping KNN assignment (model and artifacts are from different runs)."
+            )
+            return None
+        arr = np.asarray([vector], dtype=np.float64)
+        return int(knn.predict(arr)[0])
+    except Exception as exc:
+        logger.warning("KNN cluster assignment failed: %s", exc)
+        return None
+
+
 def _normalize_identity_part(value: Any) -> str:
     """
     Robust Unicode normalization for Filipino names and barangay strings.
@@ -1109,6 +1171,9 @@ def _load_cluster_mapping() -> Optional[Dict[int, int]]:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _get_risk_level(score: float) -> str:
+    # 3-level per-domain classifier (ic / env / func).
+    # Composite >= 0.70 stays HIGH in the live app; urgency for those cases is
+    # surfaced via priority_flag='urgent' (see _priority_flag), not a 4th level.
     if score >= RISK_THRESHOLDS["high"]:
         return "high"
     if score >= RISK_THRESHOLDS["moderate"]:
@@ -1179,10 +1244,10 @@ def _fallback_cluster_from_wellbeing(wb: float) -> int:
 
 
 def _recommendation_urgency(overall_level: str, priority_flag: str = "") -> str:
-    # Only truly urgent seniors (composite >= 0.70, priority_flag="urgent") get
-    # urgency="urgent".  All other HIGH seniors are "planned" — they need action
-    # but should not flood the urgent-priority queue.
-    if priority_flag == "urgent":
+    # Seniors with composite >= 0.70 carry priority_flag='urgent' (see _priority_flag).
+    # overall_level is always LOW/MODERATE/HIGH in the live app; CRITICAL is folded to
+    # HIGH at ingest. The overall_level=="CRITICAL" branch is a safety net only.
+    if overall_level == "CRITICAL" or priority_flag == "urgent":
         return "urgent"
     return {
         "HIGH": "planned",
@@ -1192,9 +1257,7 @@ def _recommendation_urgency(overall_level: str, priority_flag: str = "") -> str:
 
 
 def _priority_flag(composite: float) -> str:
-    """Internal priority flag — not an official risk level.
-    HIGH risk seniors with composite >= 0.70 are flagged as urgent-priority.
-    """
+    """Internal priority flag — aligns with CRITICAL risk level (composite >= 0.70)."""
     if composite >= URGENT_PRIORITY_THRESHOLD:
         return "urgent"
     if composite >= RISK_THRESHOLDS["high"]:
@@ -2025,14 +2088,14 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                     ]
                     scaled_features = row_scaled_30
 
-                    # Step 2 — deterministic nearest-centroid (primary path)
-                    _det_named_id: Optional[int] = None
-                    if ENABLE_DETERMINISTIC_CLUSTER:
-                        _det_named_id = _deterministic_cluster_assign(row_scaled_30, feature_names)
+                    # Step 2a — KNN classifier (primary path, ~92.8% label consistency)
+                    _knn_named_id: Optional[int] = None
+                    if ENABLE_KNN_CLUSTER:
+                        _knn_named_id = _knn_cluster_assign(row_scaled_30, feature_names)
 
-                    if _det_named_id is not None:
-                        # ✅ Centroid path — no UMAP invoked
-                        named_id = max(1, min(4, _det_named_id))
+                    if _knn_named_id is not None:
+                        # ✅ KNN path — best consistency with batch UMAP labels
+                        named_id = max(1, min(4, _knn_named_id))
                         cluster_profile = cluster_profiles[named_id]
                         raw_cluster_id  = next(
                             (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
@@ -2042,14 +2105,34 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                         preprocessed = dict(preprocessed)
                         preprocessed["_precomputed_named_id"]       = named_id
                         preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
-                        warnings_list.append("Deterministic cluster assignment used (UMAP skipped).")
+                        warnings_list.append("KNN classifier cluster assignment used (UMAP skipped).")
 
-                    elif reducer is not None and kmeans is not None:
-                        # ⚠️ UMAP fallback — only when centroid file missing or flag off
+                    else:
+                        # Step 2b — nearest-centroid (fallback when cluster_assignment_knn_k5.pkl missing)
+                        _det_named_id: Optional[int] = None
+                        if ENABLE_DETERMINISTIC_CLUSTER:
+                            _det_named_id = _deterministic_cluster_assign(row_scaled_30, feature_names)
+
+                        if _det_named_id is not None:
+                            # ✅ Centroid path — no UMAP invoked
+                            named_id = max(1, min(4, _det_named_id))
+                            cluster_profile = cluster_profiles[named_id]
+                            raw_cluster_id  = next(
+                                (raw_id for raw_id, mapped_id in (cluster_map or {}).items()
+                                 if mapped_id == named_id),
+                                0,
+                            )
+                            preprocessed = dict(preprocessed)
+                            preprocessed["_precomputed_named_id"]       = named_id
+                            preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
+                            warnings_list.append("Nearest-centroid cluster assignment used (cluster_assignment_knn_k5.pkl missing).")
+
+                    if "_precomputed_named_id" not in preprocessed and reducer is not None and kmeans is not None:
+                        # ⚠️ UMAP fallback — only when both KNN and centroid are unavailable
                         warnings_list.append(
                             "Falling back to UMAP cluster assignment "
-                            "(cluster_centroids_scaled.json missing or ENABLE_DETERMINISTIC_CLUSTER=false). "
-                            "Results may differ across devices."
+                            "(cluster_assignment_knn_k5.pkl and cluster_centroids_scaled.json both missing "
+                            "or both flags off). Results may differ across devices."
                         )
                         reducer.transform_seed = 42
                         if not getattr(reducer, "_rp_forest", None):
@@ -2219,10 +2302,11 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         if _ov_comp > 0:
             composite_risk = _clip01(_ov_comp)
         _nb_level = (notebook_override.get("risk_level") or overall_level or "").upper()
-        # Remap legacy CRITICAL → HIGH (3-level system)
+        # Fold CRITICAL→HIGH: the notebook emits a 4-level analytical scheme but the live
+        # app is 3-level display.  Urgency for composite >= 0.70 is surfaced via priority_flag.
         if _nb_level == "CRITICAL":
             _nb_level = "HIGH"
-        overall_level = _nb_level or overall_level
+        overall_level = _nb_level if _nb_level in ("LOW", "MODERATE", "HIGH") else overall_level
         ic_level = _get_risk_level(ic_risk_raw)
         env_level = _get_risk_level(env_risk_raw)
         func_level = _get_risk_level(func_risk_raw)

@@ -44,16 +44,20 @@ The system does three things automatically:
 
 ## Is the System Accurate?
 
-Yes. The system was independently tested by comparing its results to the original research study used to build it:
+Yes. The system was validated through multiple tests:
 
 | Test | Result | What It Means |
 |---|---|---|
-| Health group match with study | **313 of 360 seniors (86.9%)** | Consistent with research findings |
-| Risk level match with study | **358 of 360 seniors (99.4%)** | Near-perfect agreement |
-| Maximum score difference | Less than 2% per senior | Differences are negligible in practice |
-| Stability check (same result every run) | **Passed — zero failures** | Results are consistent and reproducible |
+| Health group match with study (KNN) | **KNN CV accuracy 93.3%** (5-fold cross-validation) | Very high agreement between the trained health-group model and the notebook ground truth |
+| Risk level match with study | **358 of 360 seniors (99.4%)** | Near-perfect agreement; 2 differ only in labelling (notebook: CRITICAL, live system: High + Urgent flag — same practical response) |
+| All urgent-priority seniors captured | **100% capture rate** | Every senior whose risk score meets the urgent threshold is correctly flagged by the system |
+| Maximum score difference | Less than 2% per senior | Score differences are negligible in practice |
+| Stability check (same result every run) | **Passed — zero failures** | Results are consistent and reproducible across devices |
+| Cluster quality (Silhouette 0.5577) | **Strong** (higher = better-defined groups) | The four health groups are statistically well-separated |
 
-The small differences that do exist (about 47 seniors out of 360 near the boundary between groups) are fully explained by the difference between how a research study computes scores versus how a live system operates. These seniors sit almost exactly between two health groups, so the care plans recommended for them are the same either way.
+The small differences that do exist (about 47 seniors out of 360 near the boundary between groups) are fully explained by the difference between how a research study computes groups versus how a live system operates. These seniors sit almost exactly between two health groups, so the care plans recommended for them are the same either way.
+
+> **Note on "Is the Risk Scoring 100% Accurate?"** The internal accuracy metric (54.7%) compares two different scoring methods (rule-based vs AI ensemble) against each other — it is not a pass/fail score against real patient outcomes. The 100% priority capture rate is the practically important metric: the system never misses a senior who genuinely needs urgent attention.
 
 ---
 

@@ -4,7 +4,7 @@
 > **Deployment Site:** Office of Senior Citizens Affairs (OSCA), Pagsanjan, Laguna, Philippines
 > **Framework Basis:** WHO Healthy Ageing Framework (Intrinsic Capacity · Environment · Functional Ability)
 > **Document Purpose:** Comprehensive functional reference for developers, thesis panelists, and future maintainers.
-> **Last Updated:** 2026-06-04 — Reflects the v2.0.0 / K=4 model (four health groups) and the completed GIS module (Phase 3): bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was removed — coordinates now come from `gis:geocode` only.) Phase 1 and Phase 2 complete (RBAC, user management, audit logging, encryption, Excel export, cluster snapshots). 283 seniors seeded.
+> **Last Updated:** 2026-07-01 — Reflects the v2.0.0 / K=4 / 30-feature MinMaxScaler model retrain (360 seniors: 290 original + 70 Magdapio/Barangay II batch). Clustering upgraded from nearest-centroid fallback to KNN (k=5, CV 0.9333). Official metrics: Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabász 6048.7. GIS module complete (Phase 3). Phase 1 and Phase 2 complete. 360 seniors seeded.
 
 ---
 
@@ -520,9 +520,9 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 
 ### Clustering — `python/services/inference_service.py`
 
-- **Algorithm:** K-Means (K=4), trained in `osca5.ipynb` on the full OSCA Pagsanjan senior citizen dataset (283 seniors). **Live inference does not call UMAP+KMeans per senior** — it uses deterministic nearest-centroid assignment in 31D scaled space (`cluster_centroids_scaled.json`) for cross-device reproducibility. See [ML_PIPELINE.md](ML_PIPELINE.md).
-- **Input (training):** UMAP-reduced 10-dimensional feature vector
-- **Output:** Cluster assignment with named interpretations (raw KMeans ID → named ID via `cluster_mapping.json` = `{"0":1,"1":2,"2":3,"3":4}`):
+- **Algorithm:** K-Means (K=4, n_init=100), trained in `osca5.ipynb` on the full OSCA Pagsanjan senior citizen dataset (360 seniors). **Live inference does not call UMAP+KMeans per senior** — it uses a **KNN classifier (k=5, euclidean, MinMaxScaler·30-feature, CV accuracy 0.9333)** (`cluster_assignment_knn_k5.pkl`) for cross-device reproducibility. `cluster_centroids_scaled.json` (30D scaled-space centroids) is the fallback. See [ML_PIPELINE.md](ML_PIPELINE.md).
+- **Input (training):** UMAP-reduced 10-dimensional feature vector (nn=10, euclidean)
+- **Output:** Named cluster ID 1–4 directly from KNN (no post-hoc remapping). Raw KMeans ID → named ID mapping in `cluster_mapping.json` = `{"0":2,"1":4,"2":3,"3":1}`:
 
 | Cluster | Named ID | Profile |
 |---|---|---|
@@ -531,10 +531,11 @@ The preprocessing service transforms raw senior profile and QoL survey data into
 | 2 (raw) | 3 | Environmentally & Financially Vulnerable — functionally capable but financial/housing stress |
 | 3 (raw) | 4 | Low Functioning / Multi-Domain Priority — high risk across multiple domains |
 
-- **Evaluation metrics** (loaded from `python/models/cluster_eval_metrics.json` — update automatically when the model is retrained and the file is regenerated):
-  - Silhouette Score: 0.449 (K=4 — second-highest in the notebook K-sweep, after K=2)
-  - Davies-Bouldin Index: 0.804
-  - Calinski-Harabász Index: 415.0
+- **Evaluation metrics** (loaded from `python/models/cluster_eval_metrics.json` / `cluster_assignment_metadata.json` — update automatically when the model is retrained):
+  - Silhouette Score: **0.5577** (K=4, 30-feature MinMaxScaler ablated set)
+  - Davies-Bouldin Index: **0.6492**
+  - Calinski-Harabász Index: **6048.7**
+  - KNN CV accuracy: **0.9333** (5-fold stratified, predicts named IDs 1–4 directly)
 
 ---
 
@@ -551,7 +552,7 @@ The system classifies risk across three official levels. Urgency within HIGH is 
 | **MODERATE** | 0.30 – 0.49 | `planned_monitoring` | Requires monitoring and preventive action |
 | **LOW** | < 0.30 | `maintenance` | Generally functioning well; maintain current state |
 
-There is no CRITICAL level. It was removed because the dataset had only 1 qualifying case — insufficient for model validation.
+The **live app displays 3 levels** (LOW/MODERATE/HIGH). Seniors with composite ≥ 0.70 are flagged `priority_flag='urgent'` — surfaced as "High Risk + Urgent" in the dashboard (orange ring + warning icon). The notebook/reports use a 4-level analytical scheme (CRITICAL ≥0.70 = urgent-review flag, *not a clinical diagnosis*); that CRITICAL band is folded to HIGH at the live-app ingest boundary.
 
 ### Risk Scores Computed
 
@@ -681,7 +682,7 @@ The following table defines terms as they are used throughout the codebase, data
 | **K=4** | The number of clusters chosen for the K-Means model, validated through silhouette analysis | Cluster names: High Functioning / Well-Supported, Stable Ageing / Moderate Support, Environmentally & Financially Vulnerable, Low Functioning / Multi-Domain Priority |
 | **Cluster** | One of four groups (Cluster 1, 2, 3, 4) that a senior is assigned to based on their feature profile | `ml_results.cluster_named_id`; displayed in badges, charts, and reports |
 | **UMAP** | Uniform Manifold Approximation and Projection — a dimensionality reduction algorithm used to project the feature vector to 10 dimensions before clustering | Applied in `preprocess_service.py`; loaded from `umap_reducer.pkl` |
-| **StandardScaler** | A scikit-learn preprocessing tool that normalizes features to zero mean and unit variance | Applied to features before UMAP; loaded from `scaler.pkl` |
+| **MinMaxScaler** | A scikit-learn preprocessing tool that scales each feature to [0, 1] range | Applied to the 30-feature ablated set for clustering; loaded from `scaler.pkl` |
 | **VIF (Variance Inflation Factor)** | A measure used during feature selection to remove multicollinear features | Used to produce the final feature list retained in `feature_list.json` |
 | **Section Score** | One of six composite indices derived from senior profile data during preprocessing, summarizing risk or strength in a particular aspect of ageing | `sec1_age_risk` through `sec6_health_score`; stored in `ml_results.section_scores` (JSON) |
 | **Risk Score** | A continuous value between 0 and 1 representing the estimated risk level for a specific domain (IC, ENV, FUNC, or composite) | `ic_risk`, `env_risk`, `func_risk`, `composite_risk` in `ml_results` |
@@ -699,9 +700,9 @@ The following table defines terms as they are used throughout the codebase, data
 | **Batch Inference** | Running the ML pipeline on multiple seniors simultaneously | `MlController::batchRun()`; processes 100 seniors per chunk |
 | **MlResult** | A database record containing the full output of one ML pipeline execution for one senior | `ml_results` table; related to one `QolSurvey` and one `SeniorCitizen` |
 | **Barangay** | A Philippine administrative subdivision equivalent to a village or neighborhood | Used throughout for geographic filtering and reporting; 16 barangays for Pagsanjan |
-| **Silhouette Score** | A metric (−1 to 1) evaluating cluster quality; higher values indicate better-defined clusters | Read from `cluster_eval_metrics.json` (K=4: 0.449); displayed on the Cluster Analysis report |
-| **Davies-Bouldin Index** | A cluster evaluation metric; lower values indicate better separation | From `cluster_eval_metrics.json` (K=4: 0.804) |
-| **Calinski-Harabász Index** | A cluster evaluation metric; higher values indicate denser, better-separated clusters | From `cluster_eval_metrics.json` (K=4: 415.0) |
+| **Silhouette Score** | A metric (−1 to 1) evaluating cluster quality; higher values indicate better-defined clusters | Read from `cluster_eval_metrics.json` (K=4 30-feature MinMaxScaler: **0.5577**); displayed on the Cluster Analysis report |
+| **Davies-Bouldin Index** | A cluster evaluation metric; lower values indicate better separation | From `cluster_eval_metrics.json` (K=4: **0.6492**) |
+| **Calinski-Harabász Index** | A cluster evaluation metric; higher values indicate denser, better-separated clusters | From `cluster_eval_metrics.json` (K=4: **6048.7**) |
 | **Inertia (WCSS)** | Within-Cluster Sum of Squares — measures compactness of clusters | Displayed on cluster evaluation metrics panel |
 | **Soft Delete** | A deletion strategy that marks a record as deleted without removing it from the database | Applied to `senior_citizens` via Laravel's `SoftDeletes` trait; viewable in Archives |
 | **Survey Version** | A label identifying the version of the QoL instrument used | `qol_surveys.survey_version`; default `v1` |
@@ -896,7 +897,7 @@ The GIS (Geographic Information System) module provides geographic visualisation
 
 AgeSense is a **pilot-ready system** with Phase 1 (Core), Phase 2 (Production Hardening), and Phase 3 (GIS Module) fully complete. All primary workflows — senior profiling, QoL survey administration, the v2.0.0 / K=4 ML pipeline, recommendation management, role-based access control, and the GIS spatial-analytics module — are implemented and operational.
 
-The dataset comprises **283 senior citizens** (all seeded via `OscaCsvSeeder`). With the current trained model and `ENABLE_NOTEBOOK_OVERRIDES=true`, expected dashboard distribution is: HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283.
+The dataset comprises **360 senior citizens** (290 original + 70 Magdapio/Barangay II batch). With the current trained model, expected dashboard distribution (3-level live display): HIGH=77 (of which 2 carry `priority_flag='urgent'`), MODERATE=233, LOW=50. Notebook analytical distribution: HIGH=75, CRITICAL=2, MODERATE=233, LOW=50.
 
 ### Completed phases
 
