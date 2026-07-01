@@ -6,6 +6,7 @@ use App\Models\SeniorCitizen;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as XlsxDate;
 
 /**
  * Non-destructive demographic backfill for the existing 360 senior records.
@@ -216,7 +217,10 @@ class BackfillSeniorDemographics extends Command
             $sheet = $spreadsheet->getActiveSheet();
         }
 
-        $allRows = $sheet->toArray(null, true, true, false);
+        // formatData=false returns raw values: date cells come back as Excel date serials
+        // (float/int) rather than locale-formatted strings.  This avoids the Philippine
+        // d/m/Y locale being misread as m/d/Y by parseDate() when there is no time suffix.
+        $allRows = $sheet->toArray(null, true, false, false);
         if (empty($allRows)) {
             return [];
         }
@@ -234,7 +238,7 @@ class BackfillSeniorDemographics extends Command
                 'first_name' => $this->strVal($raw['First Name'] ?? null),
                 'last_name' => $this->strVal($raw['Last Name'] ?? null),
                 'barangay' => $this->strVal($raw['Address (Barangay)'] ?? null),
-                'dob' => $this->strVal($raw['Date of Birth'] ?? null),
+                'dob' => $this->xlsxDateToStr($raw['Date of Birth'] ?? null),
                 'place_of_birth' => $this->strVal($raw['Place of Birth'] ?? null),
                 'religion' => $this->strVal($raw['Religion'] ?? null),
                 'blood_type' => $this->strVal($raw['Blood Type'] ?? null),
@@ -351,6 +355,31 @@ class BackfillSeniorDemographics extends Command
             $dob ?? '',
             strtolower(trim($barangay)),
         ]);
+    }
+
+    /**
+     * Convert an xlsx "Date of Birth" cell value to Y-m-d string.
+     *
+     * When toArray() is called with formatData=false, date cells come back as Excel
+     * date serial numbers (int/float).  We convert via XlsxDate::excelToDateTimeObject()
+     * rather than relying on the locale-formatted string (which would be d/m/Y for
+     * Philippine-locale files and confuse parseDate()).
+     * String values (cells stored as text) fall back to parseDate().
+     */
+    private function xlsxDateToStr(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_int($value) || is_float($value)) {
+            try {
+                return XlsxDate::excelToDateTimeObject($value)->format('Y-m-d');
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return $this->parseDate($value, dobMode: true);
     }
 
     /** Build an associative array from parallel header + line arrays (trims header keys). */
