@@ -188,7 +188,32 @@
             plugins: [centerTextPlugin('Seniors')],
         });
 
-        // Profile Groups — pure Blade ranked-bars (no canvas needed; clusterChart removed)
+        // Profile Groups — doughnut (proportion = group size; same style as riskChart)
+        upsert('clusterChart', {
+            type: 'doughnut',
+            data: {
+                labels: p.cluster.labels,
+                datasets: [{
+                    data: p.cluster.data,
+                    backgroundColor: recolor(p.cluster.colors).map(c => c + 'cc'),
+                    borderWidth: 2,
+                    borderColor: C.doughnutBorder,
+                    hoverOffset: 8,
+                    hoverBorderColor: C.doughnutBorder,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                animation: doughnutAnim,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } },
+                },
+            },
+            plugins: [centerTextPlugin('Seniors')],
+        });
 
         // Domain scores — radar (full-width slot; shows the WHO-domain profile shape)
         upsert('domainChart', {

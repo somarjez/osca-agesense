@@ -162,40 +162,32 @@
             </div>
         </x-card>
 
-        {{-- Profile Groups — ranked bars by size, composite risk badge per group --}}
+        {{-- Profile Groups — doughnut (proportion chart) + ranked bars by size --}}
         @php
             $pgEntries = collect(array_keys($clusterDistribution['data'] ?? []))->map(fn ($i) => [
-                'id'        => $clusterDistribution['ids'][$i]              ?? ($i + 1),
-                'label'     => $clusterDistribution['labels'][$i]           ?? 'Group ' . ($i + 1),
-                'count'     => $clusterDistribution['data'][$i]             ?? 0,
-                'color'     => $clusterDistribution['colors'][$i]           ?? '#94a3b8',
-                'composite' => $clusterDistribution['domains'][$i]['composite'] ?? 0,
+                'id'    => $clusterDistribution['ids'][$i]    ?? ($i + 1),
+                'label' => $clusterDistribution['labels'][$i] ?? 'Group ' . ($i + 1),
+                'count' => $clusterDistribution['data'][$i]   ?? 0,
+                'color' => $clusterDistribution['colors'][$i] ?? '#94a3b8',
             ])->sortByDesc('count')->values();
             $pgMax = max(1, $pgEntries->max('count'));
-            // Map composite risk to a human label + Tailwind badge tokens
-            $pgRisk = function ($v) {
-                if ($v >= 0.54) return ['HIGH',     'text-high-700 dark:text-[#ef8d80]',     'bg-high-50  dark:bg-high-700/20  border-high-200  dark:border-high-700/30'];
-                if ($v >= 0.39) return ['MODERATE', 'text-moderate-700 dark:text-[#d4a84b]', 'bg-moderate-50 dark:bg-moderate-700/20 border-moderate-200 dark:border-moderate-700/30'];
-                return             ['LOW',      'text-low-700 dark:text-[#6dd89e]',      'bg-low-50   dark:bg-low-700/20   border-low-200   dark:border-low-700/30'];
-            };
         @endphp
-        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · ranked by size" class="card-lift">
-            <div class="space-y-3.5 mt-1">
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · proportion = group size" class="card-lift">
+            {{-- Doughnut proportion chart --}}
+            <div wire:ignore class="relative h-44"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
+            {{-- Ranked bars --}}
+            <div class="mt-4 space-y-2.5">
                 @forelse ($pgEntries as $grp)
-                @php
-                    $barPct = round($grp['count'] / $pgMax * 100);
-                    [$rlabel, $rtxt, $rbg] = $pgRisk($grp['composite']);
-                @endphp
+                @php $barPct = round($grp['count'] / $pgMax * 100); @endphp
                 <div>
                     <div class="flex items-center gap-2 mb-1">
                         <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background: {{ $grp['color'] }}"></span>
                         <span class="text-[11.5px] font-semibold text-ink-800 dark:text-[#c8c4bc] truncate flex-1 min-w-0"
                               title="{{ $grp['label'] }}">G{{ $grp['id'] }} · {{ $grp['label'] }}</span>
                         <span class="text-[11.5px] font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum flex-shrink-0">{{ $grp['count'] }}</span>
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border {{ $rtxt }} {{ $rbg }} flex-shrink-0">{{ $rlabel }}</span>
                     </div>
-                    <div class="h-2 rounded-full bg-paper-2 dark:bg-[#202a26] overflow-hidden">
-                        <div class="h-2 rounded-full" style="width: {{ $barPct }}%; background: {{ $grp['color'] }}"></div>
+                    <div class="h-1.5 rounded-full bg-paper-2 dark:bg-[#202a26] overflow-hidden">
+                        <div class="h-1.5 rounded-full" style="width: {{ $barPct }}%; background: {{ $grp['color'] }}"></div>
                     </div>
                 </div>
                 @empty
