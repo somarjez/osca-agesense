@@ -51,7 +51,7 @@ class ModelValidation
             return [];
         }
         $header = str_getcsv(array_shift($lines));
-        $rows   = [];
+        $rows = [];
         foreach ($lines as $line) {
             if ($line === '') {
                 continue;
@@ -703,48 +703,47 @@ class ModelValidation
         }
 
         $clusterMatches = collect($rows)->filter(fn ($r) => trim($r['cluster_match'] ?? '') === 'YES')->count();
-        $riskMatches    = collect($rows)->filter(fn ($r) => trim($r['risk_match']    ?? '') === 'YES')->count();
+        $riskMatches = collect($rows)->filter(fn ($r) => trim($r['risk_match'] ?? '') === 'YES')->count();
 
-        $deltas    = collect($rows)->map(fn ($r) => abs((float) ($r['risk_difference'] ?? 0)))->all();
-        $maxDelta  = count($deltas) ? max($deltas) : 0.0;
+        $deltas = collect($rows)->map(fn ($r) => abs((float) ($r['risk_difference'] ?? 0)))->all();
+        $maxDelta = count($deltas) ? max($deltas) : 0.0;
         $meanDelta = count($deltas) ? array_sum($deltas) / count($deltas) : 0.0;
 
         $clusterPct = $total ? $clusterMatches / $total : 0.0;
-        $riskPct    = $total ? $riskMatches    / $total : 0.0;
+        $riskPct = $total ? $riskMatches / $total : 0.0;
 
         // Boundary cases: seniors where cluster or risk level differs.
-        $mismatches = collect($rows)->filter(fn ($r) =>
-            trim($r['cluster_match'] ?? '') !== 'YES' || trim($r['risk_match'] ?? '') !== 'YES'
+        $mismatches = collect($rows)->filter(fn ($r) => trim($r['cluster_match'] ?? '') !== 'YES' || trim($r['risk_match'] ?? '') !== 'YES'
         )->values()->map(fn ($r) => [
-            'name'              => trim($r['full_name']             ?? ''),
-            'barangay'          => trim($r['barangay']              ?? ''),
-            'age'               => (int) ($r['age']                 ?? 0),
-            'nb_cluster'        => (int) ($r['notebook_cluster_id'] ?? 0),
-            'nb_cluster_name'   => trim($r['notebook_cluster_name'] ?? ''),
-            'live_cluster'      => (int) ($r['live_cluster_id']     ?? 0),
-            'live_cluster_name' => trim($r['live_cluster_name']     ?? ''),
-            'cluster_match'     => trim($r['cluster_match']         ?? '') === 'YES',
-            'nb_risk'           => trim($r['notebook_risk_level']   ?? ''),
-            'live_risk'         => trim($r['live_risk_level']       ?? ''),
-            'risk_match'        => trim($r['risk_match']            ?? '') === 'YES',
-            'delta'             => abs((float) ($r['risk_difference'] ?? 0)),
-            'reason'            => trim($r['likely_reason']          ?? ''),
+            'name' => trim($r['full_name'] ?? ''),
+            'barangay' => trim($r['barangay'] ?? ''),
+            'age' => (int) ($r['age'] ?? 0),
+            'nb_cluster' => (int) ($r['notebook_cluster_id'] ?? 0),
+            'nb_cluster_name' => trim($r['notebook_cluster_name'] ?? ''),
+            'live_cluster' => (int) ($r['live_cluster_id'] ?? 0),
+            'live_cluster_name' => trim($r['live_cluster_name'] ?? ''),
+            'cluster_match' => trim($r['cluster_match'] ?? '') === 'YES',
+            'nb_risk' => trim($r['notebook_risk_level'] ?? ''),
+            'live_risk' => trim($r['live_risk_level'] ?? ''),
+            'risk_match' => trim($r['risk_match'] ?? '') === 'YES',
+            'delta' => abs((float) ($r['risk_difference'] ?? 0)),
+            'reason' => trim($r['likely_reason'] ?? ''),
         ])->all();
 
         return [
-            'available'         => true,
-            'total'             => $total,
-            'cluster_match_n'   => $clusterMatches,
+            'available' => true,
+            'total' => $total,
+            'cluster_match_n' => $clusterMatches,
             'cluster_match_pct' => $clusterPct,
-            'risk_match_n'      => $riskMatches,
-            'risk_match_pct'    => $riskPct,
-            'max_delta'         => $maxDelta,
-            'mean_delta'        => $meanDelta,
-            'mismatches'        => $mismatches,
-            'mismatch_count'    => count($mismatches),
+            'risk_match_n' => $riskMatches,
+            'risk_match_pct' => $riskPct,
+            'max_delta' => $maxDelta,
+            'mean_delta' => $meanDelta,
+            'mismatches' => $mismatches,
+            'mismatch_count' => count($mismatches),
             'verdicts' => [
                 'cluster' => $this->verdict($clusterPct >= 0.95, 'Strong', 'Borderline'),
-                'risk'    => $this->verdict($riskPct    >= 0.98, 'Strong', 'Borderline'),
+                'risk' => $this->verdict($riskPct >= 0.98, 'Strong', 'Borderline'),
             ],
         ];
     }
@@ -756,7 +755,7 @@ class ModelValidation
         $recRows = $this->csv('recommendation_summary.csv');
 
         return [
-            'n_seniors'    => count($recRows),
+            'n_seniors' => count($recRows),
             'generated_at' => $this->generatedAt(),
         ];
     }

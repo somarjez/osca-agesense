@@ -61,7 +61,7 @@ EXPECTED = {
     "kmeans_n_clusters":     4,
     "kmeans_n_features_in":  10,   # == UMAP n_components
     "cluster_raw_ids":       {0, 1, 2, 3},
-    "cluster_mapping":       {"0": 2, "1": 4, "2": 3, "3": 1},   # raw->named; C1=High Func C2=Stable C3=EnvFin C4=Low Func
+    "cluster_mapping":       {"0": 2, "1": 4, "2": 3, "3": 1},   # raw->named C1/C2/C3/C4
     "risk_models": [
         "gbr_ic_risk.pkl", "rfr_ic_risk.pkl",
         "gbr_env_risk.pkl", "rfr_env_risk.pkl",
