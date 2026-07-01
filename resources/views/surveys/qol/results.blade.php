@@ -83,7 +83,7 @@
                     @endforeach
                 </div>
                 <div class="mt-3 pt-3 border-t border-paper-rule dark:border-[#2b3530] text-center">
-                    <span class="eyebrow">Health Group</span>
+                    <span class="eyebrow">Profile Group</span>
                     <p class="font-semibold text-[13px] text-ink-900 dark:text-[#e4e1d8] mt-1">
                         Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
                     </p>

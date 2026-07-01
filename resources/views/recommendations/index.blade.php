@@ -88,7 +88,7 @@
                         <th class="th">Senior Citizen</th>
                         <th class="th">Barangay</th>
                         <th class="th text-center">Risk</th>
-                        <th class="th text-center">Cluster</th>
+                        <th class="th text-center">Profile Group</th>
                         <th class="th text-center">Total</th>
                         <th class="th text-center">Pending</th>
                         <th class="th text-center">Urgent</th>

@@ -40,7 +40,7 @@
                         <th class="th">Name</th>
                         <th class="th">Barangay</th>
                         <th class="th text-center">Risk Level</th>
-                        <th class="th">Health Group</th>
+                        <th class="th">Profile Group</th>
                     </tr>
                 </thead>
                 <tbody>

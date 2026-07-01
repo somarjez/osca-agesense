@@ -327,7 +327,7 @@
     <div class="fixed inset-0 bg-white/80 dark:bg-[#131917]/85 backdrop-blur-sm flex flex-col items-center justify-center z-50">
         <div class="animate-spin w-10 h-10 border-4 border-forest-500 border-t-transparent rounded-full mb-3"></div>
         <p class="text-[13px] font-medium text-ink-700 dark:text-[#c8c4bc]">Running Health Assessment…</p>
-        <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570] mt-1">Preparing data → Assigning health group → Scoring risk → Generating recommendations</p>
+        <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570] mt-1">Preparing data → Assigning profile group → Scoring risk → Generating recommendations</p>
     </div>
     @endif
 

@@ -31,7 +31,7 @@
             ['senior-records',  'Senior Records'],
             ['surveys',         'QoL Surveys'],
             ['risk',            'Risk & Assessments'],
-            ['groups',          'Health Groups'],
+            ['groups',          'Profile Groups'],
             ['recommendations', 'Recommendations'],
             ['batch',           'Batch Assessment'],
             ['general',         'FAQs'],
@@ -103,7 +103,7 @@ function helpCentre() {
         { key: 'senior-records',  title: 'Senior Records',                sub: null },
         { key: 'surveys',         title: 'Quality of Life (QoL) Surveys', sub: null },
         { key: 'risk',            title: 'Risk Levels & Assessments',      sub: null },
-        { key: 'groups',          title: 'Health Groups',                  sub: null },
+        { key: 'groups',          title: 'Profile Groups',                 sub: null },
         { key: 'recommendations', title: 'Recommendations',                sub: null },
         { key: 'batch',           title: 'Batch Assessment',               sub: null },
         { key: 'general',         title: 'Frequently Asked Questions',     sub: null },
@@ -112,7 +112,7 @@ function helpCentre() {
     const items = [
         // Getting Started
         { topic: 'getting-started', q: 'What is AgeSense?', a: 'AgeSense is a decision-support system for OSCA Pagsanjan staff. It helps manage senior citizen records, track Quality of Life surveys, identify seniors at risk, and generate care recommendations — all based on the WHO Healthy Ageing framework. Results are decision-support indicators, not clinical diagnoses.' },
-        { topic: 'getting-started', q: 'What is the standard workflow?', a: 'Three steps: (1) Register a senior and fill in their profile. (2) Conduct a QoL survey to capture their current health and living situation. (3) Run the assessment to get a risk level, health group assignment, and care recommendations. Repeat the survey at least every six months or after a significant health change.' },
+        { topic: 'getting-started', q: 'What is the standard workflow?', a: 'Three steps: (1) Register a senior and fill in their profile. (2) Conduct a QoL survey to capture their current health and living situation. (3) Run the assessment to get a risk level, profile group assignment, and care recommendations. Repeat the survey at least every six months or after a significant health change.' },
         { topic: 'getting-started', q: 'Who can use the system?', a: 'Three roles exist. Administrators manage everything — profiles, assessments, user accounts, and exports. Encoders can capture and edit senior profiles and surveys, and run assessments. Viewers can read dashboards and reports but cannot make changes. Accounts are managed by your system administrator.' },
         { topic: 'getting-started', q: 'How do I switch to dark mode?', a: 'Click the moon icon in the top-right corner of the screen. The system remembers your preference per device.' },
         { topic: 'getting-started', q: 'Where do I start if this is my first time?', a: 'Go to Senior Records → New Profile to register your first senior. Once their profile is saved, open it and click New QoL Survey. After submitting the survey, click Re-run Assessment to generate risk scores and recommendations.' },
@@ -137,15 +137,15 @@ function helpCentre() {
         // Risk & Assessments
         { topic: 'risk', q: 'What do the risk levels mean?', a: 'HIGH means significant concerns across multiple domains — priority action required. Seniors with a composite score of 70% or above are additionally flagged urgent-priority. MODERATE means some risk factors are present — planned monitoring and targeted support are recommended. LOW means the senior is generally well — routine check-ins are appropriate.' },
         { topic: 'risk', q: 'What are the three risk domains?', a: 'Physical Capacity covers intrinsic health and bodily function. Environment covers living conditions and access to support and services. Daily Functioning covers the ability to carry out day-to-day activities independently. Each domain gets its own risk score, and the Overall Risk combines all three.' },
-        { topic: 'risk', q: 'How do I run or re-run an assessment?', a: 'Open the senior\'s profile and click Re-run Assessment. The system processes the latest QoL survey and updates risk scores, health group assignment, and recommendations. This takes a few seconds and the page reloads automatically when complete.' },
+        { topic: 'risk', q: 'How do I run or re-run an assessment?', a: 'Open the senior\'s profile and click Re-run Assessment. The system processes the latest QoL survey and updates risk scores, profile group assignment, and recommendations. This takes a few seconds and the page reloads automatically when complete.' },
         { topic: 'risk', q: 'What does the Wellbeing Score mean?', a: 'The Wellbeing Score (0–100) summarises the senior\'s overall positive health status — roughly the inverse of the composite risk score. A score of 67 means reasonable overall wellbeing across the assessed domains. Higher is better.' },
         { topic: 'risk', q: 'What does "Results may be outdated" mean?', a: 'This banner appears when the senior\'s profile or survey was modified after the last assessment ran. The displayed scores may no longer reflect current data. Click Re-run Assessment to get accurate, up-to-date results.' },
         { topic: 'risk', q: 'What is the urgent-priority threshold?', a: 'Seniors with a composite risk score of 70% or higher are automatically flagged urgent-priority. This appears as a pulsing orange badge next to their HIGH risk label on the Senior Records list and their profile, and they appear at the top of the Risk Reports at-risk table.' },
 
-        // Health Groups
-        { topic: 'groups', q: 'What are health groups?', a: 'Health groups automatically sort seniors into four categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed together. This helps OSCA staff identify which seniors share similar needs so resources can be planned more efficiently.' },
-        { topic: 'groups', q: 'What does each health group mean?', a: 'Group 1 (High Functioning) — relatively independent, low risk across all domains. Group 2 (Stable / Moderate) — some areas of concern; targeted support recommended. Group 3 (Env / Financial Vulnerable) — good intrinsic capacity but environmental and financial stressors are significant. Group 4 (Multi-Domain Priority) — vulnerability across multiple domains; requires coordinated intervention.' },
-        { topic: 'groups', q: 'Where can I see the health group breakdown?', a: 'Go to Health Groups in the sidebar. You can see per-group risk averages, WHO domain charts, barangay distribution, model insights, and snapshot history. Use Export CSV to download the data for reporting.' },
+        // Profile Groups
+        { topic: 'groups', q: 'What are profile groups?', a: 'Profile groups automatically sort seniors into four categories based on patterns in their QoL survey results. Seniors with similar health profiles are placed together. This helps OSCA staff identify which seniors share similar needs so resources can be planned more efficiently.' },
+        { topic: 'groups', q: 'What does each profile group mean?', a: 'Group 1 (High Functioning) — relatively independent, low risk across all domains. Group 2 (Stable / Moderate) — some areas of concern; targeted support recommended. Group 3 (Env / Financial Vulnerable) — good intrinsic capacity but environmental and financial stressors are significant. Group 4 (Multi-Domain Priority) — vulnerability across multiple domains; requires coordinated intervention.' },
+        { topic: 'groups', q: 'Where can I see the profile group breakdown?', a: 'Go to Profile Groups in the sidebar. You can see per-group risk averages, WHO domain charts, barangay distribution, model insights, and snapshot history. Use Export CSV to download the data for reporting.' },
 
         // Recommendations
         { topic: 'recommendations', q: 'Where do recommendations come from?', a: 'Recommendations are automatically generated each time an assessment runs, based on the senior\'s specific risk scores. They are decision-support outputs — not clinical prescriptions — and should be used alongside professional assessment and OSCA case knowledge.' },
@@ -160,13 +160,13 @@ function helpCentre() {
         { topic: 'batch', q: 'What if the analysis service is offline?', a: 'Go to Assessment Tools → Service Status. If the service shows as offline, click Start Services and wait about 60 seconds for the model to load. If it does not come online, ask your administrator to check the server.' },
 
         // General / FAQs
-        { topic: 'general', q: 'A senior\'s name shows as "—" in the Health Groups table.', a: 'This means the senior has been archived. Archived seniors are excluded from group analysis. If you need them included, restore them from the Archives section in the sidebar.' },
+        { topic: 'general', q: 'A senior\'s name shows as "—" in the Profile Groups table.', a: 'This means the senior has been archived. Archived seniors are excluded from group analysis. If you need them included, restore them from the Archives section in the sidebar.' },
         { topic: 'general', q: 'The risk score did not change after I updated the survey.', a: 'You need to re-run the assessment after editing a survey. Open the senior\'s profile and click Re-run Assessment. Scores update within a few seconds.' },
         { topic: 'general', q: 'I cannot find a senior in the records list.', a: 'They may have been archived. Check the Archives section in the sidebar. If they appear there, click Restore to bring them back to the active list.' },
         { topic: 'general', q: 'The assessment service shows as "Offline".', a: 'Go to Assessment Tools → Service Status and click Start Services. Wait about 60 seconds for the model to load. If it does not come online, ask your administrator to restart the analysis services on the server.' },
         { topic: 'general', q: 'Can two seniors share the same OSCA ID?', a: 'No. OSCA IDs must be unique across the entire system. The system will reject a duplicate OSCA ID when saving a profile and display an error message.' },
         { topic: 'general', q: 'How often should QoL surveys be conducted?', a: 'At least once every six months, or whenever there is a significant change in a senior\'s health or living situation — such as a hospitalisation, a change in living arrangement, or a major illness.' },
-        { topic: 'general', q: 'Can I export data?', a: 'Yes. Individual senior profiles can be exported as PDF from their profile page. The Health Groups and Risk Reports pages each have an Export CSV button. The Senior Records list also supports bulk CSV export.' },
+        { topic: 'general', q: 'Can I export data?', a: 'Yes. Individual senior profiles can be exported as PDF from their profile page. The Profile Groups and Risk Reports pages each have an Export CSV button. The Senior Records list also supports bulk CSV export.' },
         { topic: 'general', q: 'Who can access the system?', a: 'Access requires a login. User accounts and role assignments are managed by the system administrator. Contact your administrator to add or remove users or to change permissions.' },
     ];
 

@@ -417,7 +417,7 @@ class ReportController extends Controller
         $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Gender',
-                'Cluster ID', 'Cluster Name', 'Risk Level', 'Composite Risk',
+                'Profile Group ID', 'Profile Group Name', 'Risk Level', 'Composite Risk',
                 'IC Risk', 'Env Risk', 'Func Risk', 'Wellbeing Score', 'Processed At']);
             foreach ($data as $row) {
                 fputcsv($file, array_values($row->toArray()));
@@ -472,7 +472,7 @@ class ReportController extends Controller
                 'Nearest Pharmacy Distance (m)',
                 'Nearest Barangay Hall Distance (m)',
                 'GIS Proximity Score',
-                'Cluster Label',
+                'Profile Group Label',
                 'Risk Indicator',
             ]);
 
@@ -599,7 +599,7 @@ class ReportController extends Controller
             'OSCA ID', 'Last Name', 'First Name', 'Middle Name',
             'Date of Birth', 'Age', 'Gender', 'Marital Status', 'Barangay',
             'Monthly Income Range', 'Status',
-            'Cluster', 'Cluster Name', 'Risk Level',
+            'Profile Group', 'Profile Group Name', 'Risk Level',
             'Composite Risk', 'IC Risk', 'Env Risk', 'Func Risk',
             'Wellbeing Score', 'Priority Flag', 'ML Processed At',
         ];
@@ -637,7 +637,7 @@ class ReportController extends Controller
             return back()->with('error', 'Snapshot failed — no ML results found. Run Batch Analysis first.');
         }
 
-        return back()->with('success', "Cluster snapshot saved for {$today}.");
+        return back()->with('success', "Profile group snapshot saved for {$today}.");
     }
 
     /**

@@ -113,7 +113,7 @@
                     <select id="gis-visualization-mode" class="form-select">
                         <option value="markers">Senior Population Overview</option>
                         <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
-                        <option value="cluster-heatmap">Cluster / Health Groups Heatmap</option>
+                        <option value="cluster-heatmap">Profile Groups Heatmap</option>
                         <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
                     </select>
                 </label>
@@ -830,7 +830,7 @@
         const heatmapLabels = {
             'senior-distribution-accessibility-heatmap': ['Accessibility Heatmap', 'Better access', 'Greater access need'],
             'risk-indicator-heatmap': ['Risk Indicator Distribution', 'Lower risk indicator', 'Higher risk indicator'],
-            'cluster-heatmap': ['Cluster / Health Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
+            'cluster-heatmap': ['Profile Groups Heatmap', 'Assigned group color', 'Stronger local concentration'],
         };
         const heatmapLabel = heatmapLabels[mode];
         const gradient = 'linear-gradient(90deg,#22c55e 0%,#facc15 48%,#fb923c 76%,#ef4444 100%)';
@@ -861,8 +861,8 @@
                         ${selectedClusterScale}
                         ${clusterLegend}
                         <span class="text-ink-400 dark:text-[#6b7570]">${selectedCluster === 'all'
-                            ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest health group color without blending groups. Markers show the actual senior health group.'
-                            : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior health group.'}</span>
+                            ? 'All groups are shown as a continuous KDE heatmap surface. Each pixel keeps the locally strongest profile group color without blending groups. Markers show the actual senior profile group.'
+                            : 'Selected Group view shows only the chosen group distribution. Contour lines represent equal KDE density levels. Markers show the actual senior profile group.'}</span>
                     </div>
                     <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
                         ${facilityLegendHtml()}
@@ -1146,7 +1146,7 @@
         clusterSelect.classList.toggle('hidden', !showCluster);
         riskSelect.classList.toggle('hidden', showCluster);
         if (label) {
-            label.textContent = showCluster ? 'Health Group' : 'Risk Level';
+            label.textContent = showCluster ? 'Profile Group' : 'Risk Level';
         }
 
         const hiddenSelect = showCluster ? riskSelect : clusterSelect;
@@ -3908,7 +3908,7 @@
                     <div><strong>Barangay:</strong> ${barangay}</div>
                     <div><strong>Point Type:</strong> Generalized senior point</div>
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
-                    <div><strong>Health Group:</strong> ${healthGroup}</div>
+                    <div><strong>Profile Group:</strong> ${healthGroup}</div>
                     ${accessibilityRow}
                     ${servicesBlock}
                 </div>
@@ -3922,7 +3922,7 @@
                 <div><strong>Barangay:</strong> ${barangay}</div>
                 <div><strong>Total Seniors:</strong> ${p.senior_count ?? p.total_seniors ?? 0}</div>
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
-                <div><strong>Health Group:</strong> ${healthGroup}</div>
+                <div><strong>Profile Group:</strong> ${healthGroup}</div>
                 ${accessibilityRow}
                 ${servicesBlock}
             </div>
@@ -5048,7 +5048,7 @@
 
             if (!result.layer || !result.points.length) {
                 focusMapOnActiveLayer(map, features);
-                setStatus('No senior records had health group cluster values for the selected filters.', 'neutral');
+                setStatus('No senior records had profile group values for the selected filters.', 'neutral');
                 return;
             }
 
@@ -5068,7 +5068,7 @@
                 colorScaleMax: result.colorScaleMax,
             });
             focusMapOnActiveLayer(map, clusterFeatures);
-            setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s), rendered as a KDE density heatmap with non-blended group colors (${result.radiusMeters}m radius).`, 'success');
+            setStatus(`Profile Group Distribution shows ${result.points.length} senior GIS point(s) across ${result.groups.length} group(s), rendered as a KDE density heatmap with non-blended group colors (${result.radiusMeters}m radius).`, 'success');
             return;
         }
 
@@ -5083,7 +5083,7 @@
 
         if (!result.layer || !result.points.length) {
             focusMapOnActiveLayer(map, features);
-            setStatus('No senior records had health group cluster values for the selected filters.', 'neutral');
+            setStatus('No senior records had profile group values for the selected filters.', 'neutral');
             return;
         }
 
@@ -5103,7 +5103,7 @@
             colorScaleMax: result.colorScaleMax,
         });
         focusMapOnActiveLayer(map, clusterFeatures);
-        setStatus(`Health Group Cluster Distribution shows ${result.points.length} senior GIS point(s) in ${selectedCluster}, rendered as a clipped geographic KDE raster (${result.radiusMeters}m radius).`, 'success');
+        setStatus(`Profile Group Distribution shows ${result.points.length} senior GIS point(s) in ${selectedCluster}, rendered as a clipped geographic KDE raster (${result.radiusMeters}m radius).`, 'success');
     }
 
     async function toggleGisLayer(map, mode, features) {

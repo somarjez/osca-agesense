@@ -39,7 +39,7 @@
                     How we know the system works
                 </h1>
                 <p class="text-[13.5px] text-ink-500 dark:text-[#8a9087] mt-2 max-w-2xl leading-relaxed">
-                    Every senior is sorted into a care group, given domain risk estimates, an explanation of the drivers,
+                    Every senior is sorted into a profile group, given domain risk estimates, an explanation of the drivers,
                     and tailored recommendations. This page shows the independent checks behind each of those four steps —
                     the technical measure, what it means, and whether it holds up.
                 </p>
@@ -59,7 +59,7 @@
         <div class="border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-2 lg:grid-cols-4 divide-x divide-paper-rule dark:divide-[#2b3530]">
             @php
                 $score = [
-                    ['#clustering', 'Care groups', $clustering['verdicts']['separation']],
+                    ['#clustering', 'Profile groups', $clustering['verdicts']['separation']],
                     ['#risk', 'Risk estimates', $regression['verdicts']['accuracy']],
                     ['#xai', 'Explainability', $xai['verdicts']['sanity']],
                     ['#recs', 'Recommendations', $recs['verdicts']['coverage']],
@@ -224,7 +224,7 @@
     {{-- ── Sticky in-page nav ── --}}
     <div class="sticky top-2 z-10 -mx-1">
         <div class="segmented flex-wrap shadow-sm">
-            @foreach ([['clustering','01 · Care Groups'],['risk','02 · Risk'],['xai','03 · Explainability'],['recs','04 · Recommendations'],['concordance','05 · Concordance']] as [$id, $lbl])
+            @foreach ([['clustering','01 · Profile Groups'],['risk','02 · Risk'],['xai','03 · Explainability'],['recs','04 · Recommendations'],['concordance','05 · Concordance']] as [$id, $lbl])
             <button type="button"
                     @click="section = '{{ $id }}'; document.getElementById('{{ $id }}').scrollIntoView({behavior:'smooth', block:'start'})"
                     :class="section === '{{ $id }}' ? 'bg-white text-ink-900 shadow-sm dark:bg-[#222a27] dark:text-[#e4e1d8]' : ''">{{ $lbl }}</button>
@@ -241,7 +241,7 @@
             {!! $chip($clustering['verdicts']['separation']) !!}
         </div>
         <p class="text-[13.5px] text-ink-500 dark:text-[#8a9087] max-w-3xl leading-relaxed">
-            Seniors are sorted into <strong class="text-ink-700 dark:text-[#c8c4bc]">{{ $clustering['k_chosen'] }} care groups</strong>
+            Seniors are sorted into <strong class="text-ink-700 dark:text-[#c8c4bc]">{{ $clustering['k_chosen'] }} profile groups</strong>
             by similarity across health, environment, and functional signals. We tested 2 through 6 groups and judged each split
             on three independent separation measures, then confirmed the result is stable.
         </p>
@@ -251,7 +251,7 @@
             @php
                 $c = $clustering['chosen'];
                 $kpis = [
-                    ['Care groups', $clustering['k_chosen'], 'Distinct senior profiles', true],
+                    ['Profile groups', $clustering['k_chosen'], 'Distinct senior profiles', true],
                     ['Group separation', $n3($c['silhouette']), 'Silhouette · higher is better (0–1)', $clustering['verdicts']['separation']['good']],
                     ['Group distinctness', $n3($c['davies_bouldin']), 'Davies–Bouldin · lower is better', $clustering['verdicts']['distinctness']['good']],
                     ['Compactness', number_format($c['calinski_harabasz'], 0), 'Calinski–Harabasz · higher is better', true],
@@ -396,7 +396,7 @@
                         @if ($clustering['stability']['stable'])
                             Every seed produced the <strong class="text-ink-700 dark:text-[#c8c4bc]">exact same</strong>
                             silhouette, Davies–Bouldin, and Calinski–Harabasz scores — the grouping is fully deterministic,
-                            so two officers on two devices see the same care groups.
+                            so two officers on two devices see the same profile groups.
                         @else
                             Scores varied across {{ $clustering['stability']['distinct'] }} distinct outcomes; results are
                             seed-sensitive and should be pinned before deployment.
@@ -444,7 +444,7 @@
                 @include('reports.partials.validation-figure', ['plot' => 'cluster_heatmap', 'title' => 'Figure 4 — Feature heatmap', 'caption' => 'Average of each survey signal per group; darker cells mark the signals that most distinguish a group.'])
                 {{-- Figures 3 + 6 stacked to fill the column beside the heatmap, leaving no gap --}}
                 <div class="grid gap-4">
-                    @include('reports.partials.validation-figure', ['plot' => 'cluster_radar', 'title' => 'Figure 3 — Profile shapes', 'caption' => 'WHO-domain signature of each care group — how the four profiles differ across capacity, environment, and function.'])
+                    @include('reports.partials.validation-figure', ['plot' => 'cluster_radar', 'title' => 'Figure 3 — Profile shapes', 'caption' => 'WHO-domain signature of each profile group — how the four profiles differ across capacity, environment, and function.'])
                     @include('reports.partials.validation-figure', ['plot' => 'section_scores_by_cluster', 'title' => 'Figure 6 — Section scores by group', 'caption' => 'Survey-section averages per group, confirming the profiles separate on real, measured characteristics.'])
                 </div>
             </div>
@@ -821,7 +821,7 @@
             {{-- Kruskal feature significance --}}
             <div class="card lg:col-span-3">
                 <div class="card-head">
-                    <div class="card-title">What separates the care groups</div>
+                    <div class="card-title">What separates the profile groups</div>
                     <div class="card-sub">{{ $xai['kruskal_significant'] }} of {{ $xai['kruskal_total'] }} signals are statistically significant</div>
                 </div>
                 <div class="card-body"><div class="relative h-72"><canvas id="kruskalChart"></canvas></div></div>
@@ -950,7 +950,7 @@
                 </table>
             </div>
             <div class="card-body pt-3 border-t border-paper-rule dark:border-[#2b3530] text-[12px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
-                A higher H-statistic means the signal differs more sharply between care groups. {{ $xai['kruskal_significant'] }}
+                A higher H-statistic means the signal differs more sharply between profile groups. {{ $xai['kruskal_significant'] }}
                 of {{ $xai['kruskal_total'] }} signals are statistically significant (p &lt; 0.05) — confirming the groups
                 differ on real, measured characteristics rather than noise.
             </div>
@@ -1201,7 +1201,7 @@
             <div class="card card-body space-y-3">
                 <div class="eyebrow">Why small differences are expected</div>
                 <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
-                    The notebook assigns care groups using <strong class="text-ink-700 dark:text-[#c8c4bc]">UMAP + K-Means</strong> over the full training set.
+                    The notebook assigns profile groups using <strong class="text-ink-700 dark:text-[#c8c4bc]">UMAP + K-Means</strong> over the full training set.
                     The live system uses a <strong class="text-ink-700 dark:text-[#c8c4bc]">KNN classifier (k=5)</strong> trained on those labels —
                     a deliberate design choice for fast, deterministic, single-senior inference.
                 </p>
@@ -1229,7 +1229,7 @@
                         Boundary cases
                         <span class="badge badge-neutral ml-1.5">{{ $fidelity['mismatch_count'] }}</span>
                     </div>
-                    <div class="card-sub">Seniors where care group or risk level differs between live model and notebook</div>
+                    <div class="card-sub">Seniors where profile group or risk level differs between live model and notebook</div>
                 </div>
                 <button type="button" @click="open = !open" class="btn btn-ghost text-[12px] flex-shrink-0">
                     <span x-text="open ? 'Hide' : 'Show seniors'"></span>
@@ -1290,7 +1290,7 @@
         <div class="rounded-xl border border-low-200 dark:border-low-800/40 bg-low-50 dark:bg-low-900/20 px-5 py-4 flex items-center gap-3">
             <x-heroicon-o-check-circle class="w-5 h-5 text-low-600 flex-shrink-0" />
             <p class="text-[13px] text-low-800 dark:text-[#a5d8b8]">
-                <strong>Perfect concordance</strong> — every senior received the same care group and risk level from both the live model and the notebook.
+                <strong>Perfect concordance</strong> — every senior received the same profile group and risk level from both the live model and the notebook.
             </p>
         </div>
         @endif

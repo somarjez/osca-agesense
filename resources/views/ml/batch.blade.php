@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('page-title', 'Batch Health Assessment')
-@section('page-subtitle', 'Run health grouping and risk scoring for all eligible seniors')
+@section('page-subtitle', 'Run profile grouping and risk scoring for all eligible seniors')
 
 @section('content')
 <div class="space-y-5">
@@ -110,7 +110,7 @@
 
             <div class="flex-1 min-w-0">
                 <p class="font-semibold text-ink-900">Run Full Batch Assessment</p>
-                <p class="text-sm text-ink-500 mb-3">Assesses all seniors with a QoL survey: prepares data → assigns health group → scores risk → generates recommendations.</p>
+                <p class="text-sm text-ink-500 mb-3">Assesses all seniors with a QoL survey: prepares data → assigns profile group → scores risk → generates recommendations.</p>
                 <p class="text-xs text-ink-400 mt-1 mb-3">
                     Last run:
                     @if ($lastBatchRun)
@@ -169,7 +169,7 @@
                 </div>
                 <div class="card-body space-y-4">
                     <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
-                        This will assess <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $totalReady }} senior(s)</strong> with processed QoL surveys and update their current risk scores and health group assignments.
+                        This will assess <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $totalReady }} senior(s)</strong> with processed QoL surveys and update their current risk scores and profile group assignments.
                         @if($totalEligible > $totalReady)
                         <span class="text-ink-400 dark:text-[#6b7570]">({{ $totalEligible - $totalReady }} others have unprocessed surveys and will be skipped.)</span>
                         @endif

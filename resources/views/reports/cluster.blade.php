@@ -1,6 +1,6 @@
 {{-- resources/views/reports/cluster.blade.php --}}
 @extends('layouts.app')
-@section('page-title', 'Health Group Analysis')
+@section('page-title', 'Profile Group Analysis')
 @section('page-subtitle', 'Senior citizens grouped by health capacity and environmental factors')
 
 @section('content')
@@ -36,7 +36,7 @@
         </a>
     </div>
 
-    {{-- ── Cluster Cards (risk averages per health group) ── --}}
+    {{-- ── Profile Group Cards (risk averages per profile group) ── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         @php $clusterBar = [1 => '#2ecc71', 2 => '#3498db', 3 => '#f39c12', 4 => '#e74c3c']; @endphp
 
@@ -92,11 +92,11 @@
     {{-- ── WHO Domain Chart per Cluster ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="card">
-            <div class="card-head"><div class="card-title">WHO Domain Risk by Cluster</div></div>
+            <div class="card-head"><div class="card-title">WHO Domain Risk by Profile Group</div></div>
             <div class="card-body"><div class="relative h-56"><canvas id="domainByClusterChart"></canvas></div></div>
         </div>
         <div class="card">
-            <div class="card-head"><div class="card-title">QoL Domain Scores by Cluster</div></div>
+            <div class="card-head"><div class="card-title">QoL Domain Scores by Profile Group</div></div>
             <div class="card-body"><div class="relative h-56"><canvas id="qolByClusterChart"></canvas></div></div>
         </div>
     </div>
@@ -123,7 +123,7 @@
 
     {{-- ── Barangay × Cluster Breakdown ── --}}
     <div class="card overflow-hidden">
-        <div class="card-head"><div class="card-title">Barangay × Cluster Distribution</div></div>
+        <div class="card-head"><div class="card-title">Barangay × Profile Group Distribution</div></div>
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
@@ -198,7 +198,7 @@
             <div class="inline-flex flex-wrap gap-1 bg-paper-2 dark:bg-[#202a26] border border-paper-rule dark:border-[#2b3530] rounded-xl p-1 overflow-x-auto max-w-full">
                 @foreach ([
                     ['insights',  'Model Insights'],
-                    ['explorer',  'Cluster Explorer'],
+                    ['explorer',  'Profile Group Explorer'],
                     ['snapshots', 'Snapshot History'],
                 ] as [$key, $label])
                 <button type="button"
@@ -257,7 +257,7 @@
             </div>
         </div>
 
-        {{-- Cluster Explorer panel --}}
+        {{-- Profile Group Explorer panel --}}
         <div x-show="section === 'explorer'" class="p-5">
             <livewire:reports.cluster-analysis />
         </div>
@@ -266,7 +266,7 @@
         <div x-show="section === 'snapshots'">
             @if ($snapshots->isEmpty())
             <div class="px-5 py-10 text-center text-sm text-ink-400 dark:text-[#4a5550]">
-                No snapshots yet. Click <strong>Take Snapshot</strong> above to record today's cluster composition.
+                No snapshots yet. Click <strong>Take Snapshot</strong> above to record today's profile group composition.
                 <br class="mb-1">Snapshots are also taken automatically at 23:55 daily.
             </div>
             @else
@@ -322,7 +322,7 @@
                                                      title="Delete snapshot?"
                                                      confirm="$refs.delForm.submit()"
                                                      confirm-label="Delete permanently">
-                                        <p>The cluster snapshot from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong> will be permanently removed.</p>
+                                        <p>The profile group snapshot from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong> will be permanently removed.</p>
                                         <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
                                             This cannot be undone.
                                         </p>

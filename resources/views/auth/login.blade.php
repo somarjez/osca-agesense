@@ -95,7 +95,7 @@
             </div>
             <div class="px-4 border-l border-navy-700">
                 <div class="font-serif text-[28px] font-semibold text-paper tnum leading-none">4</div>
-                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1">Care Groups</div>
+                <div class="text-[10.5px] uppercase tracking-wider text-navy-300 mt-1">Profile Groups</div>
                 <div class="flex items-center gap-1.5 mt-2.5" title="Thriving · Stable · At-Risk · Priority Care">
                     <div class="care-dot" style="background: #2ecc71"></div>
                     <div class="care-dot" style="background: #3498db"></div>

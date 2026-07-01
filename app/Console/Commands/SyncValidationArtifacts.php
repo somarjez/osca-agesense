@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 
 /**
  * Refreshes the in-app mirror of the notebook's evaluation artifacts so the
- * admin "System Validation" page (and the Health Groups KPIs) reflect the
+ * admin "System Validation" page (and the Profile Groups KPIs) reflect the
  * current osca_output run.
  *
  *   - osca_output/reports/*.{csv,json}  → storage/app/ml_validation/reports/
@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
  */
 class SyncValidationArtifacts extends Command
 {
-    protected $signature = 'ml:sync-validation {--k=4 : Chosen number of care groups to publish as the headline metrics}';
+    protected $signature = 'ml:sync-validation {--k=4 : Chosen number of profile groups to publish as the headline metrics}';
 
     protected $description = 'Sync model-evaluation reports/plots from osca_output into the app, and refresh cluster_eval_metrics.json';
 

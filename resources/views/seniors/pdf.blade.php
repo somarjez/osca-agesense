@@ -128,7 +128,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
         </span>
         @if($ml?->cluster_name)
         <div style="text-align:right; margin-top:4px; font-size:9px; color:#64748b;">
-            Cluster {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
+            Profile Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
         </div>
         @endif
     </div>
@@ -369,7 +369,7 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     </table>
     <div style="margin-top:6px; font-size:9px; color:#94a3b8;">
         Wellbeing Score: {{ number_format($ml->wellbeing_score ?? 0, 3) }}
-        &nbsp;·&nbsp; Cluster {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
+        &nbsp;·&nbsp; Profile Group {{ $ml->cluster_named_id }}: {{ $ml->cluster_name }}
     </div>
 </div>
 @endif
