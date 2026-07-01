@@ -448,7 +448,6 @@
                             <x-profile-field label="Ethnic Origin"      :value="$senior->ethnic_origin"/>
                             <x-profile-field label="Blood Type"         :value="$senior->blood_type"/>
                             <x-profile-field label="Contact"            :value="$senior->contact_number"/>
-                            <x-profile-field label="PhilSys / Nat'l ID" :value="$senior->philsys_id"/>
                             <x-profile-field label="Encoded By"         :value="$senior->encoded_by"/>
                             <x-profile-field label="Consent"
                                 :value="$senior->consent_given_at

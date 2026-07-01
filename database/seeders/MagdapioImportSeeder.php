@@ -174,21 +174,26 @@ class MagdapioImportSeeder extends Seeder
             }
 
             // ── Insert senior ───────────────────────────────────────────────
+            $consentVal = strtolower(trim((string) ($row['consent'] ?? '')));
+            $hasConsent = in_array($consentVal, ['yes', '1', 'true', 'y'], true);
+
             $senior = SeniorCitizen::create([
                 'osca_id' => SeniorCitizen::generateOscaId($barangay),
                 'first_name' => $firstName,
                 'middle_name' => $this->strVal($row['middle_name'] ?? null),
                 'last_name' => $lastName,
-                'name_extension' => null,
+                'name_extension' => $this->strVal($row['name_ext'] ?? null),
                 'barangay' => $barangay,
                 'date_of_birth' => $dob,
-                'contact_number' => null,
-                'place_of_birth' => null,
+                'contact_number' => null,   // encrypted at rest; not carried by normalized CSV
+                'place_of_birth' => null,   // encrypted at rest; not carried by normalized CSV
                 'marital_status' => $this->enumOrNull(self::MARITAL_STATUS_MAP[$row['marital_status'] ?? ''] ?? ($row['marital_status'] ?? null), ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
                 'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
-                'religion' => null,
-                'ethnic_origin' => null,
-                'blood_type' => null,
+                'religion' => $this->strVal($row['religion'] ?? null),
+                'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
+                'blood_type' => $this->strVal($row['blood_type'] ?? null),
+                'consent_given_at' => $hasConsent ? ($this->parseDate($row['timestamp'] ?? null) ?? now()) : null,
+                'consent_method' => $hasConsent ? 'Imported (survey form)' : null,
                 'num_children' => $this->intVal($row['num_children'] ?? null),
                 'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
                 'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
