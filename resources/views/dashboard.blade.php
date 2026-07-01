@@ -188,7 +188,7 @@
             plugins: [centerTextPlugin('Seniors')],
         });
 
-        // Health groups — doughnut (proportion = group size, matches Risk Distribution)
+        // Profile Groups — doughnut (proportion = group size; same style as riskChart)
         upsert('clusterChart', {
             type: 'doughnut',
             data: {

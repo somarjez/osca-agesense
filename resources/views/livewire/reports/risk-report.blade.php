@@ -54,9 +54,9 @@
                 </label>
 
                 <label class="block">
-                    <span class="eyebrow block mb-1.5">Health Group</span>
+                    <span class="eyebrow block mb-1.5">Profile Group</span>
                     <select wire:model.live="filterCluster" class="form-select w-full">
-                        <option value="">All Health Groups</option>
+                        <option value="">All Profile Groups</option>
                         <option value="1">C1 · High Functioning / Well-Supported Seniors</option>
                         <option value="2">C2 · Stable Ageing / Moderate Support Needs</option>
                         <option value="3">C3 · Environmentally and Financially Vulnerable Seniors</option>
@@ -97,7 +97,7 @@
                         <th class="th">Senior Citizen</th>
                         <th class="th">Barangay</th>
                         <th class="th text-center">Age</th>
-                        <th class="th text-center">Cluster</th>
+                        <th class="th text-center">Profile Group</th>
                         <th class="th text-center cursor-pointer select-none"
                             wire:click="sortColumn('composite_risk')">
                             Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}

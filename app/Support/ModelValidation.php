@@ -154,7 +154,7 @@ class ModelValidation
             ];
         }
 
-        // The four care groups with sizes + interpretations.
+        // The four profile groups with sizes + interpretations.
         $groups = [];
         $meta = $this->json('cluster_metadata.json') ?? [];
         foreach ($meta as $g) {
@@ -401,7 +401,7 @@ class ModelValidation
 
     public function explainability(): array
     {
-        // Kruskal-Wallis: which survey signals separate the care groups.
+        // Kruskal-Wallis: which survey signals separate the profile groups.
         $kruskal = [];
         foreach ($this->csv('feature_significance_kruskal.csv') as $r) {
             $kruskal[] = [
@@ -646,7 +646,7 @@ class ModelValidation
             'pillars' => [
                 [
                     'key' => 'clustering',
-                    'label' => 'Care groups',
+                    'label' => 'Profile groups',
                     'weight' => $weights['clustering'],
                     'weight_pct' => (int) round($weights['clustering'] * 100),
                     'score' => round($s1, 4),

@@ -85,7 +85,7 @@
                 </select>
             </div>
             <div class="min-w-[180px]">
-                <label class="eyebrow block mb-1.5">Health Group</label>
+                <label class="eyebrow block mb-1.5">Profile Group</label>
                 <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
                     <option value="">All Groups</option>
                     <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
@@ -142,7 +142,7 @@
                     <th class="th">Name</th>
                     <th class="th">Barangay</th>
                     <th class="th text-center">Age</th>
-                    <th class="th text-center">Cluster</th>
+                    <th class="th text-center">Profile Group</th>
                     <th class="th text-center">Risk</th>
                     <th class="th">Composite Risk</th>
                     <th class="th text-right">Actions</th>

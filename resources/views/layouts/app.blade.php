@@ -116,9 +116,9 @@
             <a href="{{ route('reports.cluster') }}"
                class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
-               :title="sidebarOpen ? '' : 'Health Groups'">
+               :title="sidebarOpen ? '' : 'Profile Groups'">
                 <x-heroicon-o-squares-2x2 class="w-4 h-4 flex-shrink-0" />
-                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Health Groups</span>
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Profile Groups</span>
             </a>
             <a href="{{ route('reports.gis') }}"
                class="nav-link {{ request()->routeIs('reports.gis') ? 'nav-link-active' : '' }}"

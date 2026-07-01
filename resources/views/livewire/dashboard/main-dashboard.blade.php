@@ -108,35 +108,107 @@
             <div class="mt-4 space-y-1.5">
                 @foreach ($riskDistribution['labels'] as $i => $label)
                     @php $val = $riskDistribution['data'][$i] ?? 0; $pct = round($val / $riskTotal * 100); @endphp
-                    <div class="flex items-center gap-2 text-[11.5px] text-ink-700">
+                    <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
                         <span class="w-2 h-2 rounded-sm flex-shrink-0" style="background: {{ $riskDistribution['colors'][$i] }}"></span>
                         <span>{{ $label }}</span>
                         <span class="ml-auto font-mono font-semibold tnum">{{ $val }}</span>
-                        <span class="text-ink-400 tnum w-9 text-right">{{ $pct }}%</span>
+                        <span class="text-ink-400 dark:text-[#6b7570] tnum w-9 text-right">{{ $pct }}%</span>
                     </div>
                 @endforeach
             </div>
-        </x-card>
 
-        {{-- Health Groups — doughnut --}}
-        <x-card title="Health Groups" sub="4 care groups · proportion = group size" class="card-lift">
-            <div wire:ignore class="relative h-52"><canvas id="clusterChart" aria-label="Cluster distribution: senior count per cluster group" role="img"></canvas></div>
-            <div class="mt-4 space-y-1.5">
-                @foreach ($clusterDistribution['labels'] as $i => $label)
-                    @php $val = $clusterDistribution['data'][$i] ?? 0; $pct = round($val / $clusterTotal * 100); @endphp
-                    <div class="flex items-center gap-2 text-[11.5px] text-ink-700">
-                        <span class="w-2 h-2 rounded-sm flex-shrink-0" style="background: {{ $clusterDistribution['colors'][$i] }}"></span>
-                        <span>C{{ $clusterDistribution['ids'][$i] ?? ($i + 1) }} &middot; {{ $label }}</span>
-                        <span class="ml-auto font-mono font-semibold tnum">{{ $val }}</span>
-                        <span class="text-ink-400 tnum w-9 text-right">{{ $pct }}%</span>
+            {{-- Severity spectrum bar + headline stat --}}
+            @php
+                $highCount  = $riskDistribution['data'][0] ?? 0;
+                $modCount   = $riskDistribution['data'][1] ?? 0;
+                $lowCount   = $riskDistribution['data'][2] ?? 0;
+                $actionPct  = round(($highCount + $modCount) / $riskTotal * 100);
+                $lowBarPct  = round($lowCount  / $riskTotal * 100);
+                $modBarPct  = round($modCount  / $riskTotal * 100);
+                $highBarPct = round($highCount / $riskTotal * 100);
+            @endphp
+            <div class="mt-4 pt-4 border-t border-paper-rule dark:border-[#2b3530]">
+                <div class="text-center mb-3">
+                    <span class="font-serif text-2xl font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $actionPct }}%</span>
+                    <span class="text-[12px] text-ink-500 dark:text-[#8a9087] ml-1">need monitoring or action</span>
+                    <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-0.5 tnum">
+                        {{ $modCount }} moderate &middot; {{ $highCount }} high-risk
                     </div>
-                @endforeach
+                </div>
+                <div class="flex h-6 rounded-lg overflow-hidden gap-px">
+                    @if ($lowBarPct > 0)
+                    <div class="bg-low-500 flex items-center justify-center text-white text-[10px] font-bold tnum transition-all"
+                         style="width: {{ $lowBarPct }}%">
+                        @if ($lowBarPct >= 12) LOW @endif
+                    </div>
+                    @endif
+                    @if ($modBarPct > 0)
+                    <div class="bg-moderate-500 flex items-center justify-center text-white text-[10px] font-bold tnum transition-all"
+                         style="width: {{ $modBarPct }}%">
+                        @if ($modBarPct >= 10) MOD @endif
+                    </div>
+                    @endif
+                    @if ($highBarPct > 0)
+                    <div class="bg-high-500 flex items-center justify-center text-white text-[10px] font-bold tnum transition-all"
+                         style="width: {{ $highBarPct }}%">
+                        @if ($highBarPct >= 8) HIGH @endif
+                    </div>
+                    @endif
+                </div>
+                <div class="mt-1.5 flex justify-between text-[9.5px] uppercase tracking-wide text-ink-400 dark:text-[#6b7570]">
+                    <span>← Low severity</span>
+                    <span>High severity →</span>
+                </div>
             </div>
         </x-card>
 
-        {{-- Domain Scores — radar --}}
+        {{-- Profile Groups — doughnut (proportion chart) + ranked bars by size --}}
+        @php
+            $pgEntries = collect(array_keys($clusterDistribution['data'] ?? []))->map(fn ($i) => [
+                'id'    => $clusterDistribution['ids'][$i]    ?? ($i + 1),
+                'label' => $clusterDistribution['labels'][$i] ?? 'Group ' . ($i + 1),
+                'count' => $clusterDistribution['data'][$i]   ?? 0,
+                'color' => $clusterDistribution['colors'][$i] ?? '#94a3b8',
+            ])->sortByDesc('count')->values();
+            $pgMax = max(1, $pgEntries->max('count'));
+        @endphp
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · proportion = group size" class="card-lift">
+            {{-- Doughnut proportion chart — grows to fill available card space --}}
+            <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
+            {{-- Ranked bars --}}
+            <div class="mt-4 space-y-2.5 shrink-0">
+                @forelse ($pgEntries as $grp)
+                @php $barPct = round($grp['count'] / $pgMax * 100); @endphp
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background: {{ $grp['color'] }}"></span>
+                        <span class="text-[11.5px] font-semibold text-ink-800 dark:text-[#c8c4bc] truncate flex-1 min-w-0"
+                              title="{{ $grp['label'] }}">G{{ $grp['id'] }} · {{ $grp['label'] }}</span>
+                        <span class="text-[11.5px] font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum flex-shrink-0">{{ $grp['count'] }}</span>
+                    </div>
+                    <div class="h-1.5 rounded-full bg-paper-2 dark:bg-[#202a26] overflow-hidden">
+                        <div class="h-1.5 rounded-full" style="width: {{ $barPct }}%; background: {{ $grp['color'] }}"></div>
+                    </div>
+                </div>
+                @empty
+                <p class="text-[12.5px] text-ink-400 dark:text-[#6b7570] text-center py-4">No profile group data available.</p>
+                @endforelse
+            </div>
+        </x-card>
+
+        {{-- Domain Scores — radar + score legend --}}
         <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" class="card-lift">
-            <div wire:ignore class="relative h-72"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
+            {{-- Radar chart grows to fill available card space --}}
+            <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
+            <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 shrink-0">
+                @foreach ($domainScoreChart['labels'] as $di => $dlabel)
+                @php $dscore = $domainScoreChart['data'][$di] ?? 0; @endphp
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] text-ink-500 dark:text-[#8a9087] truncate flex-1">{{ $dlabel }}</span>
+                    <span class="text-[11px] font-mono font-semibold tnum text-ink-800 dark:text-[#c8c4bc] flex-shrink-0">{{ number_format($dscore, 1) }}</span>
+                </div>
+                @endforeach
+            </div>
         </x-card>
 
         {{-- Age Group Distribution --}}

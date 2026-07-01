@@ -6,7 +6,7 @@
         @php
         $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
         $metrics = [
-            ['Health Groups',      $evalMetrics['k_chosen'],                                        $evalMetrics['k_chosen'] . ' groups identified', true],
+            ['Profile Groups',     $evalMetrics['k_chosen'],                                        $evalMetrics['k_chosen'] . ' groups identified', true],
             ['Group Separation',   $fmt($evalMetrics['silhouette'], 3),                             'Higher is better · ≥0.30',  $evalMetrics['silhouette'] !== null && $evalMetrics['silhouette'] > 0.3],
             ['Group Distinctness', $fmt($evalMetrics['davies_bouldin'], 3),                         'Lower is better · ≤1.50',   $evalMetrics['davies_bouldin'] !== null && $evalMetrics['davies_bouldin'] < 1.5],
             ['Group Density',      $fmt($evalMetrics['calinski_harabasz'], 1),                      'Higher is better',          true],
@@ -43,7 +43,7 @@
                 <div class="flex items-center gap-2.5">
                     <span class="cluster-swatch cluster-swatch-{{ $clusterId }}"></span>
                     <div>
-                        <div class="card-title">Cluster {{ $clusterId }}</div>
+                        <div class="card-title">Profile Group {{ $clusterId }}</div>
                         <div class="card-sub">{{ $summary['name'] }}</div>
                     </div>
                 </div>
@@ -82,11 +82,11 @@
 
     {{-- ── Charts row ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <x-card title="Risk by Health Group" sub="Score out of 100%">
+        <x-card title="Risk by Profile Group" sub="Score out of 100%">
             <div wire:ignore class="h-56"><canvas id="domainClusterChart"></canvas></div>
         </x-card>
 
-        <x-card title="Risk Level Distribution by Cluster" sub="Stacked composition">
+        <x-card title="Risk Level Distribution by Profile Group" sub="Stacked composition">
             <div class="space-y-4 mt-1">
                 @foreach ($riskByCluster as $clusterId => $dist)
                 @php
@@ -96,7 +96,7 @@
                 <div>
                     <div class="flex items-center gap-2 mb-1.5">
                         <span class="cluster-swatch cluster-swatch-{{ $clusterId }}"></span>
-                        <span class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8]">Cluster {{ $clusterId }}</span>
+                        <span class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8]">Profile Group {{ $clusterId }}</span>
                         <span class="text-[11px] text-ink-500 dark:text-[#6b7570] ml-auto tnum">{{ $total }} members</span>
                     </div>
                     <div class="flex h-5 rounded overflow-hidden gap-px bg-paper-2 dark:bg-[#1a201d]">
@@ -122,7 +122,7 @@
     </div>
 
     {{-- ── Member table ── --}}
-    <x-card title="Cluster Member Records">
+    <x-card title="Profile Group Member Records">
         <x-slot name="noPadding">true</x-slot>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -130,7 +130,7 @@
                 <tr>
                     <th class="th">Senior Citizen</th>
                     <th class="th">Barangay</th>
-                    <th class="th text-center cursor-pointer" wire:click="sortColumn('cluster_named_id')">Cluster</th>
+                    <th class="th text-center cursor-pointer" wire:click="sortColumn('cluster_named_id')">Profile Group</th>
                     <th class="th cursor-pointer" wire:click="sortColumn('composite_risk')">
                         Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '' }}
                     </th>

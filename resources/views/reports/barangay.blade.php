@@ -99,11 +99,11 @@
         {{-- Cluster distribution --}}
         <div class="card">
             <div class="card-head">
-                <div class="card-title">Health Group Distribution</div>
+                <div class="card-title">Profile Group Distribution</div>
             </div>
             <div class="card-body">
                 @if ($clusterDist->isEmpty())
-                    <p class="text-[13px] text-ink-400 dark:text-[#6b7570]">No cluster data available for this barangay.</p>
+                    <p class="text-[13px] text-ink-400 dark:text-[#6b7570]">No profile group data available for this barangay.</p>
                 @else
                 @php
                     $clusterTotal = $clusterDist->sum('count');
@@ -176,7 +176,7 @@
                         <th class="th text-center">Gender</th>
                         <th class="th text-center">Risk Level</th>
                         <th class="th text-center">Composite</th>
-                        <th class="th">Health Group</th>
+                        <th class="th">Profile Group</th>
                         <th class="th"></th>
                     </tr>
                 </thead>

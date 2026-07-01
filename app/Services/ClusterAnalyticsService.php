@@ -42,6 +42,13 @@ class ClusterAnalyticsService
             'labels' => $groups->map(fn ($group) => $group->first()->cluster_name)->values()->toArray(),
             'data' => $groups->map(fn ($group) => $group->count())->values()->toArray(),
             'colors' => $groups->keys()->map(fn ($id) => $this->clusterColor((int) $id))->values()->toArray(),
+            // Per-group domain-risk averages for the dashboard ranked-bar display
+            'domains' => $groups->map(fn ($group) => [
+                'ic' => (float) $group->avg('ic_risk'),
+                'env' => (float) $group->avg('env_risk'),
+                'func' => (float) $group->avg('func_risk'),
+                'composite' => (float) $group->avg('composite_risk'),
+            ])->values()->toArray(),
         ];
     }
 
