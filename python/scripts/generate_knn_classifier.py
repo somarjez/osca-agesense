@@ -38,13 +38,12 @@ BASE_DIR   = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 
 sys.path.insert(0, os.path.join(BASE_DIR, "python", "services"))
 
-import numpy as np                                    # noqa: E402
-import pandas as pd                                   # noqa: E402
-import pymysql                                        # noqa: E402
-import pymysql.cursors                                # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import pymysql  # noqa: E402
+import pymysql.cursors  # noqa: E402
 from sklearn.model_selection import StratifiedKFold, cross_val_score  # noqa: E402
-from sklearn.neighbors import KNeighborsClassifier    # noqa: E402
-
+from sklearn.neighbors import KNeighborsClassifier  # noqa: E402
 
 CV_TARGET = 0.90   # minimum acceptable 5-fold CV accuracy
 KNN_K     = 5

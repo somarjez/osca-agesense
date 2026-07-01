@@ -78,8 +78,8 @@ class ValidateModelPackage extends Command
             return self::FAILURE;
         }
 
-        $cmd     = escapeshellarg($python).' '.escapeshellarg($script);
-        $output  = [];
+        $cmd = escapeshellarg($python).' '.escapeshellarg($script);
+        $output = [];
         $exitCode = 0;
         exec($cmd.' 2>&1', $output, $exitCode);
 
@@ -113,7 +113,7 @@ class ValidateModelPackage extends Command
                 $this->warn('cluster_metadata.json not found at '.self::CLUSTER_META.' — skipping DB check.');
             } else {
                 try {
-                    $meta      = json_decode(file_get_contents($metaPath), true) ?? [];
+                    $meta = json_decode(file_get_contents($metaPath), true) ?? [];
                     $tolerance = (int) $this->option('tolerance');
 
                     // official batch counts: keyed by named cluster id (integer)
@@ -129,7 +129,7 @@ class ValidateModelPackage extends Command
                         $this->warn('cluster_metadata.json has no cluster entries — cannot validate counts.');
                     } else {
                         // Live counts from DB (latest-per-senior, active)
-                        $liveDist   = $analytics->clusterDistribution();
+                        $liveDist = $analytics->clusterDistribution();
                         $liveCounts = [];
                         foreach ($liveDist['data'] ?? [] as $i => $count) {
                             $id = (int) ($liveDist['ids'][$i] ?? 0);
@@ -146,7 +146,7 @@ class ValidateModelPackage extends Command
                         $this->line('  '.str_repeat('-', 55));
 
                         foreach ($official as $id => $batchCount) {
-                            $live  = $liveCounts[$id] ?? null;
+                            $live = $liveCounts[$id] ?? null;
                             $delta = $live !== null ? abs($live - $batchCount) : null;
                             if ($live === null) {
                                 $status = 'WARN (not in DB)';

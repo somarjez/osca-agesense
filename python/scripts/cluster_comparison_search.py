@@ -29,10 +29,8 @@ Output
 import io
 import json
 import os
-import re
 import sys
 import time
-import shutil
 import warnings
 from datetime import date, datetime
 
@@ -49,16 +47,16 @@ BASE_DIR   = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 OUTER_DIR  = os.path.dirname(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "python", "services"))
 
-import numpy as np
-import pandas as pd
-import umap
-from sklearn.cluster    import KMeans
-from sklearn.metrics    import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-from sklearn.ensemble   import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors  import KNeighborsClassifier
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import umap  # noqa: E402
+from sklearn.cluster import KMeans  # noqa: E402
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier  # noqa: E402
+from sklearn.linear_model import LogisticRegression  # noqa: E402
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score  # noqa: E402
+from sklearn.model_selection import StratifiedKFold, cross_val_score  # noqa: E402
+from sklearn.neighbors import KNeighborsClassifier  # noqa: E402
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler  # noqa: E402
 
 OUT_DIR = os.path.join(OUTER_DIR, "osca_output", "cluster_tuning")
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -118,7 +116,10 @@ NN_GRID  = [10, 15, 20, 30, 40]
 MD_GRID  = [0.0, 0.05, 0.1, 0.2]
 MET_GRID = ["euclidean", "manhattan", "cosine"]
 
-W_SIL = 1.0; W_DB = 1.0; W_CH = 0.5; W_IMB = 0.5
+W_SIL = 1.0
+W_DB = 1.0
+W_CH = 0.5
+W_IMB = 0.5
 
 FORBIDDEN_FEATURES = frozenset({
     "composite_risk", "rule_composite", "risk_level", "risk_level_rule",
@@ -129,9 +130,10 @@ FORBIDDEN_FEATURES = frozenset({
 print(f"[comparison] VIF retained: {len(VIF_RETAINED)}  |  Final: {len(FINAL_FEATS)}")
 
 # ── DB + feature loading ────────────────────────────────────────────────────────
-import pymysql
-import pymysql.cursors
+import pymysql  # noqa: E402
+import pymysql.cursors  # noqa: E402
 from preprocess_service import preprocess  # noqa: E402
+
 
 def _db_connect():
     env = {}
@@ -187,14 +189,20 @@ QUERY = """
 """
 
 def _parse_json_col(val):
-    if val is None: return []
-    if isinstance(val, (list, dict)): return val
-    try: return json.loads(val)
-    except Exception: return []
+    if val is None:
+        return []
+    if isinstance(val, (list, dict)):
+        return val
+    try:
+        return json.loads(val)
+    except Exception:
+        return []
 
 def _compute_age(dob):
-    if dob is None: return 70
-    if isinstance(dob, str): dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
+    if dob is None:
+        return 70
+    if isinstance(dob, str):
+        dob = datetime.strptime(dob[:10], "%Y-%m-%d").date()
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
@@ -281,20 +289,34 @@ risk_level_arr     = np.array(risk_levels)
 print(f"[comparison]   {N} feature vectors, {skipped} skipped ({time.time()-t0:.1f}s)")
 
 # Domain groups
-PHY_COLS   = [c for c in ["phy_energy","phy_pain_r","phy_health_limit_r","phy_mobility_outside","phy_mobility_indoor"] if c in df_feat.columns]
-PSYCH_COLS = [c for c in ["psych_happiness","psych_peace","psych_lonely_r","psych_confidence"] if c in df_feat.columns]
-FUNC_COLS  = [c for c in ["func_independence","func_autonomy","func_control"] if c in df_feat.columns]
-ENV_COLS   = [c for c in ["env_safe_home","env_safe_neighborhood","env_home_comfort","env_service_access"] if c in df_feat.columns]
-FIN_COLS   = [c for c in ["env_income_limit_r","env_fin_household","env_fin_medical","env_fin_personal"] if c in df_feat.columns]
-SOC_COLS   = [c for c in ["soc_social_support","soc_close_friend","soc_opportunity","soc_respect"] if c in df_feat.columns]
-WHO_DOMAINS = {"phy": PHY_COLS, "psych": PSYCH_COLS, "func": FUNC_COLS, "env": ENV_COLS, "fin": FIN_COLS, "soc": SOC_COLS}
+PHY_COLS   = [c for c in [
+    "phy_energy", "phy_pain_r", "phy_health_limit_r", "phy_mobility_outside", "phy_mobility_indoor",
+] if c in df_feat.columns]
+PSYCH_COLS = [c for c in [
+    "psych_happiness", "psych_peace", "psych_lonely_r", "psych_confidence",
+] if c in df_feat.columns]
+FUNC_COLS  = [c for c in ["func_independence", "func_autonomy", "func_control"] if c in df_feat.columns]
+ENV_COLS   = [c for c in [
+    "env_safe_home", "env_safe_neighborhood", "env_home_comfort", "env_service_access",
+] if c in df_feat.columns]
+FIN_COLS   = [c for c in [
+    "env_income_limit_r", "env_fin_household", "env_fin_medical", "env_fin_personal",
+] if c in df_feat.columns]
+SOC_COLS   = [c for c in [
+    "soc_social_support", "soc_close_friend", "soc_opportunity", "soc_respect",
+] if c in df_feat.columns]
+WHO_DOMAINS = {
+    "phy": PHY_COLS, "psych": PSYCH_COLS, "func": FUNC_COLS,
+    "env": ENV_COLS, "fin": FIN_COLS, "soc": SOC_COLS,
+}
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _domain_cluster_means(labels):
     dm = {}
     for domain, cols in WHO_DOMAINS.items():
-        if not cols: continue
+        if not cols:
+            continue
         dm[domain] = {}
         for k in range(K_BEST):
             mask = labels == k
@@ -325,7 +347,8 @@ def interpretability_gate(labels, composite_per_k, domain_means, too_small):
     def _dmean(k, domains):
         vals = [domain_means.get(d, {}).get(str(k), 0.5) for d in domains if d in domain_means]
         return float(np.mean(vals)) if vals else 0.5
-    k_low = k_order[0]; k_high = k_order[3]
+    k_low = k_order[0]
+    k_high = k_order[3]
     if _dmean(k_low, ["phy", "func"]) <= _dmean(k_high, ["phy", "func"]):
         return False, profile_map
     return True, profile_map
@@ -369,7 +392,8 @@ def evaluate_config(feat_names, scaler_name, nc, nn, md, metric):
         return None
 
 def _compute_combined(results):
-    if not results: return
+    if not results:
+        return
     sils = np.array([r["sil_umap"]     for r in results])
     dbs  = np.array([r["db_umap"]      for r in results])
     chs  = np.array([r["ch_umap"]      for r in results])
@@ -438,11 +462,11 @@ def full_evaluation(name, feat_names, scaler_name, nc, nn, md, metric):
     print(f"  Scaled: Sil={res['sil_sc']}  DB={res['db_sc']}  Imb={res['imbalance_cv']:.3f}")
     print(f"  Counts={res['counts']}  Interp={res['interpretable']}")
 
-    print(f"  Nearest-centroid agreement:")
+    print("  Nearest-centroid agreement:")
     nc_agree, nc_labels = nearest_centroid_agreement(X_scaled, labels)
     print(f"    {nc_agree*100:.1f}%")
 
-    print(f"  Classifier CV (5-fold):")
+    print("  Classifier CV (5-fold):")
     clf_scores = classifier_cv_scores(X_scaled, labels)
 
     res["nc_agreement"]  = round(nc_agree, 4)
@@ -469,7 +493,7 @@ if os.path.exists(SS_CHECKPOINT):
     print(f"[Stage A-SS]   Loaded {len(stage_ss)} StandardScaler results from checkpoint.")
 
 elif os.path.exists(FULL_CHECKPOINT):
-    print(f"\n[Stage A-SS] Full Stage A checkpoint found -- extracting StandardScaler results")
+    print("\n[Stage A-SS] Full Stage A checkpoint found -- extracting StandardScaler results")
     with open(FULL_CHECKPOINT, encoding="utf-8") as fh:
         full_checkpoint = json.load(fh)
     stage_ss = [r for r in full_checkpoint if r.get("scaler") == "StandardScaler"]
@@ -479,10 +503,10 @@ elif os.path.exists(FULL_CHECKPOINT):
     stage_ss.sort(key=lambda r: r["combined"], reverse=True)
     with open(SS_CHECKPOINT, "w", encoding="utf-8") as fh:
         json.dump(stage_ss, fh)
-    print(f"[Stage A-SS]   SS checkpoint saved.")
+    print("[Stage A-SS]   SS checkpoint saved.")
 
 else:
-    print(f"\n[Stage A-SS] No checkpoint found -- running 240 StandardScaler configs")
+    print("\n[Stage A-SS] No checkpoint found -- running 240 StandardScaler configs")
     total_ss = len(NC_GRID) * len(NN_GRID) * len(MD_GRID) * len(MET_GRID)
     done_ss  = 0
     t_ss     = time.time()
@@ -494,7 +518,8 @@ else:
                     res = evaluate_config(FINAL_FEATS, "StandardScaler", nc, nn, md, met)
                     if res is not None:
                         res["stage"] = "SS_A"
-                        res.pop("labels", None); res.pop("X_scaled", None)
+                        res.pop("labels", None)
+                        res.pop("X_scaled", None)
                         stage_ss.append(res)
                     if done_ss % 40 == 0 or done_ss == total_ss:
                         elapsed = time.time() - t_ss
@@ -510,8 +535,11 @@ else:
     print(f"[Stage A-SS] Complete -- {len(stage_ss)} configs in {time.time()-t_ss:.1f}s")
 
 best_ss_a = stage_ss[0]
-print(f"\n[Stage A-SS] Best StandardScaler config:")
-print(f"  nc={best_ss_a['n_components']} nn={best_ss_a['n_neighbors']} md={best_ss_a['min_dist']} met={best_ss_a['metric']}")
+print("\n[Stage A-SS] Best StandardScaler config:")
+print(
+    f"  nc={best_ss_a['n_components']} nn={best_ss_a['n_neighbors']}"
+    f" md={best_ss_a['min_dist']} met={best_ss_a['metric']}"
+)
 print(f"  UMAP: Sil={best_ss_a['sil_umap']}  DB={best_ss_a['db_umap']}  CH={best_ss_a['ch_umap']}")
 print(f"  Scaled: Sil={best_ss_a['sil_sc']}  DB={best_ss_a['db_sc']}")
 print(f"  Interp={best_ss_a['interpretable']}  Counts={best_ss_a['counts']}")
@@ -536,7 +564,8 @@ res_b0 = evaluate_config(
 )
 if res_b0:
     res_b0["stage"] = "SS_B_baseline"
-    res_b0.pop("labels", None); res_b0.pop("X_scaled", None)
+    res_b0.pop("labels", None)
+    res_b0.pop("X_scaled", None)
     stage_ss_b.append(res_b0)
 b0_sil = res_b0["sil_umap"] if res_b0 else best_ss_a["sil_umap"]
 b0_db  = res_b0["db_umap"]  if res_b0 else best_ss_a["db_umap"]
@@ -549,8 +578,10 @@ for fi, feat in enumerate(FINAL_FEATS):
         best_ss_a["min_dist"], best_ss_a["metric"],
     )
     if res is not None:
-        res["stage"] = "SS_B"; res["removed_feature"] = feat
-        res.pop("labels", None); res.pop("X_scaled", None)
+        res["stage"] = "SS_B"
+        res["removed_feature"] = feat
+        res.pop("labels", None)
+        res.pop("X_scaled", None)
         stage_ss_b.append(res)
 
 print(f"[Stage B-SS] Complete in {time.time()-t_b:.1f}s")
@@ -635,7 +666,10 @@ comparison_json = {
     "ss_result":        _strip_arrays(ss_result)        if ss_result        else None,
     "mm_result":        _strip_arrays(mm_result)        if mm_result        else None,
     "ss_top10_interp":  [
-        {k: v for k, v in r.items() if k not in ("domain_means","risk_dist","profile_map","composite_per_cluster","labels","X_scaled","combined")}
+        {k: v for k, v in r.items() if k not in (
+            "domain_means", "risk_dist", "profile_map",
+            "composite_per_cluster", "labels", "X_scaled", "combined",
+        )}
         for r in interp_ss[:10]
     ],
 }
@@ -705,7 +739,8 @@ report_lines = [
 ]
 
 def _best_clf(clf_scores):
-    if not clf_scores: return "--"
+    if not clf_scores:
+        return "--"
     best = max(clf_scores.items(), key=lambda x: x[1]["mean"])
     return f"{best[0]} {_pct(best[1]['mean'])}"
 
@@ -730,7 +765,7 @@ report_lines += [
     "",
     "## 2. Original Baseline (StandardScaler nc=10 nn=15 md=0.0 euclidean 31 features)",
     "",
-    f"**Config:** StandardScaler | nc=10 | nn=15 | md=0.0 | euclidean | 31 features",
+    "**Config:** StandardScaler | nc=10 | nn=15 | md=0.0 | euclidean | 31 features",
     f"**UMAP:** Sil={BASELINE_SIL}  DB={BASELINE_DB}  CH={BASELINE_CH}",
 ]
 if baseline_result:
@@ -795,7 +830,7 @@ report_lines += [
 ]
 if mm_result:
     report_lines += [
-        f"**Config:** MinMaxScaler | nc=10 | nn=10 | md=0.0 | euclidean | 30 features (removed: env_income_limit_r)",
+        "**Config:** MinMaxScaler | nc=10 | nn=10 | md=0.0 | euclidean | 30 features (removed: env_income_limit_r)",
         f"**UMAP:** Sil={mm_result['sil_umap']}  DB={mm_result['db_umap']}  CH={mm_result['ch_umap']}",
         f"**Scaled:** Sil={mm_result['sil_sc']}  DB={mm_result['db_sc']}",
         f"**NC Agreement:** {_pct(mm_result.get('nc_agreement'))}",
@@ -821,13 +856,20 @@ report_lines += ["", "---", "", "## 5. RECOMMENDATION", ""]
 ss_nc = ss_result["nc_agreement"] if ss_result else 0
 mm_nc = mm_result["nc_agreement"] if mm_result else 0
 
-ss_best_clf = max(ss_result["clf_scores"].values(), key=lambda x: x["mean"])["mean"] if ss_result and ss_result.get("clf_scores") else 0
-mm_best_clf = max(mm_result["clf_scores"].values(), key=lambda x: x["mean"])["mean"] if mm_result and mm_result.get("clf_scores") else 0
+ss_best_clf = (
+    max(ss_result["clf_scores"].values(), key=lambda x: x["mean"])["mean"]
+    if ss_result and ss_result.get("clf_scores") else 0
+)
+mm_best_clf = (
+    max(mm_result["clf_scores"].values(), key=lambda x: x["mean"])["mean"]
+    if mm_result and mm_result.get("clf_scores") else 0
+)
 
 ss_sil = ss_result["sil_umap"] if ss_result else 0
 mm_sil = mm_result["sil_umap"] if mm_result else 0
 
-beats_target = lambda r: r["sil_umap"] > 0.44 and r["db_umap"] < 0.84 and r["ch_umap"] >= 496 if r else False
+def beats_target(r):
+    return bool(r) and r["sil_umap"] > 0.44 and r["db_umap"] < 0.84 and r["ch_umap"] >= 496
 
 if ss_result and beats_target(ss_result) and ss_result["interpretable"]:
     if ss_nc >= mm_nc - 0.02 or ss_best_clf >= mm_best_clf - 0.02:
@@ -868,7 +910,7 @@ else:
         " has excellent cluster quality and interpretability, but weak nearest-centroid consistency.",
         "",
         "The classifier approach bridges this gap:",
-        f"  - Batch (notebook): MinMaxScaler UMAP+KMeans -- clean cluster structure",
+        "  - Batch (notebook): MinMaxScaler UMAP+KMeans -- clean cluster structure",
         f"  - Inference: RandomForest/GradientBoosting trained on batch labels"
         f" -- CV accuracy {_pct(mm_best_clf)}",
         "",

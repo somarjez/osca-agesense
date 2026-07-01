@@ -39,9 +39,9 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import time
-import shutil
 import warnings
 from datetime import date, datetime
 
@@ -60,14 +60,16 @@ OUTER_DIR  = os.path.dirname(BASE_DIR)                       # osca-system/ (out
 
 sys.path.insert(0, os.path.join(BASE_DIR, "python", "services"))
 
-import numpy as np
-import pandas as pd
-import umap
-from sklearn.cluster import KMeans
-from sklearn.metrics import (
-    silhouette_score, davies_bouldin_score, calinski_harabasz_score,
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import umap  # noqa: E402
+from sklearn.cluster import KMeans  # noqa: E402
+from sklearn.metrics import (  # noqa: E402
+    calinski_harabasz_score,
+    davies_bouldin_score,
+    silhouette_score,
 )
-from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler  # noqa: E402
 
 # ── Output directory ───────────────────────────────────────────────────────────
 OUT_DIR = os.path.join(OUTER_DIR, "osca_output", "cluster_tuning")
@@ -145,8 +147,9 @@ BASELINE_DB  = 0.8586
 BASELINE_CH  = 496.4
 
 # ── DB connection ──────────────────────────────────────────────────────────────
-import pymysql
-import pymysql.cursors
+import pymysql  # noqa: E402
+import pymysql.cursors  # noqa: E402
+
 
 def _db_connect():
     env: dict = {}
@@ -170,7 +173,7 @@ def _db_connect():
         cursorclass = pymysql.cursors.DictCursor,
     )
 
-from preprocess_service import preprocess   # noqa: E402
+from preprocess_service import preprocess  # noqa: E402,I001
 
 QUERY = """
     SELECT
@@ -412,11 +415,7 @@ def interpretability_gate(labels, composite_per_k, domain_means, too_small):
         return False, profile_map
 
     # (c) Env/Financial Vulnerable cluster (k_order[2]) should show env/fin deficit
-    k_env  = k_order[2]
-    pf_ev  = _dmean(k_env, ["phy", "func"])
-    ef_ev  = _dmean(k_env, ["env", "fin"])
-    # The check is lenient (positive deficit preferred, not hard-enforced)
-    # --full profile table is printed for human confirmation
+    # (c) Env/Financial Vulnerable: lenient check — full profile table printed for human review
 
     return True, profile_map
 
@@ -476,7 +475,7 @@ def evaluate_config(feat_names, scaler_name, nc, nn, md, metric):
             "domain_means": dom_means, "risk_dist": risk_dist,
             "removed_feature": "", "stage": "",
         }
-    except Exception as exc:
+    except Exception:
         return None
 
 
@@ -558,7 +557,7 @@ print(f"  Counts={best_a['counts']}  ImbCV={best_a['imbalance_cv']}  Interp={bes
 # ═══════════════════════════════════════════════════════════════════════════════
 # Stage B --feature ablation under Stage-A best config (32 configs)
 # ═══════════════════════════════════════════════════════════════════════════════
-print(f"\n[Stage B] Feature ablation under Stage-A best config --32 configs")
+print("\n[Stage B] Feature ablation under Stage-A best config --32 configs")
 stage_b: list = []
 t_b = time.time()
 
@@ -655,7 +654,11 @@ print(f"\n[Final] Winner: {winner['scaler']} | nc={winner['n_components']}"
       f" nn={winner['n_neighbors']} md={winner['min_dist']} met={winner['metric']}"
       f" n_feat={winner['n_features']}")
 print(f"  UMAP-space: Sil={winner['sil_umap']}  DB={winner['db_umap']}  CH={winner['ch_umap']}")
-print(f"  Targets:   Sil>0.44={'Y' if beats_sil else 'N'}  DB<0.84={'Y' if beats_db else 'N'}  CH>=496={'Y' if beats_ch else 'N'}")
+print(
+    f"  Targets:   Sil>0.44={'Y' if beats_sil else 'N'}"
+    f"  DB<0.84={'Y' if beats_db else 'N'}"
+    f"  CH>=496={'Y' if beats_ch else 'N'}"
+)
 print(f"  Interpretable: {winner['interpretable']}")
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -767,14 +770,21 @@ report_sections = [
     "## Metric Comparison",
     "| Metric | Baseline | Winner | Delta | Target | Met? |",
     "|---|---|---|---|---|---|",
-    f"| Silhouette (UMAP)        | {BASELINE_SIL} | {winner['sil_umap']} | {_dsign(winner['sil_umap'],BASELINE_SIL,True)}  | >{TARGET_SIL} | {'✓' if beats_sil else '✗'} |",
-    f"| Davies-Bouldin (UMAP)    | {BASELINE_DB}  | {winner['db_umap']}  | {_dsign(winner['db_umap'],BASELINE_DB,False)} | <{TARGET_DB}  | {'✓' if beats_db  else '✗'} |",
-    f"| Calinski-Harabasz (UMAP) | {BASELINE_CH}  | {winner['ch_umap']}  | {_dsign(winner['ch_umap'],BASELINE_CH,True)}  | >={TARGET_CH} | {'✓' if beats_ch  else '✗'} |",
+    f"| Silhouette (UMAP)        | {BASELINE_SIL} | {winner['sil_umap']}"
+    f" | {_dsign(winner['sil_umap'],BASELINE_SIL,True)}  | >{TARGET_SIL}"
+    f" | {'✓' if beats_sil else '✗'} |",
+    f"| Davies-Bouldin (UMAP)    | {BASELINE_DB}  | {winner['db_umap']}"
+    f"  | {_dsign(winner['db_umap'],BASELINE_DB,False)} | <{TARGET_DB}"
+    f"  | {'✓' if beats_db  else '✗'} |",
+    f"| Calinski-Harabasz (UMAP) | {BASELINE_CH}  | {winner['ch_umap']}"
+    f"  | {_dsign(winner['ch_umap'],BASELINE_CH,True)}  | >={TARGET_CH}"
+    f" | {'✓' if beats_ch  else '✗'} |",
     f"| Silhouette (scaled)      | --             | {winner['sil_sc']}   | --    | guardrail | --|",
     f"| Davies-Bouldin (scaled)  | --             | {winner['db_sc']}    | --    | guardrail | --|",
     f"| CH (scaled)              | --             | {winner['ch_sc']}    | --    | guardrail | --|",
     f"| Imbalance CV             | --             | {winner['imbalance_cv']} | --| lower=better | --|",
-    f"| Cluster counts           | --             | {winner['counts']}   | --    | min {int(N*MIN_CLUSTER_FRAC)} each | --|",
+    f"| Cluster counts           | --             | {winner['counts']}"
+    f"   | --    | min {int(N*MIN_CLUSTER_FRAC)} each | --|",
     "",
     "## Interpretability",
     f"Gate passed: **{winner['interpretable']}**",
@@ -782,7 +792,10 @@ report_sections = [
     "Profile mapping (raw KMeans label → named profile, ordered by ascending rule_composite):",
 ]
 if winner.get("profile_map"):
-    for k_str, pname in sorted(winner["profile_map"].items(), key=lambda x: float(winner["composite_per_cluster"].get(x[0], 0))):
+    for k_str, pname in sorted(
+        winner["profile_map"].items(),
+        key=lambda x: float(winner["composite_per_cluster"].get(x[0], 0)),
+    ):
         comp  = winner.get("composite_per_cluster", {}).get(k_str, "?")
         cnt   = winner["counts"][int(k_str)] if int(k_str) < len(winner["counts"]) else "?"
         report_sections.append(
@@ -853,8 +866,10 @@ if all_targets_met and winner["interpretable"]:
     # Build the exact ABLATION_FEATURES list (all features in VIF but not in best_b_feats)
     new_ablation = [f for f in VIF_RETAINED if f not in best_b_feats]
     scaler_cls   = winner["scaler"]
-    nc_w = winner["n_components"]; nn_w = winner["n_neighbors"]
-    md_w = winner["min_dist"];     met_w = winner["metric"]
+    nc_w = winner["n_components"]
+    nn_w = winner["n_neighbors"]
+    md_w = winner["min_dist"]
+    met_w = winner["metric"]
 
     report_sections += [
         "**APPLY the winning config.** All three targets met and interpretability gate passed.",
@@ -865,13 +880,13 @@ if all_targets_met and winner["interpretable"]:
         "",
         f"sc_final = {scaler_cls}()",
         "",
-        f"rd_final = umap.UMAP(",
+        "rd_final = umap.UMAP(",
         f"    n_components={nc_w},",
         f"    n_neighbors={nn_w},",
         f"    min_dist={md_w},",
         f"    metric='{met_w}',",
-        f"    random_state=RANDOM_STATE,",
-        f")",
+        "    random_state=RANDOM_STATE,",
+        ")",
         "",
         "km_final = KMeans(n_clusters=K_BEST, init='k-means++', n_init=100, "
         "max_iter=1000, random_state=RANDOM_STATE)",
@@ -1016,7 +1031,7 @@ def _apply_to_notebook(win, b_feats):
     print(f"[apply]   ABLATION_FEATURES = {new_ablation!r}")
     print(f"[apply]   sc_final = {sc_cls}()")
     print(f"[apply]   rd_final: nc={nc_w} nn={nn_w} md={md_w} metric={met_w}")
-    print(f"[apply]   km_final: init='k-means++' n_init=100 max_iter=1000")
+    print("[apply]   km_final: init='k-means++' n_init=100 max_iter=1000")
     return True
 
 

@@ -2125,7 +2125,10 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
                             preprocessed = dict(preprocessed)
                             preprocessed["_precomputed_named_id"]       = named_id
                             preprocessed["_precomputed_raw_cluster_id"] = raw_cluster_id
-                            warnings_list.append("Nearest-centroid cluster assignment used (cluster_assignment_knn_k5.pkl missing).")
+                            warnings_list.append(
+                                "Nearest-centroid cluster assignment used "
+                                "(cluster_assignment_knn_k5.pkl missing)."
+                            )
 
                     if "_precomputed_named_id" not in preprocessed and reducer is not None and kmeans is not None:
                         # ⚠️ UMAP fallback — only when both KNN and centroid are unavailable
