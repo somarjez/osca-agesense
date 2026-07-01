@@ -196,9 +196,18 @@
             </div>
         </x-card>
 
-        {{-- Domain Scores — radar --}}
+        {{-- Domain Scores — radar + score legend --}}
         <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" class="card-lift">
-            <div wire:ignore class="relative h-72"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
+            <div wire:ignore class="relative h-52"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
+            <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                @foreach ($domainScoreChart['labels'] as $di => $dlabel)
+                @php $dscore = $domainScoreChart['data'][$di] ?? 0; @endphp
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] text-ink-500 dark:text-[#8a9087] truncate flex-1">{{ $dlabel }}</span>
+                    <span class="text-[11px] font-mono font-semibold tnum text-ink-800 dark:text-[#c8c4bc] flex-shrink-0">{{ number_format($dscore, 1) }}</span>
+                </div>
+                @endforeach
+            </div>
         </x-card>
 
         {{-- Age Group Distribution --}}

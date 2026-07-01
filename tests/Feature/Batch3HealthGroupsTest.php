@@ -62,7 +62,7 @@ class Batch3HealthGroupsTest extends TestCase
             ->get(route('reports.cluster'))
             ->assertOk()
             ->assertSee('Model Insights')
-            ->assertSee('Cluster Explorer')
+            ->assertSee('Profile Group Explorer')
             ->assertSee('Snapshot History');
     }
 
