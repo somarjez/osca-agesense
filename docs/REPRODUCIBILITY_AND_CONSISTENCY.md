@@ -17,7 +17,7 @@ pure function of their input data. Three independent properties make this true:
 
 | Guarantee | What it removes | Mechanism |
 |---|---|---|
-| **1. Deterministic algorithms** | randomness | Cluster = nearest-centroid (pure Euclidean distance); risk = Gradient Boosting + Random Forest tree models. No stochastic step at inference. |
+| **1. Deterministic algorithms** | randomness | Cluster = KNN k=5 classifier (primary) → nearest-centroid fallback (30-D scaled space); risk = Gradient Boosting + Random Forest tree models. No stochastic step at inference. |
 | **2. Frozen age** | *time* dependency | Age is computed from `date_of_birth` relative to the **survey date**, never "today". |
 | **3. Version lock** | *environment* dependency | Pinned library versions (`requirements.txt`) + SHA-256 verification of model files at startup. |
 
@@ -83,13 +83,15 @@ The notebook clusters with **UMAP (10-dim) → KMeans**. UMAP's `transform()` on
 library versions — it is **not reproducible per-record**. Enabling it in the live
 system produced a 2.1% match (broken), not a better one.
 
-The live system therefore uses **deterministic nearest-centroid in 31-dim scaled
-space** (`cluster_centroids_scaled.json`). This is the correct production choice:
-it is bit-for-bit identical on every device.
+The live system therefore uses a **trained KNN classifier (k=5, euclidean, MinMaxScaler·30-feature)**
+(`cluster_assignment_knn_k5.pkl`) as the primary cluster assignment method — bit-for-bit identical
+on every device (CV accuracy 0.9333, Silhouette 0.5577, Davies-Bouldin 0.6492).
+A nearest-centroid fallback (`cluster_centroids_scaled.json`, 30-D scaled space) is available
+when the KNN artifact is absent. UMAP and KMeans are **not called** at inference time.
 
-Its agreement with the notebook is **86.9%** (313/360 seniors). The 13.1% (47 seniors) that differ are
-**boundary-ambiguous seniors** — proven, not assumed: their distance gap between
-the nearest and second-nearest cluster averages **0.1002**, versus **0.3327** for
+The KNN's agreement with the notebook UMAP+KMeans labels is **86.9%** (313/360 seniors). The 13.1%
+(47 seniors) that differ are **boundary-ambiguous seniors** — proven, not assumed: their distance
+gap between the nearest and second-nearest cluster averages **0.1002**, versus **0.3327** for
 agreeing seniors (3.3× tighter). For these borderline seniors, the **risk score
 and recommendations are identical** regardless of which cluster label they get.
 

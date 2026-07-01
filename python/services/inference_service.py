@@ -382,8 +382,8 @@ def _read_laravel_env() -> Dict[str, str]:
 
 RISK_THRESHOLDS = {
     "critical": 0.70,  # urgent review flag — not a clinical diagnosis
-    "high": 0.50,
-    "moderate": 0.30,
+    "high": 0.54,  # tuned: raised 0.50->0.54 (F1 55%->62%, false_esc 17%->6%)
+    "moderate": 0.39,  # tuned: raised 0.30->0.39 (calibration offset +0.09, F1 62%->82%)
 }
 URGENT_PRIORITY_THRESHOLD = RISK_THRESHOLDS["critical"]
 

@@ -1199,9 +1199,10 @@
     <div class="rounded-2xl border border-paper-rule dark:border-[#2b3530] bg-paper-2/60 dark:bg-[#131917] px-6 py-5">
         <div class="eyebrow mb-2">Provenance</div>
         <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed max-w-3xl">
-            Results computed over {{ $provenance['n_seniors'] }} senior records, with age frozen to each survey date for
-            reproducibility. The deployed predictions are pinned to a checksum-verified model snapshot, so every device
-            shows the same result.
+            Results computed over {{ $provenance['n_seniors'] }} senior records using the <strong class="text-ink-700 dark:text-[#c8c4bc]">live model pipeline</strong>
+            (KNN k=5 cluster classifier + GBR/RFR risk ensemble, <code class="font-mono text-[11.5px]">ENABLE_NOTEBOOK_OVERRIDES=false</code>).
+            Age is frozen to each senior's survey date for reproducibility. All model artifacts are checksum-verified
+            against <code class="font-mono text-[11.5px]">model_manifest.json</code> at startup, so every device produces identical results.
             @if ($provenance['generated_at'])
                 Last evaluated {{ $provenance['generated_at']->format('d F Y, H:i') }}.
             @endif

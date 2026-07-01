@@ -115,7 +115,7 @@ The inference service uses two different paths depending on the senior and the `
 
 ### Path A — Notebook cache (`prediction_source = notebook_cache`)
 
-**Used for:** The 290 seed seniors when `ENABLE_NOTEBOOK_OVERRIDES=true`.
+**Used for:** The 360 seed seniors when `ENABLE_NOTEBOOK_OVERRIDES=true` (optional demo/defense mode — not the deployed default).
 
 The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from the database (populated from `senior_predictions.csv`). UMAP and the GBR/RFR models are **not called** for these seniors. The result is identical across all devices.
 
@@ -158,7 +158,7 @@ FROM ml_results
 GROUP BY prediction_source;
 ```
 
-Expected for defense mode: `notebook_cache: 283, live_model: N` (where N is any new seniors you added).
+Expected for **live-model mode (default)**: all rows `live_model`. Expected for notebook-exact mode (`ENABLE_NOTEBOOK_OVERRIDES=true`): `notebook_cache: 360, live_model: N` (where N is any new seniors added after seeding).
 
 ---
 
@@ -308,15 +308,16 @@ Expand-Archive -Path osca_models_v2.0.0.zip -DestinationPath . -Force
 
 ```
 [ ] 1. Confirm ML_MODELS_PATH=python/models is in .env
-[ ] 2. Confirm ENABLE_NOTEBOOK_OVERRIDES=true is in .env
+[ ] 2. Confirm ENABLE_NOTEBOOK_OVERRIDES=false in .env (live-model default)
+        Set true only if you need exact notebook distribution for a demo/defense.
 [ ] 3. Run artifact validation:
         python\venv\Scripts\python.exe python\scripts\validate_model_artifacts.py
         → Expected: 51 PASS, 0 FAIL, 0 WARN
 [ ] 4. Start both Flask services (start.bat or manually)
 [ ] 5. Run reproducibility test:
-        python\venv\Scripts\python.exe python\scripts\test_reproducibility.py
-        → Expected: 28 PASS, 0 FAIL
-[ ] 6. Import the database dump if exact same 283 results are required
+        python\venv\Scripts\python.exe python\scripts\validate_system.py
+        → Expected: cluster match ~87%, risk-level match ~99.4%, determinism PASS
+[ ] 6. Import the database dump if exact same DB state is required
         (follow DATABASE_SHARING_AND_TEAM_SETUP.md)
 ```
 
@@ -328,10 +329,10 @@ If step 3 fails, the artifact bundle is incomplete or corrupted — re-transfer 
 
 | Scenario | `ENABLE_NOTEBOOK_OVERRIDES` |
 |---|---|
-| Demo or defense with the 283 seed seniors | `true` |
-| Adding and testing new seniors live | `true` (new seniors always use live model path) |
-| Verifying that the live model works correctly | `false` |
-| Validating that live model matches notebook output | `false` — then run `test_reproducibility.py` |
+| **Normal deployment / production use** | `false` (default) — live KNN + GBR/RFR scores every senior |
+| Adding and testing new seniors live | `false` (default) — live model always applies to new seniors |
+| Verifying live model fidelity vs notebook | `false` — then run `validate_system.py` |
+| Demo or defense needing exact notebook distribution | `true` — seeded seniors read from `notebook_cache`; then run `php artisan ml:batch-analyze --force` |
 
 Switching this setting requires restarting both Flask services (stop.bat → start.bat).
 
@@ -342,8 +343,8 @@ Switching this setting requires restarting both Flask services (stop.bat → sta
 | Variable | Default | Description |
 |---|---|---|
 | `ML_MODELS_PATH` | *(auto)* | Path to artifact directory. **Always set this to `python/models`.** |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | `true` = use stored notebook_cache results for seed seniors. Set `true` for demos. |
-| `ENABLE_DETERMINISTIC_CLUSTER` | `true` | `true` = use nearest-centroid in 31D scaled space (deterministic, v1.1.1+). `false` = legacy UMAP→KMeans path (non-deterministic across CPU/OS). **Always set `true` in production.** |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | **`false` (deployed default)** = live KNN cluster + GBR/RFR risk for every senior. `true` = use stored notebook_cache results for seeded seniors (demo/defense mode). |
+| `ENABLE_DETERMINISTIC_CLUSTER` | `true` | `true` = use KNN k=5 classifier (primary) → nearest-centroid fallback in 30D scaled space (deterministic). `false` = legacy UMAP→KMeans path (non-deterministic across CPU/OS — debug only). **Always leave `true` in production.** |
 | `NUMBA_THREADING_LAYER` | `workqueue` | Set in code at startup. Forces single-threaded UMAP for determinism. |
 | `NUMBA_NUM_THREADS` | `1` | Set in code at startup. One UMAP thread per inference call. |
 | `OMP_NUM_THREADS` | `1` | Set in code at startup. One OpenMP thread. |
@@ -366,33 +367,31 @@ The three NUMBA/OMP variables are set automatically in `inference_service.py` us
 
 The correct mapping is `{"0": 3, "1": 1, "2": 2}`. Any other mapping produces wrong cluster names. Re-export from `osca5.ipynb` or manually set the file to the correct value and re-run validation.
 
-### Cluster distribution does not match HIGH=55 / MODERATE=191 / LOW=37 (live model)
+### Cluster distribution does not match expected live-model distribution (HIGH≈77, MODERATE≈233, LOW≈50, N=360)
 
-The live model uses deterministic nearest-centroid assignment in 31D scaled space. If the distribution is wrong:
+The live model uses the trained KNN k=5 cluster classifier and GBR/RFR risk ensemble. If the distribution looks wrong:
 
 1. Check prediction sources in the database:
    ```sql
    SELECT prediction_source, model_version, COUNT(*)
    FROM ml_results GROUP BY prediction_source, model_version;
    ```
-2. If rows still show an older `model_version` (e.g. `1.1.x`), the batch re-analysis hasn't run yet:
+   Expected (live-model default): all active rows show `live_model`.
+   If you see `notebook_cache` rows, `ENABLE_NOTEBOOK_OVERRIDES` was `true` when those rows were written — flip it to `false` and force-recompute.
+2. Force re-analysis of all seniors with the current pipeline:
    ```powershell
-   # Force re-analysis of all seniors with the current pipeline
    php artisan ml:batch-analyze --force
    ```
-3. Verify `cluster_centroids_scaled.json` is present in `python/models/` with 283 seniors and 4 clusters:
+3. Verify the KNN artifact is present in `python/models/`:
    ```powershell
-   python\venv\Scripts\python.exe -c "import json; d=json.load(open('python/models/cluster_centroids_scaled.json')); print('n_seniors_used:', d['n_seniors_used'], '| n_clusters:', d['n_clusters'])"
+   python\venv\Scripts\python.exe -c "import json; d=json.load(open('python/models/cluster_assignment_metadata.json')); print('cv_accuracy:', d.get('cv_accuracy'), '| k:', d.get('k'))"
    ```
-   Expected: `n_seniors_used: 283 | n_clusters: 4`
-4. If centroid file is missing or shows `n_seniors_used: 0`, seed notebook_cache first, then regenerate:
-   ```powershell
-   php artisan ml:repair-notebook-cache
-   python\venv\Scripts\python.exe python\scripts\generate_cluster_centroids.py
-   php artisan ml:batch-analyze --force
-   ```
+   Expected: `cv_accuracy: 0.9333 | k: 5`
+4. If the KNN artifact is missing, fall back to nearest-centroid: verify `cluster_centroids_scaled.json` is present with 4 clusters.
 
-### Cluster distribution does not match HIGH=55 / MODERATE=191 / LOW=37 (notebook_cache mode)
+### Cluster distribution does not match notebook distribution (demo/defense mode only)
+
+*This section applies only when `ENABLE_NOTEBOOK_OVERRIDES=true`. The deployed default (`false`) always uses live-model scores.*
 
 1. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`.
 2. Restart services (stop.bat → start.bat).
@@ -400,8 +399,8 @@ The live model uses deterministic nearest-centroid assignment in 31D scaled spac
    ```sql
    SELECT prediction_source, COUNT(*) FROM ml_results GROUP BY prediction_source;
    ```
-   All 283 rows should show `notebook_cache`.
-4. If any rows show `live_model`, the notebook_cache was overwritten. Restore it:
+   All 360 seeded rows should show `notebook_cache`.
+4. If any rows show `live_model`, the notebook_cache was not seeded for those seniors. Restore it:
    ```powershell
    php artisan ml:repair-notebook-cache
    ```
@@ -409,7 +408,7 @@ The live model uses deterministic nearest-centroid assignment in 31D scaled spac
 
 ### Two devices produce different risk levels for the same senior
 
-As of v1.1.1, this should not happen for new seniors because cluster assignment uses `cluster_centroids_scaled.json` (a committed file — identical on all devices). If it still occurs:
+As of v2.0.0, this should not happen because cluster assignment uses `cluster_assignment_knn_k5.pkl` (a committed, checksum-verified artifact — identical on all devices). If it still occurs:
 
 1. Confirm both devices pulled the latest `feat/live-model-alignment` branch (or main after merge). The `cluster_centroids_scaled.json` file must be present on both devices.
 2. Run `validate_model_artifacts.py` on both devices. Confirm artifacts match.

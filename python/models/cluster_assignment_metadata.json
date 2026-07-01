@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-30T15:39:04",
+  "generated_at": "2026-07-01T00:13:21",
   "artifact": "cluster_assignment_knn_k5.pkl",
   "k": 5,
   "metric": "euclidean",

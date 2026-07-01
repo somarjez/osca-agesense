@@ -31,22 +31,24 @@
 
 ## 1. How Model Distribution Works
 
-The system uses a design called **notebook overrides** to guarantee that every machine produces identical results:
+The system guarantees cross-device determinism through two complementary mechanisms:
+
+**Default (live-model mode, `ENABLE_NOTEBOOK_OVERRIDES=false`):** Every device uses the same trained artifacts (KNN cluster classifier + GBR/RFR risk models). Because library versions are pinned and artifacts are SHA-256 verified, the KNN produces bit-for-bit identical cluster assignments on any device. This is the standard deployed mode — no prediction CSVs need to be distributed.
+
+**Optional notebook-cache mode (`ENABLE_NOTEBOOK_OVERRIDES=true`):** The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from `python/models/predictions/senior_predictions.csv` (the notebook's exported ground-truth). This guarantees 100% cluster match with the notebook (vs the live-model's ~87%) and is useful for demos where you need bit-for-bit notebook reproduction. This file is **gitignored and never committed** because it contains real personal health data.
+
+When retraining the model:
 
 1. You train the model in `osca5.ipynb` and export the results to `osca_output/`
-2. You copy those files into `python/models/` inside the repository
-3. You push to GitHub — **only `.pkl` and `.json` model files are committed; the prediction CSVs are gitignored**
-4. Every other machine re-clones (or pulls) and copies the prediction CSVs from your shared `osca_output/` folder, then reseeds
+2. You copy the new `.pkl` and `.json` model files into `python/models/` inside the repository
+3. You push to GitHub — model artifacts are committed; prediction CSVs are gitignored
+4. Every other machine re-clones (or pulls) to get the new artifacts
 
-This means the model does **not** run differently on different machines. Every device uses your exact notebook output.
-
-The key setting that enables this is:
+The deployed default is `ENABLE_NOTEBOOK_OVERRIDES=false`:
 
 ```env
-ENABLE_NOTEBOOK_OVERRIDES=true
+ENABLE_NOTEBOOK_OVERRIDES=false
 ```
-
-When this is `true` (the default), the inference service reads `composite_risk`, `cluster_id`, and `risk_level` from `python/models/predictions/senior_predictions.csv` — the file you place locally from `osca_output/` — instead of computing them live. This file is **gitignored and never committed** because it contains real personal health data.
 
 ---
 
@@ -206,7 +208,7 @@ Before committing, do a quick sanity check:
    - HIGH: 77 (of which 2 show the urgent-flag ring), MODERATE: 233, LOW: 50
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
-If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
+If the dashboard numbers are wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in your `.env` (live-model default) and that the Flask services reloaded the flag (restart via `/ml/status` or stop.bat → start.bat). Then run `php artisan ml:batch-analyze --force` so all seniors get fresh live-model scores.
 
 ---
 

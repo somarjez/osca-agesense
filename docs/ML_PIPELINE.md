@@ -181,16 +181,22 @@ The notebook assigned each senior to one of 4 clusters in 2D UMAP space using `K
 - KNN on the original 30D MinMaxScaler-scaled space is bit-for-bit identical on any device
 - 5-fold stratified CV accuracy 0.9333 confirms high fidelity to the notebook cluster labels
 
-**Accuracy of KNN vs notebook** (figures below are from the original **v1.1.1 / K=3** validation run; the current build is **v2.0.0 / K=4** — see [model-validation-defensible-statements.md](model-validation-defensible-statements.md) and `cluster_assignment_metadata.json` for the current K=4 cluster-quality metrics):
+**Accuracy of KNN vs notebook (v2.0.0 / K=4, N=360)** — from `validate_system.py` run 2026-07-01 with `ENABLE_NOTEBOOK_OVERRIDES=false`:
 
-| Metric | Result (v1.1.1 / K=3) |
+| Metric | Result (v2.0.0 / K=4 / N=360) |
 |---|---|
-| Per-senior cluster match | 272 / 283 (96.1%) |
-| Risk level match | 282 / 283 (99.6%) |
-| Max composite delta | 0.0061 |
-| Risk distribution | HIGH=54, MODERATE=191, LOW=38 |
+| KNN CV accuracy (5-fold stratified) | **0.9333** |
+| Per-senior cluster match vs notebook | **313 / 360 (86.9%)** |
+| Risk level match vs notebook | **358 / 360 (99.4%)** |
+| Max composite risk delta | **0.0107** |
+| Risk distribution (live) | HIGH=77 (2 urgent), MODERATE=233, LOW=50 |
+| Cluster quality — Silhouette | **0.5577** |
+| Cluster quality — Davies-Bouldin | **0.6492** |
+| Cluster quality — Calinski-Harabász | **6048.7** |
 
-The borderline-case differences occur because the notebook ran KMeans in UMAP space while the live system uses scaled-space centroids — different geometric spaces produce marginally different boundaries for seniors who sit between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
+See [model-validation-defensible-statements.md](model-validation-defensible-statements.md) for the full evidence table and panel Q&A.
+
+The 47 borderline-case differences occur because the notebook ran KMeans in UMAP space while the live system uses the KNN classifier in 30-D scaled space — different geometric spaces produce marginally different boundaries for seniors who sit equidistantly between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
 
 **Generating centroids:**
 
@@ -430,16 +436,16 @@ All four cluster IDs (`1`–`4`) must be present or the file is ignored and hard
 
 ### `ENABLE_NOTEBOOK_OVERRIDES` (.env)
 
-Controls which prediction path is used for the 290 original seeded seniors.
+Controls which prediction path is used for seeded seniors.
 
 | Value | Mode | Behaviour |
 |---|---|---|
-| `false` | **Live-model mode (canonical for this deployment)** | All seniors are processed through the live inference pipeline (preprocess → nearest-centroid clustering → GBR/RFR). Cluster agreement with the notebook is ~91% (the deterministic nearest-centroid approximation of UMAP+KMeans); risk scores match the notebook (composite Δ ≈ 0). Reproducible across devices. |
-| `true` | **Notebook-exact mode (optional)** | The 290 seeded seniors are served from the `notebook_cache` — clusters/risk/composite come directly from the notebook-validated rows (100% cluster match). New or unmatched seniors always use the live model regardless of this setting. |
+| `false` | **Live-model mode (deployed default)** | Every senior is processed through the live inference pipeline: preprocess → KNN k=5 cluster classifier (→ nearest-centroid fallback) → GBR/RFR risk ensemble. KNN cluster agreement with notebook: ~87%; risk-level match: ~99.4%. Deterministic across devices. `prediction_source='live_model'`. |
+| `true` | **Notebook-exact mode (optional, demo/defense)** | The 360 seeded seniors are served from the `notebook_cache` — clusters/risk/composite come directly from the notebook-validated rows (100% cluster match). New or unmatched seniors always use the live model regardless of this setting. |
 
-**This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false`** — the live model scores every senior, consistent with `model-validation-defensible-statements.md`. Live distribution (290): HIGH=56, MODERATE=196, LOW=38.
+**This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false`** (live-model default) — the KNN cluster classifier and GBR/RFR models score every senior, consistent with `model-validation-defensible-statements.md`. Live distribution (360): HIGH=77 (2 urgent), MODERATE=233, LOW=50.
 
-**Set `ENABLE_NOTEBOOK_OVERRIDES=true`** only if you need the dashboard to reproduce the notebook distribution exactly (HIGH=55, MODERATE=196, LOW=38, plus 1 senior the notebook labels CRITICAL → shown as HIGH live). Then run `php artisan ml:repair-notebook-cache --all` and restart services. See [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+**Set `ENABLE_NOTEBOOK_OVERRIDES=true`** only if you need the dashboard to reproduce the notebook distribution exactly (HIGH=75 + CRITICAL=2→shown as HIGH+urgent, MODERATE=233, LOW=50). After switching: restart Flask services (`python/start_services.ps1`), then run `php artisan ml:batch-analyze --force`. See [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) for details.
 
 ---
 

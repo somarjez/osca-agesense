@@ -44,7 +44,7 @@ The system does three things automatically:
 
 ## Is the System Accurate?
 
-Yes. The system was validated through multiple tests:
+Yes. The system uses **live AI models** (a trained KNN health-group classifier and GBR/RFR risk models) to score every senior — it does not rely on pre-computed notebook results. The system was validated through multiple tests:
 
 | Test | Result | What It Means |
 |---|---|---|
