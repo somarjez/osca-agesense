@@ -307,11 +307,11 @@ PYTHON_SERVICE_URL=http://127.0.0.1
 # Path to trained model files. Uses python/models/ by default.
 ML_MODELS_PATH=python/models
 
-# When true, the inference service reads composite_risk, cluster_id, and risk_level
-# directly from python/models/predictions/senior_predictions.csv (the notebook's
-# validated output) instead of computing them live. This ensures consistent results
-# across all machines. Keep true unless you are deliberately testing live model output.
-ENABLE_NOTEBOOK_OVERRIDES=true
+# false (default) = live KNN cluster classifier + GBR/RFR risk models score every senior.
+# Results are deterministic across devices via pinned deps + SHA-256 artifact verification.
+# Set true only to reproduce the exact notebook distribution for a demo/defense
+# (seeded seniors read from notebook_cache; requires ml:batch-analyze --force after switching).
+ENABLE_NOTEBOOK_OVERRIDES=false
 ```
 
 ### Session, Cache, Queue (recommended for local dev)
@@ -829,7 +829,7 @@ Already handled. The services set `NUMBA_THREADING_LAYER=workqueue` and `NUMBA_N
 The most common cause is a missing `python/models/predictions/senior_predictions.csv`. Check:
 
 1. Confirm `python/models/predictions/senior_predictions.csv` exists. This file is **gitignored** — it must be placed manually (see Step 0.6). `git pull` will not restore it.
-2. Confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env` (the `.env.example` default). Run `start.bat` once to sync this key if it is missing.
+2. Confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in `.env` (the `.env.example` default). If results differ between machines, ensure both run the same committed artifact files (check `cluster_assignment_knn_k5.pkl` SHA-256 via `validate_model_artifacts.py`).
 3. Confirm `PYTHON_SERVICE_URL=http://127.0.0.1` with **no port suffix**.
 4. Re-seed after placing the CSV: `php artisan migrate:fresh --seed`.
 
@@ -864,7 +864,7 @@ The seeder also accepts the file one level above the project root as a fallback,
 
 **Private data files:** `osca.csv`, `senior_predictions.csv`, and `senior_recommendations_flat.csv` are gitignored and must never be committed. They contain real personal health data subject to the Philippine Data Privacy Act (RA 10173). Share them only via private, secure channels.
 
-**ENABLE_NOTEBOOK_OVERRIDES:** When `true` (the default), the inference service reads composite risk, cluster, and risk level from `python/models/predictions/senior_predictions.csv` instead of computing live. This guarantees identical results across all machines regardless of OS, Python minor version, or floating-point differences. Set to `false` only when deliberately testing raw live model output.
+**ENABLE_NOTEBOOK_OVERRIDES:** When `false` (the deployed default), every senior is scored live through the KNN k=5 cluster classifier and GBR/RFR risk ensemble — deterministic across devices via pinned library versions and SHA-256-verified artifact files. Set to `true` only when you need to reproduce the exact notebook-validated distribution for a demo or defense (seeded seniors read from `notebook_cache`; run `php artisan ml:batch-analyze --force` after switching).
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "original_vif_feature_count": 36,
-  "significant_features_count": 32,
-  "final_clustering_feature_count": 31,
+  "significant_features_count": 34,
+  "final_clustering_feature_count": 30,
   "ablation_removed_features": [
     "living_with_count",
     "sec3_skill_score",
@@ -9,11 +9,12 @@
     "sec5_real_asset_score"
   ],
   "excluded_from_clustering": [
-    "sec4_household_risk",
+    "env_income_limit_r",
     "living_with_count",
-    "sec3_skill_score",
+    "sec5_real_asset_score",
     "sec5_income_source_score",
-    "sec5_real_asset_score"
+    "sec4_household_risk",
+    "sec3_skill_score"
   ],
   "final_clustering_features": [
     "phy_energy",
@@ -28,7 +29,6 @@
     "func_independence",
     "func_autonomy",
     "func_control",
-    "env_income_limit_r",
     "env_fin_household",
     "env_fin_medical",
     "env_fin_personal",
@@ -86,6 +86,6 @@
     "sec3_skill_score",
     "sec2_family_support"
   ],
-  "decision": "31 features used for final UMAP+KMeans clustering. 5 features excluded via ablation (domain redundancy / multicollinearity): ['sec4_household_risk', 'living_with_count', 'sec3_skill_score', 'sec5_income_source_score', 'sec5_real_asset_score']. Note: sec3_skill_score and sec5_real_asset_score are Kruskal-significant but removed for domain redundancy (subsumed by composite section scores). Silhouette baseline (36-feat): 0.3899, final (31-feat): 0.4321.",
-  "note": "The final 31-feature clustering set was selected based on feature ablation and clustering performance. Excluded features may still be used for scoring, recommendations, reports, and WHO-domain interpretation."
+  "decision": "30 features used for final UMAP+KMeans clustering. 6 features excluded via ablation (domain redundancy / multicollinearity): ['env_income_limit_r', 'living_with_count', 'sec5_real_asset_score', 'sec5_income_source_score', 'sec4_household_risk', 'sec3_skill_score']. Note: sec3_skill_score and sec5_real_asset_score are Kruskal-significant but removed for domain redundancy (subsumed by composite section scores). Silhouette baseline (36-feat): 0.3899, final (30-feat): 0.5577.",
+  "note": "The final 30-feature clustering set was selected based on feature ablation and clustering performance. Excluded features may still be used for scoring, recommendations, reports, and WHO-domain interpretation."
 }

@@ -3,7 +3,7 @@
 > **Audience:** The developer who owns the Jupyter notebook and retrains the model.
 > Other machines (collaborators, other laptops) do not need the notebook — they just `git pull` and reseed.
 
-> **⚠️ Current state (2026-06-11): model v2.0.0, 290 seniors, live-model canonical (`ENABLE_NOTEBOOK_OVERRIDES=false`).** The 2026-06-11 retrain was deployed **non-destructively** (no full re-seed): copy artifacts → `python/models/` + `storage/app/ml_models/`, regenerate manifest/baseline, rebuild centroids, then `php artisan ml:batch-analyze --force` (live mode) or `ml:repair-notebook-cache --all` (only if overrides=`true`). Dashboard distribution under the canonical `false` mode: **HIGH=56, MODERATE=196, LOW=38**. "283 / HIGH=55 / MODERATE=191 / notebook_cache" figures below describe the older state. See [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+> **⚠️ Current state (2026-07-01): model v2.0.0 retrained, 360 seniors (290 + 70 Magdapio/Barangay II batch), live-model canonical (`ENABLE_NOTEBOOK_OVERRIDES=false`).** The 2026-07 retrain was deployed **non-destructively** (no full re-seed): artifacts copied to `python/models/` + `storage/app/ml_models/`, centroids regenerated, then `php artisan ml:repair-notebook-cache --all`. **Clustering upgraded to KNN (k=5, MinMaxScaler·30-feature, CV 0.9333); official metrics: Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabász 6048.7.** Live dashboard distribution (3-level): **HIGH=77 (2 urgent), MODERATE=233, LOW=50**. Older figures (283 seniors, HIGH=55, MODERATE=191) describe the pre-retrain state. See `docs/model-validation-defensible-statements.md` for the full validation report.
 
 > **Scope — read this first:**
 > This file describes the retraining workflow. **Normal deployment and defense setup do not require running the notebook.**
@@ -31,22 +31,24 @@
 
 ## 1. How Model Distribution Works
 
-The system uses a design called **notebook overrides** to guarantee that every machine produces identical results:
+The system guarantees cross-device determinism through two complementary mechanisms:
+
+**Default (live-model mode, `ENABLE_NOTEBOOK_OVERRIDES=false`):** Every device uses the same trained artifacts (KNN cluster classifier + GBR/RFR risk models). Because library versions are pinned and artifacts are SHA-256 verified, the KNN produces bit-for-bit identical cluster assignments on any device. This is the standard deployed mode — no prediction CSVs need to be distributed.
+
+**Optional notebook-cache mode (`ENABLE_NOTEBOOK_OVERRIDES=true`):** The inference service reads `composite_risk`, `cluster_id`, and `risk_level` directly from `python/models/predictions/senior_predictions.csv` (the notebook's exported ground-truth). This guarantees 100% cluster match with the notebook (vs the live-model's ~87%) and is useful for demos where you need bit-for-bit notebook reproduction. This file is **gitignored and never committed** because it contains real personal health data.
+
+When retraining the model:
 
 1. You train the model in `osca5.ipynb` and export the results to `osca_output/`
-2. You copy those files into `python/models/` inside the repository
-3. You push to GitHub — **only `.pkl` and `.json` model files are committed; the prediction CSVs are gitignored**
-4. Every other machine re-clones (or pulls) and copies the prediction CSVs from your shared `osca_output/` folder, then reseeds
+2. You copy the new `.pkl` and `.json` model files into `python/models/` inside the repository
+3. You push to GitHub — model artifacts are committed; prediction CSVs are gitignored
+4. Every other machine re-clones (or pulls) to get the new artifacts
 
-This means the model does **not** run differently on different machines. Every device uses your exact notebook output.
-
-The key setting that enables this is:
+The deployed default is `ENABLE_NOTEBOOK_OVERRIDES=false`:
 
 ```env
-ENABLE_NOTEBOOK_OVERRIDES=true
+ENABLE_NOTEBOOK_OVERRIDES=false
 ```
-
-When this is `true` (the default), the inference service reads `composite_risk`, `cluster_id`, and `risk_level` from `python/models/predictions/senior_predictions.csv` — the file you place locally from `osca_output/` — instead of computing them live. This file is **gitignored and never committed** because it contains real personal health data.
 
 ---
 
@@ -202,11 +204,11 @@ Before committing, do a quick sanity check:
 
 1. Start the system: `start.bat`
 2. Go to `/ml/status` — confirm both services show `ok`
-3. Go to the dashboard — confirm the risk distribution matches your notebook output:
-   - HIGH: 55, MODERATE: 191, LOW: 37
+3. Go to the dashboard — confirm the risk distribution matches your notebook output (live 3-level display):
+   - HIGH: 77 (of which 2 show the urgent-flag ring), MODERATE: 233, LOW: 50
 4. Go to `/reports/cluster` — confirm the cluster eval metrics show the new silhouette and Davies-Bouldin scores
 
-If the dashboard numbers are wrong, check that `ENABLE_NOTEBOOK_OVERRIDES=true` is in your `.env` and that the Flask services reloaded the new CSV (restart them if needed via `/ml/status`).
+If the dashboard numbers are wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in your `.env` (live-model default) and that the Flask services reloaded the flag (restart via `/ml/status` or stop.bat → start.bat). Then run `php artisan ml:batch-analyze --force` so all seniors get fresh live-model scores.
 
 ---
 
@@ -303,11 +305,10 @@ Start the system with `start.bat` and open the browser. The dashboard should sho
 
 | Metric | Expected value |
 |---|---|
-| Total seniors | 283 |
-| HIGH risk | 55 |
-| MODERATE risk | 191 |
-| LOW risk | 37 |
-| Notebook-Validated Cache | 283 |
+| Total seniors | 360 |
+| HIGH risk (live display) | 77 (including 2 with urgent-flag ring) |
+| MODERATE risk | 233 |
+| LOW risk | 50 |
 
 If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-numbers) below.
 
@@ -321,7 +322,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
-- [ ] Dashboard shows correct distribution (HIGH=55, MODERATE=191, LOW=37)
+- [ ] Dashboard shows correct distribution (HIGH=77 [2 urgent], MODERATE=233, LOW=50)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics
 - [ ] Committed `python/models/` with a dated commit message
 - [ ] Pushed to GitHub
@@ -340,7 +341,7 @@ Quick checklist:
 - [ ] `validate_model_artifacts.py` → 51 PASS, 0 FAIL
 - [ ] `test_reproducibility.py` → 28 PASS, 0 FAIL
 - [ ] `test_staleness.py` → 20 PASS, 0 FAIL
-- [ ] Dashboard shows correct distribution (HIGH=55, MODERATE=191, LOW=37, Cache: 283)
+- [ ] Dashboard shows correct distribution (HIGH=77 [2 urgent], MODERATE=233, LOW=50)
 
 ---
 

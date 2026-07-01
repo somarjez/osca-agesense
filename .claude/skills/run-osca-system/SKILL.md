@@ -202,7 +202,7 @@ Get-NetTCPConnection -LocalPort 8000,5001,5002 -State Listen -ErrorAction Silent
 & "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe" -u root -e "SELECT email FROM osca_db.users;"
 ```
 
-**`ENABLE_NOTEBOOK_OVERRIDES=true` (default):** The inference service reads composite_risk, cluster_id, and risk_level from `python\models\predictions\senior_predictions.csv` instead of computing live. If that CSV is missing, results fall back to live ML output, which may differ from notebook-validated values.
+**`ENABLE_NOTEBOOK_OVERRIDES=false` (deployed default):** The inference service scores every senior live through the KNN k=5 cluster classifier and GBR/RFR risk ensemble. Results are deterministic across devices (pinned deps + SHA-256 artifact manifest). Set to `true` only for demo/defense reproduction of the exact notebook distribution — then run `php artisan ml:batch-analyze --force`.
 
 ---
 

@@ -281,8 +281,10 @@ Copy the entire `python/models/` folder from the main laptop to `osca-system/pyt
 > After copying, confirm these settings are in `.env`:
 > ```
 > ML_MODELS_PATH=python/models
-> ENABLE_NOTEBOOK_OVERRIDES=true
+> ENABLE_NOTEBOOK_OVERRIDES=false
+> ENABLE_DETERMINISTIC_CLUSTER=true
 > ```
+> (`ENABLE_NOTEBOOK_OVERRIDES=false` is the deployed default — live KNN + GBR/RFR models. Set to `true` only if you need exact notebook distribution for a demo.)
 
 ### Step 7 — Validate ML artifacts and pipeline
 
@@ -315,17 +317,9 @@ Start the system:
 Double-click  start.bat
 ```
 
-Open `http://127.0.0.1:8000` and confirm the dashboard shows:
+Open `http://127.0.0.1:8000` and confirm the dashboard shows seniors with risk-level distribution close to the validated live-model result (HIGH ≈ 77, MODERATE ≈ 233, LOW ≈ 50 for 360 seniors). Exact numbers may vary slightly depending on your dataset.
 
-```
-Total Seniors              : 283
-Risk — HIGH                : 55
-Risk — MODERATE            : 191
-Risk — LOW                 : 37
-Notebook-Validated Cache   : 283
-```
-
-If the numbers are wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`, then run `stop.bat` → `start.bat` to restart the Flask services.
+If the numbers look wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in `.env`, restart services (stop.bat → start.bat), then run `php artisan ml:batch-analyze --force` to recompute all seniors with the live model.
 
 ---
 

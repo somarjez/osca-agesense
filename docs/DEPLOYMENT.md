@@ -321,7 +321,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 
 ML_MODELS_PATH=python/models
-ENABLE_NOTEBOOK_OVERRIDES=true
+ENABLE_NOTEBOOK_OVERRIDES=false
 ```
 
 ### ML settings
@@ -329,7 +329,7 @@ ENABLE_NOTEBOOK_OVERRIDES=true
 | Variable | Value | Description |
 |---|---|---|
 | `ML_MODELS_PATH` | `python/models` | Path to ML artifact files. Always set this explicitly. |
-| `ENABLE_NOTEBOOK_OVERRIDES` | `true` | `true` = the original 283 seed seniors use stored notebook results (fast, deterministic). New seniors always use the live model regardless of this setting. Set to `true` for demos and defense. |
+| `ENABLE_NOTEBOOK_OVERRIDES` | `false` | **`false` (deployed default)** = live KNN cluster + GBR/RFR risk for every senior; `prediction_source='live_model'`. Set to `true` only for demo/defense to reproduce the exact notebook distribution (then run `php artisan ml:batch-analyze --force`). |
 | `PYTHON_SERVICE_URL` | `http://127.0.0.1` | Base URL for Python services — no port suffix. |
 | `PYTHON_PREPROCESS_PORT` | `5001` | Port for the preprocess service. |
 | `PYTHON_INFERENCE_PORT` | `5002` | Port for the inference service. |
@@ -397,7 +397,7 @@ Run these steps in order on every device before a demo or defense. Do not skip s
 
 [ ] 3. Check .env settings:
         - ML_MODELS_PATH=python/models
-        - ENABLE_NOTEBOOK_OVERRIDES=true
+        - ENABLE_NOTEBOOK_OVERRIDES=false  (live-model default; set true only for demo/defense)
         - ENABLE_DETERMINISTIC_CLUSTER=true
         - DB_HOST, DB_USERNAME, DB_PASSWORD are correct
 
@@ -458,7 +458,7 @@ If step 5 fails: the artifact bundle is incomplete. Re-transfer from the main la
 
 If step 9 fails: check `storage/logs/python-inference.err.log` for the error.
 
-If dashboard numbers are wrong: confirm `ENABLE_NOTEBOOK_OVERRIDES=true` in `.env`, then restart services (stop.bat → start.bat).
+If dashboard numbers are wrong: confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in `.env` and that Flask services reloaded the flag (restart with stop.bat → start.bat). Then run `php artisan ml:batch-analyze --force` so all seniors are re-scored by the live model.
 
 ---
 
