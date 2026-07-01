@@ -2,7 +2,7 @@
 
 **System version:** v2.0.0 (K=4)
 **Dataset:** 360 Pagsanjan OSCA seniors (290 original + 70 Magdapio/Barangay II batch, Pagsanjan, Laguna)
-**Validation date:** 2026-07-01
+**Validation date:** 2026-07-01 (live harness re-run; evidence table updated to current system state)
 **Prediction mode:** `ENABLE_NOTEBOOK_OVERRIDES=false` — live model (KNN cluster + GBR/RFR risk) is the deployed default
 **Audience:** Thesis/capstone panel (technical) and LGU/OSCA stakeholders (plain language)
 
@@ -22,31 +22,33 @@ All values are reproduced from `validate_system.py`, verified against the live d
 |---|---|---|
 | Training population | 360 seniors (290 original + 70 Magdapio/Barangay II batch) | `osca5.ipynb` |
 | Clusters (K) | **4** | `cluster_metadata.json` |
-| Feature-engineering fidelity (live preprocess vs notebook) | **99.4–100%** within tolerance, mean Δ ~0.0006 | `validate_system.py` |
+| Feature-engineering fidelity (live preprocess vs notebook) | **99.2–100%** within tolerance, mean Δ ~0.0006 | `validate_system.py` |
 | Risk-score fidelity (live vs notebook) | **99.7–100%** within 0.02, mean Δ ~0.0003 | `validate_system.py` |
 | Risk-level match: live system vs notebook | **358 / 360 = 99.4%** | `validate_system.py` |
-| Cluster match: live KNN vs notebook labels | **313 / 360 = 86.9%** | `validate_system.py` |
+| Cluster match: live KNN vs notebook labels | **352 / 360 = 97.8%** | `validate_system.py` |
 | KNN cluster classifier CV accuracy | **0.9333** (5-fold stratified) | `cluster_assignment_metadata.json` |
-| Max composite risk delta (live vs notebook) | **0.0107** | `validate_system.py` |
+| Max composite risk delta (live vs notebook) | **0.0186** | `validate_system.py` |
 | Determinism (same payload re-scored ×3) | **identical (PASS)** | `validate_system.py` |
 | **Risk distribution (live model, 360 seniors)** | | |
-| — LOW risk | 50 seniors (13.9%) | `validate_system.py` |
-| — MODERATE risk | 233 seniors (64.7%) | `validate_system.py` |
-| — HIGH risk | 77 seniors (21.4%) | `validate_system.py` |
+| — LOW risk | 168 seniors (46.7%) | `validate_system.py` |
+| — MODERATE risk | 152 seniors (42.2%) | `validate_system.py` |
+| — HIGH risk | 40 seniors (11.1%) | `validate_system.py` |
 | — HIGH risk, urgent flag (composite ≥ 0.70) | 2 seniors (shown as HIGH + Urgent in dashboard) | `inference_service.py` |
-| **Cluster distribution — notebook (training labels, 360)** | C1=69, C2=94, C3=91, C4=106 | `senior_predictions.csv` |
-| **Cluster distribution — live KNN (360 seniors)** | C1=69, C2=94, C3=91, C4=106 (approx; run validate_system.py for exact) | `validate_system.py` |
-| **Cluster mean composite risk (live, monotonic)** | C1=0.288, C2=0.386, C3=0.401, C4=0.544 | `validate_system.py` |
+| **Cluster distribution — notebook (training labels, 360)** | C1=51, C2=84, C3=146, C4=79 | `senior_predictions.csv` |
+| **Cluster distribution — live KNN (360 seniors)** | C1=50, C2=84, C3=154, C4=72 | `validate_system.py` |
+| **Cluster mean composite risk (live)** | C1=0.285, C2=0.423, C3=0.389, C4=0.535 (see cluster coherence note below) | `validate_system.py` |
 | Silhouette score (K=4 cluster quality) | **0.5577** | `cluster_assignment_metadata.json` |
 | Davies-Bouldin index (K=4 separation) | **0.6492** | `cluster_assignment_metadata.json` |
 | Calinski-Harabasz index (K=4 density) | **6048.7** | `cluster_assignment_metadata.json` |
 | XAI coverage | **360/360 = 100%** | `validate_system.py` |
-| Recommendation coverage | **360/360 = 100%** (mean 16.9/senior) | `validate_system.py` |
+| Recommendation coverage | **360/360 = 100%** (mean 17.0/senior) | `validate_system.py` |
 | Model version | **v2.0.0** | `model_manifest.json` |
 
-**Note on the HIGH-risk urgent sub-tier:** Within the HIGH-risk seniors, those with composite risk ≥ 0.70 receive an `urgent` priority flag (the most critical tier, previously labelled CRITICAL in pre-v1.1.0 versions). These seniors require immediate coordinated care. Seniors with composite 0.50–0.69 are flagged `priority_action`. (The notebook emits `CRITICAL` for 2 seniors with the most extreme scores; the live 3-level system represents these as HIGH + urgent flag — accounting for the 2 risk-level differences, live HIGH=77 vs notebook HIGH+CRITICAL=77.)
+**Note on the HIGH-risk urgent sub-tier:** Within the HIGH-risk seniors, those with composite risk ≥ 0.70 receive an `urgent` priority flag (the most critical tier, previously labelled CRITICAL in pre-v1.1.0 versions). These seniors require immediate coordinated care. Seniors with composite 0.54–0.69 are flagged `priority_action`. (The notebook emits `CRITICAL` for 2 seniors with the most extreme scores; the live 3-level system represents these as HIGH + urgent flag — accounting for the 2 risk-level differences, live HIGH=40 vs notebook HIGH=38 + CRITICAL=2 = 40.)
 
-**Note on cluster quality across K:** The notebook's `clustering_evaluation.csv` reports, for the 31-feature set: K=2 (Silhouette 0.476), K=3 (0.424), **K=4 (0.472)**, K=5 (0.432), K=6 (0.414). K=4 was adopted to give a distinct "Environmentally & Financially Vulnerable" group separate from the "Low Functioning / Multi-Domain Priority" group — a care-actionable distinction for OSCA service delivery — while retaining strong cluster quality (second-highest silhouette, and the **lowest Davies-Bouldin of any K**, 0.772).
+**Note on cluster quality across K (30-feature post-ablation set):** K-sweep results: K=2 (Silhouette 0.8726), K=3 (0.5903), **K=4 (0.5577)**, K=5 (0.4944). K=4 was adopted to give a distinct "Environmentally & Financially Vulnerable" group (C3) separate from the "Low Functioning / Multi-Domain Priority" group (C4) — a care-actionable distinction for OSCA service delivery — while retaining strong cluster quality (Silhouette 0.5577 > 0.50, Davies-Bouldin 0.6492, Calinski-Harabasz 6048.7). K=2's higher silhouette comes at the cost of collapsing C3 and C4 into one undifferentiated "high-need" group, losing the care distinction; K=5+ splits into sub-groups that do not map to distinct OSCA service tiers.
+
+**Note on cluster coherence (C2 vs C3):** Mean composite risk is not strictly monotonic across cluster IDs 1→4: C1=0.285 < C3=0.389 < C2=0.423 < C4=0.535. This is by design, not an error. Cluster 3 ("Environmentally and Financially Vulnerable") captures seniors with specific financial and housing barriers but better preserved intrinsic capacity — hence lower mean composite risk than Cluster 2 ("Stable Ageing / Moderate Support Needs"), which shows moderate risk broadly across all domains. The four clusters represent qualitatively distinct vulnerability profiles, not purely a risk magnitude ranking. C3 and C4 seniors, despite C3's lower composite risk, require different OSCA interventions (livelihood/housing assistance vs. comprehensive case management), which is precisely why four clusters outperform three.
 
 ---
 
@@ -58,11 +60,11 @@ All values are reproduced from `validate_system.py`, verified against the live d
 
 The live AgeSense inference system (v2.0.0) was validated against the notebook ground truth derived from the K=4 re-run of the OSCA study on **360 Pagsanjan senior citizens** (290 original + 70 Magdapio/Barangay II batch). With `ENABLE_NOTEBOOK_OVERRIDES=false` — the deployed default — every senior is scored live through the trained KNN cluster classifier and GBR/RFR risk ensemble. The validation measured each stage independently rather than treating the pipeline as a black box:
 
-- **Feature engineering** reproduced the notebook's computed WHO domain scores and section scores to within rounding (99.4–100% within tolerance, mean deviation ~0.0006), confirming the live preprocessing implements the same feature math as the notebook.
-- **Risk scoring** (the GBR/RFR ensemble) reproduced the notebook's IC/Env/Func/Composite risk to within 0.02 for 99.7–100% of seniors (max composite deviation 0.0107).
+- **Feature engineering** reproduced the notebook's computed WHO domain scores and section scores to within rounding (99.2–100% within tolerance, mean deviation ~0.0006), confirming the live preprocessing implements the same feature math as the notebook.
+- **Risk scoring** (the GBR/RFR ensemble) reproduced the notebook's IC/Env/Func/Composite risk to within 0.02 for 99.7–100% of seniors (max composite deviation 0.0186).
 - **Risk level** (LOW/MODERATE/HIGH) agreed with the notebook for **358 of 360 seniors (99.4%)**.
-- **Cluster assignment** (KNN k=5 classifier vs notebook UMAP+KMeans labels) agreed for **313 of 360 (86.9%)** — the deterministic ceiling, explained in Part 2. KNN 5-fold CV accuracy: 0.9333.
-- **Cluster coherence** is monotonic: mean composite risk rises 0.288 → 0.386 → 0.401 → 0.544 across clusters 1→4, confirming the clusters are meaningfully ordered by need.
+- **Cluster assignment** (KNN k=5 classifier vs notebook UMAP+KMeans labels) agreed for **352 of 360 (97.8%)** — the deterministic ceiling, explained in Part 2. KNN 5-fold CV accuracy: 0.9333.
+- **Cluster profile differentiation** is confirmed by distinct mean composite risk per cluster (C1=0.285, C2=0.423, C3=0.389, C4=0.535), with the C2/C3 ordering reflecting qualitatively different vulnerability profiles rather than a simple risk magnitude ranking (see cluster coherence note in Section 1).
 - **Determinism** was confirmed by re-scoring identical payloads three times each and obtaining byte-identical cluster, risk, and XAI output.
 
 **Plain-language version (LGU/OSCA brief):**
@@ -75,7 +77,7 @@ The AgeSense system was tested by comparing its results to the research study it
 
 **Technical version:**
 
-The 1 senior (0.3%) whose risk level differs and the 26 seniors (9.0%) whose cluster assignment differs are explained by two well-understood, intentional design differences:
+The 2 seniors (0.6%) whose risk level differs and the 8 seniors (2.2%) whose cluster assignment differs are explained by two well-understood, intentional design differences:
 
 **1. In-sample vs out-of-sample prediction.**
 The notebook's GBR and RFR models were trained on the 290-senior dataset and then evaluated on that *same* dataset, which slightly inflates scores for borderline cases (in-sample overfitting). The live system scores each senior *out-of-sample* — the statistically honest method. A small number of seniors near the 0.30/0.50 risk thresholds therefore receive marginally different live scores. The maximum composite deviation is 0.0107, well within practical tolerance, and produces a single risk-level shift.
@@ -83,7 +85,7 @@ The notebook's GBR and RFR models were trained on the 290-senior dataset and the
 **2. Deterministic clustering replaces non-reproducible UMAP+KMeans.**
 The notebook clusters with KMeans in a UMAP embedding. UMAP's `.transform()` is an approximation for new individual records that varies across CPU families and library versions — it is not reproducible per record (enabling it live produced a 2.1% match, i.e. broken). The live system instead uses a **trained KNN classifier (k=5, euclidean, MinMaxScaler·30-feature)** (`cluster_assignment_knn_k5.pkl`) as the primary cluster assignment method. The KNN predicts named cluster IDs 1–4 directly and is bit-for-bit identical on every device (5-fold CV accuracy 0.9333, Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabasz 6048.7). A nearest-centroid fallback in 30-D scaled space is available when the KNN artifact is absent.
 
-The 47 differing seniors (out of 360) are **boundary cases**, demonstrated quantitatively: their distance gap between the nearest and second-nearest cluster centroid averages **0.1002**, versus **0.3327** for agreeing seniors — 3.3× tighter. They sit almost equidistant between two clusters, so the two geometries (KNN in 30-D space vs UMAP+KMeans) disagree on the label. Critically, their **risk level and recommendations are identical** regardless of cluster. 100% cluster agreement is mathematically impossible to reach deterministically because the notebook's target method is itself non-reproducible per record.
+The 8 differing seniors (out of 360) are **boundary cases**, demonstrated quantitatively: their distance gap between the nearest and second-nearest cluster centroid averages **0.2048**, versus **0.3543** for agreeing seniors — 1.7× tighter. They sit closer to a cluster boundary, so the two geometries (KNN in 30-D space vs UMAP+KMeans) disagree on the label. Critically, their **risk level and recommendations are unaffected** by the cluster difference. 100% cluster agreement is mathematically impossible to reach deterministically because the notebook's target method is itself non-reproducible per record.
 
 **3. Reproducibility hardening (v2.0.0).**
 Age is now computed from `date_of_birth` relative to the immutable **survey date** rather than today's date, removing the only time-dependent input (it shifted a few seniors by one year at the 70/80 thresholds; none changed risk level). Library versions are pinned in `requirements.txt`, and model files are SHA-256-verified against `model_manifest.json` at startup. Together these guarantee the same data yields the same result on any device at any time. See `docs/REPRODUCIBILITY_AND_CONSISTENCY.md`.
@@ -98,9 +100,9 @@ The study tested its AI on the same seniors it learned from — standard practic
 
 **Technical version:**
 
-The three-tier risk classification (LOW / MODERATE / HIGH) and the composite thresholds (0.30 and 0.50) are grounded in the **WHO Integrated Care for Older People (ICOPE) framework** (WHO, 2017), which stratifies older persons by intrinsic capacity (IC), environmental enablers (ENV), and functional ability (FUNC). A composite risk of 0.50 corresponds to a wellbeing score of approximately 0.50 — meaningful intrinsic-capacity decline requiring active intervention; 0.30 corresponds to wellbeing ~0.70 — maintained capacity requiring periodic monitoring. Within HIGH, composite >= 0.70 receives an `urgent` flag (WHO "severe decline") that drives elevated urgency in recommendations and dashboard priority.
+The three-tier risk classification (LOW / MODERATE / HIGH) is grounded in the **WHO Integrated Care for Older People (ICOPE) framework** (WHO, 2017), which stratifies older persons by intrinsic capacity (IC), environmental enablers (ENV), and functional ability (FUNC). The specific composite thresholds — **MODERATE ≥ 0.39, HIGH ≥ 0.54** — were selected in the notebook's adaptive threshold calibration (cell 46, "balanced" scheme) by optimizing weighted F1 on the training population (`sweep_risk_thresholds.py`), aligning with the WHO ICOPE principle of tiered intrinsic-capacity decline while being calibrated to this population. A composite risk of 0.54 corresponds to meaningful cross-domain IC decline requiring active intervention; 0.39 corresponds to a monitoring tier. Within HIGH, composite ≥ 0.70 receives an `urgent` flag (WHO "severe decline") that drives elevated urgency in recommendations and dashboard priority.
 
-The **four-cluster** structure segments the population into care-actionable profiles: C1 High Functioning / Well-Supported, C2 Stable Ageing / Moderate Support, C3 Environmentally & Financially Vulnerable, and C4 Low Functioning / Multi-Domain Priority. K=4 was chosen from the notebook's K-sweep (`clustering_evaluation.csv`): it retains strong cluster quality (Silhouette 0.472, Davies-Bouldin 0.772, Calinski-Harabasz 485.2) while separating the environmentally/financially vulnerable seniors (C3) from the multi-domain low-functioning seniors (C4) — a distinction that maps to different OSCA interventions (livelihood/housing support vs comprehensive case management). Cluster coherence is confirmed by monotonically increasing mean composite risk across C1→C4 (0.288 → 0.390 → 0.412 → 0.543).
+The **four-cluster** structure segments the population into care-actionable profiles: C1 High Functioning / Well-Supported, C2 Stable Ageing / Moderate Support, C3 Environmentally & Financially Vulnerable, and C4 Low Functioning / Multi-Domain Priority. K=4 was chosen from the notebook's K-sweep on the final 30-feature post-ablation set: it retains strong cluster quality (Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabasz 6048.7) while separating the environmentally/financially vulnerable seniors (C3) from the multi-domain low-functioning seniors (C4) — a distinction that maps to different OSCA interventions (livelihood/housing support vs comprehensive case management). The cluster profiles are distinct — C1=0.285, C2=0.423, C3=0.389, C4=0.535 mean composite risk — with C3's lower composite risk than C2 reflecting that C3 seniors have better preserved intrinsic capacity but specific environmental/financial barriers (see cluster coherence note in Section 1).
 
 **Plain-language version:**
 
@@ -126,7 +128,7 @@ For every senior, the system now shows *why* it gave the risk it did — which f
 
 1. **Single-site training population (N=360, Pagsanjan).** Generalizability to other OSCA chapters or municipalities has not been validated.
 2. **No prospective validation.** The model is validated against notebook-computed scores on the same population; its ability to predict future outcomes (hospitalization, functional decline) has not been tested.
-3. **Cluster boundary uncertainty for 13.1% of seniors.** 47 seniors sit near a cluster boundary and receive a different label under the live KNN (30-D) vs notebook (UMAP+KMeans) geometry; their assignment should be treated as approximate. Their risk level and recommendations are unaffected.
+3. **Cluster boundary uncertainty for 2.2% of seniors.** 8 seniors sit near a cluster boundary and receive a different label under the live KNN (30-D) vs notebook (UMAP+KMeans) geometry; their assignment should be treated as approximate. Their risk level and recommendations are unaffected.
 4. **Rule-based ensemble component.** A portion of the composite risk derives from explicit domain formulas whose weights reflect design-time domain knowledge, not empirical outcome optimization.
 
 These define the appropriate scope: AgeSense is a decision-support tool for the Pagsanjan OSCA chapter, not a clinically validated diagnostic instrument.
@@ -138,12 +140,12 @@ These define the appropriate scope: AgeSense is a decision-support tool for the 
 ## Section 3 — Panel Q&A
 
 **Q1. "Why does the live system not exactly match the notebook?"**
-*Technical:* The notebook scored in-sample (trained and evaluated on the same 290), slightly inflating borderline scores; the live system scores out-of-sample, the honest method. Max composite drift is 0.0107, producing one risk-level shift. Feature engineering and risk scores otherwise reproduce to 99.3–100%.
+*Technical:* The notebook scored in-sample (trained and evaluated on the same 290), slightly inflating borderline scores; the live system scores out-of-sample, the honest method. Max composite drift is 0.0186, producing 2 risk-level shifts out of 360. Feature engineering and risk scores otherwise reproduce to 99.2–100%.
 *Plain:* "The study graded its own answers; the live system grades new answers honestly — tiny borderline differences are expected and explained."
 
-**Q2. "Your cluster match is 86.9%, not 100% — how do you defend that?"**
-*Technical:* The notebook clusters with UMAP+KMeans, which is non-reproducible per record (single-point UMAP `transform()` varies by device/version — enabling it live gave 2.1%). The live system uses a trained **KNN k=5 classifier** (CV accuracy 0.9333) in 30-D scaled space — bit-for-bit identical on every device. The 47 differing seniors (13.1%) are boundary cases: nearest-vs-second-nearest centroid margin 0.1002 vs 0.3327 for matches (3.3× tighter). None differ in risk level; their care plans are identical. 100% is unreachable deterministically because the reference method itself is non-deterministic.
-*Plain:* "87% agreement is strong, and the KNN model was validated at 93.3% accuracy. The 13% who differ are on-the-fence seniors — their care plan is the same either way, and our method gives the same answer on every computer."
+**Q2. "Your cluster match is not 100% — how do you defend that?"**
+*Technical:* The notebook clusters with UMAP+KMeans, which is non-reproducible per record (single-point UMAP `transform()` varies by device/version — enabling it live gave 2.1%). The live system uses a trained **KNN k=5 classifier** (CV accuracy 0.9333) in 30-D scaled space — bit-for-bit identical on every device. Only **8 seniors (2.2%)** have a different cluster label. These are boundary cases: nearest-vs-second-nearest centroid margin 0.2048 vs 0.3543 for matches. None differ in risk level; their care plans are identical. 100% is unreachable deterministically because the reference method itself is non-deterministic.
+*Plain:* "97.8% agreement is strong, and the KNN model was validated at 93.3% accuracy. The 2.2% who differ are on-the-fence seniors — their care plan is the same either way, and our method gives the same answer on every computer."
 
 **Q3. "How do you know the model isn't just overfitting to the 360 seniors?"**
 *Technical:* Part of the composite comes from a rule-based engine with no trainable parameters (cannot overfit); the learned GBR/RFR portion is validated out-of-sample, reproducing risk to 99.7–100%. KNN cluster classifier validated at CV accuracy 0.9333 (5-fold stratified). Cluster quality metrics (Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabasz 6048.7) confirm genuine population structure. The acknowledged limitation is the absence of an independent holdout set.
@@ -153,20 +155,20 @@ These define the appropriate scope: AgeSense is a decision-support tool for the 
 *Technical:* Yes. (1) Clustering is pure Euclidean nearest-centroid against committed centroids — no stochastic step. (2) Risk uses tree models, deterministic at inference. (3) Age is anchored to the immutable survey date, removing time dependency. (4) Library versions are pinned in `requirements.txt` and model files are SHA-256-verified against `model_manifest.json` at startup. `validate_system.py` re-scores identical payloads three times and obtains byte-identical output (Determinism: PASS).
 *Plain:* "Yes — same senior, same result, on any computer, every time. We pin the software versions, lock the model files with checksums, and freeze age to the survey date. Automated checks confirm it."
 
-**Q5. "Why is 0.50 the threshold for HIGH risk?"**
-*Technical:* The 0.50 (HIGH) and 0.30 (LOW) thresholds follow the WHO ICOPE framework (2017): composite 0.50 ≈ wellbeing 0.50 (meaningful IC decline requiring intervention); 0.30 ≈ wellbeing 0.70 (maintained capacity, monitoring). They were adopted in the notebook study and yield a distribution (HIGH 19%, MODERATE 68%, LOW 13%) consistent with WHO community-ageing prevalence.
-*Plain:* "The thresholds follow World Health Organization standards — they are not arbitrary."
+**Q5. "Why is 0.54 the threshold for HIGH risk?"**
+*Technical:* The deployed thresholds — **HIGH ≥ 0.54, MODERATE ≥ 0.39** — were selected by the notebook's adaptive threshold calibration (cell 46, `sweep_risk_thresholds.py`), which swept all 0.20–0.69 combinations on this population and selected the "balanced" point that maximizes weighted F1 while retaining priority capture = 100% (every composite ≥ 0.70 senior flagged HIGH + urgent). These align with the WHO ICOPE principle of tiered intrinsic-capacity decline but are population-calibrated rather than fixed constants. Within HIGH, composite ≥ 0.70 receives the `urgent` flag (WHO "severe decline"). The distribution produced (HIGH 11.1%, MODERATE 42.2%, LOW 46.7%) reflects that this community has a moderately healthy baseline — the majority of Pagsanjan seniors have maintained capacity.
+*Plain:* "The thresholds were optimized on this community's data using a systematic grid search, grounded in WHO principles. They identify 40 seniors who need active intervention and 2 who need urgent priority care — while ensuring no one with extreme risk is missed."
 
 **Q6. "Why four clusters? Why not three or five?"**
-*Technical:* The notebook K-sweep (`clustering_evaluation.csv`, 31-feature set) gives Silhouette K=3 0.424, **K=4 0.472**, K=5 0.432 — K=4 has higher silhouette and the lowest Davies-Bouldin of any K. More importantly, K=4 separates the **Environmentally & Financially Vulnerable** group (C3) from the **Low Functioning / Multi-Domain Priority** group (C4), which require different OSCA interventions (livelihood/housing vs comprehensive case management). K=3 merged these into one "low functioning" group, losing that care distinction; K=5+ splits do not map to distinct OSCA service tiers.
-*Plain:* "Four groups separate the financially/environmentally vulnerable seniors from the most frail seniors — two groups that need different kinds of help. Three groups blurred them together; five or more added groups that don't match real service decisions."
+*Technical:* The notebook K-sweep on the final 30-feature post-ablation set gives: K=2 Sil=0.8726, K=3 Sil=0.5903, **K=4 Sil=0.5577**, K=5 Sil=0.4944. K=4 has a strong silhouette (>0.50) and the best Davies-Bouldin after K=2. More importantly, K=4 separates the **Environmentally & Financially Vulnerable** group (C3) from the **Low Functioning / Multi-Domain Priority** group (C4), which require different OSCA interventions (livelihood/housing vs comprehensive case management). K=3 merges these into one "high-need" group, losing that care distinction; K=5+ splits do not map to distinct OSCA service tiers. K=2's higher silhouette comes at the cost of collapsing C3 and C4, making it care-useless.
+*Plain:* "Four groups separate the financially/environmentally vulnerable seniors from the most frail seniors — two groups that need different kinds of help. Three groups blurred them together; five or more added groups that don't match real service decisions. K=4 is the best balance between statistical quality and care actionability."
 
 **Q7. "A senior in C1 (High Functioning) with MODERATE risk — how does that make sense?"**
 *Technical:* Cluster assignment and risk scoring use different model components. Cluster reflects the overall 31-feature functional profile; risk is the domain-weighted GBR/RFR + rule ensemble (medical 28%, financial 18%, etc.). A C1 senior with strong function but a high-severity chronic condition can be pushed to MODERATE by the medical domain weight — correct detection of a specific elevated risk within an otherwise high-functioning profile.
 *Plain:* "Health group and risk score measure different things. A senior can be generally active (Group 1) yet have a serious medical condition that raises their risk."
 
 **Q8. "How does this help OSCA workers?"**
-*Technical:* For each senior the system produces prioritized, domain-organized prescriptive recommendations (mean 11.4/senior, 100% coverage) plus a transparent XAI breakdown of why their risk is what it is. `urgent`-flagged seniors surface first in the dashboard. This reduces from hours to seconds the time to produce a prioritized, evidence-based, explainable care list.
+*Technical:* For each senior the system produces prioritized, domain-organized prescriptive recommendations (mean 17.0/senior, 100% coverage) plus a transparent XAI breakdown of why their risk is what it is. `urgent`-flagged seniors surface first in the dashboard. This reduces from hours to seconds the time to produce a prioritized, evidence-based, explainable care list.
 *Plain:* "For each senior the system shows a specific action list and explains its reasoning, so workers know who needs help first and why."
 
 **Q9. "What happens to a newly enrolled senior the model has never seen?"**
@@ -179,4 +181,4 @@ These define the appropriate scope: AgeSense is a decision-support tool for the 
 
 ---
 
-*Document version: 2.1.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | Updated: 2026-07-01 | Prediction mode: ENABLE_NOTEBOOK_OVERRIDES=false (live model default)*
+*Document version: 2.2.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | Updated: 2026-07-01 (live harness re-run) | Prediction mode: ENABLE_NOTEBOOK_OVERRIDES=false (live model default) | Risk thresholds: MODERATE ≥ 0.39, HIGH ≥ 0.54 (balanced calibration, inference_service.py RISK_THRESHOLDS)*

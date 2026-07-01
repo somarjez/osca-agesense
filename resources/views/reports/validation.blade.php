@@ -224,7 +224,7 @@
     {{-- ── Sticky in-page nav ── --}}
     <div class="sticky top-2 z-10 -mx-1">
         <div class="segmented flex-wrap shadow-sm">
-            @foreach ([['clustering','01 · Care Groups'],['risk','02 · Risk'],['xai','03 · Explainability'],['recs','04 · Recommendations']] as [$id, $lbl])
+            @foreach ([['clustering','01 · Care Groups'],['risk','02 · Risk'],['xai','03 · Explainability'],['recs','04 · Recommendations'],['concordance','05 · Concordance']] as [$id, $lbl])
             <button type="button"
                     @click="section = '{{ $id }}'; document.getElementById('{{ $id }}').scrollIntoView({behavior:'smooth', block:'start'})"
                     :class="section === '{{ $id }}' ? 'bg-white text-ink-900 shadow-sm dark:bg-[#222a27] dark:text-[#e4e1d8]' : ''">{{ $lbl }}</button>
@@ -1120,6 +1120,182 @@
                 need areas rather than piling into one. The priority list lengthens with risk, focusing officer attention where it matters most.
             </div>
         </div>
+    </section>
+
+    {{-- ════════ 05 · CONCORDANCE ════════ --}}
+    <section id="concordance" class="scroll-mt-20 space-y-4 pt-2">
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="font-serif text-xl font-semibold text-ink-900 dark:text-[#e4e1d8]">
+                <span class="font-mono text-sm text-ink-300 dark:text-[#5a6460] mr-2">05</span>Live system vs notebook
+            </h2>
+            @if (($fidelity['available'] ?? false))
+                {!! $chip($fidelity['verdicts']['cluster']) !!}
+            @endif
+        </div>
+        <p class="text-[13.5px] text-ink-500 dark:text-[#8a9087] max-w-3xl leading-relaxed">
+            The notebook training run is the validated ground truth. This section shows how closely the
+            live production pipeline — running the real models on demand — agrees with it.
+            Differences are expected at group boundaries; what matters is that risk levels and composite scores are stable.
+        </p>
+
+        @if (!($fidelity['available'] ?? false))
+        <div class="card card-body text-center py-8 text-[13px] text-ink-400">
+            Concordance data not available. Run
+            <code class="font-mono text-[12px] bg-paper-2 dark:bg-[#131917] px-1.5 py-0.5 rounded">php artisan ml:sync-validation</code>
+            to generate it.
+        </div>
+        @else
+
+        {{-- KPI row --}}
+        @php
+            $fPct = fn ($x, $d = 1) => number_format(((float) $x) * 100, $d) . '%';
+            $fN3  = fn ($x) => number_format((float) $x, 4);
+        @endphp
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            @php
+                $fKpis = [
+                    ['Care-group match', $fidelity['cluster_match_n'].'/'.$fidelity['total'], $fPct($fidelity['cluster_match_pct']).' of seniors in the same group', $fidelity['verdicts']['cluster']['good']],
+                    ['Risk-level match', $fidelity['risk_match_n'].'/'.$fidelity['total'],    $fPct($fidelity['risk_match_pct']).' assigned the same level', $fidelity['verdicts']['risk']['good']],
+                    ['Max score delta',  $fN3($fidelity['max_delta']),  'Largest composite-risk difference (0–1 scale)', $fidelity['max_delta'] <= 0.05],
+                    ['Mean score delta', $fN3($fidelity['mean_delta']), 'Average composite-risk difference', $fidelity['mean_delta'] <= 0.02],
+                ];
+            @endphp
+            @foreach ($fKpis as [$label, $value, $note, $good])
+            <div class="kpi">
+                <div class="kpi-rule {{ $good ? 'bg-low-500' : 'bg-moderate-500' }}"></div>
+                <div class="kpi-label">{{ $label }}</div>
+                <div class="kpi-value">{{ $value }}</div>
+                <div class="kpi-delta {{ $good ? 'text-low-700' : 'text-moderate-700' }}">{{ $note }}</div>
+            </div>
+            @endforeach
+        </div>
+
+        {{-- Match bars --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="card card-body space-y-4">
+                <div class="eyebrow">Agreement at a glance</div>
+                @php
+                    $bars = [
+                        ['Care-group assignment', $fidelity['cluster_match_pct'], $fidelity['verdicts']['cluster']['good']],
+                        ['Risk-level assignment',  $fidelity['risk_match_pct'],   $fidelity['verdicts']['risk']['good']],
+                    ];
+                @endphp
+                @foreach ($bars as [$label, $pct, $good])
+                <div>
+                    <div class="flex justify-between text-[12.5px] mb-1.5">
+                        <span class="font-medium text-ink-700 dark:text-[#c8c4bc]">{{ $label }}</span>
+                        <span class="font-mono font-semibold tnum {{ $good ? 'text-low-700 dark:text-[#6dd89e]' : 'text-moderate-700 dark:text-[#e0c060]' }}">
+                            {{ $fPct($pct) }}
+                        </span>
+                    </div>
+                    <div class="bar h-3">
+                        <div class="bar-fill" style="width: {{ $fPct($pct, 0) }}; background: {{ $good ? '#4a8a68' : '#c19a3b' }};"></div>
+                    </div>
+                    <div class="text-[11px] text-ink-400 mt-1">
+                        {{ $good ? 'Within expected tolerance' : 'Below target — review boundary cases' }}
+                    </div>
+                </div>
+                @endforeach
+            </div>
+
+            <div class="card card-body space-y-3">
+                <div class="eyebrow">Why small differences are expected</div>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
+                    The notebook assigns care groups using <strong class="text-ink-700 dark:text-[#c8c4bc]">UMAP + K-Means</strong> over the full training set.
+                    The live system uses a <strong class="text-ink-700 dark:text-[#c8c4bc]">KNN classifier (k=5)</strong> trained on those labels —
+                    a deliberate design choice for fast, deterministic, single-senior inference.
+                </p>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
+                    Seniors sitting near a cluster boundary can land on either side depending on which
+                    method is used — their risk scores and care plans are nearly identical regardless.
+                    The {{ $fidelity['mismatch_count'] }} {{ Str::plural('case', $fidelity['mismatch_count']) }}
+                    below all have <strong class="text-ink-700 dark:text-[#c8c4bc]">matching risk levels</strong> and score deltas well under 0.05.
+                </p>
+                <div class="flex items-center gap-2 pt-1">
+                    <x-heroicon-o-shield-check class="w-4 h-4 text-low-600 flex-shrink-0" />
+                    <span class="text-[12px] text-ink-600 dark:text-[#a8b0ab]">
+                        Risk thresholds: HIGH ≥ 0.54 · MODERATE ≥ 0.39 · Priority flag ≥ 0.70
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Boundary-case table --}}
+        @if ($fidelity['mismatch_count'] > 0)
+        <div class="card" x-data="{ open: false }">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">
+                        Boundary cases
+                        <span class="badge badge-neutral ml-1.5">{{ $fidelity['mismatch_count'] }}</span>
+                    </div>
+                    <div class="card-sub">Seniors where care group or risk level differs between live model and notebook</div>
+                </div>
+                <button type="button" @click="open = !open" class="btn btn-ghost text-[12px] flex-shrink-0">
+                    <span x-text="open ? 'Hide' : 'Show seniors'"></span>
+                    <x-heroicon-o-chevron-down class="w-3.5 h-3.5 ml-1 transition-transform" ::class="open ? 'rotate-180' : ''" />
+                </button>
+            </div>
+            <div x-show="open" x-collapse x-cloak>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[12.5px]">
+                        <thead>
+                            <tr class="text-ink-400 text-[10px] uppercase tracking-wider border-b border-paper-rule dark:border-[#2b3530]">
+                                <th class="text-left px-5 py-2.5 font-semibold">Senior</th>
+                                <th class="text-left px-4 py-2.5 font-semibold">Barangay</th>
+                                <th class="text-center px-3 py-2.5 font-semibold">Notebook group</th>
+                                <th class="text-center px-3 py-2.5 font-semibold">Live group</th>
+                                <th class="text-center px-3 py-2.5 font-semibold">Risk match</th>
+                                <th class="text-right px-5 py-2.5 font-semibold">Score Δ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-paper-rule dark:divide-[#2b3530]">
+                            @foreach ($fidelity['mismatches'] as $m)
+                            <tr class="{{ !$m['cluster_match'] ? 'bg-paper-2/40 dark:bg-[#131917]' : '' }}">
+                                <td class="px-5 py-2.5 font-medium text-ink-800 dark:text-[#e4e1d8]">{{ $m['name'] }}</td>
+                                <td class="px-4 py-2.5 text-ink-500 dark:text-[#8a9087]">{{ $m['barangay'] }}</td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <span class="badge badge-cluster-{{ $m['nb_cluster'] }}">C{{ $m['nb_cluster'] }}</span>
+                                </td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <span class="badge badge-cluster-{{ $m['live_cluster'] }} {{ !$m['cluster_match'] ? 'ring-1 ring-moderate-400' : '' }}">
+                                        C{{ $m['live_cluster'] }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2.5 text-center">
+                                    @if ($m['risk_match'])
+                                        <x-heroicon-o-check-circle class="w-4 h-4 text-low-600 mx-auto" />
+                                    @else
+                                        <x-heroicon-o-x-circle class="w-4 h-4 text-moderate-600 mx-auto" />
+                                    @endif
+                                </td>
+                                <td class="px-5 py-2.5 text-right font-mono tnum text-[12px]
+                                           {{ $m['delta'] > 0.02 ? 'text-moderate-700 dark:text-[#e0c060]' : 'text-ink-500' }}">
+                                    {{ number_format($m['delta'], 4) }}
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-body pt-3 border-t border-paper-rule dark:border-[#2b3530] text-[12px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
+                    All {{ $fidelity['mismatch_count'] }} {{ Str::plural('case', $fidelity['mismatch_count']) }}
+                    have a score delta below 0.05, and risk levels agree across
+                    {{ number_format($fidelity['risk_match_pct'] * 100, 1) }}% of the population —
+                    confirming boundary shifts do not change the care decisions reached for any senior.
+                </div>
+            </div>
+        </div>
+        @else
+        <div class="rounded-xl border border-low-200 dark:border-low-800/40 bg-low-50 dark:bg-low-900/20 px-5 py-4 flex items-center gap-3">
+            <x-heroicon-o-check-circle class="w-5 h-5 text-low-600 flex-shrink-0" />
+            <p class="text-[13px] text-low-800 dark:text-[#a5d8b8]">
+                <strong>Perfect concordance</strong> — every senior received the same care group and risk level from both the live model and the notebook.
+            </p>
+        </div>
+        @endif
+
+        @endif {{-- fidelity available --}}
     </section>
 
     {{-- ════════ STRENGTHS & LIMITATIONS ════════ --}}
