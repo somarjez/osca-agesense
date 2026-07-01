@@ -118,8 +118,8 @@
             </div>
         </x-card>
 
-        {{-- Health Groups — polar area --}}
-        <x-card title="Health Groups" sub="4 groups · radius = group size" class="card-lift">
+        {{-- Health Groups — doughnut --}}
+        <x-card title="Health Groups" sub="4 care groups · proportion = group size" class="card-lift">
             <div wire:ignore class="relative h-52"><canvas id="clusterChart" aria-label="Cluster distribution: senior count per cluster group" role="img"></canvas></div>
             <div class="mt-4 space-y-1.5">
                 @foreach ($clusterDistribution['labels'] as $i => $label)
@@ -160,18 +160,17 @@
             </div>
             <div class="divide-y divide-paper-rule">
                 @forelse ($pendingRecs->take(5) as $rec)
-                    <div class="px-4 py-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
-                        <div class="flex items-start gap-3">
-                            <span class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-md grid place-items-center text-[11px] font-bold tnum bg-high-100 text-high-700">
-                                {{ $rec->priority }}
-                            </span>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-semibold text-ink-900 truncate">{{ $rec->seniorCitizen->full_name }}</p>
-                                <p class="text-[12px] text-ink-500 mt-0.5 line-clamp-1">{{ $rec->action }}</p>
-                            </div>
-                            <span class="badge {{ $rec->urgency === 'immediate' ? 'badge-critical' : 'badge-high' }} flex-shrink-0 capitalize">{{ $rec->urgency }}</span>
+                    <a href="{{ route('seniors.show', $rec->seniorCitizen->id) }}" class="px-4 py-3 flex items-start gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                        <span class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-md grid place-items-center text-[11px] font-bold tnum bg-high-100 text-high-700">
+                            {{ $rec->priority }}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[13px] font-semibold text-ink-900 truncate">{{ $rec->seniorCitizen->full_name }}</p>
+                            <p class="text-[12px] text-ink-500 mt-0.5 line-clamp-1">{{ $rec->action }}</p>
                         </div>
-                    </div>
+                        <span class="badge {{ $rec->urgency === 'immediate' ? 'badge-critical' : 'badge-high' }} flex-shrink-0 capitalize">{{ $rec->urgency }}</span>
+                        <x-heroicon-o-chevron-right class="w-4 h-4 text-ink-400 flex-shrink-0 self-center" />
+                    </a>
                 @empty
                     <div class="px-4 py-6">
                         <x-empty-state icon="chart" title="No urgent actions" description="Immediate-priority recommendations will appear here as assessments run." />
