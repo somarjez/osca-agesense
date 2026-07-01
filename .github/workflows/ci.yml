@@ -136,7 +136,7 @@ jobs:
           cache: "pip"
 
       - name: Install Python dependencies
-        run: pip install -r python/requirements.txt
+        run: pip install --upgrade -r python/requirements.txt
 
       - name: Run ML pipeline validation tests
         run: python python/tests/test_ml_pipeline.py
