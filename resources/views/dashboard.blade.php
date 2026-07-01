@@ -117,12 +117,18 @@
     }
 
     // Center value + caption for the semicircular wellbeing gauge.
-    function gaugeTextPlugin(text, has) {
+    // Reads arc.circumference each frame so the number counts up with the animation.
+    function gaugeTextPlugin(targetVal, has) {
         return {
             id: 'gaugeText',
             afterDraw(chart) {
                 const arc = chart.getDatasetMeta(0).data[0];
-                if (!arc) return;
+                if (!arc || !chart.chartArea) return;
+                // arc.circumference animates 0 → (targetVal/100)*π during Chart.js fill
+                const animated = has
+                    ? Math.round(Math.max(0, Math.min(1, arc.circumference / Math.PI)) * 100)
+                    : 0;
+                const displayText = has ? String(animated) : '—';
                 const ctx = chart.ctx;
                 const dark = isDark();
                 ctx.save();
@@ -130,7 +136,7 @@
                 ctx.textBaseline = 'alphabetic';
                 ctx.fillStyle = has ? (dark ? '#e4e1d8' : '#1a1d1a') : (dark ? '#8a9087' : '#a8aca5');
                 ctx.font = "600 27px 'Source Serif 4', Georgia, serif";
-                ctx.fillText(text, arc.x, arc.y - 16);
+                ctx.fillText(displayText, arc.x, arc.y - 16);
                 ctx.fillStyle = dark ? '#8a9087' : '#8a8f86';
                 try { ctx.letterSpacing = '1.2px'; } catch (e) {}
                 ctx.font = "600 9px 'Plus Jakarta Sans', system-ui, sans-serif";
@@ -182,35 +188,31 @@
             plugins: [centerTextPlugin('Seniors')],
         });
 
-        // Health groups — polar area (radius encodes group size)
+        // Health groups — doughnut (proportion = group size, matches Risk Distribution)
         upsert('clusterChart', {
-            type: 'polarArea',
+            type: 'doughnut',
             data: {
                 labels: p.cluster.labels,
                 datasets: [{
                     data: p.cluster.data,
                     backgroundColor: recolor(p.cluster.colors).map(c => c + 'cc'),
-                    borderColor: recolor(p.cluster.colors),
-                    borderWidth: 1.5,
-                    hoverBackgroundColor: recolor(p.cluster.colors),
+                    borderWidth: 2,
+                    borderColor: C.doughnutBorder,
+                    hoverOffset: 8,
+                    hoverBorderColor: C.doughnutBorder,
                 }],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 300, easing: 'easeOutQuart' },
-                scales: {
-                    r: {
-                        grid: { color: C.grid },
-                        angleLines: { color: C.grid },
-                        ticks: { display: false, backdropColor: 'transparent' },
-                    },
-                },
+                cutout: '72%',
+                animation: doughnutAnim,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.formattedValue}` } },
+                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } },
                 },
             },
+            plugins: [centerTextPlugin('Seniors')],
         });
 
         // Domain scores — radar (full-width slot; shows the WHO-domain profile shape)
@@ -306,7 +308,7 @@
                 animation: { duration: 400, easing: 'easeOutQuart' },
                 plugins: { legend: { display: false }, tooltip: { enabled: false } },
             },
-            plugins: [gaugeTextPlugin(hasWb ? String(Math.round(wb)) : '—', hasWb)],
+            plugins: [gaugeTextPlugin(hasWb ? Math.round(wb) : 0, hasWb)],
         });
     }
 
