@@ -173,10 +173,10 @@
             $pgMax = max(1, $pgEntries->max('count'));
         @endphp
         <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · proportion = group size" class="card-lift">
-            {{-- Doughnut proportion chart --}}
-            <div wire:ignore class="relative h-44"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
+            {{-- Doughnut proportion chart — grows to fill available card space --}}
+            <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
             {{-- Ranked bars --}}
-            <div class="mt-4 space-y-2.5">
+            <div class="mt-4 space-y-2.5 shrink-0">
                 @forelse ($pgEntries as $grp)
                 @php $barPct = round($grp['count'] / $pgMax * 100); @endphp
                 <div>
@@ -198,8 +198,9 @@
 
         {{-- Domain Scores — radar + score legend --}}
         <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" class="card-lift">
-            <div wire:ignore class="relative h-52"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
-            <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {{-- Radar chart grows to fill available card space --}}
+            <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
+            <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 shrink-0">
                 @foreach ($domainScoreChart['labels'] as $di => $dlabel)
                 @php $dscore = $domainScoreChart['data'][$di] ?? 0; @endphp
                 <div class="flex items-center gap-2">

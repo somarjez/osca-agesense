@@ -31,7 +31,7 @@
 
   /* Cards */
   .card {
-    @apply bg-white border border-paper-rule rounded-2xl shadow-sm overflow-visible;
+    @apply bg-white border border-paper-rule rounded-2xl shadow-sm overflow-visible flex flex-col;
   }
   .card-head {
     @apply px-5 py-3.5 border-b border-paper-rule flex items-center justify-between gap-3;
@@ -42,7 +42,7 @@
   .card-sub {
     @apply text-[11.5px] text-ink-400 mt-0.5;
   }
-  .card-body { @apply p-5; }
+  .card-body { @apply p-5 flex-1 flex flex-col; }
 
   /* KPI */
   .kpi {

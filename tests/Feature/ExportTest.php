@@ -161,7 +161,7 @@ class ExportTest extends TestCase
 
         // Header row must be present
         $this->assertStringContainsString('OSCA ID', $body);
-        $this->assertStringContainsString('Cluster ID', $body);
+        $this->assertStringContainsString('Profile Group ID', $body);
         $this->assertStringContainsString('Risk Level', $body);
         $this->assertStringContainsString('Composite Risk', $body);
 
