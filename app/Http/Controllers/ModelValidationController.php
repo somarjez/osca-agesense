@@ -31,13 +31,14 @@ class ModelValidationController extends Controller
         $classification = $mv->riskClassification();
         $xai = $mv->explainability();
         $recs = $mv->recommendations();
+        $fidelity = $mv->fidelity();
         $provenance = $mv->provenance();
         $confidence = $mv->confidence($clustering, $regression, $classification, $xai, $recs);
 
         $charts = $mv->chartPayload($clustering, $regression, $classification, $xai, $recs);
 
         return view('reports.validation', compact(
-            'clustering', 'regression', 'classification', 'xai', 'recs', 'provenance', 'charts', 'confidence'
+            'clustering', 'regression', 'classification', 'xai', 'recs', 'fidelity', 'provenance', 'charts', 'confidence'
         ) + ['available' => $mv->available()]);
     }
 

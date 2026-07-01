@@ -52,16 +52,16 @@ else:
     ]
     MODEL_DIR = next((c for c in _candidates if os.path.isdir(c)), _candidates[0])
 
-# ── Expected values (from osca5.ipynb training run, 283 seniors) ──────────────
+# ── Expected values (from osca5.ipynb training run, 360 seniors, K=4) ────────
 EXPECTED = {
-    "scaler_n_features":     39,
+    "scaler_n_features":     30,
     "scaler_has_names":      True,
     "umap_n_components":     10,
-    "umap_input_n_features": 31,   # feature_list.json length
-    "kmeans_n_clusters":     3,
+    "umap_input_n_features": 30,   # feature_list.json length (30-feature post-ablation set)
+    "kmeans_n_clusters":     4,
     "kmeans_n_features_in":  10,   # == UMAP n_components
-    "cluster_raw_ids":       {0, 1, 2},
-    "cluster_mapping":       {"0": 3, "1": 1, "2": 2},   # raw->named; C1=75 C2=132 C3=76
+    "cluster_raw_ids":       {0, 1, 2, 3},
+    "cluster_mapping":       {"0": 2, "1": 4, "2": 3, "3": 1},   # raw->named C1/C2/C3/C4
     "risk_models": [
         "gbr_ic_risk.pkl", "rfr_ic_risk.pkl",
         "gbr_env_risk.pkl", "rfr_env_risk.pkl",
@@ -218,7 +218,7 @@ if _exists("scaler.pkl"):
         else:
             _fail(
                 f"scaler n_features_in_ == {EXPECTED['scaler_n_features']}",
-                f"Got {n}. Re-export scaler.pkl from osca5.ipynb with the 283-senior dataset."
+                f"Got {n}. Re-export scaler.pkl from osca5.ipynb (360-senior, 30-feature post-ablation run)."
             )
         if hasattr(sc, "feature_names_in_"):
             _pass("scaler.feature_names_in_ present", f"{len(sc.feature_names_in_)} named features")
@@ -315,11 +315,11 @@ if _exists("cluster_mapping.json"):
         missing = EXPECTED["cluster_raw_ids"] - raw_ids
         if missing:
             _fail(
-                "cluster_mapping.json covers all raw IDs {0,1,2}",
+                "cluster_mapping.json covers all raw IDs {0,1,2,3}",
                 f"Missing raw IDs: {sorted(missing)}."
             )
         else:
-            _pass("cluster_mapping.json covers all raw IDs {0,1,2}")
+            _pass("cluster_mapping.json covers all raw IDs {0,1,2,3}")
         # Verify expected mapping values
         expected_cm = EXPECTED["cluster_mapping"]
         wrong = {k: cm.get(k) for k in expected_cm if str(cm.get(k)) != str(expected_cm[k])}
@@ -327,12 +327,12 @@ if _exists("cluster_mapping.json"):
             _fail(
                 f"cluster_mapping.json values match expected {expected_cm}",
                 f"Wrong entries: {wrong}. "
-                "Expected: raw 0->C3, raw 1->C1, raw 2->C2 (C1=75, C2=132, C3=76)."
+                "Expected: raw 0->C2, raw 1->C4, raw 2->C3, raw 3->C1 (K=4, 360-senior model)."
             )
         else:
             _pass(
                 "cluster_mapping.json values correct",
-                f"{cm} — raw 0->C3, raw 1->C1, raw 2->C2"
+                f"{cm} — raw 0->C2, raw 1->C4, raw 2->C3, raw 3->C1"
             )
 else:
     _fail("cluster_mapping.json exists", "File missing.")
@@ -440,9 +440,9 @@ if all(_exists(f) for f in ["feature_list.json", umap_file, "scaler.pkl", "kmean
         try:
             with open(centroid_path, encoding="utf-8") as _f:
                 cd = json.load(_f)
-            if set(cd["centroids"].keys()) != {"1", "2", "3"}:
+            if set(cd["centroids"].keys()) != {"1", "2", "3", "4"}:
                 _fail("Cluster centroids file",
-                      f"Expected keys 1,2,3 — got {list(cd['centroids'].keys())}")
+                      f"Expected keys 1,2,3,4 — got {list(cd['centroids'].keys())}")
             elif _forward_pass_ok and cd["feature_names"] != fl2:
                 _fail("Cluster centroids file",
                       "feature_names mismatch with feature_list.json")
