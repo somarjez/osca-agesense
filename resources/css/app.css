@@ -42,7 +42,7 @@
   .card-sub {
     @apply text-[11.5px] text-ink-400 mt-0.5;
   }
-  .card-body { @apply p-5 flex-1 flex flex-col; }
+  .card-body { @apply p-5; }
 
   /* KPI */
   .kpi {
