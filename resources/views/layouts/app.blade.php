@@ -6,7 +6,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'AgeSense') — OSCA · Pagsanjan, Laguna</title>
+    <title>@yield('title', 'AgeSense')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     {{-- Apply dark class immediately from localStorage to prevent flash --}}
     <script>
         try { if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark'); } catch(e) {}
