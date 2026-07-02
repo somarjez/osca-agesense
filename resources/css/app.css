@@ -205,6 +205,34 @@
   .kpi { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1); }
   .kpi:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
 
+  /* ── Depth pack — faux-3D accents ─────────────────────────────────────────
+     Static gradients + inset shadows only (no per-frame cost, no filters).
+     Hover tilt/nudge transition `transform` exclusively, same as .card-lift. */
+  /* Icon chips: top-light gradient + inset rim reads as a raised tile. */
+  .chip-3d {
+    background-image: linear-gradient(160deg, rgba(255,255,255,0.65), rgba(255,255,255,0) 60%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55),
+                inset 0 -1.5px 3px rgba(22,33,58,0.10),
+                0 1px 2px rgba(22,33,58,0.12);
+  }
+  .dark .chip-3d {
+    background-image: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 60%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10),
+                inset 0 -1.5px 3px rgba(0,0,0,0.35),
+                0 1px 2px rgba(0,0,0,0.40);
+  }
+  /* Glossy sphere highlight for small color dots/swatches (legends, bands). */
+  .dot-3d {
+    background-image: radial-gradient(circle at 32% 30%, rgba(255,255,255,0.75), rgba(255,255,255,0) 48%);
+    box-shadow: inset 0 -1px 2px rgba(22,33,58,0.25);
+  }
+  /* Hover tilt for the brand mark / avatar — transform-only. */
+  .tilt-hover { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1); }
+  .tilt-hover:hover { transform: perspective(320px) rotateX(10deg) rotateY(-10deg) scale(1.06); }
+  /* Sidebar nav icon nudge on hover. */
+  .nav-link svg { transition: transform 0.15s cubic-bezier(0.22,1,0.36,1); }
+  .nav-link:hover svg { transform: translateX(2px) scale(1.08); }
+
   /* Collapsible priorities rail (dashboard). Width animates on toggle; the
      inner content keeps a fixed width so it doesn't reflow while collapsing. */
   .rail-panel { transition: width 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.22s ease; }

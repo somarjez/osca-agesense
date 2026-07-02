@@ -67,17 +67,6 @@
 
     @php
     $grouped = $recommendations->groupBy('category');
-    $catLabels = [
-        'health'        => 'Health',
-        'financial'     => 'Financial',
-        'livelihood'    => 'Livelihood',
-        'social'        => 'Social',
-        'mental_health' => 'Mental Health',
-        'functional'    => 'Functional',
-        'hc_access'     => 'Healthcare Access',
-        'healthcare_access' => 'Healthcare Access',
-        'general'       => 'General',
-    ];
     @endphp
 
     <div x-data="{ cat: 'all' }" class="space-y-5">
@@ -101,7 +90,8 @@
                 :aria-selected="cat === '{{ $category }}' ? 'true' : 'false'"
                 :class="cat === '{{ $category }}' ? {{ $chipActive }} : {{ $chipIdle }}"
                 class="{{ $chipBase }}">
-            {{ $catLabels[$category] ?? ucwords(str_replace('_',' ', $category)) }}
+            <x-dynamic-component :component="\App\Support\RecommendationCategories::icon($category)" class="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+            {{ \App\Support\RecommendationCategories::label($category) }}
             <span class="tnum text-[11px] opacity-70">{{ $recs->count() }}</span>
         </button>
         @endforeach
@@ -111,7 +101,10 @@
     @forelse ($grouped as $category => $recs)
     <div class="card overflow-hidden" x-show="cat === 'all' || cat === '{{ $category }}'" x-cloak>
         <div class="card-head">
-            <div class="card-title">{{ $catLabels[$category] ?? ucwords(str_replace('_',' ', $category)) }}</div>
+            <div class="card-title flex items-center gap-2">
+                <x-dynamic-component :component="\App\Support\RecommendationCategories::icon($category)" class="w-4 h-4 text-ink-500 flex-shrink-0" aria-hidden="true" />
+                {{ \App\Support\RecommendationCategories::label($category) }}
+            </div>
             <span class="badge badge-neutral">{{ $recs->count() }} action{{ $recs->count() !== 1 ? 's' : '' }}</span>
         </div>
         <div class="divide-y divide-paper-rule">

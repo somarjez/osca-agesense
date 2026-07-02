@@ -121,6 +121,25 @@ class MainDashboard extends Component
             ->avg('wellbeing_score');
         $wellbeingIndex = $wellbeingAvg !== null ? max(0, min(100, (int) round($wellbeingAvg * 100))) : null;
 
+        // Band counts behind the gauge (same filtered set; thresholds match the
+        // gauge colors: ≥0.70 good, 0.50–0.69 fair, <0.50 needs attention).
+        $wellbeingBandRow = MlResult::whereIn('id', $latestIds)
+            ->when($this->selectedBarangay, fn ($q) => $q->whereHas('seniorCitizen',
+                fn ($sq) => $sq->where('barangay', $this->selectedBarangay)
+            ))
+            ->when($this->selectedRisk, fn ($q) => $q->where('overall_risk_level', strtoupper($this->selectedRisk)))
+            ->selectRaw(
+                'SUM(CASE WHEN wellbeing_score >= 0.70 THEN 1 ELSE 0 END) as good,'
+                .'SUM(CASE WHEN wellbeing_score >= 0.50 AND wellbeing_score < 0.70 THEN 1 ELSE 0 END) as fair,'
+                .'SUM(CASE WHEN wellbeing_score < 0.50 THEN 1 ELSE 0 END) as low'
+            )
+            ->first();
+        $wellbeingBands = [
+            'good' => (int) ($wellbeingBandRow->good ?? 0),
+            'fair' => (int) ($wellbeingBandRow->fair ?? 0),
+            'low' => (int) ($wellbeingBandRow->low ?? 0),
+        ];
+
         $modelVersion = MlResult::whereIn('id', $latestIds)->value('model_version') ?? '—';
 
         $sourceCounts = MlResult::whereIn('id', $latestIds)
@@ -134,7 +153,7 @@ class MainDashboard extends Component
         $fallbackCount = $sourceCounts['fallback'] ?? 0;
         $predictionSource = $notebookCacheCount > 0 ? 'Notebook Export' : 'Live ML Model';
 
-        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs', 'wellbeingIndex', 'modelVersion', 'predictionSource',
+        return compact('total', 'surveyed', 'urgent', 'highRisk', 'pendingRecs', 'wellbeingIndex', 'wellbeingBands', 'modelVersion', 'predictionSource',
             'notebookCacheCount', 'liveModelCount', 'fallbackCount');
     }
 
