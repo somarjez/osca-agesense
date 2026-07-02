@@ -84,7 +84,7 @@ class DashboardUiTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Risk Distribution')
-            ->assertSee('ranked by size')
+            ->assertSee('petal size = group size')
             ->assertSee('Needs attention (below 50)')
             ->assertSee('need monitoring or action');
     }

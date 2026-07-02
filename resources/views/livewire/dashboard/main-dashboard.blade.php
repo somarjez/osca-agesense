@@ -12,7 +12,7 @@
             <div class="kpi-rule bg-high-500"></div>
             <div class="kpi-label">High Risk</div>
             <div class="flex items-baseline gap-2">
-                <div class="kpi-value text-high-700">{{ number_format($stats['highRisk']) }}</div>
+                <div class="kpi-value text-high-700" data-countup>{{ number_format($stats['highRisk']) }}</div>
                 @if ($stats['urgent'] > 0)
                     <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-high-700 bg-high-50 border border-high-200 px-1.5 py-0.5 rounded">
                         <span class="w-1.5 h-1.5 rounded-full bg-high-500 animate-pulse flex-shrink-0"></span>
@@ -109,7 +109,7 @@
                 @foreach ($riskDistribution['labels'] as $i => $label)
                     @php $val = $riskDistribution['data'][$i] ?? 0; $pct = round($val / $riskTotal * 100); @endphp
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
-                        <span class="w-2 h-2 rounded-sm flex-shrink-0" style="background: {{ $riskDistribution['colors'][$i] }}"></span>
+                        <span class="w-2 h-2 rounded-sm dot-3d flex-shrink-0" style="background-color: {{ $riskDistribution['colors'][$i] }}"></span>
                         <span>{{ $label }}</span>
                         <span class="ml-auto font-mono font-semibold tnum">{{ $val }}</span>
                         <span class="text-ink-400 dark:text-[#6b7570] tnum w-9 text-right">{{ $pct }}%</span>
@@ -145,13 +145,14 @@
             $pgMax   = max(1, $pgEntries->max('count'));
             $pgTotal = max(1, $pgEntries->sum('count'));
         @endphp
-        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · ranked by size" class="card-lift">
-            <div class="space-y-3">
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · petal size = group size" class="card-lift">
+            <div wire:ignore class="relative h-48"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
+            <div class="mt-4 space-y-3">
                 @forelse ($pgEntries as $grp)
                 @php $barPct = round($grp['count'] / $pgMax * 100); @endphp
                 <div>
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background: {{ $grp['color'] }}"></span>
+                        <span class="w-2.5 h-2.5 rounded-sm dot-3d flex-shrink-0" style="background-color: {{ $grp['color'] }}"></span>
                         <span class="text-[11.5px] font-semibold text-ink-800 dark:text-[#c8c4bc] truncate flex-1 min-w-0"
                               title="{{ $grp['label'] }}">G{{ $grp['id'] }} · {{ $grp['label'] }}</span>
                         <span class="text-[11.5px] font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum flex-shrink-0">{{ $grp['count'] }}</span>
@@ -186,7 +187,7 @@
         <div class="card card-lift">
             <div class="card-head">
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-7 h-7 rounded-lg grid place-items-center bg-high-50 text-high-600 flex-shrink-0">
+                    <span class="w-7 h-7 rounded-lg chip-3d grid place-items-center bg-high-50 text-high-600 flex-shrink-0">
                         <x-heroicon-o-exclamation-triangle class="w-4 h-4" />
                     </span>
                     <div class="min-w-0">
@@ -228,7 +229,7 @@
         <div class="card card-lift">
             <div class="card-head">
                 <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-7 h-7 rounded-lg grid place-items-center bg-forest-50 text-forest-700 flex-shrink-0">
+                    <span class="w-7 h-7 rounded-lg chip-3d grid place-items-center bg-forest-50 text-forest-700 flex-shrink-0">
                         <x-heroicon-o-user-group class="w-4 h-4" />
                     </span>
                     <div class="min-w-0">
@@ -242,7 +243,7 @@
                 @forelse ($recentSeniors->take(5) as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
                     <a href="{{ route('seniors.show', $senior->id) }}" class="px-4 py-3 flex items-center gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
-                        <div class="w-8 h-8 rounded-full bg-forest-100 grid place-items-center flex-shrink-0">
+                        <div class="w-8 h-8 rounded-full chip-3d bg-forest-100 grid place-items-center flex-shrink-0">
                             <span class="text-[11px] font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name, 0, 1) . substr($senior->last_name, 0, 1)) }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -270,7 +271,12 @@
             @endif
         </div>
 
-        {{-- Wellbeing Index — gauge (fills space in the collage) --}}
+        {{-- Age Group Distribution --}}
+        <x-card title="Age Group Distribution" sub="Senior count by age band" class="card-lift">
+            <div wire:ignore class="relative h-60"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
+        </x-card>
+
+        {{-- Wellbeing Index — gauge (fills the last-row cell beside Barangay) --}}
         <x-card class="card-lift">
             <div class="text-center">
                 <div class="card-title">Wellbeing Index</div>
@@ -280,27 +286,22 @@
                 </div>
                 <div class="mt-3 pt-3 border-t border-paper-rule dark:border-[#2b3530] space-y-1.5 text-left">
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
-                        <span class="w-2 h-2 rounded-full bg-low-500 flex-shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full bg-low-500 dot-3d flex-shrink-0"></span>
                         <span>Good (70–100)</span>
                         <span class="ml-auto font-mono font-semibold tnum">{{ $stats['wellbeingBands']['good'] ?? 0 }}</span>
                     </div>
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
-                        <span class="w-2 h-2 rounded-full bg-moderate-500 flex-shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full bg-moderate-500 dot-3d flex-shrink-0"></span>
                         <span>Fair (50–69)</span>
                         <span class="ml-auto font-mono font-semibold tnum">{{ $stats['wellbeingBands']['fair'] ?? 0 }}</span>
                     </div>
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
-                        <span class="w-2 h-2 rounded-full bg-high-500 flex-shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full bg-high-500 dot-3d flex-shrink-0"></span>
                         <span>Needs attention (below 50)</span>
                         <span class="ml-auto font-mono font-semibold tnum">{{ $stats['wellbeingBands']['low'] ?? 0 }}</span>
                     </div>
                 </div>
             </div>
-        </x-card>
-
-        {{-- Age Group Distribution --}}
-        <x-card title="Age Group Distribution" sub="Senior count by age band" class="card-lift">
-            <div wire:ignore class="relative h-60"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
         </x-card>
 
         {{-- Barangay Breakdown — proportional data-bar list (wide base of the bento) --}}
@@ -336,7 +337,7 @@
 
     </div>
 
-    @php $__chartJson = json_encode(['risk' => $riskDistribution, 'domain' => $domainScoreChart, 'age' => $ageGroupChart, 'wellbeing' => $stats['wellbeingIndex'] ?? null], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); @endphp
+    @php $__chartJson = json_encode(['risk' => $riskDistribution, 'cluster' => $clusterDistribution, 'domain' => $domainScoreChart, 'age' => $ageGroupChart, 'wellbeing' => $stats['wellbeingIndex'] ?? null], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); @endphp
     <script type="application/json" id="dashboard-chart-data">{!! $__chartJson !!}</script>
 
 </div>

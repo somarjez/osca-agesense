@@ -109,6 +109,35 @@ document.addEventListener('qol-step-changed', function () {
     delete window.__livewireMainScroll  // cancel any pending restoration
 })
 
+// ── KPI count-up ──────────────────────────────────────────────────────────────
+// Elements with [data-countup] tween from 0 to their server-rendered integer on
+// page load / navigation (not on Livewire filter updates — re-animating every
+// filter change would be noise). Thousands separators are preserved. Skipped
+// under prefers-reduced-motion and for non-numeric content ("—", percentages).
+function runCountups() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    document.querySelectorAll('[data-countup]:not([data-counted])').forEach((el) => {
+        const raw = el.textContent.trim()
+        if (!/^[\d,]+$/.test(raw)) return
+        const num = Number(raw.replace(/,/g, ''))
+        if (!Number.isInteger(num) || num <= 0 || num > 999999) return
+        el.dataset.counted = 'true'
+        const useCommas = raw.includes(',')
+        const start = performance.now()
+        const dur = 650
+        const tick = (now) => {
+            const t = Math.min(1, (now - start) / dur)
+            const eased = 1 - Math.pow(1 - t, 4) // easeOutQuart
+            const val = Math.round(num * eased)
+            el.textContent = useCommas ? val.toLocaleString('en-US') : String(val)
+            if (t < 1) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+    })
+}
+document.addEventListener('DOMContentLoaded', runCountups)
+document.addEventListener('livewire:navigated', runCountups)
+
 // ── OSCA Helper utilities ─────────────────────────────────────────────────────
 window.OSCA = {
     /**

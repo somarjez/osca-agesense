@@ -188,6 +188,39 @@
             plugins: [centerTextPlugin('Seniors')],
         });
 
+        // Profile Groups — polar area (equal angles, radius = group size; reads
+        // better than a doughnut for four near-equal values and stays visually
+        // distinct from the risk doughnut beside it)
+        upsert('clusterChart', {
+            type: 'polarArea',
+            data: {
+                labels: p.cluster.labels,
+                datasets: [{
+                    data: p.cluster.data,
+                    backgroundColor: recolor(p.cluster.colors).map(c => c + 'cc'),
+                    borderWidth: 2,
+                    borderColor: C.doughnutBorder,
+                    hoverBorderColor: C.doughnutBorder,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: doughnutAnim,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        grid: { color: C.grid },
+                        ticks: { display: false },
+                    },
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.r ?? c.parsed}` } },
+                },
+            },
+        });
+
         // Domain scores — radar (full-width slot; shows the WHO-domain profile shape)
         upsert('domainChart', {
             type: 'radar',

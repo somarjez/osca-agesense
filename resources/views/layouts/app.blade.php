@@ -42,7 +42,7 @@
         <div class="flex-shrink-0 border-b border-paper-rule dark:border-[#2b3530] px-3 py-3.5">
             {{-- Expanded --}}
             <div x-show="sidebarOpen" x-cloak class="flex items-center gap-3">
-                <x-app-logo :size="34" class="shadow-sm" />
+                <x-app-logo :size="34" class="shadow-sm tilt-hover" />
                 <div class="min-w-0 flex-1">
                     <div class="masthead-name text-[16px] whitespace-nowrap">AgeSense</div>
                     <div class="masthead-office whitespace-nowrap mt-1">OSCA · Pagsanjan</div>
@@ -327,7 +327,7 @@
                             class="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-lg hover:bg-paper-2 dark:hover:bg-[#202a26] transition-colors duration-150"
                             aria-haspopup="menu" :aria-expanded="profileOpen ? 'true' : 'false'"
                             aria-label="Account menu">
-                        <span class="w-7 h-7 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[11px]">
+                        <span class="w-7 h-7 rounded-xl chip-3d tilt-hover bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[11px]">
                             {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
                         </span>
                         <x-heroicon-o-chevron-down class="w-3 h-3 text-ink-400 dark:text-[#6b7570] transition-transform duration-150"

@@ -19,7 +19,7 @@ $accentClass = 'kpi--' . $accent;
 <div class="kpi {{ $accentClass }}">
     <div class="kpi-rule {{ $ruleClass }}"></div>
     <div class="kpi-label">{{ $label }}</div>
-    <div class="kpi-value {{ $valueColor }}">{{ $value }}</div>
+    <div class="kpi-value {{ $valueColor }}" data-countup>{{ $value }}</div>
     @if ($sub)
         <div class="kpi-delta">{{ $sub }}</div>
     @elseif (isset($delta))
