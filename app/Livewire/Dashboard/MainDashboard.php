@@ -130,14 +130,14 @@ class MainDashboard extends Component
             ->when($this->selectedRisk, fn ($q) => $q->where('overall_risk_level', strtoupper($this->selectedRisk)))
             ->selectRaw(
                 'SUM(CASE WHEN wellbeing_score >= 0.70 THEN 1 ELSE 0 END) as good,'
-                . 'SUM(CASE WHEN wellbeing_score >= 0.50 AND wellbeing_score < 0.70 THEN 1 ELSE 0 END) as fair,'
-                . 'SUM(CASE WHEN wellbeing_score < 0.50 THEN 1 ELSE 0 END) as low'
+                .'SUM(CASE WHEN wellbeing_score >= 0.50 AND wellbeing_score < 0.70 THEN 1 ELSE 0 END) as fair,'
+                .'SUM(CASE WHEN wellbeing_score < 0.50 THEN 1 ELSE 0 END) as low'
             )
             ->first();
         $wellbeingBands = [
             'good' => (int) ($wellbeingBandRow->good ?? 0),
             'fair' => (int) ($wellbeingBandRow->fair ?? 0),
-            'low'  => (int) ($wellbeingBandRow->low ?? 0),
+            'low' => (int) ($wellbeingBandRow->low ?? 0),
         ];
 
         $modelVersion = MlResult::whereIn('id', $latestIds)->value('model_version') ?? '—';

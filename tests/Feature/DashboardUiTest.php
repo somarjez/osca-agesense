@@ -117,7 +117,7 @@ class DashboardUiTest extends TestCase
                 'category' => $category,
                 'urgency' => 'planned',
                 'risk_level' => 'HIGH',
-                'action' => 'Test action for ' . $category,
+                'action' => 'Test action for '.$category,
                 'status' => 'pending',
             ]);
         }

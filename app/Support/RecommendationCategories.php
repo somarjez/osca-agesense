@@ -11,17 +11,17 @@ namespace App\Support;
 final class RecommendationCategories
 {
     public const MAP = [
-        'health'            => ['label' => 'Health',            'icon' => 'heroicon-o-heart'],
-        'financial'         => ['label' => 'Financial',         'icon' => 'heroicon-o-banknotes'],
+        'health' => ['label' => 'Health',            'icon' => 'heroicon-o-heart'],
+        'financial' => ['label' => 'Financial',         'icon' => 'heroicon-o-banknotes'],
         'healthcare_access' => ['label' => 'Healthcare Access', 'icon' => 'heroicon-o-building-office-2'],
-        'functional'        => ['label' => 'Functional',        'icon' => 'heroicon-o-bolt'],
-        'social'            => ['label' => 'Social',            'icon' => 'heroicon-o-user-group'],
-        'livelihood'        => ['label' => 'Livelihood',        'icon' => 'heroicon-o-briefcase'],
-        'mental_health'     => ['label' => 'Mental Health',     'icon' => 'heroicon-o-face-smile'],
+        'functional' => ['label' => 'Functional',        'icon' => 'heroicon-o-bolt'],
+        'social' => ['label' => 'Social',            'icon' => 'heroicon-o-user-group'],
+        'livelihood' => ['label' => 'Livelihood',        'icon' => 'heroicon-o-briefcase'],
+        'mental_health' => ['label' => 'Mental Health',     'icon' => 'heroicon-o-face-smile'],
         // Legacy category keys (older stored rows only)
-        'hc_access'         => ['label' => 'Healthcare Access', 'icon' => 'heroicon-o-building-office-2'],
-        'sensory'           => ['label' => 'Sensory',           'icon' => 'heroicon-o-eye'],
-        'general'           => ['label' => 'General',           'icon' => 'heroicon-o-clipboard-document-list'],
+        'hc_access' => ['label' => 'Healthcare Access', 'icon' => 'heroicon-o-building-office-2'],
+        'sensory' => ['label' => 'Sensory',           'icon' => 'heroicon-o-eye'],
+        'general' => ['label' => 'General',           'icon' => 'heroicon-o-clipboard-document-list'],
     ];
 
     public static function label(string $category): string
