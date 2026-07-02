@@ -234,53 +234,6 @@
             </a>
         </nav>
 
-        {{-- Sidebar Footer — user profile --}}
-        <div class="border-t border-paper-rule dark:border-[#2b3530] flex-shrink-0 px-3 py-3">
-            <div class="flex items-center gap-2.5" :class="sidebarOpen ? '' : 'flex-col gap-1.5 items-center'">
-
-                {{-- Avatar --}}
-                <div class="w-8 h-8 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[12px] flex-shrink-0">
-                    {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
-                </div>
-
-                {{-- Name/role (expanded only) --}}
-                <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
-                    <div class="text-[12.5px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate leading-tight">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
-                    <div class="text-[10.5px] text-ink-500 dark:text-[#6b7570] leading-tight">
-                        @php
-                            $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
-                            $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
-                        @endphp
-                        {{ $roleLabels[$roleName] ?? 'OSCA Staff' }}
-                    </div>
-                </div>
-
-                {{-- Dark mode toggle --}}
-                <button @click="toggleDark()"
-                        class="sidebar-icon-btn flex-shrink-0"
-                        type="button"
-                        :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'"
-                        :title="dark ? 'Light mode' : 'Dark mode'">
-                    <x-heroicon-o-sun  class="w-3.5 h-3.5" x-show="dark"  x-cloak aria-hidden="true" />
-                    <x-heroicon-o-moon class="w-3.5 h-3.5" x-show="!dark" aria-hidden="true" />
-                </button>
-
-                {{-- Logout — icon-only button: swap the icon for a same-size spinner on
-                     submit (data-no-loading opts out of the global text-swap guard, which
-                     would otherwise cram "Signing out…" into this 28px button). --}}
-                <form method="POST" action="{{ route('logout') }}" x-data="{ out: false }" @submit="out = true">
-                    @csrf
-                    <button type="submit" data-no-loading
-                            class="sidebar-icon-btn flex-shrink-0"
-                            :class="{ 'opacity-70 pointer-events-none': out }"
-                            :aria-busy="out"
-                            aria-label="Sign out" title="Sign out">
-                        <x-heroicon-o-arrow-right-on-rectangle class="w-3.5 h-3.5" x-show="!out" aria-hidden="true" />
-                        <span x-show="out" x-cloak class="btn-spinner w-3.5 h-3.5" aria-hidden="true"></span>
-                    </button>
-                </form>
-            </div>
-        </div>
     </aside>
 
     {{-- ── Main ── --}}
@@ -362,6 +315,62 @@
                         title="Notifications (coming soon)" disabled>
                     <x-heroicon-o-bell class="w-4 h-4" />
                 </button>
+
+                {{-- User profile dropdown --}}
+                @php
+                    $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
+                    $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
+                @endphp
+                <div x-data="{ profileOpen: false }" class="relative"
+                     @keydown.escape.window="profileOpen = false">
+                    <button type="button" @click="profileOpen = !profileOpen"
+                            class="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-lg hover:bg-paper-2 dark:hover:bg-[#202a26] transition-colors duration-150"
+                            aria-haspopup="menu" :aria-expanded="profileOpen ? 'true' : 'false'"
+                            aria-label="Account menu">
+                        <span class="w-7 h-7 rounded-xl bg-forest-100 dark:bg-forest-900/60 text-forest-800 dark:text-forest-300 grid place-items-center font-semibold text-[11px]">
+                            {{ strtoupper(substr(auth()->user()?->name ?? 'A', 0, 2)) }}
+                        </span>
+                        <x-heroicon-o-chevron-down class="w-3 h-3 text-ink-400 dark:text-[#6b7570] transition-transform duration-150"
+                                                   ::class="profileOpen ? 'rotate-180' : ''" aria-hidden="true" />
+                    </button>
+
+                    <div x-show="profileOpen" x-cloak @click.outside="profileOpen = false"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute right-0 top-full mt-2 w-56 origin-top-right z-50 rounded-xl bg-white dark:bg-[#1a201d]
+                                border border-paper-rule dark:border-[#2b3530] shadow-lg overflow-hidden"
+                         role="menu">
+                        {{-- Identity header --}}
+                        <div class="px-4 py-3 border-b border-paper-rule dark:border-[#2b3530]">
+                            <div class="text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                            <div class="text-[11px] text-ink-500 dark:text-[#6b7570]">{{ $roleLabels[$roleName] ?? 'OSCA Staff' }}</div>
+                        </div>
+                        {{-- Dark mode toggle --}}
+                        <button type="button" @click="toggleDark()" role="menuitem"
+                                class="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] text-ink-700 dark:text-[#b0b5b2]
+                                       hover:bg-paper-2 dark:hover:bg-[#202a26] transition-colors duration-150">
+                            <x-heroicon-o-sun  class="w-4 h-4" x-show="dark"  x-cloak aria-hidden="true" />
+                            <x-heroicon-o-moon class="w-4 h-4" x-show="!dark" aria-hidden="true" />
+                            <span x-text="dark ? 'Light mode' : 'Dark mode'"></span>
+                        </button>
+                        {{-- Sign out — data-no-loading opts out of the global submit
+                             text-swap guard; the icon swaps for a spinner instead. --}}
+                        <form method="POST" action="{{ route('logout') }}" x-data="{ out: false }" @submit="out = true"
+                              class="border-t border-paper-rule dark:border-[#2b3530]">
+                            @csrf
+                            <button type="submit" data-no-loading role="menuitem" :aria-busy="out"
+                                    :class="{ 'opacity-70 pointer-events-none': out }"
+                                    class="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] text-ink-700 dark:text-[#b0b5b2]
+                                           hover:bg-paper-2 dark:hover:bg-[#202a26] transition-colors duration-150">
+                                <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4" x-show="!out" aria-hidden="true" />
+                                <span x-show="out" x-cloak class="btn-spinner w-4 h-4" aria-hidden="true"></span>
+                                Sign out
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </header>
 
