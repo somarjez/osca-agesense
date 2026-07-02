@@ -141,7 +141,7 @@
                     <div class="space-y-1.5">
                     @foreach ($pendingRecs as $rec)
                     <div class="flex items-center justify-between text-[12.5px]">
-                        <span class="text-ink-600 dark:text-[#b0b5b2] capitalize">{{ str_replace('_', ' ', $rec->category) }}</span>
+                        <span class="text-ink-600 dark:text-[#b0b5b2]">{{ \App\Support\RecommendationCategories::label($rec->category) }}</span>
                         <span class="font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $rec->count }}</span>
                     </div>
                     @endforeach

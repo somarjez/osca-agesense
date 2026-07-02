@@ -739,22 +739,12 @@
                 <x-slot name="noPadding">true</x-slot>
 
                 @php
-                $categories = [
-                    'health'     => ['label' => 'Health',     'icon' => 'heroicon-o-heart'],
-                    'financial'  => ['label' => 'Financial',  'icon' => 'heroicon-o-banknotes'],
-                    'social'     => ['label' => 'Social',     'icon' => 'heroicon-o-user-group'],
-                    'functional' => ['label' => 'Functional', 'icon' => 'heroicon-o-bolt'],
-                    'hc_access'  => ['label' => 'HC Access',  'icon' => 'heroicon-o-building-office-2'],
-                    'sensory'    => ['label' => 'Sensory',    'icon' => 'heroicon-o-eye'],
-                    'general'    => ['label' => 'General',    'icon' => 'heroicon-o-clipboard-document-list'],
-                ];
                 $grouped = $ml?->recommendations->groupBy('category') ?? collect();
                 @endphp
 
                 @forelse ($grouped as $cat => $recs)
                 @php
                     $hasUrgent = $recs->where('urgency', 'urgent')->isNotEmpty();
-                    $catInfo   = $categories[$cat] ?? ['label' => ucfirst($cat), 'icon' => 'heroicon-o-tag'];
                 @endphp
                 <div x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }"
                      class="border-b border-paper-rule last:border-b-0">
@@ -762,8 +752,8 @@
                     <button @click="open = !open"
                             class="w-full flex items-center justify-between px-5 py-2.5 text-left bg-paper-2 dark:bg-[#1a201d] hover:bg-forest-50/60 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="flex items-center gap-2">
-                            <x-dynamic-component :component="$catInfo['icon']" class="w-4 h-4 text-ink-500 flex-shrink-0" aria-hidden="true" />
-                            <span class="eyebrow">{{ $catInfo['label'] }}</span>
+                            <x-dynamic-component :component="\App\Support\RecommendationCategories::icon($cat)" class="w-4 h-4 text-ink-500 flex-shrink-0" aria-hidden="true" />
+                            <span class="eyebrow">{{ \App\Support\RecommendationCategories::label($cat) }}</span>
                             @if ($hasUrgent)
                                 <span class="inline-flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">
                                     <x-heroicon-s-exclamation-triangle class="w-3 h-3 flex-shrink-0" aria-hidden="true" />
