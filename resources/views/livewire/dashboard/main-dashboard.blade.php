@@ -172,7 +172,7 @@
             ])->sortByDesc('count')->values();
             $pgMax = max(1, $pgEntries->max('count'));
         @endphp
-        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · proportion = group size" class="card-lift">
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · proportion = group size" class="card-lift" :fill="true">
             {{-- Doughnut proportion chart — grows to fill available card space --}}
             <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
             {{-- Ranked bars --}}
@@ -197,7 +197,7 @@
         </x-card>
 
         {{-- Domain Scores — radar + score legend --}}
-        <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" class="card-lift">
+        <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" class="card-lift" :fill="true">
             {{-- Radar chart grows to fill available card space --}}
             <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 9rem"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
             <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 shrink-0">

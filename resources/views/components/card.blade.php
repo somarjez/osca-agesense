@@ -1,4 +1,4 @@
-@props(['title' => null, 'sub' => null, 'noPadding' => false])
+@props(['title' => null, 'sub' => null, 'noPadding' => false, 'fill' => false])
 <div {{ $attributes->merge(['class' => 'card']) }}>
     @if ($title || $sub || isset($actions))
     <div class="card-head">
@@ -14,6 +14,6 @@
     @if ($noPadding)
         <div>{{ $slot }}</div>
     @else
-        <div class="card-body">{{ $slot }}</div>
+        <div class="card-body {{ $fill ? 'flex-1 flex flex-col min-h-0' : '' }}">{{ $slot }}</div>
     @endif
 </div>
