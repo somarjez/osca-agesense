@@ -1,0 +1,110 @@
+{
+  "description": "AgeSense scoring weights and parameters",
+  "section_weights": {
+    "sec1": 0.05,
+    "sec2": 0.08,
+    "sec3": 0.07,
+    "sec4": 0.12,
+    "sec5": 0.25,
+    "sec6": 0.43
+  },
+  "domain_risk_weights": {
+    "medical": 0.28,
+    "financial": 0.18,
+    "social": 0.14,
+    "hc_access": 0.12,
+    "housing": 0.1,
+    "functional": 0.1,
+    "sensory": 0.08
+  },
+  "ensemble_weights": {
+    "rule": 0.45,
+    "gbr": 0.35,
+    "rfr": 0.2
+  },
+  "composite_risk_domain_weights": {
+    "ic_risk": 0.35,
+    "env_risk": 0.35,
+    "func_risk": 0.3
+  },
+  "composite_risk_note": "Composite risk is a summary risk indicator derived from domain-level scores (IC+Env+Func ensemble), blended with rule-based composite. Not a standalone clinical prediction.",
+  "vif_threshold": 5.0,
+  "scaler": "MinMaxScaler",
+  "umap_params": {
+    "2d": {
+      "n_components": 2,
+      "n_neighbors": 15,
+      "min_dist": 0.1
+    },
+    "nd": {
+      "n_components": 10,
+      "n_neighbors": 10,
+      "min_dist": 0.0,
+      "metric": "euclidean"
+    }
+  },
+  "kmeans": {
+    "n_clusters": 4,
+    "init": "k-means++",
+    "n_init": 100,
+    "max_iter": 1000
+  },
+  "risk_level_thresholds": {
+    "LOW": "0.00-0.39",
+    "MODERATE": "0.39-0.54",
+    "HIGH": "0.54-0.70",
+    "CRITICAL": "0.70-1.00",
+    "_note": "CRITICAL is an urgent review flag (not a clinical diagnosis). composite_risk >= 0.70 triggers priority referral and immediate case management review."
+  },
+  "final_clustering_feature_count": 30,
+  "features_retained_after_vif": [
+    "phy_energy",
+    "phy_pain_r",
+    "phy_health_limit_r",
+    "phy_mobility_outside",
+    "phy_mobility_indoor",
+    "psych_happiness",
+    "psych_peace",
+    "psych_lonely_r",
+    "psych_confidence",
+    "func_independence",
+    "func_autonomy",
+    "func_control",
+    "env_income_limit_r",
+    "env_fin_household",
+    "env_fin_medical",
+    "env_fin_personal",
+    "env_safe_home",
+    "env_safe_neighborhood",
+    "env_home_comfort",
+    "env_service_access",
+    "income_enc",
+    "soc_social_support",
+    "soc_close_friend",
+    "soc_opportunity",
+    "soc_respect",
+    "living_with_count",
+    "community_service_count",
+    "sec5_real_asset_score",
+    "sec5_movable_asset_score",
+    "sec5_income_source_score",
+    "sec4_household_risk",
+    "sec3_community_score",
+    "checkup_enc",
+    "sec3_education_norm",
+    "sec3_skill_score",
+    "sec2_family_support"
+  ],
+  "cluster_assignment": {
+    "artifact": "cluster_assignment_knn_k5.pkl",
+    "algorithm": "KNeighborsClassifier",
+    "k": 5,
+    "metric": "euclidean",
+    "cv_folds": 5,
+    "cv_accuracy": 0.9333,
+    "cv_std": 0.0269,
+    "label_space": "cluster_named_id (1-4)",
+    "n_features": 30,
+    "note": "Primary inference path. Nearest-centroid is fallback when artifact is absent."
+  }
+}

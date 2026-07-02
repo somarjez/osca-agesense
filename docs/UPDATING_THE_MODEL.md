@@ -212,17 +212,32 @@ If the dashboard numbers are wrong, confirm `ENABLE_NOTEBOOK_OVERRIDES=false` in
 
 ---
 
-### Step 6 — Commit and push
+### Step 6 — Publish the System Validation artifacts for other devices
+
+The admin **System Validation** page (`/reports/validation`) reads from `storage/app/ml_validation/`, which is gitignored (may contain senior PII) — it never reaches another machine via `git pull`. To make the page work on a second device without sharing the notebook or `osca_output/`, export a de-identified copy into a git-tracked folder:
 
 ```bash
-git add python/models/
+php artisan ml:sync-validation
+php artisan ml:export-validation
+```
+
+`ml:export-validation` copies the aggregate (non-identifying) reports and plots verbatim, rewrites the two per-senior report files to keep only the columns the page aggregates (dropping name/barangay/senior_id), and never exports the live-model-vs-notebook concordance file (which lists individual seniors). A PII guard scans every exported file afterward and deletes/fails on anything that looks identifying — treat a failure here as a bug to fix, not something to bypass.
+
+The result lands in `storage/app/ml_validation_public/` — this folder **is** meant to be committed (see step 7).
+
+---
+
+### Step 7 — Commit and push
+
+```bash
+git add python/models/ storage/app/ml_validation_public/
 git commit -m "model: update trained files from notebook rerun YYYY-MM-DD"
 git push
 ```
 
 Replace `YYYY-MM-DD` with today's date (e.g., `model: update trained files from notebook rerun 2026-05-18`).
 
-> Only add `python/models/` — this commits the `.pkl` and `.json` artefacts only. The prediction CSVs are gitignored and will not be staged even if you run `git add python/models/`. Do **not** force-add or commit `osca.csv`, `.env`, `osca_output/`, `python/venv/`, or `python/models/predictions/`. After pushing, share the updated prediction CSVs with collaborators out-of-band so they can place them locally before re-seeding.
+> Only add `python/models/` and `storage/app/ml_validation_public/` — the first commits the `.pkl` and `.json` artefacts, the second the de-identified validation snapshot from Step 6. The prediction CSVs are gitignored and will not be staged even if you run `git add python/models/`. Do **not** force-add or commit `osca.csv`, `.env`, `osca_output/`, `python/venv/`, `python/models/predictions/`, or `storage/app/ml_validation/` (the un-scrubbed mirror). After pushing, share the updated prediction CSVs with collaborators out-of-band so they can place them locally before re-seeding.
 
 ---
 
@@ -314,6 +329,14 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 
 ---
 
+### Step 5 — System Validation page
+
+No action needed here. The **System Validation** page (`/reports/validation`) reads a de-identified snapshot committed to `storage/app/ml_validation_public/` — `git pull` in Step 1 already brought it over. `php artisan ml:sync-validation` is a training-machine-only command (it errors out with "osca_output not found" here, since that folder is intentionally never shared) and does not need to be run on this machine.
+
+One pillar — "Live-model vs notebook concordance" — will be missing, since it lists individual seniors and is only ever computed locally from the live DB + models on the training machine.
+
+---
+
 ## 6. Quick Reference Checklist
 
 ### Training machine (after each retrain)
@@ -321,6 +344,7 @@ If the numbers differ, see [Troubleshooting](#troubleshooting-wrong-dashboard-nu
 - [ ] Notebook ran without errors; `osca_output/` was generated
 - [ ] Exported `cluster_eval_metrics.json` from notebook (silhouette, Davies-Bouldin, Calinski-Harabász, k)
 - [ ] Ran `setup.bat` (Step 11) or manually xcopy'd files into `python/models/` (includes `cluster_eval_metrics.json`)
+- [ ] Ran `php artisan ml:sync-validation` then `php artisan ml:export-validation` (System Validation page for other devices); committed `storage/app/ml_validation_public/`
 - [ ] All three validation scripts passed (`test_ml_pipeline.py`, `test_inference_paths.py`, `test_inference_e2e.py`)
 - [ ] Dashboard shows correct distribution (HIGH=77 [2 urgent], MODERATE=233, LOW=50)
 - [ ] Cluster Analysis report (`/reports/cluster`) shows updated eval metrics

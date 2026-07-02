@@ -1,0 +1,4 @@
+Target,Rule_vs_GBR_rho,Rule_vs_GBR_p,Rule_vs_RFR_rho,Rule_vs_RFR_p,Status
+ic_risk,0.999,0.0,0.999,0.0,PASS
+env_risk,0.998,0.0,0.994,0.0,PASS
+func_risk,0.998,0.0,0.995,0.0,PASS

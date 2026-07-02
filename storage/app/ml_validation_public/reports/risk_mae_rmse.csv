@@ -1,0 +1,7 @@
+Target,Model,MAE,RMSE,R2
+ic_risk,GBR,0.0002,0.0002,1.0
+ic_risk,RFR,0.0057,0.0095,0.9973
+env_risk,GBR,0.0046,0.0058,0.9972
+env_risk,RFR,0.0108,0.0143,0.983
+func_risk,GBR,0.0048,0.006,0.9977
+func_risk,RFR,0.0112,0.0153,0.9847

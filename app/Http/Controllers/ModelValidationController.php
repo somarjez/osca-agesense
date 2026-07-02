@@ -53,6 +53,9 @@ class ModelValidationController extends Controller
             $path = base_path('../osca_output/plots/'.$name.'.png');
         }
         if (! is_file($path)) {
+            $path = storage_path('app/ml_validation_public/plots/'.$name.'.png');
+        }
+        if (! is_file($path)) {
             abort(404);
         }
 
