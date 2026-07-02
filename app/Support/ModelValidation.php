@@ -6,9 +6,14 @@ namespace App\Support;
  * Reads the model-evaluation artifacts emitted by the notebook (osca5.ipynb)
  * and shapes them for the admin "System Validation" report.
  *
- * Source of truth is the in-app mirror at storage/app/ml_validation/reports/
- * (populated by `php artisan ml:sync-validation`), with a fallback to the
- * original osca_output/reports/ one level above the Laravel root.
+ * Source of truth, in order:
+ *   1. storage/app/ml_validation/reports/       — full-fidelity local mirror
+ *      (populated by `php artisan ml:sync-validation`; gitignored, may carry PII)
+ *   2. osca_output/reports/                     — raw notebook output one level
+ *      above the Laravel root (also local-only)
+ *   3. storage/app/ml_validation_public/reports/ — de-identified, git-tracked
+ *      copy (populated by `php artisan ml:export-validation`); this is what
+ *      populates the page on a machine that only ran `git pull`.
  *
  * All figures are presented in the live THREE-level risk system
  * (LOW / MODERATE / HIGH + Priority Flag). Where a legacy artifact still
@@ -30,6 +35,10 @@ class ModelValidation
         $fallback = base_path('../osca_output/reports/'.$file);
         if (is_file($fallback)) {
             return file_get_contents($fallback);
+        }
+        $public = storage_path('app/ml_validation_public/reports/'.$file);
+        if (is_file($public)) {
+            return file_get_contents($public);
         }
 
         return null;
@@ -87,6 +96,10 @@ class ModelValidation
             $mirror = storage_path('app/ml_validation/reports/'.$file);
             if (is_file($mirror)) {
                 return (new \DateTimeImmutable)->setTimestamp(filemtime($mirror));
+            }
+            $public = storage_path('app/ml_validation_public/reports/'.$file);
+            if (is_file($public)) {
+                return (new \DateTimeImmutable)->setTimestamp(filemtime($public));
             }
         }
 

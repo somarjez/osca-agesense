@@ -1,0 +1,361 @@
+risk_level,cluster_name,n_top_recs,n_all_recs,top_categories
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,6,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,11,health
+LOW,"High Functioning / Well-Supported Seniors",3,6,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,8,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,6,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,10,health
+LOW,"Stable Ageing / Moderate Support Needs",3,8,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+CRITICAL,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,6,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Low Functioning / Multi-Domain Priority Seniors",3,10,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,11,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,11,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,8,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,8,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,9,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,6,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,10,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,11,"health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,10,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,8,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,5,"financial, health, mental_health"
+LOW,"Low Functioning / Multi-Domain Priority Seniors",3,10,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,6,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,10,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,11,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,10,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,5,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,10,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,8,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,6,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,6,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,7,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,9,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,10,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,7,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,7,"health, mental_health"
+HIGH,"Environmentally and Financially Vulnerable Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,11,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,6,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,9,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,"health, mental_health"
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,9,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,10,"health, mental_health"
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,10,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,11,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,11,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,10,"financial, health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,8,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,11,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,9,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,11,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,11,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,9,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,9,"health, mental_health"
+LOW,"Stable Ageing / Moderate Support Needs",3,10,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,8,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,9,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,10,health
+CRITICAL,"Low Functioning / Multi-Domain Priority Seniors",5,12,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,10,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,7,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,5,"financial, health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Low Functioning / Multi-Domain Priority Seniors",3,10,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,11,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"
+MODERATE,"Stable Ageing / Moderate Support Needs",3,10,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,11,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,8,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,10,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,10,"health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,7,"financial, health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,7,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,11,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"financial, health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Stable Ageing / Moderate Support Needs",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,11,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,health
+MODERATE,"Environmentally and Financially Vulnerable Seniors",3,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,8,"health, mental_health"
+LOW,"Environmentally and Financially Vulnerable Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,8,"financial, health, mental_health"
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+HIGH,"Stable Ageing / Moderate Support Needs",5,12,health
+LOW,"High Functioning / Well-Supported Seniors",3,10,"health, mental_health"
+LOW,"High Functioning / Well-Supported Seniors",3,12,health
+LOW,"Stable Ageing / Moderate Support Needs",3,9,"financial, health, mental_health"
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+MODERATE,"Low Functioning / Multi-Domain Priority Seniors",3,12,health
+HIGH,"Low Functioning / Multi-Domain Priority Seniors",5,12,health
+LOW,"Environmentally and Financially Vulnerable Seniors",3,9,"health, mental_health"

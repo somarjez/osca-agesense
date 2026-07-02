@@ -1,0 +1,42 @@
+{
+  "1": {
+    "id": 1,
+    "name": "High Functioning / Well-Supported Seniors",
+    "ic_level": "High",
+    "env_level": "High",
+    "func_level": "High",
+    "interpretation": "Strong WHO Healthy Ageing alignment across all domains. Senior is physically and psychologically resilient, financially stable, and socially engaged. Requires preventive monitoring only.",
+    "color": "#2ecc71",
+    "n_seniors": 51
+  },
+  "2": {
+    "id": 2,
+    "name": "Stable Ageing / Moderate Support Needs",
+    "ic_level": "Moderate",
+    "env_level": "Moderate",
+    "func_level": "Moderate",
+    "interpretation": "Moderate alignment across Intrinsic Capacity, Environment, and Functional Ability. Some domains stable, others beginning to decline. May benefit from social activation programs and periodic health monitoring.",
+    "color": "#3498db",
+    "n_seniors": 84
+  },
+  "3": {
+    "id": 3,
+    "name": "Environmentally and Financially Vulnerable Seniors",
+    "ic_level": "Moderate",
+    "env_level": "Low",
+    "func_level": "Moderate",
+    "interpretation": "Intrinsic Capacity and functional ability are relatively preserved, but environmental and financial stressors are significant. Priority: livelihood support, housing assistance, and access to social protection programs.",
+    "color": "#f39c12",
+    "n_seniors": 146
+  },
+  "4": {
+    "id": 4,
+    "name": "Low Functioning / Multi-Domain Priority Seniors",
+    "ic_level": "Low",
+    "env_level": "Low",
+    "func_level": "Low",
+    "interpretation": "Lowest WHO Healthy Ageing alignment across all domains. Multi-domain vulnerability in physical health, environment, and functional independence. Requires immediate multi-domain intervention and priority case management.",
+    "color": "#e74c3c",
+    "n_seniors": 79
+  }
+}
