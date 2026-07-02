@@ -226,9 +226,11 @@
                     data: pg.map(g => g.value),
                     backgroundColor: pg.map(g => g.color + 'cc'),
                     hoverBackgroundColor: pg.map(g => g.color),
-                    borderRadius: 5,
+                    borderRadius: 6,
                     borderSkipped: false,
-                    maxBarThickness: 22,
+                    maxBarThickness: 42,
+                    categoryPercentage: 0.82,
+                    barPercentage: 0.92,
                 }],
             },
             options: {

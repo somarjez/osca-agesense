@@ -155,6 +155,19 @@
                         </tbody>
                     </table>
                 </div>
+                {{-- Largest-group headline — grounds the card the same way the
+                     Risk card's "% need monitoring" stat does --}}
+                @php
+                    $pgLargest    = $pgEntries->first();
+                    $pgLargestPct = round($pgLargest['count'] / max(1, $pgEntries->sum('count')) * 100);
+                @endphp
+                <div class="mt-4 pt-4 border-t border-paper-rule dark:border-[#2b3530] shrink-0">
+                    <div class="text-center">
+                        <span class="font-serif text-2xl font-semibold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $pgLargestPct }}%</span>
+                        <span class="text-[12px] text-ink-500 dark:text-[#8a9087] ml-1">in the largest group</span>
+                        <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-0.5">{{ $pgLargest['label'] }}</div>
+                    </div>
+                </div>
             @else
                 <p class="text-[12.5px] text-ink-400 dark:text-[#6b7570] text-center py-4">No profile group data available.</p>
             @endif
@@ -263,9 +276,9 @@
             @endif
         </div>
 
-        {{-- Age Group Distribution --}}
-        <x-card title="Age Group Distribution" sub="Senior count by age band" class="card-lift">
-            <div wire:ignore class="relative h-60"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
+        {{-- Age Group Distribution — fills its row height (sits beside the tall list cards) --}}
+        <x-card title="Age Group Distribution" sub="Senior count by age band" class="card-lift" :fill="true">
+            <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 15rem"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
         </x-card>
 
         {{-- Wellbeing Index — gauge (fills the last-row cell beside Barangay) --}}
