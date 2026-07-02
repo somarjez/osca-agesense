@@ -94,6 +94,30 @@
         },
     };
 
+    // Count + share drawn at the end of each horizontal bar.
+    function hBarValuePlugin(total) {
+        return {
+            id: 'hBarValue',
+            afterDatasetsDraw(chart) {
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || meta.hidden) return;
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.fillStyle = isDark() ? '#b0b5b2' : '#383d36';
+                ctx.font = "600 10.5px 'Plus Jakarta Sans', system-ui, sans-serif";
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                meta.data.forEach((bar, i) => {
+                    const v = chart.data.datasets[0].data[i];
+                    if (v == null) return;
+                    const pct = Math.round((v / total) * 100);
+                    ctx.fillText(`${v} · ${pct}%`, bar.x + 6, bar.y);
+                });
+                ctx.restore();
+            },
+        };
+    }
+
     // Vertical accent gradient for bars (falls back to a flat colour pre-layout).
     function barGradient(context) {
         const { chart } = context;
@@ -188,37 +212,61 @@
             plugins: [centerTextPlugin('Seniors')],
         });
 
-        // Profile Groups — polar area (equal angles, radius = group size; reads
-        // better than a doughnut for four near-equal values and stays visually
-        // distinct from the risk doughnut beside it)
+        // Profile Groups — horizontal bars ranked by size. Long group names get
+        // room on the left (wrapped ticks); count + share sit at each bar end.
+        const pgTotal = p.cluster.data.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
+        const pg = p.cluster.labels
+            .map((label, i) => ({ label, value: p.cluster.data[i] ?? 0, color: recolor(p.cluster.colors)[i] ?? '#94a3b8' }))
+            .sort((a, b) => b.value - a.value);
         upsert('clusterChart', {
-            type: 'polarArea',
+            type: 'bar',
             data: {
-                labels: p.cluster.labels,
+                labels: pg.map(g => g.label),
                 datasets: [{
-                    data: p.cluster.data,
-                    backgroundColor: recolor(p.cluster.colors).map(c => c + 'cc'),
-                    borderWidth: 2,
-                    borderColor: C.doughnutBorder,
-                    hoverBorderColor: C.doughnutBorder,
+                    data: pg.map(g => g.value),
+                    backgroundColor: pg.map(g => g.color + 'cc'),
+                    hoverBackgroundColor: pg.map(g => g.color),
+                    borderRadius: 5,
+                    borderSkipped: false,
+                    maxBarThickness: 22,
                 }],
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: doughnutAnim,
+                animation: { duration: 300, easing: 'easeOutQuart' },
+                layout: { padding: { right: 56 } },
                 scales: {
-                    r: {
-                        beginAtZero: true,
-                        grid: { color: C.grid },
-                        ticks: { display: false },
+                    x: { display: false, beginAtZero: true },
+                    y: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: {
+                            autoSkip: false,
+                            color: C.pointLabel,
+                            font: { size: 10 },
+                            callback(value) {
+                                const label = String(this.getLabelForValue(value));
+                                const words = label.split(' ');
+                                const lines = [];
+                                let line = '';
+                                for (const w of words) {
+                                    if (line && (line + ' ' + w).length > 16) { lines.push(line); line = w; }
+                                    else line = line ? line + ' ' + w : w;
+                                }
+                                if (line) lines.push(line);
+                                return lines.slice(0, 3);
+                            },
+                        },
                     },
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.r ?? c.parsed}` } },
+                    tooltip: { callbacks: { label: c => ` ${c.parsed.x} seniors · ${Math.round((c.parsed.x / pgTotal) * 100)}%` } },
                 },
             },
+            plugins: [hBarValuePlugin(pgTotal)],
         });
 
         // Domain scores — radar (full-width slot; shows the WHO-domain profile shape)

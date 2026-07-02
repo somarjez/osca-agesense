@@ -134,38 +134,30 @@
             </div>
         </x-card>
 
-        {{-- Profile Groups — ranked bars by size --}}
+        {{-- Profile Groups — ranked horizontal bar chart --}}
         @php
             $pgEntries = collect(array_keys($clusterDistribution['data'] ?? []))->map(fn ($i) => [
-                'id'    => $clusterDistribution['ids'][$i]    ?? ($i + 1),
                 'label' => $clusterDistribution['labels'][$i] ?? 'Group ' . ($i + 1),
                 'count' => $clusterDistribution['data'][$i]   ?? 0,
-                'color' => $clusterDistribution['colors'][$i] ?? '#94a3b8',
             ])->sortByDesc('count')->values();
-            $pgMax   = max(1, $pgEntries->max('count'));
-            $pgTotal = max(1, $pgEntries->sum('count'));
         @endphp
-        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · petal size = group size" class="card-lift">
-            <div wire:ignore class="relative h-48"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group" role="img"></canvas></div>
-            <div class="mt-4 space-y-3">
-                @forelse ($pgEntries as $grp)
-                @php $barPct = round($grp['count'] / $pgMax * 100); @endphp
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="w-2.5 h-2.5 rounded-sm dot-3d flex-shrink-0" style="background-color: {{ $grp['color'] }}"></span>
-                        <span class="text-[11.5px] font-semibold text-ink-800 dark:text-[#c8c4bc] truncate flex-1 min-w-0"
-                              title="{{ $grp['label'] }}">G{{ $grp['id'] }} · {{ $grp['label'] }}</span>
-                        <span class="text-[11.5px] font-mono font-semibold text-ink-900 dark:text-[#e4e1d8] tnum flex-shrink-0">{{ $grp['count'] }}</span>
-                        <span class="text-[11px] text-ink-400 dark:text-[#6b7570] tnum w-9 text-right flex-shrink-0">{{ round($grp['count'] / $pgTotal * 100) }}%</span>
-                    </div>
-                    <div class="h-2.5 rounded-full bg-paper-2 dark:bg-[#202a26] overflow-hidden">
-                        <div class="h-2.5 rounded-full" style="width: {{ $barPct }}%; background: {{ $grp['color'] }}"></div>
-                    </div>
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · ranked by size" class="card-lift" :fill="true">
+            @if ($pgEntries->sum('count') > 0)
+                <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 14rem"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group, ranked" role="img"></canvas></div>
+                <div class="sr-only">
+                    <table>
+                        <caption>Profile group distribution</caption>
+                        <thead><tr><th scope="col">Group</th><th scope="col">Count</th></tr></thead>
+                        <tbody>
+                            @foreach ($pgEntries as $grp)
+                                <tr><td>{{ $grp['label'] }}</td><td>{{ $grp['count'] }}</td></tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
-                @empty
+            @else
                 <p class="text-[12.5px] text-ink-400 dark:text-[#6b7570] text-center py-4">No profile group data available.</p>
-                @endforelse
-            </div>
+            @endif
         </x-card>
 
         {{-- Domain Scores — radar + score legend --}}
