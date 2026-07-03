@@ -61,21 +61,8 @@ class Batch3HealthGroupsTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('reports.cluster'))
             ->assertOk()
-            ->assertSee('Model Insights')
             ->assertSee('Profile Group Explorer')
             ->assertSee('Snapshot History');
-    }
-
-    #[Test]
-    public function model_insights_uses_corrected_who_domain_labels(): void
-    {
-        $this->actingAs($this->admin)
-            ->get(route('reports.cluster'))
-            ->assertOk()
-            ->assertSee('Intrinsic Capacity (IC)')
-            ->assertSee('Functional Ability')
-            ->assertDontSee('Daily Functioning')
-            ->assertDontSee('Physical Capacity (IC)');
     }
 
     #[Test]

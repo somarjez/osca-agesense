@@ -12,7 +12,7 @@ class QolSurvey extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'senior_citizen_id', 'survey_version', 'survey_date',
+        'senior_citizen_id', 'survey_version', 'survey_date', 'step',
         'a1_enjoy_life', 'a2_life_satisfaction', 'a3_future_outlook', 'a4_meaningfulness',
         'b1_physical_energy', 'b2_pain_discomfort', 'b3_health_self_care',
         'b4_health_outside', 'b5_mobility',

@@ -177,27 +177,13 @@
         </div>
     </div>
 
-    {{-- ── Secondary analysis: tabbed card (Model Insights / Explorer / Snapshots) ── --}}
-    <div x-data="{
-        section: 'insights',
-        insightsTab: 'ic',
-        insights: null,
-        labels: { ic: 'Intrinsic Capacity (IC)', env: 'Environment', func: 'Functional Ability' },
-        async loadInsights() {
-            if (this.insights !== null) return;
-            try {
-                const r = await fetch('{{ route('reports.xai.model-insights') }}');
-                if (!r.ok) { this.insights = false; return; }
-                this.insights = await r.json();
-            } catch(e) { this.insights = false; }
-        }
-    }" x-init="loadInsights()" class="card overflow-hidden">
+    {{-- ── Secondary analysis: tabbed card (Explorer / Snapshots) ── --}}
+    <div x-data="{ section: 'explorer' }" class="card overflow-hidden">
 
         {{-- Section switcher — prominent segmented pills --}}
         <div class="px-5 pt-4 pb-3 border-b border-paper-rule dark:border-[#2b3530]">
             <div class="inline-flex flex-wrap gap-1 bg-paper-2 dark:bg-[#202a26] border border-paper-rule dark:border-[#2b3530] rounded-xl p-1 overflow-x-auto max-w-full">
                 @foreach ([
-                    ['insights',  'Model Insights'],
                     ['explorer',  'Profile Group Explorer'],
                     ['snapshots', 'Snapshot History'],
                 ] as [$key, $label])
@@ -210,50 +196,6 @@
                     {{ $label }}
                 </button>
                 @endforeach
-            </div>
-        </div>
-
-        {{-- Model Insights panel --}}
-        <div x-show="section === 'insights'">
-            <div class="card-head flex-wrap gap-3 border-b-0">
-                <div class="card-sub">Feature importance across <span x-text="insights && insights.n_seniors ? insights.n_seniors : '283'">283</span> seniors · top 15 per domain</div>
-                <div class="segmented" role="tablist" aria-label="Domain">
-                    <template x-for="[key, label] in Object.entries(labels)" :key="key">
-                        <button type="button" @click="insightsTab = key" :class="{ 'on': insightsTab === key }"
-                                :aria-selected="insightsTab === key" x-text="label"></button>
-                    </template>
-                </div>
-            </div>
-            <div class="card-body pt-2">
-                <template x-if="insights === null">
-                    <div class="space-y-2.5 py-1" aria-hidden="true">
-                        <template x-for="i in 6" :key="i">
-                            <div class="flex items-center gap-3">
-                                <span class="w-44 h-3 rounded bg-paper-2 dark:bg-[#222a27] flex-shrink-0 animate-pulse"></span>
-                                <span class="flex-1 h-2.5 rounded-full bg-paper-2 dark:bg-[#222a27] animate-pulse"></span>
-                            </div>
-                        </template>
-                    </div>
-                </template>
-                <template x-if="insights === false">
-                    <p class="text-sm text-ink-400 dark:text-[#8a9087] text-center py-8">Model insights unavailable. Start the inference service and refresh.</p>
-                </template>
-                <template x-if="insights && insights[insightsTab]">
-                    <ol class="space-y-1">
-                        <template x-for="(item, idx) in insights[insightsTab]" :key="item.feature">
-                            <li class="flex items-center gap-3 rounded-lg px-2 -mx-2 py-1.5 hover:bg-paper-2 dark:hover:bg-[#131917] transition-colors">
-                                <span class="w-5 text-right text-[11px] font-mono tnum text-ink-400 dark:text-[#6b7570] flex-shrink-0" x-text="idx + 1"></span>
-                                <span class="text-[12.5px] text-ink-800 dark:text-[#c8c4bc] w-48 flex-shrink-0 truncate" x-text="item.label" :title="item.label"></span>
-                                <div class="flex-1 bg-paper-rule dark:bg-[#222a27] rounded-full h-3 overflow-hidden">
-                                    <div class="bg-forest-500 h-3 rounded-full transition-all duration-500"
-                                         :style="'width: ' + Math.min(100, (item.importance / insights[insightsTab][0].importance) * 100) + '%'"></div>
-                                </div>
-                                <span class="text-[11.5px] font-mono tnum font-semibold text-forest-700 dark:text-forest-400 w-12 text-right"
-                                      x-text="(item.importance * 100).toFixed(1) + '%'"></span>
-                            </li>
-                        </template>
-                    </ol>
-                </template>
             </div>
         </div>
 

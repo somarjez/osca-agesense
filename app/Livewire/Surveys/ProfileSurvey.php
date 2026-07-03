@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Surveys;
 
+use App\Models\ProfileDraft;
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Rule;
@@ -10,6 +11,8 @@ use Livewire\Component;
 class ProfileSurvey extends Component
 {
     public ?SeniorCitizen $senior = null;
+
+    public ?ProfileDraft $draft = null;
 
     public int $step = 1;
 
@@ -112,7 +115,21 @@ class ProfileSurvey extends Component
     {
         if ($seniorId) {
             $this->senior = SeniorCitizen::findOrFail($seniorId);
+            $this->draft = ProfileDraft::where('senior_citizen_id', $seniorId)->first();
+            if ($this->draft) {
+                $this->populateFromDraft($this->draft);
+
+                return;
+            }
             $this->populateFromModel($this->senior);
+        } else {
+            $this->draft = ProfileDraft::whereNull('senior_citizen_id')
+                ->where('created_by', Auth::id())
+                ->latest()
+                ->first();
+            if ($this->draft) {
+                $this->populateFromDraft($this->draft);
+            }
         }
     }
 
@@ -193,8 +210,29 @@ class ProfileSurvey extends Component
         }
 
         $this->saved = true;
+        $this->draft?->delete();
+        $this->draft = null;
         $this->dispatch('profile-saved', seniorId: $this->senior->id);
         session()->flash('success', "Senior citizen profile saved. OSCA ID: {$this->senior->osca_id}");
+    }
+
+    public function saveDraft(): void
+    {
+        $payload = [
+            'senior_citizen_id' => $this->senior?->id,
+            'created_by' => Auth::id(),
+            'step' => $this->step,
+            'data' => $this->currentData(),
+        ];
+
+        $this->draft = $this->senior
+            ? ProfileDraft::updateOrCreate(['senior_citizen_id' => $this->senior->id], $payload)
+            : ($this->draft ? tap($this->draft)->update($payload) : ProfileDraft::create($payload));
+
+        session()->flash('success', 'Draft saved.');
+        $this->redirect($this->senior
+            ? route('seniors.edit', $this->senior->id)
+            : route('surveys.profile.create'));
     }
 
     private function validateCurrentStep(): void
@@ -205,6 +243,7 @@ class ProfileSurvey extends Component
                 'lastName' => 'required|string|max:100',
                 'barangay' => 'required|string',
                 'dateOfBirth' => 'required|date|before:today',
+                'consentGivenAt' => 'nullable|date|before_or_equal:today|after:1900-01-01|required_if:consentMethod,verbal,written,digital',
             ]),
             default => null,
         };
@@ -250,6 +289,45 @@ class ProfileSurvey extends Component
         [$this->checkupSchedule, $this->checkupScheduleOther] = $this->parseCheckupSchedule($s->checkup_schedule ?? '');
         $this->consentGivenAt = $s->consent_given_at?->format('Y-m-d') ?? '';
         $this->consentMethod = $s->consent_method ?? '';
+    }
+
+    private function currentData(): array
+    {
+        return [
+            'firstName' => $this->firstName, 'middleName' => $this->middleName,
+            'lastName' => $this->lastName, 'nameExtension' => $this->nameExtension,
+            'barangay' => $this->barangay, 'dateOfBirth' => $this->dateOfBirth,
+            'contactNumber' => $this->contactNumber, 'placeOfBirth' => $this->placeOfBirth,
+            'maritalStatus' => $this->maritalStatus, 'gender' => $this->gender,
+            'religion' => $this->religion, 'ethnicOrigin' => $this->ethnicOrigin,
+            'bloodType' => $this->bloodType,
+            'numChildren' => $this->numChildren, 'numWorkingChildren' => $this->numWorkingChildren,
+            'childFinancialSupport' => $this->childFinancialSupport, 'spouseWorking' => $this->spouseWorking,
+            'householdSize' => $this->householdSize,
+            'educationalAttainment' => $this->educationalAttainment,
+            'specialization' => $this->specialization, 'communityService' => $this->communityService,
+            'livingWith' => $this->livingWith, 'householdCondition' => $this->householdCondition,
+            'incomeSource' => $this->incomeSource, 'realAssets' => $this->realAssets,
+            'movableAssets' => $this->movableAssets, 'monthlyIncomeRange' => $this->monthlyIncomeRange,
+            'problemsNeeds' => $this->problemsNeeds, 'problemsNeedsOther' => $this->problemsNeedsOther,
+            'medicalConcern' => $this->medicalConcern, 'dentalConcern' => $this->dentalConcern,
+            'opticalConcern' => $this->opticalConcern, 'hearingConcern' => $this->hearingConcern,
+            'socialEmotionalConcern' => $this->socialEmotionalConcern,
+            'healthcareDifficulty' => $this->healthcareDifficulty,
+            'hasMedicalCheckup' => $this->hasMedicalCheckup, 'checkupSchedule' => $this->checkupSchedule,
+            'checkupScheduleOther' => $this->checkupScheduleOther,
+            'consentGivenAt' => $this->consentGivenAt, 'consentMethod' => $this->consentMethod,
+        ];
+    }
+
+    private function populateFromDraft(ProfileDraft $draft): void
+    {
+        foreach ($draft->data as $prop => $value) {
+            if (property_exists($this, $prop)) {
+                $this->$prop = $value;
+            }
+        }
+        $this->step = $draft->step;
     }
 
     private function buildCheckupSchedule(): ?string

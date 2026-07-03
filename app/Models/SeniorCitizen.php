@@ -148,6 +148,11 @@ class SeniorCitizen extends Model
         return $this->hasOne(QolSurvey::class)->latestOfMany();
     }
 
+    public function profileDraft(): HasOne
+    {
+        return $this->hasOne(ProfileDraft::class);
+    }
+
     public function mlResults(): HasMany
     {
         return $this->hasMany(MlResult::class);
