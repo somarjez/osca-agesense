@@ -156,7 +156,6 @@ class QolSurveyForm extends Component
 
     public function submitSurvey(): void
     {
-        $this->showConfirm = false;
         $this->isProcessing = true;
 
         $data = [
@@ -210,7 +209,10 @@ class QolSurveyForm extends Component
         RunMlPipeline::dispatch($this->senior->id, $this->survey->id);
         session()->flash('success', 'QoL Survey submitted. ML analysis is running in the background.');
 
-        $this->isProcessing = false;
+        // Leave isProcessing true (and showConfirm never reset) so the modal/overlay
+        // stay on-screen for the gap between this response and the browser actually
+        // navigating away — resetting them here exposed the enabled submit button
+        // underneath for a moment before the redirect took effect.
         $this->redirect(route('seniors.show', $this->senior->id));
     }
 
