@@ -62,33 +62,32 @@
     </div>
 
     {{-- ── Domain averages + cluster breakdown ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
 
         {{-- Domain Risk Avg Bars --}}
         <div class="card">
             <div class="card-head">
                 <div class="card-title">Average Domain Risk Scores</div>
             </div>
-            <div class="card-body space-y-3">
-                @foreach ([
-                    ['Intrinsic Capacity (IC)',  $domainAvgs?->ic        ?? 0],
-                    ['Environment',             $domainAvgs?->env       ?? 0],
-                    ['Functional Ability',      $domainAvgs?->func      ?? 0],
-                    ['Composite',               $domainAvgs?->composite ?? 0],
-                ] as [$label, $val])
-                @php $barClass = $val >= 0.50 ? 'bar-fill-high' : ($val >= 0.30 ? 'bar-fill-moderate' : 'bar-fill-low'); @endphp
-                <div>
-                    <div class="flex justify-between text-[12.5px] mb-1">
-                        <span class="text-ink-500 dark:text-[#8a9087]">{{ $label }}</span>
-                        <span class="font-semibold font-mono tnum text-ink-900 dark:text-[#e4e1d8]">{{ number_format($val * 100, 1) }}%</span>
-                    </div>
-                    <div class="bar">
-                        <div class="bar-fill {{ $barClass }}" style="width: {{ $val * 100 }}%"></div>
-                    </div>
+            <div class="card-body flex flex-col flex-1">
+                @php
+                    $domainRows = [
+                        ['Intrinsic Capacity (IC)', $domainAvgs?->ic        ?? 0],
+                        ['Environment',             $domainAvgs?->env       ?? 0],
+                        ['Functional Ability',      $domainAvgs?->func      ?? 0],
+                        ['Composite',               $domainAvgs?->composite ?? 0],
+                    ];
+                @endphp
+                <div class="flex-1 min-h-[14rem]">
+                    <canvas
+                        id="domainAvgChart-{{ Str::slug($brgy) }}"
+                        class="domain-avg-chart"
+                        data-labels="{{ json_encode(array_column($domainRows, 0)) }}"
+                        data-values="{{ json_encode(array_map(fn ($v) => round($v * 100, 1), array_column($domainRows, 1))) }}"
+                    ></canvas>
                 </div>
-                @endforeach
 
-                <div class="pt-3 border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-3 gap-1 text-center text-[11px]">
+                <div class="pt-3 mt-3 border-t border-paper-rule dark:border-[#2b3530] grid grid-cols-3 gap-1 text-center text-[11px]">
                     <div class="badge badge-high py-1">High ≥50%</div>
                     <div class="badge badge-moderate py-1">Moderate 30–50%</div>
                     <div class="badge badge-low py-1">Low &lt;30%</div>
@@ -226,3 +225,76 @@
     <x-doc-footer signatory="OSCA Officer / Reviewer" />
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const RISK_COLORS = { high: '#e0621a', moderate: '#c19a3b', low: '#4a8a68' };
+
+    function riskColor(pct) {
+        if (pct >= 50) return RISK_COLORS.high;
+        if (pct >= 30) return RISK_COLORS.moderate;
+        return RISK_COLORS.low;
+    }
+
+    function isDark() {
+        return document.documentElement.classList.contains('dark');
+    }
+
+    function initDomainAvgCharts() {
+        document.querySelectorAll('.domain-avg-chart').forEach((canvas) => {
+            const existing = Object.values(Chart.instances).find(c => c.canvas === canvas);
+            if (existing) existing.destroy();
+
+            const labels = JSON.parse(canvas.dataset.labels || '[]');
+            const values = JSON.parse(canvas.dataset.values || '[]');
+            const dark = isDark();
+
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: values.map(v => riskColor(v) + 'cc'),
+                        hoverBackgroundColor: values.map(riskColor),
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        maxBarThickness: 56,
+                        categoryPercentage: 0.6,
+                        barPercentage: 0.9,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300, easing: 'easeOutQuart' },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
+                            border: { display: false },
+                            ticks: { color: dark ? '#6b7570' : '#8a8f86', callback: v => v + '%' },
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false },
+                            ticks: { color: dark ? '#8a9087' : '#6b7269', font: { size: 11 } },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: c => ` ${c.parsed.y}%` } },
+                    },
+                },
+            });
+        });
+    }
+
+    document.addEventListener('livewire:navigated', () => setTimeout(initDomainAvgCharts, 0));
+    if (document.readyState !== 'loading') setTimeout(initDomainAvgCharts, 0);
+    else document.addEventListener('DOMContentLoaded', () => setTimeout(initDomainAvgCharts, 0));
+})();
+</script>
+@endpush
