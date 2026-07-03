@@ -299,16 +299,25 @@
                     This will submit the Quality of Life survey for <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong>
                     and automatically run the health assessment.
                 </p>
-                <div class="flex gap-3 justify-end">
-                    <button wire:click="$set('showConfirm', false)" class="btn">Cancel</button>
+                {{-- x-data lives here so both buttons share `submitting`. It's set the
+                     instant the submit button is pressed. wire:loading only reflects
+                     "request in flight" — it turns off the moment the response arrives,
+                     which is BEFORE the redirect's window.location assignment actually
+                     unloads the page, so relying on wire:loading alone let this button
+                     flip back to enabled during that gap. `submitting` never resets, so
+                     both buttons stay locked through the whole gap until the browser
+                     navigates away. --}}
+                <div class="flex gap-3 justify-end" x-data="{ submitting: false }">
+                    <button wire:click="$set('showConfirm', false)" class="btn" x-bind:disabled="submitting">Cancel</button>
                     <button wire:click="submitSurvey"
-                            wire:loading.attr="disabled" wire:target="submitSurvey"
+                            @click="submitting = true"
+                            x-bind:disabled="submitting"
                             class="btn btn-primary">
-                        <span wire:loading.remove wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
+                        <span x-show="!submitting" class="inline-flex items-center gap-1.5">
                             <x-heroicon-o-check class="w-3.5 h-3.5" />
                             Confirm &amp; Submit
                         </span>
-                        <span wire:loading wire:target="submitSurvey" class="inline-flex items-center gap-1.5">
+                        <span x-show="submitting" x-cloak class="inline-flex items-center gap-1.5">
                             <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
