@@ -25,7 +25,8 @@ GOVERNANCE_CATEGORY = "governance"
 CATEGORY_CAP = 2
 TOTAL_REC_CAP = 24  # high safety net; per-category cap is the real driver -> counts vary 10-23 by need
 SKIP_TOKENS = {"none", "nan", "", "n/a", "no concern", "no concerns",
-               "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth"}
+               "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth",
+               "healthcare is accessible", "living in a healthy environment"}
 
 _CATALOG_CACHE: Optional[List["CatalogRow"]] = None
 
@@ -140,8 +141,18 @@ def _sf(v: Any, default: float = 0.0) -> float:
         return default
 
 
+def _as_text(v: Any) -> str:
+    """Normalize raw field values to text before comparison. Laravel casts
+    concern fields as JSON arrays (e.g. ["Healthy Teeth"]); without this, a
+    naive str(v) stringifies the list itself ("['Healthy Teeth']"), which
+    never matches SKIP_TOKENS."""
+    if isinstance(v, (list, tuple, set)):
+        return ", ".join(str(x).strip() for x in v if str(x).strip())
+    return str(v or "").strip()
+
+
 def _present(v: Any) -> bool:
-    s = str(v or "").strip().lower()
+    s = _as_text(v).lower()
     return bool(s) and s not in SKIP_TOKENS
 
 
@@ -161,7 +172,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     age = _sf(row.get("age"), 70)
 
     # ── disease (medical_concern keyword scan) ──
-    med = str(row.get("medical_concern", "") or "").lower()
+    med = _as_text(row.get("medical_concern")).lower()
     for kw, tag in DISEASE_TAG_MAP.items():
         if kw in med:
             t.add(tag)
@@ -240,7 +251,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("preventive_due")
 
     # ── abandonment / abuse (keyword scan over free-text fields) ──
-    blob = " ".join(str(row.get(k, "") or "") for k in (
+    blob = " ".join(_as_text(row.get(k)) for k in (
         "medical_concern", "social_emotional_concern", "housing_concern", "household_condition",
     )).lower()
     if any(k in blob for k in ("abandon", "neglect", "homeless", "unattached")):
@@ -254,10 +265,10 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
 
     # ── household safety (ported from _household_safety_recs) ──
     env_safe = _sf(row.get("env_safe_home"), 3.0)
-    hh = str(row.get("household_condition", "") or "").lower()
-    housing = str(row.get("housing_concern", "") or "").strip().lower()
+    hh = _as_text(row.get("household_condition")).lower()
+    housing = _as_text(row.get("housing_concern")).lower()
     unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair")
-    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or (housing and housing not in {"none", "nan", ""}):
+    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or (housing and housing not in SKIP_TOKENS):
         t.add("unsafe_home")
     if (mob_out <= 3 or mob_in <= 3) and env_safe <= 3 and age >= 70:
         t.add("fall_risk")
@@ -289,8 +300,8 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("isolated")
 
     # ── mental health (emotional concern free-text) ──
-    emo = str(row.get("social_emotional_concern", "") or "").strip().lower()
-    if emo and emo not in {"none", "nan", "", "n/a"}:
+    emo = _as_text(row.get("social_emotional_concern")).lower()
+    if emo and emo not in SKIP_TOKENS:
         t.add("emotional_concern")
         if any(k in emo for k in ("depression", "anxiety", "hopeless", "sad", "grief",
                                   "stress", "trauma", "withdrawn", "isolation")):
@@ -307,12 +318,12 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("low_wellbeing")
 
     # ── healthcare access (ported from _hc_access_recs) ──
-    hc = str(row.get("healthcare_difficulty", "") or "").lower()
+    hc = _as_text(row.get("healthcare_difficulty")).lower()
     service_acc = _sf(row.get("env_service_access"), 3.0)
     has_checkup = _sf(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
     if not has_checkup:
         t.add("no_checkup")
-    if hc and hc not in {"none", "nan", ""}:
+    if hc and hc not in SKIP_TOKENS:
         t.add("healthcare_difficulty")
     if "cost" in hc or "expensive" in hc:
         t.add("medical_cost_strain")

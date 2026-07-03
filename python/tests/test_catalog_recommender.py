@@ -60,6 +60,35 @@ def test_extract_tags_healthy_senior_minimal():
     assert "dx_hypertension" not in tags
 
 
+def test_extract_tags_healthy_senior_list_valued_no_concern():
+    """Laravel exports concern fields as JSON arrays, not strings. A senior who
+    explicitly checks every "no concern" checkbox must not trigger any concern
+    tags, even though the raw values arrive as single-element lists."""
+    tags = cr.extract_need_tags({
+        "age": 65,
+        "medical_concern": ["Physically Healthy"],
+        "dental_concern": ["Healthy Teeth"],
+        "optical_concern": ["Healthy Eyes"],
+        "hearing_concern": ["Healthy Hearing"],
+        "social_emotional_concern": ["Living in a healthy environment"],
+        "healthcare_difficulty": ["Healthcare is accessible"],
+        "func_independence": 5, "phy_mobility_outside": 5, "phy_mobility_indoor": 5,
+        "has_pension": 1, "has_medical_checkup": 1, "is_association_member": 1,
+        "income_enc": 7, "sec6_func_score": 0.8, "env_service_access": 5,
+    })
+    unexpected = {"dental_concern", "vision_concern", "hearing_concern",
+                  "sensory_barrier", "medical_concern_present", "emotional_concern",
+                  "healthcare_difficulty", "assistive_device_need"}
+    assert not (unexpected & tags), f"false concern tags fired: {unexpected & tags}"
+
+
+def test_extract_tags_list_valued_genuine_concern_still_fires():
+    """Guard against over-correcting into false negatives: a genuine concern
+    arriving as a list value (matching Laravel's export shape) must still fire."""
+    tags = cr.extract_need_tags({"optical_concern": ["Cataract"]})
+    assert "vision_concern" in tags
+
+
 def test_match_returns_rows_with_intersecting_tags():
     catalog = cr.load_catalog()
     fired = cr.match({"dx_hypertension"}, catalog)
