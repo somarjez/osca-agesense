@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
-use Carbon\Carbon;
+use App\Support\DateParser;
 use Illuminate\Database\Seeder;
 
 /**
@@ -151,7 +151,7 @@ class MagdapioImportSeeder extends Seeder
             $firstName = $this->strVal($row['first_name'] ?? null);
             $lastName = $this->strVal($row['last_name'] ?? null);
             $barangay = $this->strVal($row['barangay'] ?? null);
-            $dob = $this->parseDate($row['dob'] ?? null, dobMode: true);
+            $dob = DateParser::parse($row['dob'] ?? null, dobMode: true);
 
             if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
                 $skippedMissing++;
@@ -192,7 +192,7 @@ class MagdapioImportSeeder extends Seeder
                 'religion' => $this->strVal($row['religion'] ?? null),
                 'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
                 'blood_type' => $this->strVal($row['blood_type'] ?? null),
-                'consent_given_at' => $hasConsent ? ($this->parseDate($row['timestamp'] ?? null) ?? now()) : null,
+                'consent_given_at' => $hasConsent ? (DateParser::parse($row['timestamp'] ?? null) ?? now()) : null,
                 'consent_method' => $hasConsent ? 'Imported (survey form)' : null,
                 'num_children' => $this->intVal($row['num_children'] ?? null),
                 'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
@@ -222,7 +222,7 @@ class MagdapioImportSeeder extends Seeder
             ]);
 
             // ── Insert QoL survey ───────────────────────────────────────────
-            $surveyDate = $this->parseDate($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+            $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
             $survey = QolSurvey::create([
                 'senior_citizen_id' => $senior->id,
                 'survey_version' => 'v1',
@@ -347,47 +347,6 @@ class MagdapioImportSeeder extends Seeder
         $parts = array_map('trim', explode(',', $v));
 
         return array_values(array_filter($parts, fn ($x) => $x !== ''));
-    }
-
-    private function parseDate($value, bool $dobMode = false): ?string
-    {
-        $v = $this->strVal($value);
-        if ($v === null) {
-            return null;
-        }
-
-        $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
-
-        if ($hasSlashDate) {
-            $dateOnly = "{$m[1]}/{$m[2]}/{$m[3]}";
-            $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
-
-            if ((int) $m[1] > 12) {
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable $e) {
-                }
-            } elseif ($dobMode && $hasTimeSuffix) {
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable $e) {
-                }
-            }
-        }
-
-        $formats = ['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'];
-        foreach ($formats as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');
-            } catch (\Throwable $e) {
-            }
-        }
-
-        try {
-            return Carbon::parse($v)->format('Y-m-d');
-        } catch (\Throwable $e) {
-            return null;
-        }
     }
 
     private function scoreVal($value): ?int

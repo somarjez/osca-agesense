@@ -184,8 +184,9 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Consent Date</label>
-                        <input type="date" wire:model="consentGivenAt"
-                               class="form-input">
+                        <input type="date" wire:model="consentGivenAt" max="{{ date('Y-m-d') }}"
+                               class="form-input {{ $errors->has('consentGivenAt') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                        @error('consentGivenAt') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Consent Method</label>
@@ -515,6 +516,13 @@
                 Back
             </button>
             @endif
+
+            <button type="button" wire:click="saveDraft"
+                    wire:loading.attr="disabled" wire:target="saveDraft"
+                    class="btn btn-ghost text-[13px]">
+                <span wire:loading.remove wire:target="saveDraft">Save Draft</span>
+                <span wire:loading wire:target="saveDraft">Saving…</span>
+            </button>
 
             <div class="ml-auto flex gap-3">
                 @if ($step < $totalSteps)

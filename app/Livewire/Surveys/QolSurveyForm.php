@@ -101,6 +101,7 @@ class QolSurveyForm extends Component
         if ($surveyId) {
             $this->survey = QolSurvey::withTrashed()->findOrFail($surveyId);
             $this->populateFromSurvey($this->survey);
+            $this->step = $this->survey->step;
         }
     }
 
@@ -220,9 +221,10 @@ class QolSurveyForm extends Component
     {
         $this->survey = QolSurvey::updateOrCreate(
             ['senior_citizen_id' => $this->senior->id, 'status' => 'draft'],
-            array_merge($this->currentData(), ['status' => 'draft'])
+            array_merge($this->currentData(), ['status' => 'draft', 'step' => $this->step])
         );
-        session()->flash('info', 'Draft saved.');
+        session()->flash('success', 'Draft saved.');
+        $this->redirect(route('surveys.qol.create', $this->senior->id));
     }
 
     private function currentData(): array

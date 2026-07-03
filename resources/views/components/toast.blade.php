@@ -12,7 +12,7 @@
         $message = session('success') ?? session('error') ?? session('warning') ?? session('info');
     }
     $styles = [
-        'success' => 'bg-low-50 border-low-100 text-low-700 dark:bg-low-700/20 dark:border-low-100/30 dark:text-low-100',
+        'success' => 'bg-accent-50 border-accent-100 text-accent-700 dark:bg-accent-700/20 dark:border-accent-100/30 dark:text-accent-100',
         'error'   => 'bg-high-50 border-high-100 text-high-700 dark:bg-high-700/20 dark:border-high-100/30 dark:text-high-100',
         'warning' => 'bg-moderate-50 border-moderate-100 text-moderate-700 dark:bg-moderate-700/20 dark:border-moderate-100/30 dark:text-moderate-100',
         'info'    => 'bg-info-100 border-info-100 text-info-700 dark:bg-info-700/20 dark:border-info-100/30 dark:text-info-100',
@@ -31,15 +31,15 @@
     x-show="show"
     x-init="setTimeout(() => show = false, 5000)"
     x-transition:enter="transition ease-out duration-300"
-    x-transition:enter-start="opacity-0 translate-y-2"
+    x-transition:enter-start="opacity-0 -translate-y-2"
     x-transition:enter-end="opacity-100 translate-y-0"
     x-transition:leave="transition ease-in duration-200"
     x-transition:leave-start="opacity-100 translate-y-0"
-    x-transition:leave-end="opacity-0 translate-y-2"
+    x-transition:leave-end="opacity-0 -translate-y-2"
     role="status"
     aria-live="polite"
     aria-atomic="true"
-    class="fixed bottom-5 right-5 z-50 flex items-start gap-3 max-w-sm w-full rounded-2xl border px-4 py-3 shadow-lg {{ $styles[$type] ?? $styles['info'] }}"
+    class="fixed top-24 right-5 z-50 flex items-start gap-3 max-w-sm w-full rounded-2xl border px-4 py-3 shadow-lg {{ $styles[$type] ?? $styles['info'] }}"
     x-cloak
 >
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

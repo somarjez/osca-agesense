@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\SeniorCitizen;
+use App\Support\DateParser;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -415,44 +416,7 @@ class BackfillSeniorDemographics extends Command
      */
     private function parseDate(mixed $value, bool $dobMode = false): ?string
     {
-        $v = $this->strVal($value);
-        if ($v === null) {
-            return null;
-        }
-
-        // Philippine locale ambiguity: Google Form date-picker exports d/m/Y H:i
-        $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
-        if ($hasSlashDate) {
-            $dateOnly = "{$m[1]}/{$m[2]}/{$m[3]}";
-            $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
-            if ((int) $m[1] > 12) {
-                // Day-first unambiguous
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable) {
-                }
-            } elseif ($dobMode && $hasTimeSuffix) {
-                // DOB from Google Form date-picker: Philippine locale
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable) {
-                }
-            }
-        }
-
-        $formats = ['m/d/Y H:i:s', 'm/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'];
-        foreach ($formats as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');
-            } catch (\Throwable) {
-            }
-        }
-
-        try {
-            return Carbon::parse($v)->format('Y-m-d');
-        } catch (\Throwable) {
-            return null;
-        }
+        return DateParser::parse($value, $dobMode);
     }
 
     /**
@@ -461,23 +425,8 @@ class BackfillSeniorDemographics extends Command
      */
     private function parseDateTime(?string $value): ?Carbon
     {
-        $v = $this->strVal($value);
-        if ($v === null) {
-            return null;
-        }
+        $parsed = DateParser::parse($value);
 
-        $formats = ['m/d/Y H:i:s', 'm/d/Y H:i', 'm/d/Y', 'Y-m-d H:i:s', 'Y-m-d'];
-        foreach ($formats as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v);
-            } catch (\Throwable) {
-            }
-        }
-
-        try {
-            return Carbon::parse($v);
-        } catch (\Throwable) {
-            return null;
-        }
+        return $parsed ? Carbon::parse($parsed) : null;
     }
 }

@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
-use Carbon\Carbon;
+use App\Support\DateParser;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -154,7 +154,7 @@ class OscaCsvSeeder extends Seeder
                 'last_name' => $this->strVal($row['last_name'] ?? null),
                 'name_extension' => $this->strVal($row['name_ext'] ?? null),
                 'barangay' => $this->strVal($row['barangay'] ?? null) ?: 'Unknown',
-                'date_of_birth' => $this->parseDate($row['dob'] ?? null, dobMode: true),
+                'date_of_birth' => DateParser::parse($row['dob'] ?? null, dobMode: true),
                 'contact_number' => $this->strVal($row['contact_number'] ?? null),
                 'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
                 'marital_status' => $this->enumOrNull(self::MARITAL_STATUS_MAP[$row['marital_status'] ?? ''] ?? ($row['marital_status'] ?? null), ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
@@ -189,7 +189,7 @@ class OscaCsvSeeder extends Seeder
                 'encoded_by' => 'CSV Import',
             ]);
 
-            $surveyDate = $this->parseDate($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+            $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
             $survey = QolSurvey::create([
                 'senior_citizen_id' => $senior->id,
                 'survey_version' => 'v1',
@@ -329,59 +329,6 @@ class OscaCsvSeeder extends Seeder
         $parts = array_map('trim', explode(',', $v));
 
         return array_values(array_filter($parts, fn ($x) => $x !== ''));
-    }
-
-    /**
-     * Parse a date string from CSV.
-     *
-     * @param  bool  $dobMode  When true, a value containing a time suffix (e.g. " 0:00") is treated
-     *                         as a Google-Form date-picker export in Philippine locale (d/m/Y).
-     *                         Set to false for timestamps, which Google exports in m/d/Y H:i.
-     */
-    private function parseDate($value, bool $dobMode = false): ?string
-    {
-        $v = $this->strVal($value);
-        if ($v === null) {
-            return null;
-        }
-
-        // Regex intentionally omits $ so it matches even when a time suffix like " 0:00" is present.
-        $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
-
-        if ($hasSlashDate) {
-            $dateOnly = "{$m[1]}/{$m[2]}/{$m[3]}";
-            $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
-
-            if ((int) $m[1] > 12) {
-                // Day-first unambiguous (day can't be a month): always d/m/Y.
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable $e) {
-                }
-            } elseif ($dobMode && $hasTimeSuffix) {
-                // DOB from Google Form date-picker: Philippine locale exports d/m/Y H:i.
-                // Strip the time and parse as d/m/Y regardless of whether day ≤ 12.
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable $e) {
-                }
-            }
-        }
-
-        // Fallback: try common formats. Timestamps are m/d/Y H:i (Google's export locale).
-        $formats = ['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'];
-        foreach ($formats as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');
-            } catch (\Throwable $e) {
-            }
-        }
-
-        try {
-            return Carbon::parse($v)->format('Y-m-d');
-        } catch (\Throwable $e) {
-            return null;
-        }
     }
 
     private function scoreVal($value): ?int

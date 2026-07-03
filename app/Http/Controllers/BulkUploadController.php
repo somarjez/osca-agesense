@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
-use Carbon\Carbon;
+use App\Support\DateParser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -232,7 +232,7 @@ class BulkUploadController extends Controller
                 $firstName = $this->strVal($row['first_name'] ?? null);
                 $lastName = $this->strVal($row['last_name'] ?? null);
                 $barangay = $this->strVal($row['barangay'] ?? null);
-                $dob = $this->parseDate($row['dob'] ?? null, dobMode: true);
+                $dob = DateParser::parse($row['dob'] ?? null, dobMode: true);
 
                 if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
                     $skipped++;
@@ -298,7 +298,7 @@ class BulkUploadController extends Controller
                     'encoded_by' => 'Bulk Upload',
                 ]);
 
-                $surveyDate = $this->parseDate($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+                $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
                 $survey = QolSurvey::create([
                     'senior_citizen_id' => $senior->id,
                     'survey_version' => 'v1',
@@ -467,54 +467,6 @@ class BulkUploadController extends Controller
         $parts = array_map('trim', explode(',', $v));
 
         return array_values(array_filter($parts, fn ($x) => $x !== ''));
-    }
-
-    /**
-     * @param  bool  $dobMode  When true, values with a time suffix are treated as Google-Form
-     *                         date-picker output in Philippine locale (d/m/Y). Set to false for
-     *                         Google Form timestamps, which are exported in m/d/Y H:i.
-     */
-    private function parseDate($value, bool $dobMode = false): ?string
-    {
-        $v = $this->strVal($value);
-        if ($v === null) {
-            return null;
-        }
-
-        // Regex intentionally omits $ so it matches even when a time suffix like " 0:00" is present.
-        $hasSlashDate = preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $v, $m);
-
-        if ($hasSlashDate) {
-            $dateOnly = "{$m[1]}/{$m[2]}/{$m[3]}";
-            $hasTimeSuffix = (bool) preg_match('/\s+\d/', $v);
-
-            if ((int) $m[1] > 12) {
-                // Day-first unambiguous (day can't be a month): always d/m/Y.
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable) {
-                }
-            } elseif ($dobMode && $hasTimeSuffix) {
-                // DOB from Google Form date-picker: Philippine locale = d/m/Y.
-                try {
-                    return Carbon::createFromFormat('d/m/Y', $dateOnly)->format('Y-m-d');
-                } catch (\Throwable) {
-                }
-            }
-        }
-
-        foreach (['m/d/Y H:i', 'm/d/Y', 'Y-m-d', 'd/m/Y'] as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v)->format('Y-m-d');
-            } catch (\Throwable) {
-            }
-        }
-
-        try {
-            return Carbon::parse($v)->format('Y-m-d');
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     private function scoreVal($value): ?int
