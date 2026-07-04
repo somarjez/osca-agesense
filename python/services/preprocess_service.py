@@ -1024,6 +1024,10 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             "social_emotional_concern": raw.get("social_emotional_concern", ""),
             "healthcare_difficulty": raw.get("healthcare_difficulty", ""),
             "household_condition": raw.get("household_condition", ""),
+            # marital_status must reach the recommendation engine as the raw string:
+            # catalog_recommender's widowed/bereavement trigger matches 'Widowed'/
+            # 'Separated' exactly, and feature_map only carries the numeric marital_enc.
+            "marital_status": _as_text(raw.get("marital_status")),
         },
         "feature_map": {
             k: float(v) if isinstance(v, (int, float, np.integer, np.floating)) else v

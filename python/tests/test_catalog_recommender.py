@@ -118,6 +118,57 @@ def test_extract_tags_mixed_concern_and_no_concern_parts_still_fires():
     assert "medical_cost_strain" in tags
 
 
+def test_extract_tags_low_wellbeing_fires_via_overall_wellbeing_key():
+    """Both pipelines carry the wellbeing value as 'overall_wellbeing' (the
+    section-scores key), not 'wellbeing_score' — the low_wellbeing trigger must
+    accept either key or it is dead in production."""
+    tags = cr.extract_need_tags({"overall_wellbeing": 0.30})
+    assert "low_wellbeing" in tags
+    tags_healthy = cr.extract_need_tags({"overall_wellbeing": 0.90})
+    assert "low_wellbeing" not in tags_healthy
+
+
+def test_extract_tags_pneumonia_maps_to_respiratory():
+    """'Pneumonia' exists in production data (bulk-upload batch) but matched no
+    DISEASE_TAG_MAP keyword — it must map to dx_respiratory like asthma/COPD."""
+    tags = cr.extract_need_tags({"medical_concern": ["Pneumonia"]})
+    assert "dx_respiratory" in tags
+    assert "chronic_disease" in tags
+
+
+def test_extract_tags_informal_settler_housing_fires_unsafe_home():
+    """Real household_condition survey options 'Informal settler',
+    'No permanent house', 'Overcrowded in home' must fire unsafe_home even when
+    the numeric env_safe_home score is unavailable."""
+    for value in ("Informal settler", "No permanent house", "Overcrowded in home"):
+        tags = cr.extract_need_tags({"household_condition": [value], "env_safe_home": 4})
+        assert "unsafe_home" in tags, f"{value!r} did not fire unsafe_home"
+
+
+def test_extract_tags_float_valued_booleans():
+    """Pandas row access upcasts int columns to float64 when the row has mixed
+    dtypes, and the live feature_map serializes ints as floats — so boolean
+    fields arrive as 1.0/0.0. _as_bool must treat numeric non-zero as True:
+    lives_alone=1.0 must fire, and is_association_member=1.0 must NOT
+    false-fire not_association_member."""
+    tags = cr.extract_need_tags({"sec4_lives_alone": 1.0})
+    assert "lives_alone" in tags
+    tags = cr.extract_need_tags({"is_association_member": 1.0})
+    assert "not_association_member" not in tags
+    tags = cr.extract_need_tags({"is_association_member": 0.0})
+    assert "not_association_member" in tags
+
+
+def test_extract_tags_helplessness_fires_emotional_distress():
+    """'Feeling Helplessness/Worthlessness' is a real survey option; it must
+    sub-classify as emotional_distress, not just generic emotional_concern."""
+    tags = cr.extract_need_tags({
+        "social_emotional_concern": ["Feeling Helplessness/Worthlessness"],
+    })
+    assert "emotional_concern" in tags
+    assert "emotional_distress" in tags
+
+
 def test_match_returns_rows_with_intersecting_tags():
     catalog = cr.load_catalog()
     fired = cr.match({"dx_hypertension"}, catalog)

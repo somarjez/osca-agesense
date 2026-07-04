@@ -72,7 +72,17 @@ def _resolve_path(path: Optional[str]) -> str:
 
 
 def _as_bool(v: Any) -> bool:
-    return str(v).strip().lower() in {"1", "true", "yes", "y"}
+    """Numeric-aware truthiness. Boolean fields arrive as floats (pandas row
+    access upcasts ints to float64; the live feature_map serializes 1 as 1.0),
+    and str(1.0) == "1.0" is not in the string set — so numbers are compared
+    numerically and only non-numeric values fall back to the string tokens
+    (catalog CSV uses "TRUE"/"FALSE")."""
+    if isinstance(v, bool):
+        return v
+    try:
+        return float(v) != 0.0
+    except (TypeError, ValueError):
+        return str(v).strip().lower() in {"true", "yes", "y"}
 
 
 def load_catalog(path: Optional[str] = None, force: bool = False) -> List[CatalogRow]:
@@ -121,7 +131,7 @@ DISEASE_TAG_MAP = {
     "stroke": "dx_stroke",
     "dementia": "dx_dementia", "alzheimer": "dx_dementia", "parkinson": "dx_dementia",
     "cancer": "dx_cancer",
-    "asthma": "dx_respiratory", "copd": "dx_respiratory",
+    "asthma": "dx_respiratory", "copd": "dx_respiratory", "pneumonia": "dx_respiratory",
     "tuberculosis": "dx_tb", "tb": "dx_tb",
     "arthritis": "dx_arthritis", "osteoporosis": "dx_arthritis",
     "kidney": "dx_kidney", "chronic kidney disease": "dx_kidney", "dialysis": "dx_kidney",
@@ -279,7 +289,8 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     env_safe = _sf(row.get("env_safe_home"), 3.0)
     hh = _as_text(row.get("household_condition")).lower()
     housing = _as_text(row.get("housing_concern")).lower()
-    unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair")
+    unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair",
+                 "no permanent house", "informal settler", "overcrowd")
     if env_safe <= 2 or any(k in hh for k in unsafe_kw) or _present(row.get("housing_concern")):
         t.add("unsafe_home")
     if (mob_out <= 3 or mob_in <= 3) and env_safe <= 3 and age >= 70:
@@ -315,8 +326,8 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     emo = _as_text(row.get("social_emotional_concern")).lower()
     if _present(row.get("social_emotional_concern")):
         t.add("emotional_concern")
-        if any(k in emo for k in ("depression", "anxiety", "hopeless", "sad", "grief",
-                                  "stress", "trauma", "withdrawn", "isolation")):
+        if any(k in emo for k in ("depress", "anxiety", "hopeless", "helpless", "worthless",
+                                  "sad", "grief", "stress", "trauma", "withdrawn", "isolation")):
             t.add("emotional_distress")
         if any(k in emo for k in ("grief", "bereave", "loss of")):
             t.add("bereavement")
@@ -326,7 +337,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("lonely_distress")
     if "emotional_concern" in t and lives_alone:
         t.add("emotional_alone")
-    if _sf(row.get("wellbeing_score"), 1.0) < 0.50:
+    if _sf(row.get("wellbeing_score", row.get("overall_wellbeing")), 1.0) < 0.50:
         t.add("low_wellbeing")
 
     # ── healthcare access (ported from _hc_access_recs) ──
