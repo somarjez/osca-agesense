@@ -65,7 +65,14 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
 
+def _jsonable(v):
+    return v.item() if hasattr(v, "item") else v  # numpy scalar -> native
+
+
 def _call_preprocess(payload: dict) -> dict:
+    payload = {k: _jsonable(v) if not isinstance(v, dict)
+               else {kk: _jsonable(vv) for kk, vv in v.items()}
+               for k, v in payload.items()}
     req = urllib.request.Request(
         PREPROCESS_URL, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST")
@@ -111,7 +118,9 @@ def main() -> int:
     # df_clean is SORTED (alphabetical) while osca.csv is in survey order —
     # positional alignment feeds the wrong senior's data to the live side.
     # Match raw rows by normalized name+barangay instead.
-    raw_csv = pd.read_csv(os.path.join(OUTER, "osca.csv"), encoding="utf-8-sig")
+    # Must match the source the notebook itself reads (osca5.ipynb cell 3) —
+    # osca.csv is the pre-merge file and lacks the Magdapio batch.
+    raw_csv = pd.read_csv(os.path.join(OUTER, "osca_normalized.csv"), encoding="utf-8-sig")
     raw_by_key = {}
     for _, rr in raw_csv.iterrows():
         rk = (_norm(str(rr.get("first_name", "")) + " " + str(rr.get("last_name", ""))),
@@ -146,6 +155,12 @@ def main() -> int:
             continue
         payload = rr.where(pd.notna(rr), "").to_dict()
         payload.setdefault("marital_status", merged_nb.get("marital_status", ""))
+        # Production buildRawPayload sends only the frozen ageAtSurvey — never dob.
+        # Leaving dob in makes preprocess recompute age at today's date, flipping
+        # exact-age milestone tags (age_80/85/90) vs the notebook's CSV age.
+        payload.pop("dob", None)
+        payload.pop("timestamp", None)
+        payload["age"] = merged_nb.get("age", payload.get("age"))
         # Production (MlService::buildRawPayload) nests the QoL Likert answers
         # under 'qol_responses' (QolSurvey::toFeatureArray key names, which match
         # the CSV column names). Top-level Likerts are ignored by preprocess.
