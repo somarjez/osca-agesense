@@ -9,7 +9,7 @@ import catalog_recommender as cr  # noqa: E402
 
 def test_load_catalog_parses_rows_and_tags():
     catalog = cr.load_catalog()
-    assert len(catalog) == 157, f"expected 157 catalog rows, got {len(catalog)}"
+    assert len(catalog) == 170, f"expected 170 catalog rows, got {len(catalog)}"
     by_code = {r.code: r for r in catalog}
     htn = by_code["HLT_001"]
     assert "dx_hypertension" in htn.trigger_tags
@@ -87,6 +87,35 @@ def test_extract_tags_list_valued_genuine_concern_still_fires():
     arriving as a list value (matching Laravel's export shape) must still fire."""
     tags = cr.extract_need_tags({"optical_concern": ["Cataract"]})
     assert "vision_concern" in tags
+
+
+def test_extract_tags_no_concern_label_variant_from_raw_csv():
+    """The raw survey CSV uses 'Living in healthy environment' (no 'a') for 146
+    seniors — the notebook batch reads this shape directly. Both label variants
+    must be recognized as no-concern."""
+    tags = cr.extract_need_tags({
+        "social_emotional_concern": "Living in healthy environment",
+    })
+    assert "emotional_concern" not in tags
+
+
+def test_extract_tags_multiselect_all_no_concern_parts():
+    """A comma-joined multi-select whose parts are ALL no-concern tokens must
+    not fire (part-wise matching, not whole-string)."""
+    tags = cr.extract_need_tags({
+        "healthcare_difficulty": "Healthcare is accessible, none",
+    })
+    assert "healthcare_difficulty" not in tags
+
+
+def test_extract_tags_mixed_concern_and_no_concern_parts_still_fires():
+    """Real CSV shape: 'High cost of medicine, Healthcare is accessible'
+    (5 seniors) — a real concern mixed with a no-concern token must still fire."""
+    tags = cr.extract_need_tags({
+        "healthcare_difficulty": "High cost of medicine, Healthcare is accessible",
+    })
+    assert "healthcare_difficulty" in tags
+    assert "medical_cost_strain" in tags
 
 
 def test_match_returns_rows_with_intersecting_tags():

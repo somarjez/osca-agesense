@@ -26,7 +26,9 @@ CATEGORY_CAP = 2
 TOTAL_REC_CAP = 24  # high safety net; per-category cap is the real driver -> counts vary 10-23 by need
 SKIP_TOKENS = {"none", "nan", "", "n/a", "no concern", "no concerns",
                "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth",
-               "healthcare is accessible", "living in a healthy environment"}
+               "healthcare is accessible", "living in a healthy environment",
+               # raw-CSV label variant (146 seniors' surveys predate the canonical label)
+               "living in healthy environment"}
 
 _CATALOG_CACHE: Optional[List["CatalogRow"]] = None
 
@@ -151,9 +153,19 @@ def _as_text(v: Any) -> str:
     return str(v or "").strip()
 
 
-def _present(v: Any) -> bool:
+def _no_concern(v: Any) -> bool:
+    """True when the value carries no real concern. Multi-select fields arrive
+    comma-joined ("High cost of medicine, Healthcare is accessible") — the value
+    is no-concern only when EVERY part is a skip token, so a real concern mixed
+    with a no-concern token still counts as present."""
     s = _as_text(v).lower()
-    return bool(s) and s not in SKIP_TOKENS
+    if not s:
+        return True
+    return all(p.strip() in SKIP_TOKENS for p in s.split(","))
+
+
+def _present(v: Any) -> bool:
+    return not _no_concern(v)
 
 
 def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
@@ -268,7 +280,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     hh = _as_text(row.get("household_condition")).lower()
     housing = _as_text(row.get("housing_concern")).lower()
     unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair")
-    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or (housing and housing not in SKIP_TOKENS):
+    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or _present(row.get("housing_concern")):
         t.add("unsafe_home")
     if (mob_out <= 3 or mob_in <= 3) and env_safe <= 3 and age >= 70:
         t.add("fall_risk")
@@ -301,7 +313,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
 
     # ── mental health (emotional concern free-text) ──
     emo = _as_text(row.get("social_emotional_concern")).lower()
-    if emo and emo not in SKIP_TOKENS:
+    if _present(row.get("social_emotional_concern")):
         t.add("emotional_concern")
         if any(k in emo for k in ("depression", "anxiety", "hopeless", "sad", "grief",
                                   "stress", "trauma", "withdrawn", "isolation")):
@@ -319,11 +331,12 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
 
     # ── healthcare access (ported from _hc_access_recs) ──
     hc = _as_text(row.get("healthcare_difficulty")).lower()
+    hc_present = _present(row.get("healthcare_difficulty"))
     service_acc = _sf(row.get("env_service_access"), 3.0)
     has_checkup = _sf(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
     if not has_checkup:
         t.add("no_checkup")
-    if hc and hc not in SKIP_TOKENS:
+    if hc_present:
         t.add("healthcare_difficulty")
     if "cost" in hc or "expensive" in hc:
         t.add("medical_cost_strain")
