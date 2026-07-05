@@ -241,6 +241,165 @@ def test_build_recommendations_emits_full_schema():
     assert not all(r["category"] == "health" for r in recs[:3])
 
 
+# ── financial threshold calibration + composite eligibility tags ──────────────
+
+def test_extract_tags_band4_supported_senior_not_low_income():
+    """Reported case: senior with '10,000 - 20,000' income (band 4), own pension,
+    spouse salary/pension, 3 working children and child financial support was
+    tagged low_income and referred for Social Pension / AICS. Band 4 with a
+    stable economic buffer must NOT read as low income."""
+    tags = cr.extract_need_tags({
+        "age": 68, "income_enc": 4, "has_pension": 1,
+        "sec5_eco_stability": 0.47, "sec2_family_support": 0.79,
+        "env_fin_household": 4, "env_fin_medical": 4,
+    })
+    assert "low_income" not in tags
+    assert "financial_crisis" not in tags
+    assert "wants_livelihood" not in tags, "livelihood need must follow calibrated low_income"
+
+
+def test_extract_tags_band4_weak_buffer_still_low_income():
+    """Band 4 (10-20k) with a genuinely weak buffer (no pension, no assets,
+    no support -> low eco stability) must still flag low_income."""
+    tags = cr.extract_need_tags({
+        "income_enc": 4, "has_pension": 0, "sec5_eco_stability": 0.30,
+    })
+    assert "low_income" in tags
+    assert "financial_crisis" not in tags
+
+
+def test_extract_tags_band3_still_low_income():
+    tags = cr.extract_need_tags({
+        "income_enc": 3, "has_pension": 1, "sec5_eco_stability": 0.60,
+    })
+    assert "low_income" in tags
+    assert "financial_crisis" not in tags
+
+
+def test_extract_tags_high_band_low_eco_not_flagged():
+    """The eco-stability fallback must not override a clearly adequate income:
+    a 40-50k/month senior with no assets/pension must not read as low_income,
+    let alone financial_crisis."""
+    tags = cr.extract_need_tags({"income_enc": 7, "sec5_eco_stability": 0.20})
+    assert "low_income" not in tags
+    assert "financial_crisis" not in tags
+
+
+def test_extract_tags_socpen_candidate_requires_full_indigence_profile():
+    """DSWD Social Pension eligibility is conjunctive: low income AND no pension
+    AND frail/sickly/disabled AND no regular family support. Dropping any leg
+    must drop the tag."""
+    base = {
+        "income_enc": 2, "has_pension": 0,
+        "sec2_family_support": 0.10, "sec6_func_score": 0.30,
+    }
+    assert "socpen_candidate" in cr.extract_need_tags(base)
+    assert "socpen_candidate" not in cr.extract_need_tags({**base, "has_pension": 1})
+    assert "socpen_candidate" not in cr.extract_need_tags(
+        {**base, "income_enc": 6, "sec5_eco_stability": 0.70})
+    assert "socpen_candidate" not in cr.extract_need_tags(
+        {**base, "sec2_family_support": 0.80})
+    healthy = {**base, "sec6_func_score": 0.80, "func_independence": 5,
+               "phy_mobility_outside": 5, "phy_mobility_indoor": 5}
+    assert "socpen_candidate" not in cr.extract_need_tags(healthy)
+
+
+def test_extract_tags_pensionless_poor_composite():
+    """'No permanent source of income' (FIN_002/FIN_019) needs BOTH no pension
+    and low income — a salaried senior without a pension is not SocPen-poor."""
+    tags = cr.extract_need_tags({"has_pension": 0, "income_enc": 2})
+    assert "pensionless_poor" in tags
+    tags = cr.extract_need_tags(
+        {"has_pension": 0, "income_enc": 6, "sec5_eco_stability": 0.70})
+    assert "no_pension" in tags
+    assert "pensionless_poor" not in tags
+
+
+def test_extract_tags_income_hh_strain_composite():
+    tags = cr.extract_need_tags({"income_enc": 2, "env_fin_household": 2})
+    assert "income_hh_strain" in tags
+    tags = cr.extract_need_tags(
+        {"income_enc": 6, "sec5_eco_stability": 0.70, "env_fin_household": 2})
+    assert "financial_strain" in tags
+    assert "income_hh_strain" not in tags
+
+
+def test_extract_tags_caregiver_needed_for_unsupported_frail_senior():
+    """caregiver_needed appears on 4 catalog rows (FUNC_002/010/019, SOC_015)
+    but was never emitted by the extractor — those rows were dead. A frail
+    senior with no support network must emit it; a well-supported frail senior
+    must not."""
+    tags = cr.extract_need_tags({"sec6_func_score": 0.30, "sec4_lives_alone": 1})
+    assert "caregiver_needed" in tags
+    tags = cr.extract_need_tags({
+        "sec6_func_score": 0.30, "sec4_lives_alone": 0, "sec2_family_support": 0.80,
+    })
+    assert "caregiver_needed" not in tags
+
+
+def test_catalog_socpen_aics_rows_use_calibrated_tags():
+    """The six financial/social-protection rows whose trigger summaries are
+    conjunctive must not fire on a single broad tag."""
+    by_code = {r.code: r for r in cr.load_catalog()}
+    assert by_code["FIN_001"].trigger_tags == frozenset({"socpen_candidate"})
+    assert by_code["FIN_003"].trigger_tags == frozenset({"socpen_candidate"})
+    assert by_code["FIN_002"].trigger_tags == frozenset({"pensionless_poor"})
+    assert by_code["FIN_019"].trigger_tags == frozenset({"pensionless_poor"})
+    assert by_code["FIN_008"].trigger_tags == frozenset({"financial_strain", "financial_crisis"})
+    assert by_code["FIN_018"].trigger_tags == frozenset({"income_hh_strain"})
+
+
+def test_build_recommendations_supported_band4_gets_no_socpen_or_aics():
+    """End-to-end guard for the reported case: no Social Pension / AICS /
+    case-assessment referral may surface for a supported band-4 senior."""
+    row = {
+        "age": 68, "income_enc": 4, "has_pension": 1,
+        "sec5_eco_stability": 0.47, "sec2_family_support": 0.79,
+        "env_fin_household": 4, "env_fin_medical": 4,
+        "func_independence": 4, "phy_mobility_outside": 4, "phy_mobility_indoor": 4,
+        "sec6_func_score": 0.80, "has_medical_checkup": 1, "is_association_member": 1,
+        "env_service_access": 4, "medical_concern": ["Physically Healthy"],
+    }
+    recs = cr.build_recommendations(row, urgency="routine", risk_level="low")
+    codes = {r["recommendation_code"] for r in recs}
+    banned = {"FIN_001", "FIN_002", "FIN_003", "FIN_008", "FIN_018", "FIN_019"}
+    assert not (codes & banned), f"financial-protection recs fired: {codes & banned}"
+    assert all("low_income" not in r["reason"] for r in recs)
+
+
+def test_match_indigent_senior_still_fires_socpen_ladder():
+    """Guard against over-correcting: a genuinely indigent senior (band 1, no
+    pension, frail, unsupported) must still reach the full SocPen pathway."""
+    tags = cr.extract_need_tags({
+        "income_enc": 1, "has_pension": 0, "sec5_eco_stability": 0.10,
+        "sec2_family_support": 0.10, "sec6_func_score": 0.30,
+        "env_fin_household": 2,
+    })
+    codes = {r.code for r in cr.match(tags)}
+    assert {"FIN_001", "FIN_002", "FIN_003", "FIN_004", "FIN_008", "FIN_018"} <= codes
+
+
+def test_derive_context_tags_emits_access_high_risk():
+    """ACCESS_011 is tagged access_high_risk in the catalog but the tag was
+    never derived anywhere — the row was dead. High risk + an access barrier
+    must derive it, and the row must fire on it."""
+    derived = cr.derive_context_tags(
+        {"transport_barrier", "healthcare_difficulty"},
+        urgency="urgent", risk_level="high", overall_level="HIGH")
+    assert "access_high_risk" in derived
+    low = cr.derive_context_tags(
+        {"transport_barrier", "healthcare_difficulty"},
+        urgency="routine", risk_level="low", overall_level="LOW")
+    assert "access_high_risk" not in low
+    codes = {r.code for r in cr.match({"access_high_risk"})}
+    assert "ACCESS_011" in codes
+
+
+def test_match_caregiver_needed_fires_homecare_rows():
+    codes = {r.code for r in cr.match({"caregiver_needed"})}
+    assert {"FUNC_002", "FUNC_010", "FUNC_019", "SOC_015"} <= codes
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

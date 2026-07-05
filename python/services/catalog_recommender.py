@@ -361,15 +361,21 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     if lives_alone and ("healthcare_difficulty" in t or "service_access_low" in t):
         t.add("hc_alone")
 
-    # ── financial (ported from _financial_recs) ──
+    # ── financial (calibrated 2026-07; was ported verbatim from _financial_recs) ──
     income_enc = _sf(row.get("income_enc"), 5.0)
     eco = _sf(row.get("sec5_eco_stability"), 0.4)
     env_fin_med = _sf(row.get("env_fin_medical"), 3.0)
     env_fin_hh = _sf(row.get("env_fin_household"), 3.0)
     income_band = int(min(max(income_enc, 1), 9))
-    if income_band <= 2 or eco < 0.25:
+    # Bands follow INCOME_ORDER: 1 = "Below 1,000" … 4 = "10,000 - 20,000".
+    # Band <= 3 is low income outright; band 4 is borderline and counts only
+    # when the economic buffer (income sources + assets + pension + child
+    # support blend) is weak. Both eco fallbacks are gated to band <= 4 so a
+    # 20k+/month senior can never read as low_income or financial_crisis on a
+    # thin asset profile alone.
+    if income_band <= 2 or (income_band <= 4 and eco < 0.25):
         t |= {"low_income", "financial_crisis"}
-    elif income_band <= 4 or eco < 0.45:
+    elif income_band <= 3 or (income_band == 4 and eco < 0.45):
         t.add("low_income")
     if _sf(row.get("has_pension")) == 0:
         t.add("no_pension")
@@ -378,8 +384,25 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     if env_fin_hh <= 2:
         t |= {"financial_strain", "food_insecurity"}
 
-    # ── livelihood (only mobile, non-frail seniors with income need) ──
-    if income_band <= 4 and func_indep >= 3 and "frailty" not in t:
+    # ── social-protection composites (programs with conjunctive eligibility) ──
+    # DSWD indigent Social Pension requires ALL of: low income, no pension,
+    # frail/sickly/disabled, no regular family support. The catalog matcher is
+    # OR-based, so the conjunction must be encoded as a single tag here.
+    if ("low_income" in t and "no_pension" in t and "low_family_support" in t
+            and ({"frailty", "chronic_disease", "has_disability"} & t)):
+        t.add("socpen_candidate")
+    if "low_income" in t and "no_pension" in t:
+        t.add("pensionless_poor")
+    if "low_income" in t and "financial_strain" in t:
+        t.add("income_hh_strain")
+
+    # ── caregiver gap (frail/dependent senior without a support network) ──
+    if ({"frailty", "adl_difficulty", "dependency_high"} & t) and \
+            ("lives_alone" in t or "low_family_support" in t):
+        t.add("caregiver_needed")
+
+    # ── livelihood (only mobile, non-frail seniors with calibrated income need) ──
+    if "low_income" in t and func_indep >= 3 and "frailty" not in t:
         t |= {"wants_livelihood", "productive_capable"}
 
     # ── healthcare coverage proxy ──
@@ -394,6 +417,32 @@ _PRIORITY_CATS = [
     "mental_health", "assistive_device", "household_safety",
     "elder_protection", "livelihood", "benefits", "other",
 ]
+
+
+def derive_context_tags(tags: Set[str], urgency: str = "planned",
+                        risk_level: str = "moderate", overall_level: str = "",
+                        catalog: Optional[List[CatalogRow]] = None) -> Set[str]:
+    """Tags that depend on urgency / risk / breadth of need rather than the
+    senior's row alone. Returns a new set; the input is not mutated."""
+    catalog = catalog if catalog is not None else load_catalog()
+    tags = set(tags)
+    is_high = urgency in ("urgent", "immediate") or str(overall_level).upper() == "HIGH" \
+        or risk_level.lower() == "high"
+    if is_high:
+        tags.add("high_risk")
+    if is_high and ({"healthcare_difficulty", "transport_barrier", "service_access_low",
+                     "access_barrier_nocheckup", "hc_alone"} & tags):
+        tags.add("access_high_risk")
+    # categories triggered so far (excluding the broad osca/benefits proxies)
+    pre_fired = match(tags, catalog)
+    distinct_cats = {r.category for r in pre_fired if r.category not in ("benefits", "governance")}
+    if len(distinct_cats) >= 3:
+        tags.add("multiple_unmet_needs")
+    if "no_checkup" in tags or "low_income" in tags or len(distinct_cats) >= 3:
+        tags.add("osca_navigation")
+    if is_high or "multiple_unmet_needs" in tags:
+        tags.add("benefits_unaware")
+    return tags
 
 
 def match(senior_tags: Set[str], catalog: Optional[List[CatalogRow]] = None) -> List[CatalogRow]:
@@ -485,22 +534,9 @@ def build_recommendations(row: Dict[str, Any], urgency: str = "planned",
                           overall_level: str = "", priority_flag: str = "",
                           catalog: Optional[List[CatalogRow]] = None) -> List[Dict[str, Any]]:
     catalog = catalog if catalog is not None else load_catalog()
-    tags = extract_need_tags(row)
-
-    # derived tags that depend on urgency / breadth of need
-    is_high = urgency in ("urgent", "immediate") or str(overall_level).upper() == "HIGH" \
-        or risk_level.lower() == "high"
-    if is_high:
-        tags.add("high_risk")
-    # categories triggered so far (excluding the broad osca/benefits proxies)
-    pre_fired = match(tags, catalog)
-    distinct_cats = {r.category for r in pre_fired if r.category not in ("benefits", "governance")}
-    if len(distinct_cats) >= 3:
-        tags.add("multiple_unmet_needs")
-    if "no_checkup" in tags or "low_income" in tags or len(distinct_cats) >= 3:
-        tags.add("osca_navigation")
-    if is_high or "multiple_unmet_needs" in tags:
-        tags.add("benefits_unaware")
+    tags = derive_context_tags(extract_need_tags(row), urgency=urgency,
+                               risk_level=risk_level, overall_level=overall_level,
+                               catalog=catalog)
 
     fired = match(tags, catalog)
     chosen = select(fired, urgency=urgency, risk_level=risk_level)
