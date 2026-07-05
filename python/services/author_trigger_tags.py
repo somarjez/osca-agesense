@@ -67,14 +67,18 @@ CODE_TAGS = {
     "MED_011": ("high_risk", 2),
     "MED_012": ("dx_tb", 3),
     # ── Financial / Social Protection ──
-    "FIN_001": ("low_income", 3),
-    "FIN_002": ("no_pension", 3),
-    "FIN_003": ("frailty", 3),
+    # SocPen rows encode the program's conjunctive eligibility (low income AND
+    # no pension AND frail/sick/disabled AND no family support) as composite
+    # tags computed in catalog_recommender.extract_need_tags — a bare
+    # low_income/no_pension/frailty tag must not fire a SocPen/AICS referral.
+    "FIN_001": ("socpen_candidate", 3),
+    "FIN_002": ("pensionless_poor", 3),
+    "FIN_003": ("socpen_candidate", 3),
     "FIN_004": ("financial_crisis", 3),
     "FIN_005": ("food_insecurity", 3),
     "FIN_006": ("transport_barrier", 2),
     "FIN_007": ("", 1),
-    "FIN_008": ("low_income", 2),
+    "FIN_008": ("financial_strain|financial_crisis", 2),
     "FIN_009": ("age_80", 2),        # category benefits (centenarian milestones)
     "FIN_010": ("age_85", 2),
     "FIN_011": ("age_90", 2),
@@ -84,8 +88,8 @@ CODE_TAGS = {
     "FIN_015": ("has_disability", 1),
     "FIN_016": ("medical_cost_strain", 1),
     "FIN_017": ("", 1),
-    "FIN_018": ("low_income", 2),
-    "FIN_019": ("no_pension", 2),
+    "FIN_018": ("income_hh_strain", 2),
+    "FIN_019": ("pensionless_poor", 2),
     "FIN_020": ("", 1),
     # ── Functional / Home Care ──
     "FUNC_001": ("frailty", 4),
@@ -179,6 +183,21 @@ CODE_TAGS = {
     "SAFE_003": ("", 1),
     "SAFE_004": ("", 1),
     "SAFE_005": ("", 1),
+    # ── Functional / social / assistive expansion rows (added after the
+    #    original authoring pass; tags mirror the shipped catalog) ──
+    "FUNC_021": ("fall_risk", 3),
+    "FUNC_022": ("low_autonomy", 3),
+    "FUNC_023": ("mobility_limited_indoor", 3),
+    "FUNC_024": ("func_chronic", 4),
+    "FUNC_025": ("low_independence", 2),
+    "FUNC_026": ("fall_risk", 3),       # category household_safety
+    "FUNC_027": ("lives_alone", 2),     # category household_safety
+    "SOC_019": ("bereavement", 3),
+    "SOC_020": ("isolated", 2),
+    "SOC_021": ("emotional_alone", 2),
+    "SOC_022": ("low_participation", 1),
+    "ASSIST_011": ("mobility_limited_indoor", 3),
+    "ASSIST_012": ("fall_risk", 3),
 }
 
 
