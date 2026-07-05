@@ -364,7 +364,7 @@ class MlService
         return (int) $senior->age;
     }
 
-    private function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
+    public function buildRawPayload(SeniorCitizen $senior, QolSurvey $survey): array
     {
         return [
             'senior_id' => $senior->id,
@@ -842,7 +842,7 @@ class MlService
         return $this->localPythonExecutable !== null && is_file($this->localPythonRunner);
     }
 
-    private function resolveLocalPythonExecutable(): ?string
+    public function resolveLocalPythonExecutable(): ?string
     {
         $configured = env('PYTHON_EXECUTABLE');
         if (is_string($configured) && trim($configured) !== '') {

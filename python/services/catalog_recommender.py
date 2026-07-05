@@ -25,7 +25,10 @@ GOVERNANCE_CATEGORY = "governance"
 CATEGORY_CAP = 2
 TOTAL_REC_CAP = 24  # high safety net; per-category cap is the real driver -> counts vary 10-23 by need
 SKIP_TOKENS = {"none", "nan", "", "n/a", "no concern", "no concerns",
-               "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth"}
+               "physically healthy", "healthy eyes", "healthy hearing", "healthy teeth",
+               "healthcare is accessible", "living in a healthy environment",
+               # raw-CSV label variant (146 seniors' surveys predate the canonical label)
+               "living in healthy environment"}
 
 _CATALOG_CACHE: Optional[List["CatalogRow"]] = None
 
@@ -69,7 +72,17 @@ def _resolve_path(path: Optional[str]) -> str:
 
 
 def _as_bool(v: Any) -> bool:
-    return str(v).strip().lower() in {"1", "true", "yes", "y"}
+    """Numeric-aware truthiness. Boolean fields arrive as floats (pandas row
+    access upcasts ints to float64; the live feature_map serializes 1 as 1.0),
+    and str(1.0) == "1.0" is not in the string set — so numbers are compared
+    numerically and only non-numeric values fall back to the string tokens
+    (catalog CSV uses "TRUE"/"FALSE")."""
+    if isinstance(v, bool):
+        return v
+    try:
+        return float(v) != 0.0
+    except (TypeError, ValueError):
+        return str(v).strip().lower() in {"true", "yes", "y"}
 
 
 def load_catalog(path: Optional[str] = None, force: bool = False) -> List[CatalogRow]:
@@ -118,7 +131,7 @@ DISEASE_TAG_MAP = {
     "stroke": "dx_stroke",
     "dementia": "dx_dementia", "alzheimer": "dx_dementia", "parkinson": "dx_dementia",
     "cancer": "dx_cancer",
-    "asthma": "dx_respiratory", "copd": "dx_respiratory",
+    "asthma": "dx_respiratory", "copd": "dx_respiratory", "pneumonia": "dx_respiratory",
     "tuberculosis": "dx_tb", "tb": "dx_tb",
     "arthritis": "dx_arthritis", "osteoporosis": "dx_arthritis",
     "kidney": "dx_kidney", "chronic kidney disease": "dx_kidney", "dialysis": "dx_kidney",
@@ -140,9 +153,29 @@ def _sf(v: Any, default: float = 0.0) -> float:
         return default
 
 
+def _as_text(v: Any) -> str:
+    """Normalize raw field values to text before comparison. Laravel casts
+    concern fields as JSON arrays (e.g. ["Healthy Teeth"]); without this, a
+    naive str(v) stringifies the list itself ("['Healthy Teeth']"), which
+    never matches SKIP_TOKENS."""
+    if isinstance(v, (list, tuple, set)):
+        return ", ".join(str(x).strip() for x in v if str(x).strip())
+    return str(v or "").strip()
+
+
+def _no_concern(v: Any) -> bool:
+    """True when the value carries no real concern. Multi-select fields arrive
+    comma-joined ("High cost of medicine, Healthcare is accessible") — the value
+    is no-concern only when EVERY part is a skip token, so a real concern mixed
+    with a no-concern token still counts as present."""
+    s = _as_text(v).lower()
+    if not s:
+        return True
+    return all(p.strip() in SKIP_TOKENS for p in s.split(","))
+
+
 def _present(v: Any) -> bool:
-    s = str(v or "").strip().lower()
-    return bool(s) and s not in SKIP_TOKENS
+    return not _no_concern(v)
 
 
 def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
@@ -161,7 +194,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     age = _sf(row.get("age"), 70)
 
     # ── disease (medical_concern keyword scan) ──
-    med = str(row.get("medical_concern", "") or "").lower()
+    med = _as_text(row.get("medical_concern")).lower()
     for kw, tag in DISEASE_TAG_MAP.items():
         if kw in med:
             t.add(tag)
@@ -240,7 +273,7 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("preventive_due")
 
     # ── abandonment / abuse (keyword scan over free-text fields) ──
-    blob = " ".join(str(row.get(k, "") or "") for k in (
+    blob = " ".join(_as_text(row.get(k)) for k in (
         "medical_concern", "social_emotional_concern", "housing_concern", "household_condition",
     )).lower()
     if any(k in blob for k in ("abandon", "neglect", "homeless", "unattached")):
@@ -254,10 +287,10 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
 
     # ── household safety (ported from _household_safety_recs) ──
     env_safe = _sf(row.get("env_safe_home"), 3.0)
-    hh = str(row.get("household_condition", "") or "").lower()
-    housing = str(row.get("housing_concern", "") or "").strip().lower()
-    unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair")
-    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or (housing and housing not in {"none", "nan", ""}):
+    hh = _as_text(row.get("household_condition")).lower()
+    unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair",
+                 "no permanent house", "informal settler", "overcrowd")
+    if env_safe <= 2 or any(k in hh for k in unsafe_kw) or _present(row.get("housing_concern")):
         t.add("unsafe_home")
     if (mob_out <= 3 or mob_in <= 3) and env_safe <= 3 and age >= 70:
         t.add("fall_risk")
@@ -289,11 +322,11 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("isolated")
 
     # ── mental health (emotional concern free-text) ──
-    emo = str(row.get("social_emotional_concern", "") or "").strip().lower()
-    if emo and emo not in {"none", "nan", "", "n/a"}:
+    emo = _as_text(row.get("social_emotional_concern")).lower()
+    if _present(row.get("social_emotional_concern")):
         t.add("emotional_concern")
-        if any(k in emo for k in ("depression", "anxiety", "hopeless", "sad", "grief",
-                                  "stress", "trauma", "withdrawn", "isolation")):
+        if any(k in emo for k in ("depress", "anxiety", "hopeless", "helpless", "worthless",
+                                  "sad", "grief", "stress", "trauma", "withdrawn", "isolation")):
             t.add("emotional_distress")
         if any(k in emo for k in ("grief", "bereave", "loss of")):
             t.add("bereavement")
@@ -303,16 +336,17 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
         t.add("lonely_distress")
     if "emotional_concern" in t and lives_alone:
         t.add("emotional_alone")
-    if _sf(row.get("wellbeing_score"), 1.0) < 0.50:
+    if _sf(row.get("wellbeing_score", row.get("overall_wellbeing")), 1.0) < 0.50:
         t.add("low_wellbeing")
 
     # ── healthcare access (ported from _hc_access_recs) ──
-    hc = str(row.get("healthcare_difficulty", "") or "").lower()
+    hc = _as_text(row.get("healthcare_difficulty")).lower()
+    hc_present = _present(row.get("healthcare_difficulty"))
     service_acc = _sf(row.get("env_service_access"), 3.0)
     has_checkup = _sf(row.get("checkup_enc", row.get("has_medical_checkup", 0.0)), 0.0)
     if not has_checkup:
         t.add("no_checkup")
-    if hc and hc not in {"none", "nan", ""}:
+    if hc_present:
         t.add("healthcare_difficulty")
     if "cost" in hc or "expensive" in hc:
         t.add("medical_cost_strain")

@@ -9,7 +9,7 @@ import catalog_recommender as cr  # noqa: E402
 
 def test_load_catalog_parses_rows_and_tags():
     catalog = cr.load_catalog()
-    assert len(catalog) == 157, f"expected 157 catalog rows, got {len(catalog)}"
+    assert len(catalog) == 170, f"expected 170 catalog rows, got {len(catalog)}"
     by_code = {r.code: r for r in catalog}
     htn = by_code["HLT_001"]
     assert "dx_hypertension" in htn.trigger_tags
@@ -58,6 +58,115 @@ def test_extract_tags_healthy_senior_minimal():
     })
     assert "frailty" not in tags and "adl_difficulty" not in tags
     assert "dx_hypertension" not in tags
+
+
+def test_extract_tags_healthy_senior_list_valued_no_concern():
+    """Laravel exports concern fields as JSON arrays, not strings. A senior who
+    explicitly checks every "no concern" checkbox must not trigger any concern
+    tags, even though the raw values arrive as single-element lists."""
+    tags = cr.extract_need_tags({
+        "age": 65,
+        "medical_concern": ["Physically Healthy"],
+        "dental_concern": ["Healthy Teeth"],
+        "optical_concern": ["Healthy Eyes"],
+        "hearing_concern": ["Healthy Hearing"],
+        "social_emotional_concern": ["Living in a healthy environment"],
+        "healthcare_difficulty": ["Healthcare is accessible"],
+        "func_independence": 5, "phy_mobility_outside": 5, "phy_mobility_indoor": 5,
+        "has_pension": 1, "has_medical_checkup": 1, "is_association_member": 1,
+        "income_enc": 7, "sec6_func_score": 0.8, "env_service_access": 5,
+    })
+    unexpected = {"dental_concern", "vision_concern", "hearing_concern",
+                  "sensory_barrier", "medical_concern_present", "emotional_concern",
+                  "healthcare_difficulty", "assistive_device_need"}
+    assert not (unexpected & tags), f"false concern tags fired: {unexpected & tags}"
+
+
+def test_extract_tags_list_valued_genuine_concern_still_fires():
+    """Guard against over-correcting into false negatives: a genuine concern
+    arriving as a list value (matching Laravel's export shape) must still fire."""
+    tags = cr.extract_need_tags({"optical_concern": ["Cataract"]})
+    assert "vision_concern" in tags
+
+
+def test_extract_tags_no_concern_label_variant_from_raw_csv():
+    """The raw survey CSV uses 'Living in healthy environment' (no 'a') for 146
+    seniors — the notebook batch reads this shape directly. Both label variants
+    must be recognized as no-concern."""
+    tags = cr.extract_need_tags({
+        "social_emotional_concern": "Living in healthy environment",
+    })
+    assert "emotional_concern" not in tags
+
+
+def test_extract_tags_multiselect_all_no_concern_parts():
+    """A comma-joined multi-select whose parts are ALL no-concern tokens must
+    not fire (part-wise matching, not whole-string)."""
+    tags = cr.extract_need_tags({
+        "healthcare_difficulty": "Healthcare is accessible, none",
+    })
+    assert "healthcare_difficulty" not in tags
+
+
+def test_extract_tags_mixed_concern_and_no_concern_parts_still_fires():
+    """Real CSV shape: 'High cost of medicine, Healthcare is accessible'
+    (5 seniors) — a real concern mixed with a no-concern token must still fire."""
+    tags = cr.extract_need_tags({
+        "healthcare_difficulty": "High cost of medicine, Healthcare is accessible",
+    })
+    assert "healthcare_difficulty" in tags
+    assert "medical_cost_strain" in tags
+
+
+def test_extract_tags_low_wellbeing_fires_via_overall_wellbeing_key():
+    """Both pipelines carry the wellbeing value as 'overall_wellbeing' (the
+    section-scores key), not 'wellbeing_score' — the low_wellbeing trigger must
+    accept either key or it is dead in production."""
+    tags = cr.extract_need_tags({"overall_wellbeing": 0.30})
+    assert "low_wellbeing" in tags
+    tags_healthy = cr.extract_need_tags({"overall_wellbeing": 0.90})
+    assert "low_wellbeing" not in tags_healthy
+
+
+def test_extract_tags_pneumonia_maps_to_respiratory():
+    """'Pneumonia' exists in production data (bulk-upload batch) but matched no
+    DISEASE_TAG_MAP keyword — it must map to dx_respiratory like asthma/COPD."""
+    tags = cr.extract_need_tags({"medical_concern": ["Pneumonia"]})
+    assert "dx_respiratory" in tags
+    assert "chronic_disease" in tags
+
+
+def test_extract_tags_informal_settler_housing_fires_unsafe_home():
+    """Real household_condition survey options 'Informal settler',
+    'No permanent house', 'Overcrowded in home' must fire unsafe_home even when
+    the numeric env_safe_home score is unavailable."""
+    for value in ("Informal settler", "No permanent house", "Overcrowded in home"):
+        tags = cr.extract_need_tags({"household_condition": [value], "env_safe_home": 4})
+        assert "unsafe_home" in tags, f"{value!r} did not fire unsafe_home"
+
+
+def test_extract_tags_float_valued_booleans():
+    """Pandas row access upcasts int columns to float64 when the row has mixed
+    dtypes, and the live feature_map serializes ints as floats — so boolean
+    fields arrive as 1.0/0.0. _as_bool must treat numeric non-zero as True:
+    lives_alone=1.0 must fire, and is_association_member=1.0 must NOT
+    false-fire not_association_member."""
+    tags = cr.extract_need_tags({"sec4_lives_alone": 1.0})
+    assert "lives_alone" in tags
+    tags = cr.extract_need_tags({"is_association_member": 1.0})
+    assert "not_association_member" not in tags
+    tags = cr.extract_need_tags({"is_association_member": 0.0})
+    assert "not_association_member" in tags
+
+
+def test_extract_tags_helplessness_fires_emotional_distress():
+    """'Feeling Helplessness/Worthlessness' is a real survey option; it must
+    sub-classify as emotional_distress, not just generic emotional_concern."""
+    tags = cr.extract_need_tags({
+        "social_emotional_concern": ["Feeling Helplessness/Worthlessness"],
+    })
+    assert "emotional_concern" in tags
+    assert "emotional_distress" in tags
 
 
 def test_match_returns_rows_with_intersecting_tags():
