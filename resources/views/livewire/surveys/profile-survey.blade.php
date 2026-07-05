@@ -1,4 +1,5 @@
 {{-- resources/views/livewire/surveys/profile-survey.blade.php --}}
+@php $xt = \App\Livewire\Surveys\ProfileSurvey::EXCLUSIVE_TOKENS; @endphp
 <div class="max-w-3xl mx-auto" x-data="{}">
 
     {{-- ── Step Progress ── --}}
@@ -289,7 +290,8 @@
             <div class="space-y-5">
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-2">Living / Residing with (check all applicable)</label>
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-3 gap-2"
+                         x-data="exclusiveGroup('livingWith', @js($xt['livingWith']))" @change="onChange($event)">
                         @foreach (['Alone','Spouse','Children','Grandchildren','Relative(s)','Friend(s)','Care Institution'] as $opt)
                         <label class="flex items-center gap-2 cursor-pointer p-2 border border-paper-rule rounded-lg hover:bg-paper">
                             <input type="checkbox" wire:model="livingWith" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -346,7 +348,8 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Real / Immovable Assets</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('realAssets', @js($xt['realAssets']))" @change="onChange($event)">
                             @foreach (['House','Lot/Farmland','House and Lot','Commercial Building','Apartment/Rental Unit','Fishpond/Resort','Agricultural Land/Farm','No known assets'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="realAssets" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -357,7 +360,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Personal / Movable Assets</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('movableAssets', @js($xt['movableAssets']))" @change="onChange($event)">
                             @foreach (['Automobile','Motorcycle','Bicycle','Personal Computer','Laptop','Tablet','Mobile Phone','Heavy Equipment','Appliances (Refrigerator / TV / Washing Machine)','No known assets'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="movableAssets" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -369,7 +373,8 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-2">Problems / Needs Commonly Encountered</label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2"
+                         x-data="exclusiveGroup('problemsNeeds', @js($xt['problemsNeeds']))" @change="onChange($event)">
                         @foreach ([
                             'Lack of income/resources',
                             'Loss of income/resources',
@@ -408,7 +413,8 @@
             <div class="space-y-5">
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-2">Medical Concerns (check all applicable)</label>
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-3 gap-2"
+                         x-data="exclusiveGroup('medicalConcern', @js($xt['medicalConcern']))" @change="onChange($event)">
                         @foreach ($this->medicalConcernOptions() as $opt)
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="medicalConcern" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -419,7 +425,8 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-2">Social / Emotional Concerns (check all applicable)</label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2"
+                         x-data="exclusiveGroup('socialEmotionalConcern', @js($xt['socialEmotionalConcern']))" @change="onChange($event)">
                         @foreach ($this->socialEmotionalConcernOptions() as $opt)
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="socialEmotionalConcern" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -431,7 +438,8 @@
                 <div class="grid grid-cols-2 gap-5">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Dental Concern (check all applicable)</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('dentalConcern', @js($xt['dentalConcern']))" @change="onChange($event)">
                             @foreach (['Needs dental care','Tooth decay/cavities','Gum disease','Tooth loss/missing teeth','Healthy Teeth'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="dentalConcern" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -442,7 +450,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Optical / Vision (check all applicable)</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('opticalConcern', @js($xt['opticalConcern']))" @change="onChange($event)">
                             @foreach (['Eye impairment','Needs eye care','Blurred vision','Cataract','Glaucoma','Healthy Eyes'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="opticalConcern" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -453,7 +462,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Hearing (check all applicable)</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('hearingConcern', @js($xt['hearingConcern']))" @change="onChange($event)">
                             @foreach (['Hearing impairment','Partial hearing loss','Difficulty hearing conversations','Uses hearing aid','Healthy Hearing'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="hearingConcern" value="{{ $opt }}" class="accent-forest-700 rounded">
@@ -464,7 +474,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Healthcare Access Difficulty (check all applicable)</label>
-                        <div class="space-y-1">
+                        <div class="space-y-1"
+                             x-data="exclusiveGroup('healthcareDifficulty', @js($xt['healthcareDifficulty']))" @change="onChange($event)">
                             @foreach (['High cost of medicines','Lack of medicines','Lack of medical attention','Difficulty accessing health facilities','Lack of transportation to clinics','Long waiting time','Healthcare is accessible'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="healthcareDifficulty" value="{{ $opt }}" class="accent-forest-700 rounded">
