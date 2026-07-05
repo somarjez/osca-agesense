@@ -64,7 +64,7 @@
                 <label class="eyebrow block mb-1.5">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
                        placeholder="Name or OSCA ID…"
-                       class="form-input">
+                       class="form-input focus:ring-0 focus:border-ink-300 dark:focus:border-[#3d4d46]">
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>

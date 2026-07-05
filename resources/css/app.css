@@ -338,11 +338,11 @@
     @apply flex items-center gap-2.5 bg-paper-2 dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530]
            rounded-xl px-3.5 h-[34px]
            hover:border-ink-300 dark:hover:border-[#3d4d46]
-           focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-500/20
+           focus-within:border-ink-300 dark:focus-within:border-[#3d4d46]
            transition-colors duration-150 w-full;
   }
   .topbar-search input {
-    @apply bg-transparent border-0 outline-none text-ink-900 dark:text-[#e4e1d8]
+    @apply bg-transparent border-0 outline-none focus:ring-0 text-ink-900 dark:text-[#e4e1d8]
            placeholder:text-ink-300 dark:placeholder:text-[#4a5550]
            text-[13px] w-full min-w-0;
   }

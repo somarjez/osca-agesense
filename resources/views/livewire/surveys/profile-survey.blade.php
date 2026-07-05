@@ -124,7 +124,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Date of Birth <span class="text-critical-700" aria-hidden="true">*</span></label>
-                    <input type="date" wire:model="dateOfBirth" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
+                    <input type="date" wire:model.live="dateOfBirth" min="1900-01-01" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
                            class="form-input {{ $errors->has('dateOfBirth') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                     @error('dateOfBirth') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
@@ -185,7 +185,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Consent Date</label>
-                        <input type="date" wire:model="consentGivenAt" max="{{ date('Y-m-d') }}"
+                        <input type="date" wire:model.live="consentGivenAt" min="1900-01-01" max="{{ date('Y-m-d') }}"
                                class="form-input {{ $errors->has('consentGivenAt') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         @error('consentGivenAt') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
@@ -545,7 +545,7 @@
                         Next
                         <x-heroicon-o-arrow-right class="w-3.5 h-3.5" />
                     </span>
-                    <span wire:loading wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                    <span wire:loading.inline-flex wire:target="nextStep" class="items-center gap-1.5">
                         <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
@@ -562,7 +562,7 @@
                         <x-heroicon-o-check class="w-4 h-4" />
                         Save Profile
                     </span>
-                    <span wire:loading wire:target="save" class="inline-flex items-center gap-1.5">
+                    <span wire:loading.inline-flex wire:target="save" class="items-center gap-1.5">
                         <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>

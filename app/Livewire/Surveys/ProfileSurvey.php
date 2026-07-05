@@ -288,15 +288,40 @@ class ProfileSurvey extends Component
     private function validateCurrentStep(): void
     {
         match ($this->step) {
-            1 => $this->validate([
-                'firstName' => 'required|string|max:100',
-                'lastName' => 'required|string|max:100',
-                'barangay' => 'required|string',
-                'dateOfBirth' => 'required|date|before:today',
-                'consentGivenAt' => 'nullable|date|before_or_equal:today|after:1900-01-01|required_if:consentMethod,verbal,written,digital',
-            ]),
+            1 => $this->validate($this->step1Rules(), $this->step1Messages()),
             default => null,
         };
+    }
+
+    private function step1Rules(): array
+    {
+        return [
+            'firstName' => 'required|string|max:100',
+            'lastName' => 'required|string|max:100',
+            'barangay' => 'required|string',
+            'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
+            'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
+        ];
+    }
+
+    private function step1Messages(): array
+    {
+        return [
+            'dateOfBirth.after_or_equal' => 'Date of birth must be in the year 1900 or later.',
+            'dateOfBirth.before' => 'Date of birth must be in the past.',
+            'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
+            'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
+        ];
+    }
+
+    public function updatedDateOfBirth(): void
+    {
+        $this->validateOnly('dateOfBirth', $this->step1Rules(), $this->step1Messages());
+    }
+
+    public function updatedConsentGivenAt(): void
+    {
+        $this->validateOnly('consentGivenAt', $this->step1Rules(), $this->step1Messages());
     }
 
     private function populateFromModel(SeniorCitizen $s): void
