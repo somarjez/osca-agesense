@@ -111,6 +111,30 @@ class ProfileSurvey extends Component
 
     public string $consentMethod = '';
 
+    /** property => the mutually-exclusive "none/healthy" option in that checkbox group */
+    public const EXCLUSIVE_TOKENS = [
+        'medicalConcern' => 'Physically Healthy',
+        'socialEmotionalConcern' => 'Living in a healthy environment',
+        'dentalConcern' => 'Healthy Teeth',
+        'opticalConcern' => 'Healthy Eyes',
+        'hearingConcern' => 'Healthy Hearing',
+        'healthcareDifficulty' => 'Healthcare is accessible',
+        'problemsNeeds' => 'Limited problems encountered',
+        'realAssets' => 'No known assets',
+        'movableAssets' => 'No known assets',
+        'livingWith' => 'Alone',
+    ];
+
+    /**
+     * Groups pre-selected to their exclusive token on a brand-new profile.
+     * livingWith is intentionally excluded: defaulting "Alone" would feed the
+     * ML pipeline's lives_alone tag and skew untouched records as high-need.
+     */
+    private const CREATE_DEFAULT_GROUPS = [
+        'medicalConcern', 'socialEmotionalConcern', 'dentalConcern', 'opticalConcern',
+        'hearingConcern', 'healthcareDifficulty', 'problemsNeeds', 'realAssets', 'movableAssets',
+    ];
+
     public function mount(?int $seniorId = null): void
     {
         if ($seniorId) {
@@ -129,6 +153,29 @@ class ProfileSurvey extends Component
                 ->first();
             if ($this->draft) {
                 $this->populateFromDraft($this->draft);
+            } else {
+                $this->applyCreateDefaults();
+            }
+        }
+    }
+
+    private function applyCreateDefaults(): void
+    {
+        foreach (self::CREATE_DEFAULT_GROUPS as $prop) {
+            $this->$prop = [self::EXCLUSIVE_TOKENS[$prop]];
+        }
+    }
+
+    /**
+     * An exclusive "none/healthy" token can't coexist with real answers: the
+     * client-side helper enforces this in the UI, but the persisted value must
+     * not depend on JS, so drop the token whenever it arrives mixed in.
+     */
+    private function sanitizeExclusiveGroups(): void
+    {
+        foreach (self::EXCLUSIVE_TOKENS as $prop => $token) {
+            if (count($this->$prop) > 1 && in_array($token, $this->$prop, true)) {
+                $this->$prop = array_values(array_filter($this->$prop, fn ($v) => $v !== $token));
             }
         }
     }
@@ -159,6 +206,7 @@ class ProfileSurvey extends Component
         abort_unless(auth()->user()?->hasAnyRole(['admin', 'encoder']), 403);
 
         $this->validateCurrentStep();
+        $this->sanitizeExclusiveGroups();
 
         $data = [
             'first_name' => $this->firstName,
@@ -218,6 +266,8 @@ class ProfileSurvey extends Component
 
     public function saveDraft(): void
     {
+        $this->sanitizeExclusiveGroups();
+
         $payload = [
             'senior_citizen_id' => $this->senior?->id,
             'created_by' => Auth::id(),

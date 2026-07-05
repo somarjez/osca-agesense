@@ -60,6 +60,27 @@ document.addEventListener('alpine:init', () => {
             if (this.$refs.panel) this.$refs.panel.style.display = 'none'
         },
     }))
+
+    // ── Mutually-exclusive checkbox groups (ProfileSurvey) ───────────────────
+    // The "none/healthy" option can't coexist with real selections. Runs fully
+    // client-side against Livewire 3's reactive $wire proxy — no network
+    // request; the deferred wire:model payload carries the corrected array on
+    // the next Livewire call. Server-side sanitizeExclusiveGroups() stays the
+    // authority if JS ever fails.
+    Alpine.data('exclusiveGroup', (prop, exclusive) => ({
+        onChange(e) {
+            const el = e.target
+            if (el.type !== 'checkbox' || !el.checked) return // unchecking always allowed (empty group OK)
+            if (el.value === exclusive) {
+                this.$wire[prop] = [exclusive]
+            } else {
+                const cur = Array.from(this.$wire[prop] ?? [])
+                if (cur.includes(exclusive)) {
+                    this.$wire[prop] = cur.filter(v => v !== exclusive)
+                }
+            }
+        },
+    }))
 })
 
 // ── Chart.js global defaults ─────────────────────────────────────────────────
