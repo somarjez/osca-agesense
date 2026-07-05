@@ -288,7 +288,6 @@ def extract_need_tags(row: Dict[str, Any]) -> Set[str]:
     # ── household safety (ported from _household_safety_recs) ──
     env_safe = _sf(row.get("env_safe_home"), 3.0)
     hh = _as_text(row.get("household_condition")).lower()
-    housing = _as_text(row.get("housing_concern")).lower()
     unsafe_kw = ("poor", "damaged", "unsafe", "dilapidated", "makeshift", "needs repair",
                  "no permanent house", "informal settler", "overcrowd")
     if env_safe <= 2 or any(k in hh for k in unsafe_kw) or _present(row.get("housing_concern")):
