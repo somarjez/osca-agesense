@@ -70,7 +70,7 @@ class RebuildRecommendationsLive extends Command
             $items[] = [
                 'senior_id' => $senior->id,
                 'payload' => $ml->buildRawPayload($senior, $survey),
-                'risk_level' => $result->risk_level,
+                'risk_level' => $result->overall_risk_level,
                 'priority_flag' => $result->priority_flag,
                 'cluster_id' => $result->cluster_named_id ?? null,
             ];
