@@ -105,7 +105,7 @@ class MainDashboard extends Component
             ))
             ->count();
 
-        $pendingRecs = Recommendation::where('status', 'pending')
+        $pendingRecs = Recommendation::current()->where('status', 'pending')
             ->when($this->selectedBarangay, fn ($q) => $q->whereHas('seniorCitizen',
                 fn ($sq) => $sq->where('barangay', $this->selectedBarangay)
             ))
@@ -235,6 +235,7 @@ class MainDashboard extends Component
     private function getPendingRecommendations(): \Illuminate\Database\Eloquent\Collection
     {
         return Recommendation::with(['seniorCitizen'])
+            ->current()
             ->pending()
             ->whereHas('seniorCitizen')
             ->whereIn('urgency', ['urgent', 'immediate'])

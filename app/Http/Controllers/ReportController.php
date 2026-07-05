@@ -271,7 +271,7 @@ class ReportController extends Controller
             ->first();
 
         // Top recommendations by category
-        $recsByCategory = Recommendation::where('status', 'pending')
+        $recsByCategory = Recommendation::current()->where('status', 'pending')
             ->select('category', DB::raw('COUNT(*) as count'))
             ->groupBy('category')
             ->orderByDesc('count')
@@ -357,7 +357,7 @@ class ReportController extends Controller
             ->count();
 
         // Pending recommendations for seniors in this barangay
-        $pendingRecs = Recommendation::where('status', 'pending')
+        $pendingRecs = Recommendation::current()->where('status', 'pending')
             ->whereHas('seniorCitizen', fn ($q) => $q->active()->where('barangay', $brgy))
             ->select('category', DB::raw('COUNT(*) as count'))
             ->groupBy('category')
