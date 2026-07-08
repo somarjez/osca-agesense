@@ -96,6 +96,7 @@ class QolSurveyForm extends Component
     public function mount(int $seniorId, ?int $surveyId = null): void
     {
         $this->senior = SeniorCitizen::findOrFail($seniorId);
+        $this->authorize('update', $this->senior);
         $this->surveyDate = now()->format('Y-m-d');
 
         if ($surveyId) {

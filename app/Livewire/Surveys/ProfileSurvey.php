@@ -139,6 +139,7 @@ class ProfileSurvey extends Component
     {
         if ($seniorId) {
             $this->senior = SeniorCitizen::findOrFail($seniorId);
+            $this->authorize('update', $this->senior);
             $this->draft = ProfileDraft::where('senior_citizen_id', $seniorId)->first();
             if ($this->draft) {
                 $this->populateFromDraft($this->draft);
@@ -147,6 +148,7 @@ class ProfileSurvey extends Component
             }
             $this->populateFromModel($this->senior);
         } else {
+            $this->authorize('create', SeniorCitizen::class);
             $this->draft = ProfileDraft::whereNull('senior_citizen_id')
                 ->where('created_by', Auth::id())
                 ->latest()
@@ -202,8 +204,11 @@ class ProfileSurvey extends Component
 
     public function save(): void
     {
-        // Livewire network calls bypass HTTP route middleware, so enforce role here.
-        abort_unless(auth()->user()?->hasAnyRole(['admin', 'encoder']), 403);
+        // Livewire network calls bypass HTTP route middleware, so enforce policy here
+        // (single source of truth: SeniorCitizenPolicy, same role gate as before).
+        $this->senior
+            ? $this->authorize('update', $this->senior)
+            : $this->authorize('create', SeniorCitizen::class);
 
         $this->validateCurrentStep();
         $this->sanitizeExclusiveGroups();

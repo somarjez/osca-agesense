@@ -25,6 +25,8 @@ class ReportController extends Controller
      */
     public function gis()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $mappedCount = SeniorCitizen::active()->count();
         $highRiskMapped = SeniorCitizen::active()
             ->whereHas('latestMlResult', fn ($q) => $q->where('overall_risk_level', 'HIGH'))
@@ -152,6 +154,8 @@ class ReportController extends Controller
      */
     public function cluster(Request $request)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         // Latest ML result per active senior only
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
@@ -248,6 +252,8 @@ class ReportController extends Controller
      */
     public function risk()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
@@ -287,6 +293,8 @@ class ReportController extends Controller
      */
     public function barangayIndex()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $first = SeniorCitizen::barangayList()[0];
 
         return redirect()->route('reports.barangay', $first);
@@ -297,6 +305,8 @@ class ReportController extends Controller
      */
     public function barangay(Request $request, string $brgy)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $barangays = SeniorCitizen::barangayList();
 
         if (! in_array($brgy, $barangays, true)) {

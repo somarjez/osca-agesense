@@ -10,6 +10,10 @@ class SurveyController extends Controller
 {
     public function profileCreate(?SeniorCitizen $senior = null)
     {
+        $senior
+            ? $this->authorize('update', $senior)
+            : $this->authorize('create', SeniorCitizen::class);
+
         $s = $senior;
 
         return view('seniors.create', compact('s'));
@@ -33,6 +37,8 @@ class SurveyController extends Controller
 
     public function qolCreate(SeniorCitizen $senior)
     {
+        $this->authorize('update', $senior);
+
         $draft = $senior->qolSurveys()->where('status', 'draft')->latest()->first();
 
         return view('surveys.qol.create', [

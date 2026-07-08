@@ -16,6 +16,8 @@ class SeniorCitizenController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
             ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
@@ -62,6 +64,8 @@ class SeniorCitizenController extends Controller
 
     public function show(SeniorCitizen $senior)
     {
+        $this->authorize('view', $senior);
+
         $senior->load([
             'qolSurveys' => fn ($q) => $q->latest()->limit(5),
             'latestMlResult.recommendations',
@@ -246,11 +250,15 @@ class SeniorCitizenController extends Controller
 
     public function edit(SeniorCitizen $senior)
     {
+        $this->authorize('update', $senior);
+
         return view('seniors.edit', compact('senior'));
     }
 
     public function destroy(SeniorCitizen $senior)
     {
+        $this->authorize('delete', $senior);
+
         // Cascade soft-delete: recommendations → ml_results → surveys → senior
         Recommendation::where('senior_citizen_id', $senior->id)->delete();
         MlResult::where('senior_citizen_id', $senior->id)->delete();
@@ -376,6 +384,8 @@ class SeniorCitizenController extends Controller
 
     public function export(SeniorCitizen $senior)
     {
+        $this->authorize('export', $senior);
+
         $senior->load(['latestMlResult.recommendations', 'latestQolSurvey']);
         $pdf = Pdf::loadView('seniors.pdf', compact('senior'))
             ->setPaper('a4', 'portrait');
