@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ArrayExport;
+use App\Models\ActivityLog;
 use App\Models\ClusterSnapshot;
 use App\Models\Facility;
 use App\Models\MlResult;
@@ -386,6 +387,8 @@ class ReportController extends Controller
      */
     public function exportCluster()
     {
+        ActivityLog::record('exported', auth()->user(), 'Cluster report CSV exported');
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
@@ -446,6 +449,8 @@ class ReportController extends Controller
      */
     public function exportGis(Request $request)
     {
+        ActivityLog::record('exported', auth()->user(), 'GIS report CSV exported');
+
         $query = SeniorCitizen::active()
             ->with(['latestMlResult', 'latestAccessibilityMetric'])
             ->when($request->filled('barangay') && $request->barangay !== 'all', fn ($q) => $q->where('barangay', $request->barangay)
@@ -565,6 +570,8 @@ class ReportController extends Controller
 
     public function exportRegistry()
     {
+        ActivityLog::record('exported', auth()->user(), 'Registry Excel exported');
+
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->groupBy('senior_citizen_id')
             ->pluck('id');
@@ -677,6 +684,8 @@ class ReportController extends Controller
      */
     public function exportRisk(Request $request)
     {
+        ActivityLog::record('exported', auth()->user(), 'Risk report CSV exported');
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)

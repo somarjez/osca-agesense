@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ActivityLogController extends Controller
 {
@@ -28,16 +29,33 @@ class ActivityLogController extends Controller
             'ids.*' => ['integer', 'min:1'],
         ]);
 
+        $count = count($request->ids);
+
+        Log::warning('Activity log entries deleted', [
+            'user_id' => auth()->id(),
+            'action' => 'bulk_destroy',
+            'count' => $count,
+            'ip' => $request->ip(),
+        ]);
+
         ActivityLog::whereIn('id', $request->ids)->delete();
 
-        $count = count($request->ids);
         $noun = $count === 1 ? 'entry' : 'entries';
 
         return back()->with('success', "{$count} log {$noun} deleted.");
     }
 
-    public function clear()
+    public function clear(Request $request)
     {
+        $count = ActivityLog::count();
+
+        Log::warning('Activity log entries deleted', [
+            'user_id' => auth()->id(),
+            'action' => 'clear',
+            'count' => $count,
+            'ip' => $request->ip(),
+        ]);
+
         // Use delete() rather than truncate() — truncate issues an implicit
         // commit in MySQL which breaks DatabaseTransactions in tests.
         ActivityLog::query()->delete();

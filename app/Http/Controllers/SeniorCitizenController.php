@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Facility;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
@@ -65,6 +66,8 @@ class SeniorCitizenController extends Controller
     public function show(SeniorCitizen $senior)
     {
         $this->authorize('view', $senior);
+
+        ActivityLog::record('viewed', $senior, "Senior profile viewed: {$senior->full_name}");
 
         $senior->load([
             'qolSurveys' => fn ($q) => $q->latest()->limit(5),
@@ -385,6 +388,8 @@ class SeniorCitizenController extends Controller
     public function export(SeniorCitizen $senior)
     {
         $this->authorize('export', $senior);
+
+        ActivityLog::record('exported', $senior, "Senior profile PDF exported: {$senior->full_name}");
 
         $senior->load(['latestMlResult.recommendations', 'latestQolSurvey']);
         $pdf = Pdf::loadView('seniors.pdf', compact('senior'))
