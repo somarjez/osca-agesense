@@ -56,9 +56,15 @@ class ProfileSurveyValidationTest extends TestCase
     #[Test]
     public function out_of_whitelist_barangay_is_rejected(): void
     {
+        // Per-step navigation (validateCurrentStep() -> step1Rules()) must
+        // still enforce the strict barangay whitelist for a freshly-typed
+        // value. (Full-record save() was relaxed for barangay the same way
+        // as the 5 whitelist-backed multi-select fields — see
+        // legacy_out_of_whitelist_barangay_on_existing_record_does_not_block_unrelated_edit
+        // — so this asserts against nextStep() rather than save().)
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->set('barangay', 'Not A Real Barangay')
-            ->call('save')
+            ->call('nextStep')
             ->assertHasErrors(['barangay']);
 
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
@@ -190,6 +196,32 @@ class ProfileSurveyValidationTest extends TestCase
         $senior->refresh();
         $this->assertSame('09171234567', $senior->contact_number);
         $this->assertSame(['Legacy Bulk Import Skill'], $senior->specialization);
+    }
+
+    #[Test]
+    public function legacy_out_of_whitelist_barangay_on_existing_record_does_not_block_unrelated_edit(): void
+    {
+        // Both BulkUploadController::upload() and OscaCsvSeeder store
+        // barangay as a raw, un-normalized string (OscaCsvSeeder falls back
+        // to 'Unknown' for missing values), so an existing record can carry
+        // a value the current barangayList() whitelist no longer recognizes.
+        // Editing an unrelated field on that record must still succeed
+        // instead of being locked out by the full-record save() whitelist
+        // re-check — same bug pattern as specialization/etc above.
+        $senior = $this->makeSenior([
+            'barangay' => 'Unknown',
+        ]);
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->assertSet('barangay', 'Unknown')
+            ->set('contactNumber', '09171234567')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $senior->refresh();
+        $this->assertSame('09171234567', $senior->contact_number);
+        $this->assertSame('Unknown', $senior->barangay);
     }
 
     #[Test]

@@ -336,6 +336,15 @@ class ProfileSurvey extends Component
             $rules["{$field}.*"] = 'string|max:255';
         }
 
+        // Same legacy-data risk applies to barangay: it's a plain `string`
+        // column (not an enum) and both BulkUploadController::upload() and
+        // OscaCsvSeeder store it raw/un-normalized (including an 'Unknown'
+        // fallback), so an existing record's value may not be in the current
+        // barangayList() whitelist. Keep it required, but drop the `in:`
+        // constraint here; step1Rules() still enforces the strict whitelist
+        // for fresh input via validateCurrentStep().
+        $rules['barangay'] = 'required|string|max:255';
+
         return $rules;
     }
 
