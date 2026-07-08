@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkUploadRequest;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
 use App\Support\DateParser;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use League\Csv\Reader;
@@ -173,12 +173,8 @@ class BulkUploadController extends Controller
 
     // ── Upload + import ───────────────────────────────────────────────────
 
-    public function upload(Request $request)
+    public function upload(BulkUploadRequest $request)
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
-        ]);
-
         $file = $request->file('file');
         $ext = strtolower($file->getClientOriginalExtension());
 

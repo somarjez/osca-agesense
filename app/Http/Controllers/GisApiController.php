@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RouteDistanceRequest;
 use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use App\Models\SeniorFacilityRouteDistance;
@@ -227,16 +228,9 @@ class GisApiController extends Controller
         );
     }
 
-    public function routeDistance(Request $request): JsonResponse
+    public function routeDistance(RouteDistanceRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'origin_lat' => ['required', 'numeric', 'between:-90,90'],
-            'origin_lng' => ['required', 'numeric', 'between:-180,180'],
-            'destination_lat' => ['required', 'numeric', 'between:-90,90'],
-            'destination_lng' => ['required', 'numeric', 'between:-180,180'],
-            'senior_id' => ['nullable', 'integer', 'exists:senior_citizens,id'],
-            'facility_id' => ['nullable', 'integer', 'exists:facilities,id'],
-        ]);
+        $validated = $request->validated();
 
         $cachedRoute = $this->cachedRouteDistance($validated);
         if ($cachedRoute) {

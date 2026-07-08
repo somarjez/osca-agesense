@@ -203,7 +203,7 @@ class PolicyAuthorizationTest extends TestCase
         Livewire::test(ProfileSurvey::class)
             ->set('firstName', 'Wired')
             ->set('lastName', 'Policy')
-            ->set('barangay', 'Pagsanjan')
+            ->set('barangay', 'Pinagsanjan')
             ->set('dateOfBirth', '1948-05-02')
             ->call('save')
             ->assertSet('saved', true);

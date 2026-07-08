@@ -135,8 +135,8 @@ class Batch6AdminMiscTest extends TestCase
                 'name' => 'New Encoder',
                 'email' => 'new.encoder@osca.local',
                 'role' => 'encoder',
-                'password' => 'password123',
-                'password_confirmation' => 'password123',
+                'password' => 'Password123!',
+                'password_confirmation' => 'Password123!',
             ])
             ->assertRedirect(route('users.index'));
 

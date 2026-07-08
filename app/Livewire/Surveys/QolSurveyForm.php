@@ -117,6 +117,18 @@ class QolSurveyForm extends Component
 
     private function validateSection(): void
     {
+        // Section H (step 8) is intentionally skippable, so it can't use the
+        // uniform "required" rule the other sections share — validate it
+        // separately as optional-but-bounded instead.
+        if ($this->step === 8) {
+            $this->validate([
+                'h1' => 'nullable|integer|min:1|max:5',
+                'h2' => 'nullable|integer|min:1|max:5',
+            ]);
+
+            return;
+        }
+
         $required = match ($this->step) {
             1 => ['a1' => $this->a1, 'a2' => $this->a2, 'a3' => $this->a3, 'a4' => $this->a4],
             2 => ['b1' => $this->b1, 'b2' => $this->b2, 'b3' => $this->b3, 'b4' => $this->b4, 'b5' => $this->b5],
@@ -125,7 +137,7 @@ class QolSurveyForm extends Component
             5 => ['e1' => $this->e1, 'e2' => $this->e2, 'e3' => $this->e3, 'e4' => $this->e4, 'e5' => $this->e5],
             6 => ['f1' => $this->f1, 'f2' => $this->f2, 'f3' => $this->f3, 'f4' => $this->f4],
             7 => ['g1' => $this->g1, 'g2' => $this->g2, 'g3' => $this->g3],
-            default => [],  // Section H is optional
+            default => [],
         };
 
         $rules = array_fill_keys(array_keys($required), 'required|integer|min:1|max:5');

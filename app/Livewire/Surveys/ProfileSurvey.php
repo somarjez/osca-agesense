@@ -5,6 +5,7 @@ namespace App\Livewire\Surveys;
 use App\Models\ProfileDraft;
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule as ValidationRule;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
 
@@ -210,7 +211,11 @@ class ProfileSurvey extends Component
             ? $this->authorize('update', $this->senior)
             : $this->authorize('create', SeniorCitizen::class);
 
-        $this->validateCurrentStep();
+        // save() performs a full multi-step save regardless of which step the
+        // UI is currently on, so it must validate every step's rules here —
+        // validating only the current step would let steps skipped via a
+        // direct component call (bypassing client-side navigation) through.
+        $this->validate($this->allStepsRules(), $this->allStepsMessages());
         $this->sanitizeExclusiveGroups();
 
         $data = [
@@ -294,8 +299,32 @@ class ProfileSurvey extends Component
     {
         match ($this->step) {
             1 => $this->validate($this->step1Rules(), $this->step1Messages()),
+            2 => $this->validate($this->step2Rules()),
+            3 => $this->validate($this->step3Rules()),
+            4 => $this->validate($this->step4Rules()),
+            5 => $this->validate($this->step5Rules()),
+            6 => $this->validate($this->step6Rules()),
             default => null,
         };
+    }
+
+    /** Full rule set across every step — used by save() so a direct call that
+     * skips client-side step navigation still enforces every step's rules. */
+    private function allStepsRules(): array
+    {
+        return array_merge(
+            $this->step1Rules(),
+            $this->step2Rules(),
+            $this->step3Rules(),
+            $this->step4Rules(),
+            $this->step5Rules(),
+            $this->step6Rules(),
+        );
+    }
+
+    private function allStepsMessages(): array
+    {
+        return $this->step1Messages();
     }
 
     private function step1Rules(): array
@@ -303,7 +332,7 @@ class ProfileSurvey extends Component
         return [
             'firstName' => 'required|string|max:100',
             'lastName' => 'required|string|max:100',
-            'barangay' => 'required|string',
+            'barangay' => 'required|string|in:'.implode(',', SeniorCitizen::barangayList()),
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
         ];
@@ -316,6 +345,75 @@ class ProfileSurvey extends Component
             'dateOfBirth.before' => 'Date of birth must be in the past.',
             'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
+        ];
+    }
+
+    // ── II. Family Composition ────────────────────────────────────────────────
+    private function step2Rules(): array
+    {
+        return [
+            'numChildren' => 'integer|min:0',
+            'numWorkingChildren' => 'integer|min:0',
+            'householdSize' => 'integer|min:1',
+            'childFinancialSupport' => [ValidationRule::in(['', 'Yes', 'No', 'Occasional', 'N/A'])],
+            'spouseWorking' => [ValidationRule::in(['', 'Yes', 'No', 'Deceased', 'N/A'])],
+        ];
+    }
+
+    // ── III. Education / HR Profile ───────────────────────────────────────────
+    private function step3Rules(): array
+    {
+        return [
+            'specialization' => 'array',
+            'specialization.*' => ['string', ValidationRule::in(self::specializationOptions())],
+            'communityService' => 'array',
+            'communityService.*' => ['string', ValidationRule::in(self::communityServiceOptions())],
+        ];
+    }
+
+    // ── IV. Dependency Profile ────────────────────────────────────────────────
+    private function step4Rules(): array
+    {
+        return [
+            'livingWith' => 'array',
+            'livingWith.*' => 'string|max:255',
+            'householdCondition' => 'array',
+            'householdCondition.*' => 'string|max:255',
+        ];
+    }
+
+    // ── V. Economic Profile ───────────────────────────────────────────────────
+    private function step5Rules(): array
+    {
+        return [
+            'incomeSource' => 'array',
+            'incomeSource.*' => ['string', ValidationRule::in(self::incomeSourceOptions())],
+            'realAssets' => 'array',
+            'realAssets.*' => 'string|max:255',
+            'movableAssets' => 'array',
+            'movableAssets.*' => 'string|max:255',
+            'monthlyIncomeRange' => 'nullable|string|max:255',
+            'problemsNeeds' => 'array',
+            'problemsNeeds.*' => 'string|max:255',
+        ];
+    }
+
+    // ── VI. Health Profile ────────────────────────────────────────────────────
+    private function step6Rules(): array
+    {
+        return [
+            'medicalConcern' => 'array',
+            'medicalConcern.*' => ['string', ValidationRule::in(self::medicalConcernOptions())],
+            'socialEmotionalConcern' => 'array',
+            'socialEmotionalConcern.*' => ['string', ValidationRule::in(self::socialEmotionalConcernOptions())],
+            'dentalConcern' => 'array',
+            'dentalConcern.*' => 'string|max:255',
+            'opticalConcern' => 'array',
+            'opticalConcern.*' => 'string|max:255',
+            'hearingConcern' => 'array',
+            'hearingConcern.*' => 'string|max:255',
+            'healthcareDifficulty' => 'array',
+            'healthcareDifficulty.*' => 'string|max:255',
         ];
     }
 
