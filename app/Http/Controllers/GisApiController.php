@@ -35,7 +35,7 @@ class GisApiController extends Controller
             }
 
             $seniors = $query->get([
-                'id', 'osca_id', 'first_name', 'middle_name', 'last_name',
+                'id', 'uuid', 'osca_id', 'first_name', 'middle_name', 'last_name',
                 'name_extension', 'barangay', 'date_of_birth', 'latitude',
                 'longitude', 'location_source', 'location_accuracy',
             ]);
@@ -107,6 +107,7 @@ class GisApiController extends Controller
                         'age' => $senior->age,
                         'composite_risk' => $latestResult?->composite_risk,
                         'senior_id' => $senior->id,
+                        'senior_uuid' => $senior->uuid,
                         'senior_name' => $senior->full_name,
                         'osca_id' => $senior->osca_id,
                         'barangay' => $barangay,

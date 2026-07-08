@@ -201,7 +201,7 @@
                         </td>
                         <td class="td text-[12px] text-ink-500 dark:text-[#8a9087]">{{ $ml?->cluster_name ?? '—' }}</td>
                         <td class="td text-right">
-                            <a href="{{ route('seniors.show', $senior->id) }}"
+                            <a href="{{ route('seniors.show', $senior) }}"
                                class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">View →</a>
                         </td>
                     </tr>

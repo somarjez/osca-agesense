@@ -214,7 +214,7 @@ class QolSurveyForm extends Component
         // stay on-screen for the gap between this response and the browser actually
         // navigating away — resetting them here exposed the enabled submit button
         // underneath for a moment before the redirect took effect.
-        $this->redirect(route('seniors.show', $this->senior->id));
+        $this->redirect(route('seniors.show', $this->senior));
     }
 
     public function saveDraft(): void
@@ -224,7 +224,7 @@ class QolSurveyForm extends Component
             array_merge($this->currentData(), ['status' => 'draft', 'step' => $this->step])
         );
         session()->flash('success', 'Draft saved.');
-        $this->redirect(route('surveys.qol.create', $this->senior->id));
+        $this->redirect(route('surveys.qol.create', $this->senior));
     }
 
     private function currentData(): array

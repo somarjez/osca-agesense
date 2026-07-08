@@ -8,10 +8,35 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class SeniorCitizen extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /**
+     * Auto-generate the public route-key UUID on creation. `uuid` is
+     * intentionally excluded from $fillable — it is system-generated only.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (SeniorCitizen $senior) {
+            if (empty($senior->uuid)) {
+                $senior->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
+    /**
+     * Resolve senior-facing routes ({senior} in seniors/surveys/ml/recommendations
+     * routes) by uuid instead of the sequential integer id, so profile URLs don't
+     * leak an enumerable identifier. Admin-only restore/force-delete routes take
+     * an explicit integer {id} and are unaffected by this.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     protected $fillable = [
         'osca_id',

@@ -154,7 +154,7 @@
                     <td class="td text-center font-mono text-[11.5px] text-ink-700 dark:text-[#b0b5b2] tnum">{{ number_format($result->func_risk, 3) }}</td>
                     <td class="td text-center"><x-risk-badge :level="$result->overall_risk_level" /></td>
                     <td class="td text-right">
-                        <a href="{{ route('seniors.show', $result->senior_citizen_id) }}"
+                        <a href="{{ route('seniors.show', $senior) }}"
                            class="group inline-flex items-center gap-1 text-xs font-semibold text-forest-700 dark:text-[#7cbda3] hover:text-forest-900 dark:hover:text-[#9bd9c1]"
                            aria-label="View {{ $senior?->full_name }}">
                             View

@@ -281,7 +281,7 @@ class ProfileSurvey extends Component
 
         session()->flash('success', 'Draft saved.');
         $this->redirect($this->senior
-            ? route('seniors.edit', $this->senior->id)
+            ? route('seniors.edit', $this->senior)
             : route('surveys.profile.create'));
     }
 

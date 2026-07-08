@@ -204,7 +204,7 @@
             </div>
             <div class="divide-y divide-paper-rule">
                 @forelse ($pendingRecs->take(5) as $rec)
-                    <a href="{{ route('seniors.show', $rec->seniorCitizen->id) }}" class="px-4 py-3 flex items-start gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                    <a href="{{ route('seniors.show', $rec->seniorCitizen) }}" class="px-4 py-3 flex items-start gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <span class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-md grid place-items-center text-[11px] font-bold tnum bg-high-100 text-high-700">
                             {{ $rec->priority }}
                         </span>
@@ -247,7 +247,7 @@
             <div class="divide-y divide-paper-rule">
                 @forelse ($recentSeniors->take(5) as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
-                    <a href="{{ route('seniors.show', $senior->id) }}" class="px-4 py-3 flex items-center gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
+                    <a href="{{ route('seniors.show', $senior) }}" class="px-4 py-3 flex items-center gap-3 hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <div class="w-8 h-8 rounded-full chip-3d bg-forest-100 grid place-items-center flex-shrink-0">
                             <span class="text-[11px] font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name, 0, 1) . substr($senior->last_name, 0, 1)) }}</span>
                         </div>
