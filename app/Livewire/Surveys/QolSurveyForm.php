@@ -158,6 +158,10 @@ class QolSurveyForm extends Component
 
     public function submitSurvey(): void
     {
+        // Livewire network calls bypass HTTP route middleware, so enforce policy here
+        // (single source of truth: SeniorCitizenPolicy, same role gate as before).
+        $this->authorize('update', $this->senior);
+
         $this->isProcessing = true;
 
         $data = [
@@ -220,6 +224,10 @@ class QolSurveyForm extends Component
 
     public function saveDraft(): void
     {
+        // Livewire network calls bypass HTTP route middleware, so enforce policy here
+        // (single source of truth: SeniorCitizenPolicy, same role gate as before).
+        $this->authorize('update', $this->senior);
+
         $this->survey = QolSurvey::updateOrCreate(
             ['senior_citizen_id' => $this->senior->id, 'status' => 'draft'],
             array_merge($this->currentData(), ['status' => 'draft', 'step' => $this->step])
