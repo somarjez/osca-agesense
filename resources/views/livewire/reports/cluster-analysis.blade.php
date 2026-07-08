@@ -181,7 +181,7 @@
 
     {{-- Chart data for JS --}}
     <script type="application/json" id="cluster-chart-data">
-    {!! json_encode($domainChart, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
+    {!! json_encode($domainChart, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) !!}
     </script>
 </div>
 
