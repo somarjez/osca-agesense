@@ -14,6 +14,8 @@ Route::prefix('ml')->name('ml.')->middleware('no.time.limit')->group(function ()
     // Admin and encoder can run ML jobs
     Route::middleware('role:admin,encoder')->group(function () {
         Route::post('/start', [MlController::class, 'startServices'])->name('start');
+        Route::post('/stop', [MlController::class, 'stopServices'])->name('stop');
+        Route::post('/restart', [MlController::class, 'restartServices'])->name('restart');
         Route::get('/batch', [MlController::class, 'batchIndex'])->name('batch');
         Route::post('/batch/run', [MlController::class, 'batchRun'])->name('batch.run');
         Route::post('/run/{senior}', [MlController::class, 'runSingle'])->name('run.single');

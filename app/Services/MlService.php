@@ -344,6 +344,52 @@ class MlService
         return true;
     }
 
+    /**
+     * Stop the Python HTTP services (ports 5001/5002 only). Does not touch
+     * artisan serve, the queue worker, or the scheduler — those are managed
+     * by the separate root start.ps1/stop.ps1 dev launchers, not this app.
+     */
+    public function stopServices(): bool
+    {
+        $stopScript = base_path('python/stop_services.ps1');
+        if (! is_file($stopScript)) {
+            return false;
+        }
+
+        $env = getenv() ?: [];
+
+        try {
+            $process = new Process(['powershell.exe', '-NoProfile', '-File', $stopScript], base_path(), $env);
+            $process->setTimeout(30);
+            $process->run();
+        } catch (\Throwable) {
+            // best-effort
+        }
+
+        foreach ([$this->preprocessUrl.'/health', $this->inferenceUrl.'/health'] as $url) {
+            try {
+                $resp = Http::timeout(3)->connectTimeout(2)->get($url);
+                if ($resp->successful()) {
+                    return false;
+                }
+            } catch (\Exception) {
+                // unreachable = stopped, as expected
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Restart the Python HTTP services: stop, then start. startServices()
+     * re-verifies/kills any stragglers before launching, so this is safe
+     * even if the stop step leaves a port lingering.
+     */
+    public function restartServices(): bool
+    {
+        return $this->stopServices() && $this->startServices();
+    }
+
     // ── Private Helpers ───────────────────────────────────────────────────────
 
     /**

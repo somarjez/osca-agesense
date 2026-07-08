@@ -8,49 +8,75 @@
     {{-- Mode banner --}}
     @php $mode = $health['mode'] ?? 'php_fallback'; @endphp
 
-    <div class="card">
-        <div class="card-body flex items-center gap-4">
-            <span class="flex-shrink-0 status-dot
-                @if ($mode === 'http') status-dot-ok
-                @elseif ($mode === 'local_python') status-dot-warn
-                @else status-dot-err
-                @endif"></span>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                    <p class="font-semibold text-ink-900">
-                        @if ($mode === 'http') HTTP Services
-                        @elseif ($mode === 'local_python') Local Python Runner
-                        @else PHP Heuristic Fallback
+    <div x-data="{ stopOpen: false, restartOpen: false }">
+        <div class="card">
+            <div class="card-body flex items-center gap-4">
+                <span class="flex-shrink-0 status-dot
+                    @if ($mode === 'http') status-dot-ok
+                    @elseif ($mode === 'local_python') status-dot-warn
+                    @else status-dot-err
+                    @endif"></span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <p class="font-semibold text-ink-900">
+                            @if ($mode === 'http') HTTP Services
+                            @elseif ($mode === 'local_python') Local Python Runner
+                            @else PHP Heuristic Fallback
+                            @endif
+                        </p>
+                        <span class="badge
+                            @if ($mode === 'http') badge-low
+                            @elseif ($mode === 'local_python') badge-high
+                            @else badge-critical
+                            @endif">
+                            @if ($mode === 'http') Online
+                            @elseif ($mode === 'local_python') Degraded
+                            @else Offline
+                            @endif
+                        </span>
+                    </div>
+                    <p class="text-sm text-ink-500">
+                        @if ($mode === 'http')
+                            All analysis services are online and running normally.
+                        @elseif ($mode === 'local_python')
+                            Main services are unavailable, but a backup local process is active. Assessments will still run.
+                        @else
+                            Analysis services are offline. Results are estimated using built-in rules.
                         @endif
                     </p>
-                    <span class="badge
-                        @if ($mode === 'http') badge-low
-                        @elseif ($mode === 'local_python') badge-high
-                        @else badge-critical
-                        @endif">
-                        @if ($mode === 'http') Online
-                        @elseif ($mode === 'local_python') Degraded
-                        @else Offline
-                        @endif
-                    </span>
                 </div>
-                <p class="text-sm text-ink-500">
-                    @if ($mode === 'http')
-                        All analysis services are online and running normally.
-                    @elseif ($mode === 'local_python')
-                        Main services are unavailable, but a backup local process is active. Assessments will still run.
-                    @else
-                        Analysis services are offline. Results are estimated using built-in rules.
-                    @endif
-                </p>
+                @if ($mode !== 'http')
+                <form method="POST" action="{{ route('ml.start') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-primary flex-shrink-0">Start Services</button>
+                </form>
+                @else
+                <form method="POST" action="{{ route('ml.stop') }}" x-ref="stopForm" class="hidden">
+                    @csrf
+                </form>
+                <form method="POST" action="{{ route('ml.restart') }}" x-ref="restartForm" class="hidden">
+                    @csrf
+                </form>
+                <button type="button" @click="restartOpen = true" class="btn btn-secondary flex-shrink-0">Restart Services</button>
+                <button type="button" @click="stopOpen = true" class="btn btn-danger flex-shrink-0">Stop Services</button>
+                @endif
             </div>
-            @if ($mode !== 'http')
-            <form method="POST" action="{{ route('ml.start') }}">
-                @csrf
-                <button type="submit" class="btn btn-primary flex-shrink-0">Start Services</button>
-            </form>
-            @endif
         </div>
+
+        <x-confirm-modal show="stopOpen"
+                         title="Stop ML services?"
+                         confirm="$refs.stopForm.submit()"
+                         confirm-label="Stop Services">
+            <p>This will shut down the data preparation and risk assessment services. Any analysis in progress for other users will be interrupted, and the app will fall back to the backup local process or built-in rules until services are started again.</p>
+        </x-confirm-modal>
+
+        <x-confirm-modal show="restartOpen"
+                         title="Restart ML services?"
+                         tone="primary"
+                         confirm="$refs.restartForm.submit()"
+                         confirm-label="Restart Services">
+            <p>This will briefly take the data preparation and risk assessment services offline while they restart. Any analysis in progress for other users will be interrupted.</p>
+        </x-confirm-modal>
     </div>
 
     {{-- Service Health --}}
