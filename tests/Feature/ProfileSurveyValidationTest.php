@@ -141,12 +141,69 @@ class ProfileSurveyValidationTest extends TestCase
     {
         // Simulates a component driven straight to save() without ever
         // walking through nextStep() for steps 2-6 (e.g. a scripted client
-        // call) — the invalid step-3 value must still be caught.
+        // call) — the invalid step-2 value must still be caught. (Uses
+        // childFinancialSupport rather than one of the 5 whitelist-backed
+        // multi-select fields relaxed on full-record save() below — see
+        // legacy_out_of_whitelist_specialization_on_existing_record_does_not_block_unrelated_edit.)
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
-            ->set('specialization', ['Bogus Skill'])
+            ->set('childFinancialSupport', 'Maybe')
             ->call('save')
-            ->assertHasErrors(['specialization.0']);
+            ->assertHasErrors(['childFinancialSupport']);
 
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    private function makeSenior(array $overrides = []): SeniorCitizen
+    {
+        return SeniorCitizen::create(array_merge([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'first_name' => 'Juan',
+            'last_name' => 'Dela Cruz',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1950-01-01',
+            'household_size' => 1,
+            'num_children' => 0,
+            'num_working_children' => 0,
+        ], $overrides));
+    }
+
+    #[Test]
+    public function legacy_out_of_whitelist_specialization_on_existing_record_does_not_block_unrelated_edit(): void
+    {
+        // BulkUploadController ingests specialization via toList() with zero
+        // normalization against specializationOptions(), so an existing
+        // record can carry a free-text value the current whitelist no
+        // longer recognizes. Editing an unrelated field on that record must
+        // still succeed instead of being locked out by the full-record
+        // save() whitelist re-check.
+        $senior = $this->makeSenior([
+            'specialization' => ['Legacy Bulk Import Skill'],
+        ]);
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->assertSet('specialization', ['Legacy Bulk Import Skill'])
+            ->set('contactNumber', '09171234567')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $senior->refresh();
+        $this->assertSame('09171234567', $senior->contact_number);
+        $this->assertSame(['Legacy Bulk Import Skill'], $senior->specialization);
+    }
+
+    #[Test]
+    public function per_step_navigation_still_rejects_fresh_invalid_selection_on_whitelisted_field(): void
+    {
+        // The full-record save() safety net above was relaxed for the 5
+        // whitelist-backed multi-select fields, but per-step navigation
+        // (validateCurrentStep(), used while actively filling the form)
+        // must still enforce the strict whitelist for a freshly-typed
+        // selection.
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('step', 3)
+            ->set('communityService', ['Not A Real Service'])
+            ->call('nextStep')
+            ->assertHasErrors(['communityService.0']);
     }
 }

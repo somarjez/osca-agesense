@@ -312,7 +312,7 @@ class ProfileSurvey extends Component
      * skips client-side step navigation still enforces every step's rules. */
     private function allStepsRules(): array
     {
-        return array_merge(
+        $rules = array_merge(
             $this->step1Rules(),
             $this->step2Rules(),
             $this->step3Rules(),
@@ -320,6 +320,23 @@ class ProfileSurvey extends Component
             $this->step5Rules(),
             $this->step6Rules(),
         );
+
+        // On a full-record save (which can happen for an existing record whose
+        // multi-select fields were populated by bulk CSV import without full
+        // normalization against the current options catalog), re-validating
+        // already-persisted values against the current whitelist would lock
+        // legacy records out of ANY edit, even an unrelated field. Per-step
+        // navigation (validateCurrentStep()) still enforces the strict
+        // whitelist for freshly-changed selections via step3Rules()/
+        // step5Rules()/step6Rules(); the full-record save() safety net only
+        // needs to guard against malformed/oversized data for these five
+        // fields, not re-litigate already-persisted legacy values.
+        foreach (['specialization', 'communityService', 'incomeSource', 'medicalConcern', 'socialEmotionalConcern'] as $field) {
+            $rules[$field] = 'array';
+            $rules["{$field}.*"] = 'string|max:255';
+        }
+
+        return $rules;
     }
 
     private function allStepsMessages(): array
