@@ -821,6 +821,10 @@
         $loc        = $locationPanel['location'];
         $hasCoords  = $loc['status'] !== 'none';
         $isVerified = $loc['status'] === 'verified';
+        // Distinguish "no GPS pin was ever captured" (data quality) from
+        // "a pin exists but your role only sees the generalized point"
+        // (privacy) — see SeniorCitizenController::effectiveLocationDisplay().
+        $isGeneralizedForRole = $loc['status'] === 'generalized_privacy';
         $facilities = $locationPanel['facilities'];
         $percent    = $locationPanel['percent'];
 
@@ -911,7 +915,11 @@
                     </div>
                     @unless ($isVerified)
                     <p class="mt-1.5 text-[11px] text-ink-400 dark:text-[#6b7570]">
+                        @if ($isGeneralizedForRole)
+                        Generalized to the barangay level for your role — exact coordinates are restricted.
+                        @else
                         Barangay-level estimate — no field-verified GPS pin on record.
+                        @endif
                     </p>
                     @endunless
                 </div>

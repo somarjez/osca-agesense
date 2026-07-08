@@ -50,7 +50,9 @@ class ReportController extends Controller
     public function runGisGeocode()
     {
         Artisan::queue('gis:geocode');
-        Cache::forget('gis.seniors_geojson');
+        // Bust both role-precision cache variants — see GisApiController::seniors().
+        Cache::forget('gis.seniors_geojson.full');
+        Cache::forget('gis.seniors_geojson.generalized');
 
         return back()->with('success', 'Geocoding job queued. Coordinates will update within a few minutes — refresh the GIS map to see the results.');
     }

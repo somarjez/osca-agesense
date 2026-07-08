@@ -25,6 +25,8 @@ class SeniorProfileLocationTest extends TestCase
 
     private User $admin;
 
+    private User $viewer;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,6 +42,12 @@ class SeniorProfileLocationTest extends TestCase
             ['name' => 'OSCA Admin', 'password' => Hash::make('password')]
         );
         $this->admin->syncRoles(['admin']);
+
+        $this->viewer = User::firstOrCreate(
+            ['email' => 'viewer@osca.local'],
+            ['name' => 'OSCA Viewer', 'password' => Hash::make('password')]
+        );
+        $this->viewer->syncRoles(['viewer']);
 
         // Tests run against the shared DB (no separate test connection), and the
         // Location panel now ranks ALL active facilities by distance. Deactivate
@@ -520,6 +528,145 @@ class SeniorProfileLocationTest extends TestCase
         $senior = $this->makeSenior();
 
         $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('No location on record');
+        $response->assertDontSee('id="senior-mini-map"', false);
+    }
+
+    // ── Task 7 — coordinate precision by role ───────────────────────────────
+
+    #[Test]
+    public function viewer_never_sees_exact_coordinates_on_profile(): void
+    {
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $response = $this->actingAs($this->viewer)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertDontSee('14.273000');
+        $response->assertDontSee('121.455000');
+        $response->assertDontSee('Verified pin');
+        $response->assertSee('Generalized to the barangay level for your role', false);
+    }
+
+    #[Test]
+    public function admin_still_sees_exact_coordinates_on_profile(): void
+    {
+        // Regression guard: role-gating the profile panel must not change
+        // admin/encoder's existing behavior.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('14.273000');
+        $response->assertSee('121.455000');
+        $response->assertSee('Verified pin');
+    }
+
+    #[Test]
+    public function viewer_never_sees_cached_road_distance_or_lazy_route_hooks(): void
+    {
+        // Closes the trilateration leak: even though a fresh cached road route
+        // exists (computed from the senior's REAL coordinates), a viewer must
+        // never see it — it would leak more precise positional information
+        // than the generalized pin the panel otherwise shows. Viewer must also
+        // not carry the lazy-route-upgrade hooks, since those would POST the
+        // generalized origin back to /api/gis/route-distance and overwrite the
+        // real cached route admin/encoder rely on.
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $healthCenter = Facility::create([
+            'name' => 'Pagsanjan Rural Health Unit',
+            'type' => 'Health Center',
+            'latitude' => 14.2719,
+            'longitude' => 121.4551,
+            'source' => 'seed',
+            'is_active' => true,
+        ]);
+
+        SeniorAccessibilityMetric::create([
+            'senior_citizen_id' => $senior->id,
+            'nearest_health_center_id' => $healthCenter->id,
+            'distance_to_health_center_m' => 320.0,
+            'accessibility_score' => 0.78,
+            'calculated_at' => now(),
+        ]);
+
+        SeniorFacilityRouteDistance::create([
+            'senior_citizen_id' => $senior->id,
+            'facility_id' => $healthCenter->id,
+            'origin_latitude' => 14.273000,
+            'origin_longitude' => 121.455000,
+            'destination_latitude' => 14.2719,
+            'destination_longitude' => 121.4551,
+            'route_distance_m' => 540.0,
+            'route_duration_s' => 240.0,
+            'provider' => 'openrouteservice',
+            'calculated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->viewer)->get(route('seniors.show', $senior));
+
+        $response->assertOk();
+        $response->assertSee('Pagsanjan Rural Health Unit');
+        // Cached road distance/duration must never reach the viewer.
+        $response->assertDontSee('540 m');
+        $response->assertDontSee('4 min drive');
+        // No lazy-lookup hook for this facility either. (We can't assertDontSee
+        // 'data-needs-route="1"' — the inline upgrade script's own querySelector
+        // literally contains that string as a CSS attribute selector, same
+        // reason the sibling admin-role tests above key on data-facility-id.)
+        $response->assertDontSee('data-facility-id="'.$healthCenter->id.'"', false);
+    }
+
+    #[Test]
+    public function viewer_generalized_coordinate_is_deterministic_across_requests(): void
+    {
+        $senior = $this->makeSenior([
+            'latitude' => 14.273000,
+            'longitude' => 121.455000,
+            'location_source' => 'gps_capture',
+            'location_accuracy' => 'verified',
+        ]);
+
+        $first = $this->actingAs($this->viewer)->get(route('seniors.show', $senior));
+        $second = $this->actingAs($this->viewer)->get(route('seniors.show', $senior));
+
+        $first->assertOk();
+        $second->assertOk();
+
+        preg_match('/"lat":([\d.\-]+),"lng":([\d.\-]+)/', $first->getContent(), $firstMatch);
+        preg_match('/"lat":([\d.\-]+),"lng":([\d.\-]+)/', $second->getContent(), $secondMatch);
+
+        $this->assertNotEmpty($firstMatch);
+        $this->assertSame($firstMatch[1], $secondMatch[1]);
+        $this->assertSame($firstMatch[2], $secondMatch[2]);
+    }
+
+    #[Test]
+    public function viewer_sees_no_location_message_when_senior_has_no_coordinates(): void
+    {
+        // 'No data' is not sensitive — it must read the same for every role.
+        $senior = $this->makeSenior();
+
+        $response = $this->actingAs($this->viewer)->get(route('seniors.show', $senior));
 
         $response->assertOk();
         $response->assertSee('No location on record');
