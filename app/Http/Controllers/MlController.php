@@ -61,6 +61,30 @@ class MlController extends Controller
         );
     }
 
+    public function stopServices()
+    {
+        $success = $this->ml->stopServices();
+        Cache::forget('ml_nav_health');
+
+        return back()->with(
+            $success ? 'success' : 'error',
+            $success ? 'Python ML services stopped.' : 'Failed to stop ML services cleanly.'
+        );
+    }
+
+    public function restartServices()
+    {
+        $success = $this->ml->restartServices();
+        Cache::forget('ml_nav_health');
+
+        return back()->with(
+            $success ? 'success' : 'error',
+            $success
+                ? 'Python ML services restarted successfully.'
+                : 'Failed to restart ML services. Check storage/logs/*.err.log for details.'
+        );
+    }
+
     public function batchIndex(Request $request)
     {
         // $totalEligible: all seniors with any QoL survey (shown in the table/pagination)
