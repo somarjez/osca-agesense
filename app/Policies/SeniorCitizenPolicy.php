@@ -12,8 +12,9 @@ use App\Models\User;
  * auto-discovers this by convention (SeniorCitizen -> SeniorCitizenPolicy);
  * no AuthServiceProvider registration is needed.
  *
- * This does not change who can do what — it documents/tests the existing
- * route-middleware behavior, it is not (yet) wired into the controllers.
+ * This documents/tests the existing route-middleware behavior and is wired
+ * into the controllers and Livewire components via `$this->authorize()`
+ * calls throughout the app.
  */
 class SeniorCitizenPolicy
 {

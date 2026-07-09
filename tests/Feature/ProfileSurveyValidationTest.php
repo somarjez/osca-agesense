@@ -159,6 +159,37 @@ class ProfileSurveyValidationTest extends TestCase
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
     }
 
+    #[Test]
+    public function household_composition_fields_over_the_max_bound_are_rejected(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('step', 2)
+            ->set('numChildren', 51)
+            ->set('numWorkingChildren', 51)
+            ->set('householdSize', 51)
+            ->call('nextStep')
+            ->assertHasErrors(['numChildren', 'numWorkingChildren', 'householdSize']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function household_composition_fields_at_the_max_bound_are_accepted(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('numChildren', 50)
+            ->set('numWorkingChildren', 50)
+            ->set('householdSize', 50)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $senior = SeniorCitizen::where('first_name', 'Maria')->where('last_name', 'Santos')->firstOrFail();
+        $this->assertSame(50, $senior->num_children);
+        $this->assertSame(50, $senior->num_working_children);
+        $this->assertSame(50, $senior->household_size);
+    }
+
     private function makeSenior(array $overrides = []): SeniorCitizen
     {
         return SeniorCitizen::create(array_merge([

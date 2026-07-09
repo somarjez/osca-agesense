@@ -14,9 +14,10 @@ use Tests\TestCase;
 /**
  * Unit-level coverage for SeniorCitizenPolicy — mirrors the role gates
  * already applied in routes/seniors.php (and the surveys/ml/recommendations
- * routes operating on a SeniorCitizen). The policy is not yet wired into
- * the controllers (see Task 1 brief: "does not change who can do what"),
- * so this test exercises the policy directly via Gate::forUser()->allows().
+ * routes operating on a SeniorCitizen). The policy is now wired into the
+ * controllers and Livewire components via `$this->authorize()` calls, but
+ * this test exercises the policy directly via Gate::forUser()->allows() for
+ * isolated, fast unit-level coverage.
  */
 class SeniorCitizenPolicyTest extends TestCase
 {

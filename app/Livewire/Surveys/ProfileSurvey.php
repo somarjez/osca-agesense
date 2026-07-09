@@ -378,9 +378,9 @@ class ProfileSurvey extends Component
     private function step2Rules(): array
     {
         return [
-            'numChildren' => 'integer|min:0',
-            'numWorkingChildren' => 'integer|min:0',
-            'householdSize' => 'integer|min:1',
+            'numChildren' => 'integer|min:0|max:50',
+            'numWorkingChildren' => 'integer|min:0|max:50',
+            'householdSize' => 'integer|min:1|max:50',
             'childFinancialSupport' => [ValidationRule::in(['', 'Yes', 'No', 'Occasional', 'N/A'])],
             'spouseWorking' => [ValidationRule::in(['', 'Yes', 'No', 'Deceased', 'N/A'])],
         ];
