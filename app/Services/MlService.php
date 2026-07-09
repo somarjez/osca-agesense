@@ -393,6 +393,21 @@ class MlService
     // ── Private Helpers ───────────────────────────────────────────────────────
 
     /**
+     * Shared-secret header for the data-bearing Flask endpoints (preprocess/infer/
+     * batch_preprocess/batch_infer). Deliberately NOT applied to /health calls —
+     * those are polled by startServices()/stopServices()/healthCheck()/checkHealth()
+     * before/without knowing whether a token is even configured, and must stay
+     * reachable regardless. Empty token = no header sent (local-dev default; the
+     * Flask side treats an unset ML_SERVICE_TOKEN as "auth disabled" too).
+     */
+    private function authHeaders(): array
+    {
+        $token = config('services.python.token');
+
+        return $token ? ['X-Internal-Api-Key' => $token] : [];
+    }
+
+    /**
      * Age used for ML scoring, anchored to the immutable survey date rather than
      * today's date. This makes age a pure function of stored input
      * (date_of_birth + survey_date), so the same data yields the same risk score
@@ -470,6 +485,7 @@ class MlService
         try {
             $preResp = Http::connectTimeout(5)
                 ->timeout($this->timeout)
+                ->withHeaders($this->authHeaders())
                 ->post($this->preprocessUrl.'/batch_preprocess', $payloads);
 
             if ($preResp->failed()) {
@@ -480,6 +496,7 @@ class MlService
 
             $infResp = Http::connectTimeout(5)
                 ->timeout($this->timeout)
+                ->withHeaders($this->authHeaders())
                 ->post($this->inferenceUrl.'/batch_infer', $preprocessedList);
 
             if ($infResp->failed()) {
@@ -601,6 +618,7 @@ class MlService
         try {
             $response = Http::connectTimeout(5)
                 ->timeout($this->timeout)
+                ->withHeaders($this->authHeaders())
                 ->post($this->preprocessUrl.'/preprocess', $raw);
 
             if ($response->failed()) {
@@ -616,6 +634,7 @@ class MlService
                 try {
                     $response = Http::connectTimeout(5)
                         ->timeout(max($this->timeout, $this->coldStartTimeout))
+                        ->withHeaders($this->authHeaders())
                         ->post($this->preprocessUrl.'/preprocess', $raw);
 
                     if ($response->successful()) {
@@ -648,6 +667,7 @@ class MlService
         try {
             $response = Http::connectTimeout(5)
                 ->timeout($this->timeout)
+                ->withHeaders($this->authHeaders())
                 ->post($this->inferenceUrl.'/infer', $preprocessed);
 
             if ($response->failed()) {
@@ -663,6 +683,7 @@ class MlService
                 try {
                     $response = Http::connectTimeout(5)
                         ->timeout(max($this->timeout, $this->coldStartTimeout))
+                        ->withHeaders($this->authHeaders())
                         ->post($this->inferenceUrl.'/infer', $preprocessed);
 
                     if ($response->successful()) {

@@ -37,6 +37,7 @@ return [
         'inference_port' => env('PYTHON_INFERENCE_PORT', 5002),
         'timeout' => env('PYTHON_TIMEOUT', 120),
         'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 120),
+        'token' => env('ML_SERVICE_TOKEN'),
     ],
 
     'overpass' => [
