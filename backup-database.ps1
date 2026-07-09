@@ -100,9 +100,7 @@ if (-not $MYSQLDUMP) {
 }
 
 if (-not $MYSQLDUMP) {
-    Bail "mysqldump not found on PATH or in common Laragon/XAMPP/MySQL install locations.`n" + `
-         "        Install MySQL client tools or add mysqldump.exe's folder to PATH, then retry.`n" + `
-         "        (Not producing an empty/partial dump - refusing to proceed.)"
+    Bail "mysqldump not found on PATH or in common Laragon/XAMPP/MySQL install locations.`n        Install MySQL client tools or add mysqldump.exe's folder to PATH, then retry.`n        (Not producing an empty/partial dump - refusing to proceed.)"
 }
 
 Write-Host "  [ OK ] mysqldump found: $MYSQLDUMP"
