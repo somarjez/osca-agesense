@@ -326,9 +326,43 @@ class GisApiController extends Controller
             'duration' => isset($summary['duration']) ? round((float) $summary['duration'], 2) : null,
         ];
 
-        $this->storeRouteDistance($validated, $route);
+        if ($this->shouldPersistRouteDistance($validated)) {
+            $this->storeRouteDistance($validated, $route);
+        }
 
         return response()->json($route);
+    }
+
+    /**
+     * Guards the shared route-distance cache against corruption by a
+     * non-full-precision caller. Viewers only ever see a barangay-generalized
+     * origin point for a senior (see coordinatesForSenior()/fullPrecision()),
+     * so a viewer who supplies a senior_id here has no legitimate reason to
+     * also know that senior's real coordinates. If a senior_id is present and
+     * the caller lacks full precision, only persist when the supplied origin
+     * actually matches the senior's real stored coordinates — otherwise we'd
+     * overwrite a previously-cached accurate route with one computed from an
+     * arbitrary/generalized origin, destroying the cache and wasting external
+     * API quota for every other viewer of that senior/facility pair. The live
+     * distance is still computed and returned either way; only the cache
+     * write is skipped.
+     */
+    private function shouldPersistRouteDistance(array $validated): bool
+    {
+        $seniorId = $validated['senior_id'] ?? null;
+
+        if ($seniorId === null || $this->fullPrecision()) {
+            return true;
+        }
+
+        $senior = SeniorCitizen::find($seniorId);
+
+        if (! $senior) {
+            return false;
+        }
+
+        return $this->coordinatesMatch($senior->latitude, (float) $validated['origin_lat'])
+            && $this->coordinatesMatch($senior->longitude, (float) $validated['origin_lng']);
     }
 
     private function cachedRouteFailure(array $validated): ?array
@@ -454,20 +488,22 @@ class GisApiController extends Controller
 
     private function routeCacheCoordinatesMatch(array $validated, object $route): bool
     {
-        $pairs = [
-            [(float) $validated['origin_lat'], (float) $route->origin_latitude],
-            [(float) $validated['origin_lng'], (float) $route->origin_longitude],
-            [(float) $validated['destination_lat'], (float) $route->destination_latitude],
-            [(float) $validated['destination_lng'], (float) $route->destination_longitude],
-        ];
+        return $this->coordinatesMatch($route->origin_latitude, (float) $validated['origin_lat'])
+            && $this->coordinatesMatch($route->origin_longitude, (float) $validated['origin_lng'])
+            && $this->coordinatesMatch($route->destination_latitude, (float) $validated['destination_lat'])
+            && $this->coordinatesMatch($route->destination_longitude, (float) $validated['destination_lng']);
+    }
 
-        foreach ($pairs as [$current, $cached]) {
-            if (abs($current - $cached) > 0.000001) {
-                return false;
-            }
-        }
-
-        return true;
+    /**
+     * Two stored coordinate values refer to the same point (within rounding).
+     * Canonical 1e-6 tolerance for this codebase — mirrored by
+     * SeniorCitizenController::coordinatesMatch() and
+     * ScoreGisProximity::coordinatesMatch() for the same kind of
+     * floating-point-tolerant lat/lng comparison.
+     */
+    private function coordinatesMatch(mixed $stored, float $current): bool
+    {
+        return $stored !== null && abs((float) $stored - $current) <= 0.000001;
     }
 
     private function openRouteServiceVerifyOption(): bool|string
