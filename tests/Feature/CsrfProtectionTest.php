@@ -41,6 +41,12 @@ use Tests\TestCase;
  */
 class CsrfProtectionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutVite();
+    }
+
     #[Test]
     public function post_without_valid_csrf_token_is_rejected_with_419_when_bypass_is_disabled(): void
     {

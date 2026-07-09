@@ -25,6 +25,7 @@ class ActivityLogDeleteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);

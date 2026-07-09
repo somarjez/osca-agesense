@@ -18,6 +18,12 @@ use Tests\TestCase;
  */
 class StorageNotWebReachableTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutVite();
+    }
+
     #[Test]
     public function storage_app_path_is_not_web_reachable(): void
     {

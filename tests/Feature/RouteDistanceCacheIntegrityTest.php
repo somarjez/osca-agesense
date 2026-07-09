@@ -54,9 +54,22 @@ class RouteDistanceCacheIntegrityTest extends TestCase
 
     private Facility $facility;
 
+    private ?string $previousOpenRouteServiceApiKey = null;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        // GisApiController::routeDistance() reads OPENROUTESERVICE_API_KEY via
+        // env() directly (pre-existing code, not touched by this fix) and
+        // returns 503 before ever reaching the HTTP call below if it's unset.
+        // Http::fake() only intercepts that HTTP call — it does nothing for
+        // this earlier guard. Without setting a key here, this test is only
+        // hermetic on a machine whose real .env happens to already have one
+        // configured (true locally, false in CI), so pin a fake key
+        // explicitly rather than depending on ambient environment state.
+        $this->previousOpenRouteServiceApiKey = getenv('OPENROUTESERVICE_API_KEY') ?: null;
+        putenv('OPENROUTESERVICE_API_KEY=test-key-for-route-distance-integrity-tests');
 
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
@@ -108,6 +121,17 @@ class RouteDistanceCacheIntegrityTest extends TestCase
                 ],
             ], 200),
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->previousOpenRouteServiceApiKey === null) {
+            putenv('OPENROUTESERVICE_API_KEY');
+        } else {
+            putenv("OPENROUTESERVICE_API_KEY={$this->previousOpenRouteServiceApiKey}");
+        }
+
+        parent::tearDown();
     }
 
     private function routeDistanceQuery(float $originLat, float $originLng): array
