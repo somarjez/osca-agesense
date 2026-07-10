@@ -151,15 +151,22 @@ State that must survive navigation (sidebar collapse, dark mode) is already `loc
 
 ---
 
-## 9. Before/after measurement table (to be completed)
+## 9. Before/after measurement table
+
+Measured from `npm run build` gzip output. "Requested" = the JS chunks a page actually downloads given the lazy loaders (charts load only where a canvas exists; the Leaflet stack only where a map exists).
 
 | Metric | Baseline (2026-07-10) | After P1 | After P2 | Final |
 |--------|----------------------:|---------:|---------:|------:|
-| Global JS gzip (every page) | 143.44 kB | 19.37 kB | — | — |
-| Login page JS requested (gzip) | 143.44 kB | 19.37 kB | — | — |
-| Dashboard page JS requested (gzip) | 143.44 kB | 90.90 kB | — | — |
-| GIS page JS requested (gzip) | 143.44 kB | 73.95 kB | — | — |
-| Section switch = full document load? | Yes | Yes | No | No |
+| Global JS gzip (every page) | 143.44 kB | 19.37 kB | 19.43 kB | **19.43 kB** |
+| Login page JS requested (gzip) | 143.44 kB | 19.37 kB | 19.43 kB | **19.43 kB** (−86%) |
+| Dashboard page JS requested (gzip) | 143.44 kB | 90.90 kB | 90.96 kB | **90.96 kB** (app 19.43 + Chart.js 71.53; Chart.js now loads after paint) |
+| GIS page JS requested (gzip) | 143.44 kB | 73.95 kB | 74.01 kB | **74.01 kB** (app 19.43 + Leaflet 43.56 + markercluster 9.09 + heat 1.93; no Chart.js) |
+| Section switch = full document load? | Yes | Yes | No | **No** (`wire:navigate`) |
+| Topbar render blocks on ML healthCheck? | Yes (cache-miss) | Yes | Yes | **No** (async `/ml/nav-health` fetch after paint) |
+
+**Final chunk inventory (gzip):** `app.js` 19.43 kB (global) · `auto` [Chart.js] 71.53 kB (lazy) · `leaflet-src` 43.56 kB + `leaflet.markercluster-src` 9.09 kB + `leaflet-heat` 1.93 kB (lazy) · Leaflet CSS chunks ~3.1 kB (lazy, map pages only). CSS `app.css` unchanged at 17.77 kB.
+
+**Runtime verification still pending (requires a browser — no browser in the build session):** DevTools Network confirmation that login requests neither Chart.js nor Leaflet; that section switches issue XHR not full documents with no duplicate-canvas errors; that the GIS map disposes/re-inits cleanly on navigate; and that page render no longer stalls when Flask is stopped. See the production checklist.
 
 ---
 
