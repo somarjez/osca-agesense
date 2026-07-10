@@ -64,11 +64,22 @@ class RouteDistanceCacheIntegrityTest extends TestCase
         // env() directly (pre-existing code, not touched by this fix) and
         // returns 503 before ever reaching the HTTP call below if it's unset.
         // Http::fake() only intercepts that HTTP call — it does nothing for
-        // this earlier guard. Without setting a key here, this test is only
-        // hermetic on a machine whose real .env happens to already have one
-        // configured (true locally, false in CI), so pin a fake key
-        // explicitly rather than depending on ambient environment state.
-        $this->previousOpenRouteServiceApiKey = getenv('OPENROUTESERVICE_API_KEY') ?: null;
+        // this earlier guard.
+        //
+        // putenv() alone does NOT make env() see a new value here: Laravel's
+        // Env::getRepository() (Illuminate\Support\Env) checks adapters that
+        // read $_ENV/$_SERVER before the putenv-backed adapter, and Dotenv
+        // already populated $_ENV['OPENROUTESERVICE_API_KEY'] (even as an
+        // empty string, since .env defines the key with a blank value) the
+        // moment the app booted — an explicitly-empty value still counts as
+        // "found", so the lookup never falls through to check getenv().
+        // Confirmed empirically: with the real .env key blank, putenv() alone
+        // left env() returning '', while writing $_ENV/$_SERVER directly
+        // (what's actually checked first) made env() see the new value.
+        // Write all three for good measure; $_ENV is what actually matters.
+        $this->previousOpenRouteServiceApiKey = $_ENV['OPENROUTESERVICE_API_KEY'] ?? null;
+        $_ENV['OPENROUTESERVICE_API_KEY'] = 'test-key-for-route-distance-integrity-tests';
+        $_SERVER['OPENROUTESERVICE_API_KEY'] = 'test-key-for-route-distance-integrity-tests';
         putenv('OPENROUTESERVICE_API_KEY=test-key-for-route-distance-integrity-tests');
 
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {
@@ -125,9 +136,18 @@ class RouteDistanceCacheIntegrityTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Restore $_ENV/$_SERVER/putenv together — see setUp()'s comment for
+        // why all three needed to be set for env() to pick up the test key,
+        // and why $_ENV/$_SERVER (not just putenv) must be restored here to
+        // avoid leaking the fake key into any later test in this same PHP
+        // process (Laravel's per-test app rebuild does not reset PHP
+        // superglobals).
         if ($this->previousOpenRouteServiceApiKey === null) {
+            unset($_ENV['OPENROUTESERVICE_API_KEY'], $_SERVER['OPENROUTESERVICE_API_KEY']);
             putenv('OPENROUTESERVICE_API_KEY');
         } else {
+            $_ENV['OPENROUTESERVICE_API_KEY'] = $this->previousOpenRouteServiceApiKey;
+            $_SERVER['OPENROUTESERVICE_API_KEY'] = $this->previousOpenRouteServiceApiKey;
             putenv("OPENROUTESERVICE_API_KEY={$this->previousOpenRouteServiceApiKey}");
         }
 
