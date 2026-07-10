@@ -24,6 +24,11 @@ class RiskReport extends Component
 
     public string $sortDir = 'desc';
 
+    public function placeholder(): \Illuminate\View\View
+    {
+        return view('components.skeletons.report-panel');
+    }
+
     public function render()
     {
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
