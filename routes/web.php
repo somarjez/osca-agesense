@@ -4,6 +4,8 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GisApiController;
 use App\Http\Controllers\HelpController;
+use App\Services\MlService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -19,15 +21,15 @@ Route::middleware(['auth'])->group(function () {
         // paint. Reuses the same `ml_nav_health` cache key and 30s(online)/
         // 15s(offline) TTL as the inline check in layouts/app.blade.php.
         Route::get('/ml/nav-health', function () {
-            $health = \Illuminate\Support\Facades\Cache::get('ml_nav_health');
+            $health = Cache::get('ml_nav_health');
             if ($health === null) {
                 try {
-                    $health = app(\App\Services\MlService::class)->healthCheck();
-                } catch (\Throwable) {
+                    $health = app(MlService::class)->healthCheck();
+                } catch (Throwable) {
                     $health = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
                 }
                 $ttl = ($health['preprocessor'] === 'ok' && $health['inference'] === 'ok') ? 30 : 15;
-                \Illuminate\Support\Facades\Cache::put('ml_nav_health', $health, $ttl);
+                Cache::put('ml_nav_health', $health, $ttl);
             }
             $dot = match (true) {
                 $health['preprocessor'] === 'ok' && $health['inference'] === 'ok' => 'ok',
@@ -39,6 +41,7 @@ Route::middleware(['auth'])->group(function () {
                 'warn' => 'HTTP services offline — using local fallback',
                 default => 'All analysis services unavailable',
             };
+
             return response()->json(['dot' => $dot, 'title' => $title]);
         })->name('ml.nav-health');
     });

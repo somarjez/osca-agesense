@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -24,7 +25,7 @@ class RiskReport extends Component
 
     public string $sortDir = 'desc';
 
-    public function placeholder(): \Illuminate\View\View
+    public function placeholder(): View
     {
         return view('components.skeletons.report-panel');
     }
