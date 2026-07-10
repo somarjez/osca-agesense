@@ -249,12 +249,14 @@
         });
     }
 
-    new MutationObserver(() => setTimeout(renderClusterDomainChart, 50))
+    const boot = () => window.OSCA.charts().then(() => renderClusterDomainChart());
+
+    new MutationObserver(() => setTimeout(boot, 50))
         .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    document.addEventListener('livewire:navigated', () => setTimeout(renderClusterDomainChart, 0));
-    document.addEventListener('livewire:updated', renderClusterDomainChart);
-    renderClusterDomainChart();
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    document.addEventListener('livewire:updated', boot);
+    boot();
 })();
 </script>
 @endpush

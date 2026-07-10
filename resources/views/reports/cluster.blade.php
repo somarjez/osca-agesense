@@ -370,11 +370,12 @@
         });
     }
 
-    document.addEventListener('livewire:navigated', () => setTimeout(initClusterCharts, 0));
+    const boot = () => window.OSCA.charts().then(() => initClusterCharts());
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
     // Fallback for a direct page load / hard refresh (livewire:navigated only fires
     // on SPA navigation). upsert() destroys any existing chart, so this is idempotent.
-    if (document.readyState !== 'loading') setTimeout(initClusterCharts, 0);
-    else document.addEventListener('DOMContentLoaded', () => setTimeout(initClusterCharts, 0));
+    if (document.readyState !== 'loading') setTimeout(boot, 0);
+    else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
 })();
 </script>
 @endpush

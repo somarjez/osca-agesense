@@ -374,7 +374,7 @@
         const observer = new MutationObserver((mutations) => {
             for (const m of mutations) {
                 if (m.attributeName === 'class') {
-                    setTimeout(render, 50);
+                    setTimeout(boot, 50);
                     break;
                 }
             }
@@ -382,10 +382,12 @@
         observer.observe(html, { attributes: true });
     }
 
-    document.addEventListener('livewire:navigated', () => setTimeout(render, 0));
-    document.addEventListener('livewire:updated', render);
+    const boot = () => window.OSCA.charts().then(() => render());
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    document.addEventListener('livewire:updated', boot);
     document.addEventListener('DOMContentLoaded', () => {
         observeDark();
+        boot();
     });
 })();
 </script>

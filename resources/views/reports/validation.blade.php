@@ -1534,14 +1534,15 @@
 
     function observeDark() {
         const obs = new MutationObserver((muts) => {
-            for (const m of muts) { if (m.attributeName === 'class') { setTimeout(render, 50); break; } }
+            for (const m of muts) { if (m.attributeName === 'class') { setTimeout(boot, 50); break; } }
         });
         obs.observe(document.documentElement, { attributes: true });
     }
 
-    document.addEventListener('livewire:navigated', () => setTimeout(render, 0));
-    if (document.readyState !== 'loading') setTimeout(render, 0);
-    else document.addEventListener('DOMContentLoaded', () => setTimeout(render, 0));
+    const boot = () => window.OSCA.charts().then(() => render());
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    if (document.readyState !== 'loading') setTimeout(boot, 0);
+    else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
     document.addEventListener('DOMContentLoaded', observeDark);
 })();
 </script>

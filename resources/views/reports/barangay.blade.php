@@ -292,9 +292,10 @@
         });
     }
 
-    document.addEventListener('livewire:navigated', () => setTimeout(initDomainAvgCharts, 0));
-    if (document.readyState !== 'loading') setTimeout(initDomainAvgCharts, 0);
-    else document.addEventListener('DOMContentLoaded', () => setTimeout(initDomainAvgCharts, 0));
+    const boot = () => window.OSCA.charts().then(() => initDomainAvgCharts());
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    if (document.readyState !== 'loading') setTimeout(boot, 0);
+    else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
 })();
 </script>
 @endpush
