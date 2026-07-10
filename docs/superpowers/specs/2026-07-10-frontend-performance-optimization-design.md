@@ -155,10 +155,10 @@ State that must survive navigation (sidebar collapse, dark mode) is already `loc
 
 | Metric | Baseline (2026-07-10) | After P1 | After P2 | Final |
 |--------|----------------------:|---------:|---------:|------:|
-| Global JS gzip (every page) | 143.44 kB | — | — | — |
-| Login page JS requested (gzip) | 143.44 kB | — | — | — |
-| Dashboard page JS requested (gzip) | 143.44 kB | — | — | — |
-| GIS page JS requested (gzip) | 143.44 kB | — | — | — |
+| Global JS gzip (every page) | 143.44 kB | 19.37 kB | — | — |
+| Login page JS requested (gzip) | 143.44 kB | 19.37 kB | — | — |
+| Dashboard page JS requested (gzip) | 143.44 kB | 90.90 kB | — | — |
+| GIS page JS requested (gzip) | 143.44 kB | 73.95 kB | — | — |
 | Section switch = full document load? | Yes | Yes | No | No |
 
 ---
