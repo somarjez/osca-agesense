@@ -1148,15 +1148,15 @@
         setTimeout(function () { map.invalidateSize(); }, 80);
     }
 
-    // Vite emits app.js as a deferred module, so this inline script runs first.
-    // Wait for DOMContentLoaded (deferred modules finish before it) so window.L
-    // exists, and re-init after Livewire SPA navigation (DOMContentLoaded won't refire).
+    // Leaflet is now a lazy chunk exposed as window.OSCA.maps(); load it before
+    // initializing, and re-init after Livewire SPA navigation (DOMContentLoaded won't refire).
+    const bootSeniorMap = () => window.OSCA.maps().then(() => initSeniorMiniMap());
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSeniorMiniMap);
+        document.addEventListener('DOMContentLoaded', bootSeniorMap);
     } else {
-        initSeniorMiniMap();
+        bootSeniorMap();
     }
-    document.addEventListener('livewire:navigated', initSeniorMiniMap);
+    document.addEventListener('livewire:navigated', bootSeniorMap);
 })();
 </script>
 

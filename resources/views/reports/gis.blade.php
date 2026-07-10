@@ -5760,8 +5760,9 @@
             debouncedRefresh();
         }
     });
-    document.addEventListener('DOMContentLoaded', renderMap);
-    document.addEventListener('livewire:navigated', () => setTimeout(renderMap, 0));
+    const bootMap = () => window.OSCA.maps().then(() => renderMap());
+    document.addEventListener('DOMContentLoaded', bootMap);
+    document.addEventListener('livewire:navigated', () => setTimeout(bootMap, 0));
     window.addEventListener('resize', () => {
         const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
         syncMapSize(map);
