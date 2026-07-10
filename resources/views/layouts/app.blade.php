@@ -78,6 +78,7 @@
             <div x-show="!sidebarOpen" x-cloak class="h-1"></div>
 
             <a href="{{ route('dashboard') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Dashboard'">
@@ -85,6 +86,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Dashboard</span>
             </a>
             <a href="{{ route('seniors.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('seniors.index') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Senior Records'">
@@ -94,6 +96,7 @@
 
             @hasanyrole('admin|encoder')
             <a href="{{ route('seniors.create') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('seniors.create') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'New Profile'">
@@ -101,6 +104,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">New Profile</span>
             </a>
             <a href="{{ route('surveys.qol.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('surveys.qol*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'QoL Surveys'">
@@ -115,6 +119,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.cluster') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Profile Groups'">
@@ -122,6 +127,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Profile Groups</span>
             </a>
             <a href="{{ route('reports.gis') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('reports.gis') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'GIS Analytics'">
@@ -129,6 +135,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">GIS Analytics</span>
             </a>
             <a href="{{ route('reports.risk') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('reports.risk') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Risk Reports'">
@@ -136,6 +143,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Risk Reports</span>
             </a>
             <a href="{{ route('reports.barangay.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('reports.barangay*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Barangay Report'">
@@ -143,6 +151,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Barangay Report</span>
             </a>
             <a href="{{ route('recommendations.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('recommendations*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Recommendations'">
@@ -157,6 +166,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('ml.status') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Service Status'">
@@ -164,6 +174,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Service Status</span>
             </a>
             <a href="{{ route('ml.batch') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('ml.batch') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Batch Analysis'">
@@ -179,6 +190,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.validation') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('reports.validation') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'System Validation'">
@@ -186,6 +198,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">System Validation</span>
             </a>
             <a href="{{ route('activity-log.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('activity-log*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Activity Log'">
@@ -193,6 +206,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
             <a href="{{ route('reports.registry') }}"
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Export Registry'">
@@ -200,6 +214,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Export Registry</span>
             </a>
             <a href="{{ route('users.index') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('users*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'User Management'">
@@ -213,6 +228,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('seniors.archives') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('seniors.archives*') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Archives'">
@@ -227,6 +243,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('help') }}"
+               wire:navigate
                class="nav-link {{ request()->routeIs('help') ? 'nav-link-active' : '' }}"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Help Centre'">
@@ -299,6 +316,7 @@
                     };
                 @endphp
                 <a href="{{ route('ml.status') }}"
+                   wire:navigate
                    class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
                           hover:text-ink-900 dark:hover:text-[#e4e1d8] hover:bg-paper-2 dark:hover:bg-[#202a26]
                           px-2 py-1.5 rounded-lg transition-all duration-150"
