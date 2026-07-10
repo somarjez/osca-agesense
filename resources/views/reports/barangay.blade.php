@@ -293,9 +293,17 @@
     }
 
     const boot = () => window.OSCA.charts().then(() => initDomainAvgCharts());
-    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
-    if (document.readyState !== 'loading') setTimeout(boot, 0);
-    else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
+
+    // Persistent registration guarded so it binds once per page session — the
+    // whole <script> tag re-executes on every wire:navigate navigation, and
+    // initDomainAvgCharts() reads each canvas's data-labels/data-values fresh
+    // at call time, so one bound listener keeps rendering correctly forever.
+    if (!window.__oscaBound_reportsBarangay) {
+        window.__oscaBound_reportsBarangay = true;
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        if (document.readyState !== 'loading') setTimeout(boot, 0);
+        else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
+    }
 })();
 </script>
 @endpush

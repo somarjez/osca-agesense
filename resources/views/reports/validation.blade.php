@@ -1540,10 +1540,18 @@
     }
 
     const boot = () => window.OSCA.charts().then(() => render());
-    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
-    if (document.readyState !== 'loading') setTimeout(boot, 0);
-    else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
-    document.addEventListener('DOMContentLoaded', observeDark);
+
+    // Persistent registrations guarded so they bind once per page session —
+    // the whole <script> tag re-executes on every wire:navigate navigation,
+    // and render() reads #validation-chart-data fresh at call time, so one
+    // bound listener/observer keeps rendering correctly forever.
+    if (!window.__oscaBound_reportsValidation) {
+        window.__oscaBound_reportsValidation = true;
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        if (document.readyState !== 'loading') setTimeout(boot, 0);
+        else document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 0));
+        document.addEventListener('DOMContentLoaded', observeDark);
+    }
 })();
 </script>
 @endpush

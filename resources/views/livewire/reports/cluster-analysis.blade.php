@@ -251,11 +251,19 @@
 
     const boot = () => window.OSCA.charts().then(() => renderClusterDomainChart());
 
-    new MutationObserver(() => setTimeout(boot, 50))
-        .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    // Persistent registrations guarded so they bind once per page session —
+    // the whole <script> tag re-executes on every wire:navigate navigation
+    // (and every Livewire re-render of this component), and
+    // renderClusterDomainChart() reads #cluster-chart-data fresh at call
+    // time, so one bound listener/observer keeps rendering correctly forever.
+    if (!window.__oscaBound_clusterAnalysis) {
+        window.__oscaBound_clusterAnalysis = true;
+        new MutationObserver(() => setTimeout(boot, 50))
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
-    document.addEventListener('livewire:updated', boot);
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        document.addEventListener('livewire:updated', boot);
+    }
     boot();
 })();
 </script>

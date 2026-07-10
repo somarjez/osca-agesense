@@ -295,7 +295,7 @@
                 <a href="{{ route('ml.status') }}" wire:navigate
                    x-data="{ dot: 'checking', title: 'Checking analysis services…' }"
                    x-init="fetch('{{ route('ml.nav-health') }}', { headers: { 'Accept': 'application/json' } })
-                             .then(r => r.ok ? r.json() : null)
+                             .then(r => r.ok ? r.json() : Promise.reject())
                              .then(d => { if (d) { dot = d.dot; title = d.title } })
                              .catch(() => { dot = 'err'; title = 'Status unavailable' })"
                    class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
