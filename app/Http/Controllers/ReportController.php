@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ArrayExport;
+use App\Models\ActivityLog;
 use App\Models\ClusterSnapshot;
 use App\Models\Facility;
 use App\Models\MlResult;
@@ -25,6 +26,8 @@ class ReportController extends Controller
      */
     public function gis()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $mappedCount = SeniorCitizen::active()->count();
         $highRiskMapped = SeniorCitizen::active()
             ->whereHas('latestMlResult', fn ($q) => $q->where('overall_risk_level', 'HIGH'))
@@ -47,7 +50,9 @@ class ReportController extends Controller
     public function runGisGeocode()
     {
         Artisan::queue('gis:geocode');
-        Cache::forget('gis.seniors_geojson');
+        // Bust both role-precision cache variants — see GisApiController::seniors().
+        Cache::forget('gis.seniors_geojson.full');
+        Cache::forget('gis.seniors_geojson.generalized');
 
         return back()->with('success', 'Geocoding job queued. Coordinates will update within a few minutes — refresh the GIS map to see the results.');
     }
@@ -152,6 +157,8 @@ class ReportController extends Controller
      */
     public function cluster(Request $request)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         // Latest ML result per active senior only
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
@@ -248,6 +255,8 @@ class ReportController extends Controller
      */
     public function risk()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
@@ -287,6 +296,8 @@ class ReportController extends Controller
      */
     public function barangayIndex()
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $first = SeniorCitizen::barangayList()[0];
 
         return redirect()->route('reports.barangay', $first);
@@ -297,6 +308,8 @@ class ReportController extends Controller
      */
     public function barangay(Request $request, string $brgy)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $barangays = SeniorCitizen::barangayList();
 
         if (! in_array($brgy, $barangays, true)) {
@@ -376,6 +389,8 @@ class ReportController extends Controller
      */
     public function exportCluster()
     {
+        ActivityLog::record('exported', auth()->user(), 'Cluster report CSV exported');
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)
@@ -436,6 +451,8 @@ class ReportController extends Controller
      */
     public function exportGis(Request $request)
     {
+        ActivityLog::record('exported', auth()->user(), 'GIS report CSV exported');
+
         $query = SeniorCitizen::active()
             ->with(['latestMlResult', 'latestAccessibilityMetric'])
             ->when($request->filled('barangay') && $request->barangay !== 'all', fn ($q) => $q->where('barangay', $request->barangay)
@@ -555,6 +572,8 @@ class ReportController extends Controller
 
     public function exportRegistry()
     {
+        ActivityLog::record('exported', auth()->user(), 'Registry Excel exported');
+
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->groupBy('senior_citizen_id')
             ->pluck('id');
@@ -667,6 +686,8 @@ class ReportController extends Controller
      */
     public function exportRisk(Request $request)
     {
+        ActivityLog::record('exported', auth()->user(), 'Risk report CSV exported');
+
         $activeSeniorIds = SeniorCitizen::active()->pluck('id');
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->whereIn('senior_citizen_id', $activeSeniorIds)

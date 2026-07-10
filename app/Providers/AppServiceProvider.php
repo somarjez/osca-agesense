@@ -8,7 +8,10 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Observers\ActivityLogObserver;
 use App\Observers\MlResultStalenessObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,5 +43,12 @@ class AppServiceProvider extends ServiceProvider
         // ML result staleness — marks cached results stale when profile or QoL data changes
         SeniorCitizen::observe(MlResultStalenessObserver::class);
         QolSurvey::observe(MlResultStalenessObserver::class);
+
+        // Login rate limiting — 5 attempts/minute per email+IP combination,
+        // so an attacker can't lock out a legitimate user by spamming their
+        // email from a different IP, nor brute-force one IP across many emails.
+        RateLimiter::for('login', function (Request $request) {
+            return Limit::perMinute(5)->by($request->input('email').'|'.$request->ip());
+        });
     }
 }

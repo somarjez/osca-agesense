@@ -18,6 +18,8 @@ class GisApiCachingTest extends TestCase
 
     private User $admin;
 
+    private User $viewer;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -32,26 +34,32 @@ class GisApiCachingTest extends TestCase
             ['name' => 'OSCA Admin', 'password' => bcrypt('password')]
         );
         $this->admin->syncRoles(['admin']);
+
+        $this->viewer = User::firstOrCreate(
+            ['email' => 'viewer@osca.local'],
+            ['name' => 'OSCA Viewer', 'password' => bcrypt('password')]
+        );
+        $this->viewer->syncRoles(['viewer']);
     }
 
     #[Test]
     public function seniors_geojson_is_stored_in_cache_after_first_request(): void
     {
-        Cache::forget('gis.seniors_geojson');
-        $this->assertFalse(Cache::has('gis.seniors_geojson'));
+        Cache::forget('gis.seniors_geojson.full');
+        $this->assertFalse(Cache::has('gis.seniors_geojson.full'));
 
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
             ->assertStatus(200)
             ->assertJsonStructure(['type', 'features']);
 
-        $this->assertTrue(Cache::has('gis.seniors_geojson'));
+        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
     }
 
     #[Test]
     public function barangay_filter_stores_separate_cache_key(): void
     {
-        $key = 'gis.seniors_geojson.'.md5('Sabang');
+        $key = 'gis.seniors_geojson.full.'.md5('Sabang');
         Cache::forget($key);
         $this->assertFalse(Cache::has($key));
 
@@ -64,16 +72,36 @@ class GisApiCachingTest extends TestCase
     }
 
     #[Test]
+    public function role_precision_stores_separate_cache_key(): void
+    {
+        // Admin (full precision) and viewer (generalized) must never share a
+        // cache slot — otherwise whichever role's request populates the cache
+        // first "wins" for 5 minutes and leaks its precision level to the other.
+        Cache::forget('gis.seniors_geojson.full');
+        Cache::forget('gis.seniors_geojson.generalized');
+
+        $this->actingAs($this->admin)
+            ->getJson('/api/gis/seniors')
+            ->assertStatus(200);
+        $this->actingAs($this->viewer)
+            ->getJson('/api/gis/seniors')
+            ->assertStatus(200);
+
+        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
+        $this->assertTrue(Cache::has('gis.seniors_geojson.generalized'));
+    }
+
+    #[Test]
     public function seniors_geojson_second_request_served_from_cache_without_db_queries(): void
     {
-        Cache::forget('gis.seniors_geojson');
+        Cache::forget('gis.seniors_geojson.full');
 
         // First request — populates cache
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
             ->assertStatus(200);
 
-        $this->assertTrue(Cache::has('gis.seniors_geojson'));
+        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
 
         // Second request — must be served from cache (no DB queries)
         DB::enableQueryLog();
@@ -104,13 +132,16 @@ class GisApiCachingTest extends TestCase
         // queue so the dispatch test never makes a real ORS call.
         Queue::fake();
 
-        Cache::put('gis.seniors_geojson', ['dummy' => true], now()->addMinutes(5));
-        $this->assertTrue(Cache::has('gis.seniors_geojson'));
+        Cache::put('gis.seniors_geojson.full', ['dummy' => true], now()->addMinutes(5));
+        Cache::put('gis.seniors_geojson.generalized', ['dummy' => true], now()->addMinutes(5));
+        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
+        $this->assertTrue(Cache::has('gis.seniors_geojson.generalized'));
 
         $this->actingAs($this->admin)
             ->post(route('reports.gis.geocode'))
             ->assertRedirect();
 
-        $this->assertFalse(Cache::has('gis.seniors_geojson'));
+        $this->assertFalse(Cache::has('gis.seniors_geojson.full'));
+        $this->assertFalse(Cache::has('gis.seniors_geojson.generalized'));
     }
 }

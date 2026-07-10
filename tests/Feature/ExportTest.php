@@ -34,6 +34,7 @@ class ExportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         // Ensure roles exist — idempotent whether or not UserSeeder has run.
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {

@@ -96,6 +96,7 @@ class QolSurveyForm extends Component
     public function mount(int $seniorId, ?int $surveyId = null): void
     {
         $this->senior = SeniorCitizen::findOrFail($seniorId);
+        $this->authorize('update', $this->senior);
         $this->surveyDate = now()->format('Y-m-d');
 
         if ($surveyId) {
@@ -116,6 +117,18 @@ class QolSurveyForm extends Component
 
     private function validateSection(): void
     {
+        // Section H (step 8) is intentionally skippable, so it can't use the
+        // uniform "required" rule the other sections share — validate it
+        // separately as optional-but-bounded instead.
+        if ($this->step === 8) {
+            $this->validate([
+                'h1' => 'nullable|integer|min:1|max:5',
+                'h2' => 'nullable|integer|min:1|max:5',
+            ]);
+
+            return;
+        }
+
         $required = match ($this->step) {
             1 => ['a1' => $this->a1, 'a2' => $this->a2, 'a3' => $this->a3, 'a4' => $this->a4],
             2 => ['b1' => $this->b1, 'b2' => $this->b2, 'b3' => $this->b3, 'b4' => $this->b4, 'b5' => $this->b5],
@@ -124,7 +137,7 @@ class QolSurveyForm extends Component
             5 => ['e1' => $this->e1, 'e2' => $this->e2, 'e3' => $this->e3, 'e4' => $this->e4, 'e5' => $this->e5],
             6 => ['f1' => $this->f1, 'f2' => $this->f2, 'f3' => $this->f3, 'f4' => $this->f4],
             7 => ['g1' => $this->g1, 'g2' => $this->g2, 'g3' => $this->g3],
-            default => [],  // Section H is optional
+            default => [],
         };
 
         $rules = array_fill_keys(array_keys($required), 'required|integer|min:1|max:5');
@@ -157,6 +170,10 @@ class QolSurveyForm extends Component
 
     public function submitSurvey(): void
     {
+        // Livewire network calls bypass HTTP route middleware, so enforce policy here
+        // (single source of truth: SeniorCitizenPolicy, same role gate as before).
+        $this->authorize('update', $this->senior);
+
         $this->isProcessing = true;
 
         $data = [
@@ -214,17 +231,21 @@ class QolSurveyForm extends Component
         // stay on-screen for the gap between this response and the browser actually
         // navigating away — resetting them here exposed the enabled submit button
         // underneath for a moment before the redirect took effect.
-        $this->redirect(route('seniors.show', $this->senior->id));
+        $this->redirect(route('seniors.show', $this->senior));
     }
 
     public function saveDraft(): void
     {
+        // Livewire network calls bypass HTTP route middleware, so enforce policy here
+        // (single source of truth: SeniorCitizenPolicy, same role gate as before).
+        $this->authorize('update', $this->senior);
+
         $this->survey = QolSurvey::updateOrCreate(
             ['senior_citizen_id' => $this->senior->id, 'status' => 'draft'],
             array_merge($this->currentData(), ['status' => 'draft', 'step' => $this->step])
         );
         session()->flash('success', 'Draft saved.');
-        $this->redirect(route('surveys.qol.create', $this->senior->id));
+        $this->redirect(route('surveys.qol.create', $this->senior));
     }
 
     private function currentData(): array

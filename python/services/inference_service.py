@@ -48,7 +48,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB — generous for a single/batch senior payload
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+# Shared-secret check for every request except /health, which Laravel's
+# MlService::startServices()/stopServices()/healthCheck() poll before/without
+# knowing whether a token is even configured. Empty ML_SERVICE_TOKEN disables
+# enforcement (matches MlService::authHeaders() sending no header in that case).
+# Note: /model_insights is NOT exempted — it's an authenticated GET like the
+# POST routes, unlike /health which must stay reachable unconditionally.
+EXPECTED_TOKEN = os.environ.get("ML_SERVICE_TOKEN", "")
+
+
+@app.before_request
+def _check_internal_token():
+    if request.path == "/health":
+        return  # health checks stay open — polled before/without auth context by Laravel's service-management commands
+    if EXPECTED_TOKEN and request.headers.get("X-Internal-Api-Key") != EXPECTED_TOKEN:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
 
 def _resolve_model_dir() -> str:
@@ -2517,6 +2534,7 @@ def infer_endpoint():
         if not payload or not isinstance(payload, dict):
             return jsonify({"status": "error", "message": "Expected JSON object payload"}), 400
 
+        logger.info("Infer request: senior_id=%s", payload.get("senior_id"))
         result = infer(payload)
         return jsonify(result)
     except Exception as exc:
@@ -2531,6 +2549,7 @@ def batch_infer_endpoint():
         if not isinstance(batch, list):
             return jsonify({"status": "error", "message": "Expected JSON array"}), 400
 
+        logger.info("Batch infer request: %d items", len(batch))
         results = []
         for idx, item in enumerate(batch):
             if not isinstance(item, dict):

@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Facility;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Support\AccessibilityBand;
+use App\Support\CoordinatePrivacy;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SeniorCitizenController extends Controller
 {
+    public function __construct(private CoordinatePrivacy $coordinatePrivacy) {}
+
     public function index(Request $request)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
             ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
@@ -62,6 +68,10 @@ class SeniorCitizenController extends Controller
 
     public function show(SeniorCitizen $senior)
     {
+        $this->authorize('view', $senior);
+
+        ActivityLog::record('viewed', $senior, "Senior profile viewed: {$senior->full_name}");
+
         $senior->load([
             'qolSurveys' => fn ($q) => $q->latest()->limit(5),
             'latestMlResult.recommendations',
@@ -111,17 +121,49 @@ class SeniorCitizenController extends Controller
      * those rows to road distance client-side (after render) via the same
      * /api/gis/route-distance proxy the GIS map popup uses, persisting the
      * result so the next render serves it from cache.
+     *
+     * Coordinate privacy: viewer role never sees the senior's real stored
+     * coordinate, even when a verified GPS pin exists — see
+     * effectiveLocationDisplay(). The effective coordinate is resolved ONCE,
+     * before any facility ranking happens, and that single value drives BOTH
+     * the facility distance calculations below AND the final `location`
+     * display value. Facility coordinates are public knowledge (hospitals,
+     * barangay halls, etc.), so computing distances against the real senior
+     * position while only fuzzing the displayed pin would let a viewer
+     * trilaterate the real location back out from 3+ facility distances —
+     * this method structurally can't do that because there is only one
+     * coordinate in scope past the top of the method.
      */
     private function locationPanel(SeniorCitizen $senior): array
     {
         $metric = $senior->latestAccessibilityMetric;
-        $seniorLat = $senior->latitude !== null ? (float) $senior->latitude : null;
-        $seniorLng = $senior->longitude !== null ? (float) $senior->longitude : null;
+        $fullPrecision = (bool) auth()->user()?->hasAnyRole(['admin', 'encoder']);
+        $loc = $this->effectiveLocationDisplay($senior, $fullPrecision);
+        $seniorLat = $loc['lat'];
+        $seniorLng = $loc['lng'];
 
         $facilities = [];
 
         if ($seniorLat !== null && $seniorLng !== null) {
-            $routeByFacility = $senior->facilityRouteDistances->keyBy('facility_id');
+            // Cached road routes (senior_facility_route_distances) were computed
+            // from the senior's REAL stored coordinates. A viewer only ever sees
+            // a generalized point here, so:
+            //   (a) a cached route can never legitimately be "fresh" for it — and
+            //       even a coincidental match would leak a road-network distance
+            //       computed from the true pin, which is strictly more precise
+            //       positional information than the generalized straight-line
+            //       distance this panel intends to show;
+            //   (b) the row must not offer the client-side lazy-route-upgrade
+            //       hook either, since that hook POSTs `data-origin-lat/lng` to
+            //       /api/gis/route-distance and the response is persisted keyed
+            //       only by (senior_id, facility_id) — upgrading from a
+            //       generalized origin would silently overwrite the real cached
+            //       route admin/encoder rely on.
+            // So viewer always gets straight-line-only distances with no route
+            // lookup, computed locally, zero live calls either way.
+            $routeByFacility = $fullPrecision
+                ? $senior->facilityRouteDistances->keyBy('facility_id')
+                : collect();
 
             // The nearest facility of each senior-relevant type (one per type),
             // ordered by distance — mirrors the GIS map popup so both surfaces
@@ -150,15 +192,17 @@ class SeniorCitizenController extends Controller
                 // Only trust a cached road distance whose endpoints still match the
                 // senior's and facility's current coordinates — same staleness
                 // contract GisApiController uses before serving a cached route.
-                $route = $routeByFacility->get($facility->id);
-                $routeFresh = $route
+                $route = $fullPrecision ? $routeByFacility->get($facility->id) : null;
+                $routeFresh = $fullPrecision && $route
                     && $this->coordinatesMatch($route->origin_latitude, $seniorLat)
                     && $this->coordinatesMatch($route->origin_longitude, $seniorLng)
                     && $this->coordinatesMatch($route->destination_latitude, $facilityLat)
                     && $this->coordinatesMatch($route->destination_longitude, $facilityLng);
 
                 $facilities[] = [
-                    'facility_id' => $facility->id,
+                    // Withheld (null) for viewer so the view's $needsRoute check
+                    // never fires — see the docblock note above.
+                    'facility_id' => $fullPrecision ? $facility->id : null,
                     'key' => $this->facilityTypeKey($facility->type),
                     'label' => $facility->type ?: 'Service',
                     'name' => $facility->name ?: ($facility->type ?: 'Senior service'),
@@ -179,11 +223,45 @@ class SeniorCitizenController extends Controller
         $band = AccessibilityBand::classify($percent);
 
         return [
-            'location' => $senior->locationDisplay(),
+            'location' => $loc,
             'facilities' => $facilities,
             'percent' => $percent,
             'status' => $band['label'] ?? null,
             'band' => $band,
+        ];
+    }
+
+    /**
+     * The one coordinate `locationPanel()` is allowed to use, resolved before
+     * any facility work happens. Admin/encoder: unchanged — `SeniorCitizen::
+     * locationDisplay()`'s existing status/label semantics ('none' / 'verified'
+     * / 'approximate'), auth-unaware, exactly as before this task.
+     *
+     * Viewer: when there genuinely is no stored coordinate, 'none' is not
+     * sensitive (there's nothing to hide), so it passes through unchanged too.
+     * Otherwise viewer ALWAYS gets the deterministic barangay-generalized point
+     * via CoordinatePrivacy — even for a senior with a real, field-verified GPS
+     * pin — tagged with a distinct 'generalized_privacy' status/label so the
+     * panel can honestly say "this is generalized because of your role" rather
+     * than silently reusing the 'approximate' (data-quality) wording, which
+     * would misleadingly claim "no GPS pin on record" when one actually exists.
+     */
+    private function effectiveLocationDisplay(SeniorCitizen $senior, bool $fullPrecision): array
+    {
+        $display = $senior->locationDisplay();
+
+        if ($fullPrecision || $display['status'] === 'none') {
+            return $display;
+        }
+
+        [$lat, $lng] = $this->coordinatePrivacy->resolve($senior, false);
+
+        return [
+            'status' => 'generalized_privacy',
+            'lat' => $lat,
+            'lng' => $lng,
+            'label' => 'Generalized for your role — exact coordinates are restricted.',
+            'source' => $senior->location_source,
         ];
     }
 
@@ -246,11 +324,15 @@ class SeniorCitizenController extends Controller
 
     public function edit(SeniorCitizen $senior)
     {
+        $this->authorize('update', $senior);
+
         return view('seniors.edit', compact('senior'));
     }
 
     public function destroy(SeniorCitizen $senior)
     {
+        $this->authorize('delete', $senior);
+
         // Cascade soft-delete: recommendations → ml_results → surveys → senior
         Recommendation::where('senior_citizen_id', $senior->id)->delete();
         MlResult::where('senior_citizen_id', $senior->id)->delete();
@@ -376,6 +458,10 @@ class SeniorCitizenController extends Controller
 
     public function export(SeniorCitizen $senior)
     {
+        $this->authorize('export', $senior);
+
+        ActivityLog::record('exported', $senior, "Senior profile PDF exported: {$senior->full_name}");
+
         $senior->load(['latestMlResult.recommendations', 'latestQolSurvey']);
         $pdf = Pdf::loadView('seniors.pdf', compact('senior'))
             ->setPaper('a4', 'portrait');

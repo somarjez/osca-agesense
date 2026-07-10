@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessMlBatch;
 use App\Jobs\ProcessMlSingle;
+use App\Models\ActivityLog;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
@@ -128,6 +129,8 @@ class MlController extends Controller
             return response()->json(['error' => 'No eligible seniors found.'], 422);
         }
 
+        ActivityLog::record('ml_batch_triggered', auth()->user(), 'Batch ML analysis triggered for '.count($seniorIds).' seniors');
+
         $chunks = array_chunk($seniorIds, 100);
         $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
 
@@ -201,6 +204,8 @@ class MlController extends Controller
         if (! $survey) {
             return response()->json(['error' => 'No QoL survey found for this senior.'], 422);
         }
+
+        ActivityLog::record('ml_run_triggered', $senior, "ML analysis triggered for {$senior->full_name}");
 
         ProcessMlSingle::dispatch($senior->id, $survey->id);
 

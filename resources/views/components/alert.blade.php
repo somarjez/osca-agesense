@@ -11,5 +11,5 @@
     @if ($title)
         <p class="font-semibold text-sm mb-0.5">{{ $title }}</p>
     @endif
-    <div class="text-sm leading-relaxed">{!! $slot !!}</div>
+    <div class="text-sm leading-relaxed">{{ $slot }}</div>
 </div>

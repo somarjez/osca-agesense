@@ -25,7 +25,7 @@ Route::middleware('guest')->group(function () {
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));
-    });
+    })->middleware('throttle:login');
 });
 
 Route::post('/logout', function (Request $request) {

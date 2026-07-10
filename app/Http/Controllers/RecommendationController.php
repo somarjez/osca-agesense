@@ -10,6 +10,8 @@ class RecommendationController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
         $stats = [
             'total' => Recommendation::current()->count(),
             'pending' => Recommendation::current()->where('status', 'pending')->count(),
@@ -48,6 +50,8 @@ class RecommendationController extends Controller
 
     public function show(SeniorCitizen $senior)
     {
+        $this->authorize('view', $senior);
+
         $recommendations = $senior->currentRecommendations()
             ->with('mlResult')
             ->orderBy('priority')

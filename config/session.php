@@ -170,7 +170,14 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // NOTE: app()->environment() cannot be called here — this file is
+    // required by Illuminate\Foundation\Bootstrap\LoadConfiguration before
+    // Application::detectEnvironment() binds the 'env' value in the
+    // container, so app()->environment() throws ("Class env does not
+    // exist") during every boot, not just tests. config('app.env') itself
+    // resolves to env('APP_ENV', 'production'), so reading APP_ENV directly
+    // here is equivalent and safe at this point in the boot sequence.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV', 'production') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

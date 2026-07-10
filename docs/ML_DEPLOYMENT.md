@@ -350,10 +350,17 @@ Switching this setting requires restarting both Flask services (stop.bat → sta
 | `OMP_NUM_THREADS` | `1` | Set in code at startup. One OpenMP thread. |
 | `PYTHON_INFERENCE_PORT` | `5002` | Port for the inference Flask service. |
 | `PYTHON_PREPROCESS_PORT` | `5001` | Port for the preprocess Flask service. |
+| `ML_SERVICE_TOKEN` | *(blank)* | Shared secret Laravel sends as `X-Internal-Api-Key` on every preprocess/infer/batch_preprocess/batch_infer request; both Flask services check it in a `before_request` hook. Must be set to the **same value** on the Laravel side (`.env`) and wherever the Flask services run. Blank disables enforcement on both sides — fine for local dev, not recommended once the services are reachable from anywhere else. `/health` is always exempt from this check. |
 
 The three NUMBA/OMP variables are set automatically in `inference_service.py` using `os.environ.setdefault()`. They do not need to be in `.env` under normal conditions.
 
 `ENABLE_DETERMINISTIC_CLUSTER=true` is the default in `.env` and is required for consistent results across devices. Do not set it to `false` unless intentionally testing the legacy UMAP path.
+
+### A note on `app.run(host="0.0.0.0", ...)`
+
+Both Flask services bind to `0.0.0.0` (all interfaces), not `127.0.0.1` (loopback only). This is a deliberate, unchanged tradeoff, not an oversight: this project's "Shared Remote MySQL" setup for multi-device defense/pilot demos implies the Flask services may need to be reachable from other devices on the same LAN, not just from the Laravel host itself. Rebinding to `127.0.0.1` would silently break that cross-device workflow.
+
+If your deployment never needs LAN reachability for the ML services (single-machine setups are the common case), you can harden this locally by changing `host="0.0.0.0"` to `host="127.0.0.1"` in both `preprocess_service.py` and `inference_service.py`'s `if __name__ == "__main__":` blocks. Combine this with a non-blank `ML_SERVICE_TOKEN` for defense in depth: the token stops an unauthenticated caller from using the API even if they can reach the port, while the loopback bind stops the port from being reachable at all from outside the host.
 
 ---
 

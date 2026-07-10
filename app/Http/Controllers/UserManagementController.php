@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
@@ -24,14 +24,9 @@ class UserManagementController extends Controller
         return view('users.create', compact('roles'));
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email:filter', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
-        ]);
+        $data = $request->validated();
 
         $user = User::create([
             'name' => $data['name'],
@@ -45,17 +40,9 @@ class UserManagementController extends Controller
             ->with('success', "Account for {$user->name} created.");
     }
 
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
-        // Editing happens in a per-row modal on the index. Use a user-scoped error
-        // bag so a failed validation re-opens that user's modal with its own errors
-        // instead of leaking messages onto every other row's form.
-        $data = $request->validateWithBag("editUser{$user->id}", [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email:filter', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::in(['admin', 'encoder', 'viewer'])],
-        ]);
+        $data = $request->validated();
 
         $user->update([
             'name' => $data['name'],

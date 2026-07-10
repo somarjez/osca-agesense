@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -24,6 +25,7 @@ class ActivityLogDeleteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         foreach (['admin', 'encoder', 'viewer'] as $roleName) {
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
@@ -113,6 +115,28 @@ class ActivityLogDeleteTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
+    #[Test]
+    public function bulk_destroy_writes_a_warning_to_the_standard_log_channel(): void
+    {
+        Log::spy();
+
+        $logs = $this->createLogs(2);
+        $ids = $logs->pluck('id')->toArray();
+
+        $this->actingAs($this->admin)
+            ->delete(route('activity-log.bulk-destroy'), ['ids' => $ids])
+            ->assertRedirect();
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('Activity log entries deleted', \Mockery::on(function ($context) {
+                return $context['action'] === 'bulk_destroy'
+                    && $context['count'] === 2
+                    && array_key_exists('user_id', $context)
+                    && array_key_exists('ip', $context);
+            }));
+    }
+
     // ── clear ─────────────────────────────────────────────────────────────
 
     #[Test]
@@ -151,5 +175,27 @@ class ActivityLogDeleteTest extends TestCase
     {
         $this->delete(route('activity-log.clear'))
             ->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function clear_writes_a_warning_to_the_standard_log_channel(): void
+    {
+        Log::spy();
+
+        $this->createLogs(3);
+        $countBefore = ActivityLog::count();
+
+        $this->actingAs($this->admin)
+            ->delete(route('activity-log.clear'))
+            ->assertRedirect(route('activity-log.index'));
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('Activity log entries deleted', \Mockery::on(function ($context) use ($countBefore) {
+                return $context['action'] === 'clear'
+                    && $context['count'] === $countBefore
+                    && array_key_exists('user_id', $context)
+                    && array_key_exists('ip', $context);
+            }));
     }
 }

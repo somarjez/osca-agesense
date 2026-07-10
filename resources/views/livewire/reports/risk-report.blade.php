@@ -155,7 +155,7 @@
                             {{ number_format($result->wellbeing_score, 2) }}
                         </td>
                         <td class="td text-right">
-                            <a href="{{ route('seniors.show', $result->senior_citizen_id) }}"
+                            <a href="{{ route('seniors.show', $senior) }}"
                                class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">
                                 View →
                             </a>

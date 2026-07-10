@@ -8,9 +8,13 @@ use Illuminate\Http\Request;
 
 class SurveyController extends Controller
 {
-    public function profileCreate(?int $senior = null)
+    public function profileCreate(?SeniorCitizen $senior = null)
     {
-        $s = $senior ? SeniorCitizen::findOrFail($senior) : null;
+        $senior
+            ? $this->authorize('update', $senior)
+            : $this->authorize('create', SeniorCitizen::class);
+
+        $s = $senior;
 
         return view('seniors.create', compact('s'));
     }
@@ -33,6 +37,8 @@ class SurveyController extends Controller
 
     public function qolCreate(SeniorCitizen $senior)
     {
+        $this->authorize('update', $senior);
+
         $draft = $senior->qolSurveys()->where('status', 'draft')->latest()->first();
 
         return view('surveys.qol.create', [
@@ -50,11 +56,11 @@ class SurveyController extends Controller
 
     public function qolDestroy(QolSurvey $survey)
     {
-        $seniorId = $survey->senior_citizen_id;
+        $senior = $survey->seniorCitizen;
         $survey->delete();
 
         if (request()->headers->get('referer') && str_contains(request()->headers->get('referer'), '/seniors/')) {
-            return redirect()->route('seniors.show', $seniorId)
+            return redirect()->route('seniors.show', $senior)
                 ->with('success', 'QoL survey deleted.');
         }
 

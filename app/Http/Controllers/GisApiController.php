@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RouteDistanceRequest;
 use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorFacilityRouteFailure;
 use App\Support\AccessibilityBand;
+use App\Support\CoordinatePrivacy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -18,12 +20,15 @@ class GisApiController extends Controller
 {
     private ?array $barangayBoundaryFeatures = null;
 
+    public function __construct(private CoordinatePrivacy $coordinatePrivacy) {}
+
     public function seniors(Request $request): JsonResponse
     {
         $barangayFilter = $request->query('barangay');
+        $precisionMode = $this->precisionMode();
         $cacheKey = ($barangayFilter && $barangayFilter !== 'all')
-            ? 'gis.seniors_geojson.'.md5($barangayFilter)
-            : 'gis.seniors_geojson';
+            ? 'gis.seniors_geojson.'.$precisionMode.'.'.md5($barangayFilter)
+            : 'gis.seniors_geojson.'.$precisionMode;
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($barangayFilter) {
             $query = SeniorCitizen::active()
@@ -35,7 +40,7 @@ class GisApiController extends Controller
             }
 
             $seniors = $query->get([
-                'id', 'osca_id', 'first_name', 'middle_name', 'last_name',
+                'id', 'uuid', 'osca_id', 'first_name', 'middle_name', 'last_name',
                 'name_extension', 'barangay', 'date_of_birth', 'latitude',
                 'longitude', 'location_source', 'location_accuracy',
             ]);
@@ -107,6 +112,7 @@ class GisApiController extends Controller
                         'age' => $senior->age,
                         'composite_risk' => $latestResult?->composite_risk,
                         'senior_id' => $senior->id,
+                        'senior_uuid' => $senior->uuid,
                         'senior_name' => $senior->full_name,
                         'osca_id' => $senior->osca_id,
                         'barangay' => $barangay,
@@ -226,16 +232,9 @@ class GisApiController extends Controller
         );
     }
 
-    public function routeDistance(Request $request): JsonResponse
+    public function routeDistance(RouteDistanceRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'origin_lat' => ['required', 'numeric', 'between:-90,90'],
-            'origin_lng' => ['required', 'numeric', 'between:-180,180'],
-            'destination_lat' => ['required', 'numeric', 'between:-90,90'],
-            'destination_lng' => ['required', 'numeric', 'between:-180,180'],
-            'senior_id' => ['nullable', 'integer', 'exists:senior_citizens,id'],
-            'facility_id' => ['nullable', 'integer', 'exists:facilities,id'],
-        ]);
+        $validated = $request->validated();
 
         $cachedRoute = $this->cachedRouteDistance($validated);
         if ($cachedRoute) {
@@ -327,9 +326,43 @@ class GisApiController extends Controller
             'duration' => isset($summary['duration']) ? round((float) $summary['duration'], 2) : null,
         ];
 
-        $this->storeRouteDistance($validated, $route);
+        if ($this->shouldPersistRouteDistance($validated)) {
+            $this->storeRouteDistance($validated, $route);
+        }
 
         return response()->json($route);
+    }
+
+    /**
+     * Guards the shared route-distance cache against corruption by a
+     * non-full-precision caller. Viewers only ever see a barangay-generalized
+     * origin point for a senior (see coordinatesForSenior()/fullPrecision()),
+     * so a viewer who supplies a senior_id here has no legitimate reason to
+     * also know that senior's real coordinates. If a senior_id is present and
+     * the caller lacks full precision, only persist when the supplied origin
+     * actually matches the senior's real stored coordinates — otherwise we'd
+     * overwrite a previously-cached accurate route with one computed from an
+     * arbitrary/generalized origin, destroying the cache and wasting external
+     * API quota for every other viewer of that senior/facility pair. The live
+     * distance is still computed and returned either way; only the cache
+     * write is skipped.
+     */
+    private function shouldPersistRouteDistance(array $validated): bool
+    {
+        $seniorId = $validated['senior_id'] ?? null;
+
+        if ($seniorId === null || $this->fullPrecision()) {
+            return true;
+        }
+
+        $senior = SeniorCitizen::find($seniorId);
+
+        if (! $senior) {
+            return false;
+        }
+
+        return $this->coordinatesMatch($senior->latitude, (float) $validated['origin_lat'])
+            && $this->coordinatesMatch($senior->longitude, (float) $validated['origin_lng']);
     }
 
     private function cachedRouteFailure(array $validated): ?array
@@ -455,20 +488,22 @@ class GisApiController extends Controller
 
     private function routeCacheCoordinatesMatch(array $validated, object $route): bool
     {
-        $pairs = [
-            [(float) $validated['origin_lat'], (float) $route->origin_latitude],
-            [(float) $validated['origin_lng'], (float) $route->origin_longitude],
-            [(float) $validated['destination_lat'], (float) $route->destination_latitude],
-            [(float) $validated['destination_lng'], (float) $route->destination_longitude],
-        ];
+        return $this->coordinatesMatch($route->origin_latitude, (float) $validated['origin_lat'])
+            && $this->coordinatesMatch($route->origin_longitude, (float) $validated['origin_lng'])
+            && $this->coordinatesMatch($route->destination_latitude, (float) $validated['destination_lat'])
+            && $this->coordinatesMatch($route->destination_longitude, (float) $validated['destination_lng']);
+    }
 
-        foreach ($pairs as [$current, $cached]) {
-            if (abs($current - $cached) > 0.000001) {
-                return false;
-            }
-        }
-
-        return true;
+    /**
+     * Two stored coordinate values refer to the same point (within rounding).
+     * Canonical 1e-6 tolerance for this codebase — mirrored by
+     * SeniorCitizenController::coordinatesMatch() and
+     * ScoreGisProximity::coordinatesMatch() for the same kind of
+     * floating-point-tolerant lat/lng comparison.
+     */
+    private function coordinatesMatch(mixed $stored, float $current): bool
+    {
+        return $stored !== null && abs((float) $stored - $current) <= 0.000001;
     }
 
     private function openRouteServiceVerifyOption(): bool|string
@@ -634,92 +669,27 @@ class GisApiController extends Controller
         return $band['short'] ?? 'No accessibility score available';
     }
 
+    /**
+     * Role-gated coordinate for a senior. Admin/encoder get exact-precision
+     * behavior unchanged (verified/imported/generalized-for-missing-data);
+     * viewer always gets the deterministic barangay-generalized point, even
+     * when a real verified GPS pin exists. See CoordinatePrivacy::resolve().
+     */
     private function coordinatesForSenior(SeniorCitizen $senior): array
     {
-        if ($this->hasValidCoordinates($senior->latitude, $senior->longitude)) {
-            $source = strtolower((string) $senior->location_source);
-            $accuracy = strtolower((string) $senior->location_accuracy);
-            $verifiedSources = ['manual_pin', 'gps_capture'];
-            $isVerified = in_array($source, $verifiedSources, true)
-                || str_contains($accuracy, 'verified')
-                || str_contains($accuracy, 'manual');
-
-            return [
-                (float) $senior->latitude,
-                (float) $senior->longitude,
-                $isVerified ? 'verified' : 'imported',
-            ];
-        }
-
-        return [...$this->generalizedCoordinatesForSenior($senior), 'generalized'];
+        return $this->coordinatePrivacy->resolve($senior, $this->fullPrecision());
     }
 
-    private function hasValidCoordinates(mixed $latitude, mixed $longitude): bool
+    /** Admin/encoder see exact coordinates; every other role gets generalized. */
+    private function fullPrecision(): bool
     {
-        if ($latitude === null || $longitude === null) {
-            return false;
-        }
-
-        $lat = filter_var($latitude, FILTER_VALIDATE_FLOAT);
-        $lng = filter_var($longitude, FILTER_VALIDATE_FLOAT);
-
-        return $lat !== false
-            && $lng !== false
-            && $lat >= -90
-            && $lat <= 90
-            && $lng >= -180
-            && $lng <= 180;
+        return (bool) auth()->user()?->hasAnyRole(['admin', 'encoder']);
     }
 
-    private function generalizedCoordinatesForSenior(SeniorCitizen $senior): array
+    /** Cache-key dimension for coordinatesForSenior()'s role gate — see seniors(). */
+    private function precisionMode(): string
     {
-        $seed = sprintf('%s|%s|%s', $senior->id, $senior->osca_id, $senior->barangay);
-        $boundaryFeature = $this->barangayBoundaryFeature((string) $senior->barangay);
-
-        if ($boundaryFeature) {
-            $point = $this->deterministicPointInsideBoundary($boundaryFeature, $seed);
-
-            if ($point) {
-                return $point;
-            }
-        }
-
-        $anchor = $this->barangayAnchors()[$senior->barangay] ?? [14.2708, 121.4560];
-        $hash = md5($seed);
-
-        $latOffset = $this->hashToOffset(substr($hash, 0, 8), 0.0016);
-        $lngOffset = $this->hashToOffset(substr($hash, 8, 8), 0.0018);
-
-        // Generalize each point around a barangay anchor so the GIS view remains
-        // useful without revealing exact home locations.
-        return [
-            round($anchor[0] + $latOffset, 7),
-            round($anchor[1] + $lngOffset, 7),
-        ];
-    }
-
-    private function barangayBoundaryFeature(string $barangay): ?array
-    {
-        $normalizedBarangay = $this->normalizeBarangayName($barangay);
-
-        foreach ($this->barangayBoundaryFeatures() as $feature) {
-            $properties = $feature['properties'] ?? [];
-            $label = $properties['name']
-                ?? $properties['NAME']
-                ?? $properties['barangay']
-                ?? $properties['BARANGAY']
-                ?? $properties['brgy_name']
-                ?? $properties['BRGY_NAME']
-                ?? $properties['ADM4_EN']
-                ?? $properties['adm4_en']
-                ?? null;
-
-            if ($this->normalizeBarangayName((string) $label) === $normalizedBarangay) {
-                return $feature;
-            }
-        }
-
-        return null;
+        return $this->fullPrecision() ? 'full' : 'generalized';
     }
 
     private function boundaryFeatureName(array $feature): string
@@ -780,193 +750,6 @@ class GisApiController extends Controller
         return trim($normalized);
     }
 
-    private function representativePointForBoundary(array $feature, string $barangay): ?array
-    {
-        $point = $this->deterministicPointInsideBoundary($feature, 'barangay-centroid|'.$barangay);
-
-        if ($point) {
-            return $point;
-        }
-
-        $rings = $this->polygonRings($feature);
-        $center = $rings ? $this->ringAveragePoint($rings[0]) : null;
-
-        return $center ? [round($center[1], 7), round($center[0], 7)] : null;
-    }
-
-    private function deterministicPointInsideBoundary(array $feature, string $seed): ?array
-    {
-        $rings = $this->polygonRings($feature);
-        if (! $rings) {
-            return null;
-        }
-
-        $bounds = $this->coordinateBounds($rings);
-        if (! $bounds) {
-            return null;
-        }
-
-        [$minLng, $minLat, $maxLng, $maxLat] = $bounds;
-
-        for ($attempt = 0; $attempt < 120; $attempt++) {
-            $hash = md5($seed.'|'.$attempt);
-            $lngRatio = hexdec(substr($hash, 0, 8)) / 0xFFFFFFFF;
-            $latRatio = hexdec(substr($hash, 8, 8)) / 0xFFFFFFFF;
-            $lng = $minLng + (($maxLng - $minLng) * $lngRatio);
-            $lat = $minLat + (($maxLat - $minLat) * $latRatio);
-
-            if ($this->pointInsideRings([$lng, $lat], $rings)) {
-                return [round($lat, 7), round($lng, 7)];
-            }
-        }
-
-        $center = $this->ringAveragePoint($rings[0]);
-        if ($center && $this->pointInsideRings($center, $rings)) {
-            return [round($center[1], 7), round($center[0], 7)];
-        }
-
-        foreach ($rings[0] as $coordinate) {
-            if (is_array($coordinate) && count($coordinate) >= 2) {
-                return [round((float) $coordinate[1], 7), round((float) $coordinate[0], 7)];
-            }
-        }
-
-        return null;
-    }
-
-    private function polygonRings(array $feature): array
-    {
-        $geometry = $feature['geometry'] ?? null;
-        $type = $geometry['type'] ?? null;
-        $coordinates = $geometry['coordinates'] ?? null;
-
-        if ($type === 'Polygon' && is_array($coordinates)) {
-            return $coordinates;
-        }
-
-        if ($type === 'MultiPolygon' && is_array($coordinates)) {
-            $largestPolygon = [];
-            $largestArea = -1.0;
-
-            foreach ($coordinates as $polygon) {
-                if (! is_array($polygon) || ! isset($polygon[0]) || ! is_array($polygon[0])) {
-                    continue;
-                }
-
-                $area = abs($this->ringSignedArea($polygon[0]));
-                if ($area > $largestArea) {
-                    $largestPolygon = $polygon;
-                    $largestArea = $area;
-                }
-            }
-
-            return $largestPolygon;
-        }
-
-        return [];
-    }
-
-    private function coordinateBounds(array $rings): ?array
-    {
-        $lngValues = [];
-        $latValues = [];
-
-        foreach ($rings as $ring) {
-            foreach ($ring as $coordinate) {
-                if (! is_array($coordinate) || count($coordinate) < 2) {
-                    continue;
-                }
-
-                $lngValues[] = (float) $coordinate[0];
-                $latValues[] = (float) $coordinate[1];
-            }
-        }
-
-        if (! $lngValues || ! $latValues) {
-            return null;
-        }
-
-        return [min($lngValues), min($latValues), max($lngValues), max($latValues)];
-    }
-
-    private function pointInsideRings(array $point, array $rings): bool
-    {
-        if (! $rings || ! $this->pointInsideRing($point, $rings[0])) {
-            return false;
-        }
-
-        foreach (array_slice($rings, 1) as $hole) {
-            if ($this->pointInsideRing($point, $hole)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function pointInsideRing(array $point, array $ring): bool
-    {
-        $x = (float) $point[0];
-        $y = (float) $point[1];
-        $inside = false;
-        $count = count($ring);
-
-        for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
-                continue;
-            }
-
-            $xi = (float) $ring[$i][0];
-            $yi = (float) $ring[$i][1];
-            $xj = (float) $ring[$j][0];
-            $yj = (float) $ring[$j][1];
-
-            $intersects = (($yi > $y) !== ($yj > $y))
-                && ($x < (($xj - $xi) * ($y - $yi)) / (($yj - $yi) ?: PHP_FLOAT_EPSILON) + $xi);
-
-            if ($intersects) {
-                $inside = ! $inside;
-            }
-        }
-
-        return $inside;
-    }
-
-    private function ringSignedArea(array $ring): float
-    {
-        $area = 0.0;
-        $count = count($ring);
-
-        for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            if (! is_array($ring[$i]) || ! is_array($ring[$j]) || count($ring[$i]) < 2 || count($ring[$j]) < 2) {
-                continue;
-            }
-
-            $area += ((float) $ring[$j][0] * (float) $ring[$i][1]) - ((float) $ring[$i][0] * (float) $ring[$j][1]);
-        }
-
-        return $area / 2;
-    }
-
-    private function ringAveragePoint(array $ring): ?array
-    {
-        $lng = 0.0;
-        $lat = 0.0;
-        $count = 0;
-
-        foreach ($ring as $coordinate) {
-            if (! is_array($coordinate) || count($coordinate) < 2) {
-                continue;
-            }
-
-            $lng += (float) $coordinate[0];
-            $lat += (float) $coordinate[1];
-            $count++;
-        }
-
-        return $count > 0 ? [$lng / $count, $lat / $count] : null;
-    }
-
     private function boundaryResponse(string $path, string $label): JsonResponse
     {
         if (! Storage::disk('local')->exists($path)) {
@@ -1017,13 +800,6 @@ class GisApiController extends Controller
             200,
             ['Content-Type' => 'application/geo+json; charset=UTF-8']
         );
-    }
-
-    private function hashToOffset(string $hex, float $spread): float
-    {
-        $value = hexdec($hex) / 0xFFFFFFFF;
-
-        return ($value * 2 - 1) * $spread;
     }
 
     private function accessibilityScorePercent(mixed $score): ?float
@@ -1145,28 +921,6 @@ class GisApiController extends Controller
             + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($lngDelta / 2) ** 2;
 
         return $earthRadiusM * 2 * atan2(sqrt($a), sqrt(1 - $a));
-    }
-
-    private function barangayAnchors(): array
-    {
-        return [
-            'Anibong' => [14.2782, 121.4588],
-            'Biñan' => [14.2757, 121.4506],
-            'Buboy' => [14.2667, 121.4602],
-            'Calusiche' => [14.2629, 121.4524],
-            'Cabanbanan' => [14.2685, 121.4477],
-            'Dingin' => [14.2738, 121.4621],
-            'Lambac' => [14.2688, 121.4591],
-            'Layugan' => [14.2712, 121.4495],
-            'Magdapio' => [14.2748, 121.4562],
-            'Maulawin' => [14.2737, 121.4625],
-            'Pinagsanjan' => [14.2657, 121.4512],
-            'Barangay I (Poblacion)' => [14.2719, 121.4551],
-            'Barangay II (Poblacion)' => [14.2704, 121.4567],
-            'Sabang' => [14.2752, 121.4529],
-            'Sampaloc' => [14.2674, 121.4632],
-            'San Isidro' => [14.2639, 121.4583],
-        ];
     }
 
     private function sampleSeniorFeatures(): array
