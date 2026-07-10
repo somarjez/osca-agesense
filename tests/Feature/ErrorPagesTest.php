@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\View;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -162,7 +163,7 @@ class ErrorPagesTest extends TestCase
         // errors.500 Blade view used, or not) is what this test actually
         // needs to prove, and isn't fooled by incidental string matches.
         $this->assertFalse(
-            $response->original instanceof \Illuminate\View\View
+            $response->original instanceof View
                 && $response->original->getName() === 'errors.500',
             'Expected debug=true to bypass the custom errors.500 view and leave '.
             'Laravel\'s own debug rendering untouched.'

@@ -2,9 +2,13 @@
 
 use App\Http\Middleware\NoTimeLimit;
 use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -45,7 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // debug=false renders errors/500.blade.php instead. That is the actual
         // "zero effect on local dev" guarantee this closure provides, and it is
         // covered by ErrorPagesTest's debug-gated 500 test.
-        $exceptions->render(function (\Throwable $e, $request) {
+        $exceptions->render(function (Throwable $e, $request) {
             // Any JSON/API client always gets Laravel's normal JSON error
             // rendering — never one of our HTML views.
             if ($request->expectsJson()) {
@@ -56,9 +60,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // functional, not an information-disclosure risk, and must keep working:
             // redirect-back-with-errors, redirect-to-login, and a caller-supplied
             // response, respectively.
-            if ($e instanceof \Illuminate\Validation\ValidationException
-                || $e instanceof \Illuminate\Auth\AuthenticationException
-                || $e instanceof \Illuminate\Http\Exceptions\HttpResponseException) {
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof HttpResponseException) {
                 return null;
             }
 
@@ -70,7 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // defensive fallback in case that normalization behavior ever changes.
             if (method_exists($e, 'getStatusCode')) {
                 $status = $e->getStatusCode();
-            } elseif ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+            } elseif ($e instanceof AuthorizationException) {
                 $status = 403;
             } else {
                 // Genuine uncaught, non-HTTP exception → would become a 500. This
