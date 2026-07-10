@@ -394,6 +394,11 @@
         window.__oscaBound_dashboard = true;
         document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
         document.addEventListener('livewire:updated', boot);
+        // Immediate paint when first reached via SPA nav (document already
+        // loaded, so DOMContentLoaded won't refire); matches the sibling report
+        // scripts. On a full load readyState is 'loading', so DOMContentLoaded
+        // handles it and this line is skipped — no double render.
+        if (document.readyState !== 'loading') setTimeout(boot, 0);
         document.addEventListener('DOMContentLoaded', () => {
             observeDark();
             boot();
