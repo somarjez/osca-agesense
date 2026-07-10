@@ -292,36 +292,18 @@
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
 
                 {{-- ML Services status --}}
-                @php
-                    $navHealth = \Illuminate\Support\Facades\Cache::get('ml_nav_health');
-                    if ($navHealth === null) {
-                        try {
-                            $navHealth = app(\App\Services\MlService::class)->healthCheck();
-                        } catch (\Throwable) {
-                            $navHealth = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
-                        }
-                        // Cache online status for 30s; offline status for 15s so nav recovers quickly after start
-                        $navCacheTtl = ($navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok') ? 30 : 15;
-                        \Illuminate\Support\Facades\Cache::put('ml_nav_health', $navHealth, $navCacheTtl);
-                    }
-                    $navDotClass = match(true) {
-                        $navHealth['preprocessor'] === 'ok' && $navHealth['inference'] === 'ok' => 'status-dot-ok',
-                        $navHealth['local_runner'] === 'available'                              => 'status-dot-warn',
-                        default                                                                 => 'status-dot-err',
-                    };
-                    $navTitle = match($navDotClass) {
-                        'status-dot-ok'   => 'HTTP services online',
-                        'status-dot-warn' => 'HTTP services offline — using local fallback',
-                        default           => 'All analysis services unavailable',
-                    };
-                @endphp
-                <a href="{{ route('ml.status') }}"
-                   wire:navigate
+                <a href="{{ route('ml.status') }}" wire:navigate
+                   x-data="{ dot: 'checking', title: 'Checking analysis services…' }"
+                   x-init="fetch('{{ route('ml.nav-health') }}', { headers: { 'Accept': 'application/json' } })
+                             .then(r => r.ok ? r.json() : null)
+                             .then(d => { if (d) { dot = d.dot; title = d.title } })
+                             .catch(() => { dot = 'err'; title = 'Status unavailable' })"
                    class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
                           hover:text-ink-900 dark:hover:text-[#e4e1d8] hover:bg-paper-2 dark:hover:bg-[#202a26]
                           px-2 py-1.5 rounded-lg transition-all duration-150"
-                   title="{{ $navTitle }}">
-                    <span class="status-dot {{ $navDotClass }}"></span>
+                   :title="title">
+                    <span class="status-dot"
+                          :class="{ 'status-dot-ok': dot === 'ok', 'status-dot-warn': dot === 'warn', 'status-dot-err': dot === 'err' }"></span>
                     <span class="font-medium hidden sm:inline text-[11.5px]">Services</span>
                 </a>
 
