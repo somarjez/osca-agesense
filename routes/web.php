@@ -4,6 +4,8 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GisApiController;
 use App\Http\Controllers\HelpController;
+use App\Services\MlService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -14,6 +16,34 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:admin,encoder,viewer')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
         Route::get('/help', HelpController::class)->name('help');
+
+        // Cached ML nav-health status for the topbar dot, fetched async after
+        // paint. Reuses the same `ml_nav_health` cache key and 30s(online)/
+        // 15s(offline) TTL as the inline check in layouts/app.blade.php.
+        Route::get('/ml/nav-health', function () {
+            $health = Cache::get('ml_nav_health');
+            if ($health === null) {
+                try {
+                    $health = app(MlService::class)->healthCheck();
+                } catch (Throwable) {
+                    $health = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
+                }
+                $ttl = ($health['preprocessor'] === 'ok' && $health['inference'] === 'ok') ? 30 : 15;
+                Cache::put('ml_nav_health', $health, $ttl);
+            }
+            $dot = match (true) {
+                $health['preprocessor'] === 'ok' && $health['inference'] === 'ok' => 'ok',
+                ($health['local_runner'] ?? null) === 'available' => 'warn',
+                default => 'err',
+            };
+            $title = match ($dot) {
+                'ok' => 'HTTP services online',
+                'warn' => 'HTTP services offline — using local fallback',
+                default => 'All analysis services unavailable',
+            };
+
+            return response()->json(['dot' => $dot, 'title' => $title]);
+        })->name('ml.nav-health');
     });
 
     // Admin only

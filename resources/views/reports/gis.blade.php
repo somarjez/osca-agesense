@@ -5685,6 +5685,7 @@
             // Enlarge it so canvas-rendered vectors always cover the screen.
             renderer: window.L.canvas({ padding: 0.5 }),
         }).setView(PAGSANJAN_CENTER, DEFAULT_ZOOM);
+        (window.__oscaMaps = window.__oscaMaps || []).push(map);
         el._leaflet_map_instance = map;
         ensureMapPanes(map);
         ensureLayerRegistry(map);
@@ -5750,30 +5751,43 @@
     }
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
-    document.addEventListener('change', function (event) {
-        if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
-            if (event.target?.id === MODE_ID) {
-                // Swap the adaptive Risk/Health-Group filter immediately so the
-                // control updates before the debounced re-render runs.
-                syncSecondaryFilter();
-            }
-            debouncedRefresh();
-        }
-    });
-    document.addEventListener('DOMContentLoaded', renderMap);
-    document.addEventListener('livewire:navigated', () => setTimeout(renderMap, 0));
-    window.addEventListener('resize', () => {
-        const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
-        syncMapSize(map);
-    });
+    const bootMap = () => window.OSCA.maps().then(() => renderMap());
 
-    const themeObserver = new MutationObserver(() => {
-        const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
-        if (map) {
-            applyThemeToMap(map);
-        }
-    });
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    // Persistent (document/window-level) registrations guarded so they bind
+    // once per page session — the whole <script> tag re-executes on every
+    // wire:navigate navigation, and every handler below re-reads the map
+    // element / its dataset fresh via getElementById() at call time (renderMap
+    // re-fetches GeoJSON live, refreshRenderedLayer and applyThemeToMap look up
+    // the current Leaflet instance), so one bound listener/observer keeps
+    // working correctly across every future navigation.
+    if (!window.__oscaBound_gisMap) {
+        window.__oscaBound_gisMap = true;
+
+        document.addEventListener('change', function (event) {
+            if ([MODE_ID, BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID, CLUSTER_POINTS_TOGGLE_ID, SHOW_HEATMAP_SENIOR_POINTS_ID, SHOW_RISK_SENIOR_POINTS_ID, SHOW_SENIOR_POINTS_TOGGLE_ID, SHOW_BARANGAY_DENSITY_TOGGLE_ID].includes(event.target?.id)) {
+                if (event.target?.id === MODE_ID) {
+                    // Swap the adaptive Risk/Health-Group filter immediately so the
+                    // control updates before the debounced re-render runs.
+                    syncSecondaryFilter();
+                }
+                debouncedRefresh();
+            }
+        });
+        document.addEventListener('DOMContentLoaded', bootMap);
+        document.addEventListener('livewire:navigated', () => setTimeout(bootMap, 0));
+        window.addEventListener('resize', () => {
+            const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+            syncMapSize(map);
+        });
+
+        const themeObserver = new MutationObserver(() => {
+            const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+            if (map) {
+                applyThemeToMap(map);
+            }
+        });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    }
 })();
 </script>
 @endpush

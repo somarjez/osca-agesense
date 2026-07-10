@@ -1,11 +1,5 @@
 import './bootstrap'
-import Chart from 'chart.js/auto'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import 'leaflet.markercluster'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
-import 'leaflet.heat'
+import { loadCharts, loadMaps } from './loaders'
 
 // Alpine.js is managed by Livewire 3's bundled copy — do NOT import or start it
 // here. Importing a second Alpine instance breaks wire:click / wire:model.
@@ -83,27 +77,6 @@ document.addEventListener('alpine:init', () => {
     }))
 })
 
-// ── Chart.js global defaults ─────────────────────────────────────────────────
-Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif"
-Chart.defaults.font.size   = 11
-Chart.defaults.color       = '#64748b'
-Chart.defaults.plugins.legend.display = false
-Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)'
-Chart.defaults.plugins.tooltip.padding         = 10
-Chart.defaults.plugins.tooltip.cornerRadius    = 8
-Chart.defaults.plugins.tooltip.titleFont       = { weight: '600', size: 12 }
-Chart.defaults.plugins.tooltip.bodyFont        = { size: 11 }
-Chart.defaults.scale.grid.color               = 'rgba(0, 0, 0, 0.04)'
-Chart.defaults.scale.ticks.color              = '#94a3b8'
-// Entry animation default — Chart.js ships 1000ms. On GPU-less devices, six
-// dashboard charts animating at once (and re-animating on every filter) is the
-// worst CPU spike on the page. 300ms keeps a snappy reveal everywhere without
-// changing chart type, data, or interactivity. Per-chart configs inherit this.
-Chart.defaults.animation.duration             = 300
-
-// Make Chart.js available globally for Blade scripts
-window.Chart = Chart
-window.L = L
 
 // ── Livewire scroll preservation ─────────────────────────────────────────────
 // The layout uses <main class="overflow-y-auto"> as the scroll container.
@@ -128,6 +101,20 @@ document.addEventListener('qol-step-changed', function () {
     const main = document.querySelector('main')
     if (main) main.scrollTop = 0
     delete window.__livewireMainScroll  // cancel any pending restoration
+})
+
+// ── SPA navigation teardown ───────────────────────────────────────────────────
+// wire:navigate morphs the <body> without a full reload. Destroy live Chart.js
+// instances and Leaflet maps for the outgoing page so they don't leak or leave
+// a "canvas already in use" error when the next page re-inits on the same id.
+document.addEventListener('livewire:navigating', function () {
+    if (window.Chart && window.Chart.instances) {
+        Object.values(window.Chart.instances).forEach((c) => { try { c.destroy() } catch (e) {} })
+    }
+    if (window.__oscaMaps) {
+        window.__oscaMaps.forEach((m) => { try { m.remove() } catch (e) {} })
+        window.__oscaMaps = []
+    }
 })
 
 // ── KPI count-up ──────────────────────────────────────────────────────────────
@@ -179,10 +166,17 @@ window.OSCA = {
         return map[clusterId] ?? '#94a3b8'
     },
 
+    /** Lazy-load Chart.js (memoized). Resolves after window.Chart is set. */
+    charts() { return loadCharts() },
+
+    /** Lazy-load Leaflet + plugins (memoized). Resolves after window.L is set. */
+    maps() { return loadMaps() },
+
     /**
      * Build a minimal doughnut chart with center-text.
      */
     buildDoughnut(canvasId, labels, data, colors) {
+        if (!window.Chart) return null
         const ctx = document.getElementById(canvasId)
         if (!ctx) return null
         return new Chart(ctx, {
@@ -207,6 +201,7 @@ window.OSCA = {
      * Build a horizontal bar chart.
      */
     buildHBar(canvasId, labels, data, color = '#14b8a6') {
+        if (!window.Chart) return null
         const ctx = document.getElementById(canvasId)
         if (!ctx) return null
         return new Chart(ctx, {

@@ -374,7 +374,7 @@
         const observer = new MutationObserver((mutations) => {
             for (const m of mutations) {
                 if (m.attributeName === 'class') {
-                    setTimeout(render, 50);
+                    setTimeout(boot, 50);
                     break;
                 }
             }
@@ -382,11 +382,28 @@
         observer.observe(html, { attributes: true });
     }
 
-    document.addEventListener('livewire:navigated', () => setTimeout(render, 0));
-    document.addEventListener('livewire:updated', render);
-    document.addEventListener('DOMContentLoaded', () => {
-        observeDark();
-    });
+    const boot = () => window.OSCA.charts().then(() => render());
+
+    // Persistent (document-level) registrations must only bind once per page
+    // session: window survives wire:navigate SPA navigation, but this whole
+    // <script> tag re-executes on every navigation, so without this guard
+    // these listeners/observer would accumulate unboundedly. render() reads
+    // #dashboard-chart-data fresh at call time, so a single bound listener
+    // stays correct across every future navigation.
+    if (!window.__oscaBound_dashboard) {
+        window.__oscaBound_dashboard = true;
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        document.addEventListener('livewire:updated', boot);
+        // Immediate paint when first reached via SPA nav (document already
+        // loaded, so DOMContentLoaded won't refire); matches the sibling report
+        // scripts. On a full load readyState is 'loading', so DOMContentLoaded
+        // handles it and this line is skipped — no double render.
+        if (document.readyState !== 'loading') setTimeout(boot, 0);
+        document.addEventListener('DOMContentLoaded', () => {
+            observeDark();
+            boot();
+        });
+    }
 })();
 </script>
 @endpush

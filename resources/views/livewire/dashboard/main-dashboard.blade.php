@@ -1,4 +1,4 @@
-<div class="space-y-7" wire:poll.60s>
+<div class="space-y-7" wire:poll.300s>
 
     <x-page-header title="Dashboard" subtitle="OSCA senior citizen overview · Pagsanjan, Laguna" />
 

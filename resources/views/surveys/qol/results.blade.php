@@ -230,12 +230,14 @@
         });
     }
 
+    const boot = () => window.OSCA.charts().then(() => initDomainRadar());
+
     // Observe dark mode class changes and re-render chart
-    new MutationObserver(() => setTimeout(initDomainRadar, 50))
+    new MutationObserver(() => setTimeout(boot, 50))
         .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    document.addEventListener('livewire:navigated', () => setTimeout(initDomainRadar, 0));
-    initDomainRadar();
+    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    boot();
 })();
 </script>
 @endpush

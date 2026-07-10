@@ -35,7 +35,7 @@
         <p class="text-sm text-ink-500 dark:text-[#8a9087] mt-0.5">Filter and drill down by barangay, risk level, and domain scores.</p>
     </div>
 
-    <livewire:reports.risk-report />
+    <livewire:reports.risk-report lazy />
 
     {{-- ── Supporting analytics ── --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

@@ -1066,19 +1066,13 @@
 @push('scripts')
 <script>
 (function () {
-    let leafletWaitAttempts = 0;
-    const LEAFLET_MAX_ATTEMPTS = 40; // ~2s of 50ms polls, then give up
     function initSeniorMiniMap() {
         const el = document.getElementById('senior-mini-map');
         const dataEl = document.getElementById('senior-map-data');
         if (!el || !dataEl) return;
         if (el._leaflet_id) return;            // already initialized on this element
-        if (!window.L) {                       // app.js (deferred module) hasn't run yet
-            if (leafletWaitAttempts++ >= LEAFLET_MAX_ATTEMPTS) return; // Leaflet failed to load
-            setTimeout(initSeniorMiniMap, 50); // retry once Leaflet is on window
-            return;
-        }
-        leafletWaitAttempts = 0;               // reset so a later re-init can wait again
+        // bootSeniorMap() below always awaits window.OSCA.maps() before calling
+        // this function, so window.L is guaranteed to be present here.
 
         let data;
         try { data = JSON.parse(dataEl.textContent); } catch (e) { return; }
@@ -1103,6 +1097,7 @@
             fadeAnimation: !reduce,
             markerZoomAnimation: !reduce,
         }).setView([data.senior.lat, data.senior.lng], 15);
+        (window.__oscaMaps = window.__oscaMaps || []).push(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -1148,15 +1143,24 @@
         setTimeout(function () { map.invalidateSize(); }, 80);
     }
 
-    // Vite emits app.js as a deferred module, so this inline script runs first.
-    // Wait for DOMContentLoaded (deferred modules finish before it) so window.L
-    // exists, and re-init after Livewire SPA navigation (DOMContentLoaded won't refire).
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSeniorMiniMap);
-    } else {
-        initSeniorMiniMap();
+    // Leaflet is now a lazy chunk exposed as window.OSCA.maps(); load it before
+    // initializing, and re-init after Livewire SPA navigation (DOMContentLoaded won't refire).
+    const bootSeniorMap = () => window.OSCA.maps().then(() => initSeniorMiniMap());
+
+    // Persistent registration guarded so it binds once per page session — the
+    // whole <script> tag re-executes on every wire:navigate navigation, and
+    // initSeniorMiniMap() reads #senior-map-data fresh at call time, so one
+    // bound listener keeps rendering the current senior's map correctly on
+    // every future navigation.
+    if (!window.__oscaBound_seniorMiniMap) {
+        window.__oscaBound_seniorMiniMap = true;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootSeniorMap);
+        } else {
+            bootSeniorMap();
+        }
+        document.addEventListener('livewire:navigated', bootSeniorMap);
     }
-    document.addEventListener('livewire:navigated', initSeniorMiniMap);
 })();
 </script>
 
@@ -1256,12 +1260,20 @@
         });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', upgradeFacilityRoutes);
-    } else {
-        upgradeFacilityRoutes();
+    // Persistent registration guarded so it binds once per page session — the
+    // whole <script> tag re-executes on every wire:navigate navigation, and
+    // upgradeFacilityRoutes() reads #senior-facility-list fresh at call time,
+    // so one bound listener keeps upgrading the current senior's rows on
+    // every future navigation.
+    if (!window.__oscaBound_seniorFacilityRoutes) {
+        window.__oscaBound_seniorFacilityRoutes = true;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', upgradeFacilityRoutes);
+        } else {
+            upgradeFacilityRoutes();
+        }
+        document.addEventListener('livewire:navigated', upgradeFacilityRoutes);
     }
-    document.addEventListener('livewire:navigated', upgradeFacilityRoutes);
 })();
 </script>
 @endpush
