@@ -1103,6 +1103,7 @@
             fadeAnimation: !reduce,
             markerZoomAnimation: !reduce,
         }).setView([data.senior.lat, data.senior.lng], 15);
+        (window.__oscaMaps = window.__oscaMaps || []).push(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,

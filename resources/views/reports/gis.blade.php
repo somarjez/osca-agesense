@@ -5685,6 +5685,7 @@
             // Enlarge it so canvas-rendered vectors always cover the screen.
             renderer: window.L.canvas({ padding: 0.5 }),
         }).setView(PAGSANJAN_CENTER, DEFAULT_ZOOM);
+        (window.__oscaMaps = window.__oscaMaps || []).push(map);
         el._leaflet_map_instance = map;
         ensureMapPanes(map);
         ensureLayerRegistry(map);

@@ -103,6 +103,20 @@ document.addEventListener('qol-step-changed', function () {
     delete window.__livewireMainScroll  // cancel any pending restoration
 })
 
+// ── SPA navigation teardown ───────────────────────────────────────────────────
+// wire:navigate morphs the <body> without a full reload. Destroy live Chart.js
+// instances and Leaflet maps for the outgoing page so they don't leak or leave
+// a "canvas already in use" error when the next page re-inits on the same id.
+document.addEventListener('livewire:navigating', function () {
+    if (window.Chart && window.Chart.instances) {
+        Object.values(window.Chart.instances).forEach((c) => { try { c.destroy() } catch (e) {} })
+    }
+    if (window.__oscaMaps) {
+        window.__oscaMaps.forEach((m) => { try { m.remove() } catch (e) {} })
+        window.__oscaMaps = []
+    }
+})
+
 // ── KPI count-up ──────────────────────────────────────────────────────────────
 // Elements with [data-countup] tween from 0 to their server-rendered integer on
 // page load / navigation (not on Livewire filter updates — re-animating every
