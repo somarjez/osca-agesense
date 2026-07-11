@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Facility;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -96,6 +97,10 @@ class ImportOsmFacilities extends Command
             ['Fetched', 'Imported', 'Updated', 'Superseded', 'Skipped'],
             [[$stats['fetched'], $stats['imported'], $stats['updated'], $stats['superseded'], $stats['skipped']]]
         );
+
+        if (! $dryRun) {
+            Cache::forget('facilities.active_with_coordinates');
+        }
 
         return self::SUCCESS;
     }

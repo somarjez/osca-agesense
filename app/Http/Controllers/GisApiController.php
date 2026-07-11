@@ -178,13 +178,7 @@ class GisApiController extends Controller
 
     public function facilities(): JsonResponse
     {
-        $features = Facility::query()
-            ->where('is_active', true)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->orderBy('type')
-            ->orderBy('name')
-            ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source', 'osm_id'])
+        $features = Facility::cachedActiveWithCoordinates()
             ->map(function (Facility $facility) {
                 return [
                     'type' => 'Feature',
@@ -818,11 +812,7 @@ class GisApiController extends Controller
 
     private function accessibilityDistanceFacilities()
     {
-        return Facility::query()
-            ->where('is_active', true)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->get(['id', 'name', 'type', 'latitude', 'longitude'])
+        return Facility::cachedActiveWithCoordinates()
             ->filter(fn (Facility $facility) => $this->isAccessibilityDistanceFacility($facility))
             ->values();
     }

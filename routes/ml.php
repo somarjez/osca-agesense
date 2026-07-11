@@ -11,8 +11,10 @@ Route::prefix('ml')->name('ml.')->middleware('no.time.limit')->group(function ()
         Route::get('/result/{senior}', [MlController::class, 'resultStatus'])->name('result.senior');
     });
 
-    // Admin and encoder can run ML jobs
-    Route::middleware('role:admin,encoder')->group(function () {
+    // Admin and encoder can run ML jobs. throttle:10,1 stops accidental
+    // double-click storms / scripted abuse on these rare admin actions —
+    // mirrors the throttle already used on api/gis/route-distance.
+    Route::middleware(['role:admin,encoder', 'throttle:10,1'])->group(function () {
         Route::post('/start', [MlController::class, 'startServices'])->name('start');
         Route::post('/stop', [MlController::class, 'stopServices'])->name('stop');
         Route::post('/restart', [MlController::class, 'restartServices'])->name('restart');

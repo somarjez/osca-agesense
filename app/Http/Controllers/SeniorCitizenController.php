@@ -169,11 +169,7 @@ class SeniorCitizenController extends Controller
             // ordered by distance — mirrors the GIS map popup so both surfaces
             // draw from the same set. Haversine is computed locally over the
             // Facility table, so the profile still makes zero live routing calls.
-            $ranked = Facility::query()
-                ->where('is_active', true)
-                ->whereNotNull('latitude')
-                ->whereNotNull('longitude')
-                ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude'])
+            $ranked = Facility::cachedActiveWithCoordinates()
                 ->filter(fn ($facility) => $this->isSeniorRelevantFacility($facility))
                 ->each(fn ($facility) => $facility->straight_m = $this->haversineMeters(
                     $seniorLat, $seniorLng, (float) $facility->latitude, (float) $facility->longitude

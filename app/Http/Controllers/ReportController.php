@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\ArrayExport;
+use App\Exports\RegistryExport;
 use App\Models\ActivityLog;
 use App\Models\ClusterSnapshot;
 use App\Models\Facility;
@@ -397,7 +397,7 @@ class ReportController extends Controller
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
-        $data = SeniorCitizen::active()
+        $query = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->whereIn('ml_results.id', $latestIds);
@@ -419,8 +419,7 @@ class ReportController extends Controller
                 'ml_results.processed_at'
             )
             ->orderBy('ml_results.cluster_named_id')
-            ->orderByDesc('ml_results.composite_risk')
-            ->get();
+            ->orderByDesc('ml_results.composite_risk');
 
         $filename = 'osca_cluster_report_'.now()->format('Ymd_His').'.csv';
 
@@ -429,14 +428,18 @@ class ReportController extends Controller
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
-        $callback = function () use ($data) {
+        $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Gender',
                 'Profile Group ID', 'Profile Group Name', 'Risk Level', 'Composite Risk',
                 'IC Risk', 'Env Risk', 'Func Risk', 'Wellbeing Score', 'Processed At']);
-            foreach ($data as $row) {
-                fputcsv($file, array_values($row->toArray()));
-            }
+
+            $query->chunk(200, function ($rows) use ($file) {
+                foreach ($rows as $row) {
+                    fputcsv($file, array_values($row->toArray()));
+                }
+            });
+
             fclose($file);
         };
 
@@ -574,70 +577,9 @@ class ReportController extends Controller
     {
         ActivityLog::record('exported', auth()->user(), 'Registry Excel exported');
 
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
-
-        $seniors = SeniorCitizen::active()
-            ->leftJoin('ml_results', function ($join) use ($latestIds) {
-                $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                    ->whereIn('ml_results.id', $latestIds);
-            })
-            ->select(
-                'senior_citizens.osca_id',
-                'senior_citizens.last_name',
-                'senior_citizens.first_name',
-                'senior_citizens.middle_name',
-                'senior_citizens.date_of_birth',
-                DB::raw(DbHelper::ageExpr('senior_citizens.date_of_birth')),
-                'senior_citizens.gender',
-                'senior_citizens.marital_status',
-                'senior_citizens.barangay',
-                'senior_citizens.monthly_income_range',
-                'senior_citizens.status',
-                'ml_results.cluster_named_id as cluster',
-                'ml_results.cluster_name',
-                'ml_results.overall_risk_level as risk_level',
-                'ml_results.composite_risk',
-                'ml_results.ic_risk',
-                'ml_results.env_risk',
-                'ml_results.func_risk',
-                'ml_results.wellbeing_score',
-                'ml_results.priority_flag',
-                'ml_results.processed_at as ml_processed_at'
-            )
-            ->orderBy('senior_citizens.barangay')
-            ->orderBy('senior_citizens.last_name')
-            ->get();
-
         $filename = 'osca_senior_registry_'.now()->format('Ymd_His').'.xlsx';
 
-        // Build array data for SimpleExcel write-through
-        $rows = [];
-        $rows[] = [
-            'OSCA ID', 'Last Name', 'First Name', 'Middle Name',
-            'Date of Birth', 'Age', 'Gender', 'Marital Status', 'Barangay',
-            'Monthly Income Range', 'Status',
-            'Profile Group', 'Profile Group Name', 'Risk Level',
-            'Composite Risk', 'IC Risk', 'Env Risk', 'Func Risk',
-            'Wellbeing Score', 'Priority Flag', 'ML Processed At',
-        ];
-
-        foreach ($seniors as $s) {
-            $rows[] = [
-                $s->osca_id, $s->last_name, $s->first_name, $s->middle_name,
-                $s->date_of_birth, $s->age, $s->gender, $s->marital_status, $s->barangay,
-                $s->monthly_income_range, $s->status,
-                $s->cluster, $s->cluster_name, $s->risk_level,
-                $s->composite_risk, $s->ic_risk, $s->env_risk, $s->func_risk,
-                $s->wellbeing_score, $s->priority_flag, $s->ml_processed_at,
-            ];
-        }
-
-        return Excel::download(
-            new ArrayExport($rows),
-            $filename
-        );
+        return Excel::download(new RegistryExport, $filename);
     }
 
     /**
@@ -698,7 +640,7 @@ class ReportController extends Controller
         $sortBy = in_array($request->sort, $allowedSorts, true) ? $request->sort : 'composite_risk';
         $sortDir = $request->dir === 'asc' ? 'asc' : 'desc';
 
-        $data = SeniorCitizen::active()
+        $query = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
                 $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
                     ->whereIn('ml_results.id', $latestIds);
@@ -722,18 +664,21 @@ class ReportController extends Controller
                 'ml_results.func_risk_level',
                 'ml_results.processed_at'
             )
-            ->orderBy("ml_results.{$sortBy}", $sortDir)
-            ->get();
+            ->orderBy("ml_results.{$sortBy}", $sortDir);
 
         $filename = 'osca_risk_report_'.now()->format('Ymd_His').'.csv';
 
-        $callback = function () use ($data) {
+        $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
             fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Risk Level',
                 'Composite Risk', 'IC Risk Level', 'Env Risk Level', 'Func Risk Level', 'Processed At']);
-            foreach ($data as $row) {
-                fputcsv($file, array_values($row->toArray()));
-            }
+
+            $query->chunk(200, function ($rows) use ($file) {
+                foreach ($rows as $row) {
+                    fputcsv($file, array_values($row->toArray()));
+                }
+            });
+
             fclose($file);
         };
 
