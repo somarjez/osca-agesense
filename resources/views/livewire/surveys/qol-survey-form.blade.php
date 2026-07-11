@@ -249,7 +249,7 @@
                         Next Section
                         <x-heroicon-o-arrow-right class="w-3.5 h-3.5" />
                     </span>
-                    <span wire:loading wire:target="nextStep" class="inline-flex items-center gap-1.5">
+                    <span wire:loading.inline-flex wire:target="nextStep" class="items-center gap-1.5">
                         <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
@@ -265,7 +265,7 @@
                         <x-heroicon-o-check class="w-3.5 h-3.5" />
                         Submit &amp; Run Assessment
                     </span>
-                    <span wire:loading wire:target="confirmSubmit" class="inline-flex items-center gap-1.5">
+                    <span wire:loading.inline-flex wire:target="confirmSubmit" class="items-center gap-1.5">
                         <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
