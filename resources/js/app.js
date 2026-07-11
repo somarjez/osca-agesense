@@ -19,6 +19,19 @@ document.addEventListener('alpine:init', () => {
         },
     }))
 
+    // ── Restore dark mode after SPA navigation ────────────────────────────────
+    // wire:navigate replaces <html>'s attributes with the freshly-fetched page's
+    // raw (non-Alpine-evaluated) attributes (Livewire's replaceHtmlAttributes()),
+    // which strips the `dark` class Alpine's :class="{ dark }" binding had added.
+    // Alpine's reactive `dark` state isn't reset, but nothing re-triggers its
+    // effect, so the DOM class stays stripped until the user toggles dark mode
+    // again. Same fix as the afterprint restore below: reapply from localStorage.
+    document.addEventListener('livewire:navigated', function () {
+        try {
+            document.documentElement.classList.toggle('dark', localStorage.getItem('darkMode') === 'true')
+        } catch (e) { /* localStorage unavailable */ }
+    })
+
     // ── Hover tooltip ─────────────────────────────────────────────────────────
     // Reliable replacement for x-teleport/x-show/x-transition (which were flaky
     // under Livewire's bundled Alpine). On hover we move the panel to <body> and
