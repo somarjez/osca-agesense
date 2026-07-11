@@ -8,6 +8,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Observers\ActivityLogObserver;
 use App\Observers\MlResultStalenessObserver;
+use App\Observers\SeniorDataVersionObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -43,6 +44,10 @@ class AppServiceProvider extends ServiceProvider
         // ML result staleness — marks cached results stale when profile or QoL data changes
         SeniorCitizen::observe(MlResultStalenessObserver::class);
         QolSurvey::observe(MlResultStalenessObserver::class);
+
+        // Dashboard/GIS/cluster cache invalidation — bumps the version stamp
+        // folded into those caches' keys when the active-senior set changes
+        SeniorCitizen::observe(SeniorDataVersionObserver::class);
 
         // Login rate limiting — 5 attempts/minute per email+IP combination,
         // so an attacker can't lock out a legitimate user by spamming their
