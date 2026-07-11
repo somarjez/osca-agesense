@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SeniorDataVersion;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -45,21 +46,22 @@ class GisApiCachingTest extends TestCase
     #[Test]
     public function seniors_geojson_is_stored_in_cache_after_first_request(): void
     {
-        Cache::forget('gis.seniors_geojson.full');
-        $this->assertFalse(Cache::has('gis.seniors_geojson.full'));
+        $key = 'gis.seniors_geojson.full.'.SeniorDataVersion::current();
+        Cache::forget($key);
+        $this->assertFalse(Cache::has($key));
 
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
             ->assertStatus(200)
             ->assertJsonStructure(['type', 'features']);
 
-        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
+        $this->assertTrue(Cache::has($key));
     }
 
     #[Test]
     public function barangay_filter_stores_separate_cache_key(): void
     {
-        $key = 'gis.seniors_geojson.full.'.md5('Sabang');
+        $key = 'gis.seniors_geojson.full.'.SeniorDataVersion::current().'.'.md5('Sabang');
         Cache::forget($key);
         $this->assertFalse(Cache::has($key));
 
@@ -77,8 +79,10 @@ class GisApiCachingTest extends TestCase
         // Admin (full precision) and viewer (generalized) must never share a
         // cache slot — otherwise whichever role's request populates the cache
         // first "wins" for 5 minutes and leaks its precision level to the other.
-        Cache::forget('gis.seniors_geojson.full');
-        Cache::forget('gis.seniors_geojson.generalized');
+        $fullKey = 'gis.seniors_geojson.full.'.SeniorDataVersion::current();
+        $generalizedKey = 'gis.seniors_geojson.generalized.'.SeniorDataVersion::current();
+        Cache::forget($fullKey);
+        Cache::forget($generalizedKey);
 
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
@@ -87,21 +91,22 @@ class GisApiCachingTest extends TestCase
             ->getJson('/api/gis/seniors')
             ->assertStatus(200);
 
-        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
-        $this->assertTrue(Cache::has('gis.seniors_geojson.generalized'));
+        $this->assertTrue(Cache::has($fullKey));
+        $this->assertTrue(Cache::has($generalizedKey));
     }
 
     #[Test]
     public function seniors_geojson_second_request_served_from_cache_without_db_queries(): void
     {
-        Cache::forget('gis.seniors_geojson.full');
+        $key = 'gis.seniors_geojson.full.'.SeniorDataVersion::current();
+        Cache::forget($key);
 
         // First request — populates cache
         $this->actingAs($this->admin)
             ->getJson('/api/gis/seniors')
             ->assertStatus(200);
 
-        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
+        $this->assertTrue(Cache::has($key));
 
         // Second request — must be served from cache (no DB queries)
         DB::enableQueryLog();
