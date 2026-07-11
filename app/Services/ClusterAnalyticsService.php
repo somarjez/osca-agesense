@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
+use App\Support\SeniorDataVersion;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -14,7 +15,7 @@ class ClusterAnalyticsService
     public function latestResultIds(): Collection
     {
         return collect(Cache::remember(
-            'ml.latest_result_ids',
+            'ml.latest_result_ids.'.SeniorDataVersion::current(),
             now()->addMinutes(5),
             fn () => MlResult::select(DB::raw('MAX(id) as id'))
                 ->whereHas('seniorCitizen', fn ($q) => $q->active())

@@ -8,6 +8,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Services\ClusterAnalyticsService;
 use App\Support\DbHelper;
+use App\Support\SeniorDataVersion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -61,13 +62,13 @@ class MainDashboard extends Component
 
     /**
      * Per-filter-combination cache key, mirroring the convention already used by
-     * GisApiController::seniors(). TTL-only (90s) — no active invalidation, same
-     * as every other cache in this codebase; comfortably refreshes within the
-     * dashboard's existing 300s poll cycle.
+     * GisApiController::seniors(). 90s TTL, plus a SeniorDataVersion stamp that's
+     * bumped on archive/restore/create so those events invalidate immediately
+     * instead of waiting out the TTL.
      */
     private function cacheKey(string $suffix): string
     {
-        return "dashboard.{$suffix}.".md5($this->selectedBarangay.'|'.$this->selectedRisk);
+        return "dashboard.{$suffix}.".SeniorDataVersion::current().'.'.md5($this->selectedBarangay.'|'.$this->selectedRisk);
     }
 
     private function getStats(): array

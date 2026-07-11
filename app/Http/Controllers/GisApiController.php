@@ -9,6 +9,7 @@ use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorFacilityRouteFailure;
 use App\Support\AccessibilityBand;
 use App\Support\CoordinatePrivacy;
+use App\Support\SeniorDataVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -26,9 +27,10 @@ class GisApiController extends Controller
     {
         $barangayFilter = $request->query('barangay');
         $precisionMode = $this->precisionMode();
+        $version = SeniorDataVersion::current();
         $cacheKey = ($barangayFilter && $barangayFilter !== 'all')
-            ? 'gis.seniors_geojson.'.$precisionMode.'.'.md5($barangayFilter)
-            : 'gis.seniors_geojson.'.$precisionMode;
+            ? 'gis.seniors_geojson.'.$precisionMode.'.'.$version.'.'.md5($barangayFilter)
+            : 'gis.seniors_geojson.'.$precisionMode.'.'.$version;
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($barangayFilter) {
             $query = SeniorCitizen::active()
