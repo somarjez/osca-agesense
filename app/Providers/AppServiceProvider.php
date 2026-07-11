@@ -9,6 +9,7 @@ use App\Models\SeniorCitizen;
 use App\Observers\ActivityLogObserver;
 use App\Observers\MlResultStalenessObserver;
 use App\Observers\SeniorDataVersionObserver;
+use App\Observers\SeniorLocationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -48,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
         // Dashboard/GIS/cluster cache invalidation — bumps the version stamp
         // folded into those caches' keys when the active-senior set changes
         SeniorCitizen::observe(SeniorDataVersionObserver::class);
+
+        // Barangay-derived state sync — when a senior's barangay changes,
+        // clears their now-stale generated map coordinates, marks the ML
+        // result stale, bumps the GIS/dashboard cache version, and queues a
+        // targeted re-geocode. See SeniorLocationObserver for details.
+        SeniorCitizen::observe(SeniorLocationObserver::class);
 
         // Login rate limiting — 5 attempts/minute per email+IP combination,
         // so an attacker can't lock out a legitimate user by spamming their

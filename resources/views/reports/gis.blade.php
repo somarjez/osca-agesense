@@ -67,6 +67,17 @@
             <p class="text-sm text-ink-700 dark:text-[#b0b5b2] leading-relaxed">
                 Bulk geocoding assigns approximate coordinates inside each senior's barangay so records can be mapped for barangay-level planning. These are not exact home locations.
             </p>
+            @if (($geocodeStatus['missing_coordinates'] ?? 0) > 0)
+                <x-alert type="warning">
+                    <strong>{{ number_format($geocodeStatus['missing_coordinates']) }}</strong>
+                    senior{{ $geocodeStatus['missing_coordinates'] === 1 ? '' : 's' }} changed barangay or {{ $geocodeStatus['missing_coordinates'] === 1 ? 'is' : 'are' }} not yet mapped.
+                    @role('admin')
+                        Run Bulk Geocode above to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
+                    @else
+                        Ask an admin to run Bulk Geocode to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
+                    @endrole
+                </x-alert>
+            @endif
         </div>
 
         <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-4 text-sm">
@@ -107,6 +118,17 @@
         </div>
 
         <div class="card-body space-y-4">
+            <div class="relative">
+                <label class="block">
+                    <span class="eyebrow block mb-1.5">Find a Senior</span>
+                    <input id="gis-senior-search" type="text" autocomplete="off"
+                        class="form-input" placeholder="Search by name or OSCA-ID...">
+                </label>
+                <ul id="gis-senior-search-results"
+                    class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-paper-0 dark:bg-[#1b211e] shadow-lg text-sm">
+                </ul>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Visualization</span>
@@ -264,6 +286,8 @@
     const BARANGAY_FILTER_ID = 'gis-barangay-filter';
     const RISK_FILTER_ID = 'gis-risk-filter';
     const CLUSTER_FILTER_ID = 'gis-cluster-filter';
+    const SEARCH_INPUT_ID = 'gis-senior-search';
+    const SEARCH_RESULTS_ID = 'gis-senior-search-results';
     const CLUSTER_POINTS_TOGGLE_ID = 'gis-cluster-points-toggle';
     const SHOW_SENIOR_POINTS_TOGGLE_ID = 'gis-show-senior-points-toggle';
     const SHOW_BARANGAY_DENSITY_TOGGLE_ID = 'gis-show-barangay-density-toggle';
@@ -5571,6 +5595,165 @@
         }, 0);
     }
 
+    // ── Senior search (Name / OSCA-ID) ──────────────────────────────────────
+    // Operates entirely on the already-loaded latestSeniorGeoJson — no new
+    // endpoint. Respects the same role-based coordinate precision as the map
+    // (search results come from the same feature properties the pins use).
+
+    const MAX_SEARCH_RESULTS = 8;
+
+    function seniorSearchMatches(query) {
+        const needle = query.trim().toLowerCase();
+        if (!needle || !latestSeniorGeoJson?.features?.length) {
+            return [];
+        }
+
+        return latestSeniorGeoJson.features
+            .filter((feature) => {
+                const props = feature.properties || {};
+                const name = String(props.senior_name || '').toLowerCase();
+                const oscaId = String(props.osca_id || '').toLowerCase();
+
+                return name.includes(needle) || oscaId.includes(needle);
+            })
+            .slice(0, MAX_SEARCH_RESULTS);
+    }
+
+    function renderSeniorSearchResults(matches) {
+        const list = document.getElementById(SEARCH_RESULTS_ID);
+        if (!list) return;
+
+        if (!matches.length) {
+            list.innerHTML = '';
+            list.classList.add('hidden');
+            return;
+        }
+
+        list.innerHTML = matches.map((feature, index) => {
+            const props = feature.properties || {};
+            const name = escapeHtml(props.senior_name || 'Unnamed senior');
+            const oscaId = escapeHtml(props.osca_id || `#${props.senior_id ?? 'N/A'}`);
+            const barangay = escapeHtml(props.barangay || 'Unknown barangay');
+
+            return `<li>
+                <button type="button" data-gis-search-result="${index}"
+                    class="w-full text-left px-3 py-2 hover:bg-paper-100 dark:hover:bg-[#242b27] transition-colors">
+                    <span class="block font-medium text-ink-800 dark:text-[#d8ddd9]">${name}</span>
+                    <span class="block text-[11.5px] text-ink-500 dark:text-[#8a958f] font-mono">${oscaId} &middot; ${barangay}</span>
+                </button>
+            </li>`;
+        }).join('');
+        list.classList.remove('hidden');
+
+        list.querySelectorAll('[data-gis-search-result]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const feature = matches[Number(button.dataset.gisSearchResult)];
+                list.classList.add('hidden');
+                const input = document.getElementById(SEARCH_INPUT_ID);
+                if (input && feature) {
+                    input.value = feature.properties?.senior_name || feature.properties?.osca_id || '';
+                }
+                if (feature) {
+                    revealSeniorFeature(feature);
+                }
+            });
+        });
+    }
+
+    function findSeniorMarkerLayer(rootLayer, seniorId) {
+        if (!rootLayer || seniorId === undefined || seniorId === null) return null;
+
+        let match = null;
+        const inspect = (layer) => {
+            if (match || !layer) return;
+
+            if (layer._gisSeniorFeature?.properties?.senior_id === seniorId) {
+                match = layer;
+                return;
+            }
+
+            if (typeof layer.eachLayer === 'function') {
+                layer.eachLayer(inspect);
+            }
+        };
+
+        rootLayer.eachLayer(inspect);
+
+        return match;
+    }
+
+    // Resolves a search result to its rendered marker and centers/opens it,
+    // even if the senior is currently hidden by the barangay/risk/cluster
+    // filters or tucked inside a marker cluster — search should always be
+    // able to find a senior regardless of the current view.
+    async function revealSeniorFeature(feature) {
+        const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+        if (!map || !feature) return;
+
+        const seniorId = feature.properties?.senior_id;
+        let filtersChanged = false;
+        [BARANGAY_FILTER_ID, RISK_FILTER_ID, CLUSTER_FILTER_ID].forEach((id) => {
+            const select = document.getElementById(id);
+            if (select && select.value !== 'all') {
+                select.value = 'all';
+                filtersChanged = true;
+            }
+        });
+
+        if (filtersChanged) {
+            syncSecondaryFilter();
+            setStatus('Rendering...', 'neutral');
+            try {
+                await renderDataLayers(map, latestSeniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection());
+            } catch (error) {
+                console.error('GIS render failed:', error);
+                return;
+            }
+        }
+
+        const layers = ensureLayerRegistry(map);
+        const marker = findSeniorMarkerLayer(layers.seniors, seniorId);
+        if (!marker || typeof marker.getLatLng !== 'function') {
+            setStatus('Could not locate that senior on the map.', 'error');
+            return;
+        }
+
+        const revealAndOpen = () => {
+            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 17), { animate: true });
+            marker.openPopup();
+        };
+
+        const clusterLayer = layers.seniors.getLayers().find((layer) => typeof layer.zoomToShowLayer === 'function');
+        if (clusterLayer) {
+            clusterLayer.zoomToShowLayer(marker, revealAndOpen);
+        } else {
+            revealAndOpen();
+        }
+    }
+
+    function initSeniorSearch() {
+        const input = document.getElementById(SEARCH_INPUT_ID);
+        const list = document.getElementById(SEARCH_RESULTS_ID);
+        if (!input || !list || input.dataset.gisSearchBound) return;
+        input.dataset.gisSearchBound = 'true';
+
+        const debouncedSearch = debounce(() => {
+            renderSeniorSearchResults(seniorSearchMatches(input.value));
+        }, 150);
+
+        input.addEventListener('input', debouncedSearch);
+        input.addEventListener('focus', () => {
+            if (input.value.trim()) {
+                renderSeniorSearchResults(seniorSearchMatches(input.value));
+            }
+        });
+        document.addEventListener('click', (event) => {
+            if (!list.contains(event.target) && event.target !== input) {
+                list.classList.add('hidden');
+            }
+        });
+    }
+
     function syncMapSize(map) {
         if (!map) return;
 
@@ -5751,7 +5934,10 @@
     }
 
     const debouncedRefresh = debounce(() => refreshRenderedLayer(), 120);
-    const bootMap = () => window.OSCA.maps().then(() => renderMap());
+    const bootMap = () => window.OSCA.maps().then(() => {
+        renderMap();
+        initSeniorSearch();
+    });
 
     // Persistent (document/window-level) registrations guarded so they bind
     // once per page session — the whole <script> tag re-executes on every

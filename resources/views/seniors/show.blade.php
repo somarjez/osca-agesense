@@ -111,7 +111,7 @@
             <div class="flex-1 min-w-0">
                 <h1 class="font-serif text-[20px] font-semibold text-ink-900 dark:text-[#e4e1d8] leading-tight">{{ $senior->full_name }}</h1>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[12.5px] text-ink-500">
-                    <span class="font-mono tnum">{{ $senior->osca_id }}</span>
+                    <span class="font-mono tnum" title="OSCA-ID is a permanent registration number. Its prefix reflects the barangay at original registration and does not change if the senior later moves — see current barangay below.">{{ $senior->osca_id }}</span>
                     <span class="text-ink-300">·</span>
                     <span>{{ $senior->barangay }}</span>
                     <span class="text-ink-300">·</span>
