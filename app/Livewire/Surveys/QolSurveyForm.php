@@ -93,33 +93,6 @@ class QolSurveyForm extends Component
 
     public string $surveyDate = '';
 
-    private const RATING_FIELDS = [
-        'a1', 'a2', 'a3', 'a4',
-        'b1', 'b2', 'b3', 'b4', 'b5',
-        'c1', 'c2', 'c3', 'c4',
-        'd1', 'd2', 'd3', 'd4',
-        'e1', 'e2', 'e3', 'e4', 'e5',
-        'f1', 'f2', 'f3', 'f4',
-        'g1', 'g2', 'g3',
-        'h1', 'h2',
-    ];
-
-    /**
-     * Click a selected rating again to clear it back to "no answer" — native
-     * radio inputs can't represent that (Livewire's own radio binding keeps
-     * the current value on uncheck), so rating buttons drive this directly.
-     * $field is a client-supplied wire:click argument, so it's checked
-     * against an allow-list before being used in a dynamic property write.
-     */
-    public function toggleAnswer(string $field, int $value): void
-    {
-        if (! in_array($field, self::RATING_FIELDS, true) || $value < 1 || $value > 5) {
-            return;
-        }
-
-        $this->$field = $value === $this->$field ? null : $value;
-    }
-
     public function mount(int $seniorId, ?int $surveyId = null): void
     {
         $this->senior = SeniorCitizen::findOrFail($seniorId);

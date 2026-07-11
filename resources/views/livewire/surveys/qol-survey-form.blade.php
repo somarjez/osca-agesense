@@ -188,7 +188,7 @@
                      {{ $errors->has($prop)
                          ? 'border-moderate-300 bg-moderate-50 dark:border-moderate-500/30 dark:bg-moderate-500/10'
                          : 'border-paper-rule dark:border-[#2b3530] hover:border-forest-200 dark:hover:border-forest-700/50' }}"
-                     x-data="{}">
+                     x-data="{ value: $wire.entangle('{{ $prop }}') }">
                     <div class="flex items-start gap-3 mb-3">
                         <span class="flex-shrink-0 w-8 h-8 rounded-full bg-paper-2 dark:bg-[#202a26] flex items-center justify-center text-xs font-bold text-ink-600 dark:text-[#8a9087]">
                             {{ $q['item'] }}
@@ -203,13 +203,12 @@
                     <div class="grid grid-cols-5 gap-2">
                         @foreach ([1,2,3,4,5] as $val)
                         <button type="button"
-                                wire:click="toggleAnswer('{{ $prop }}', {{ $val }})"
-                                wire:key="btn-{{ $prop }}-{{ $val }}"
-                                aria-pressed="{{ $this->$prop === $val ? 'true' : 'false' }}"
-                                class="text-center py-2 rounded-xl border-2 text-[13px] font-semibold transition-colors
-                                {{ $this->$prop === $val
+                                @click="value = (value === {{ $val }} ? null : {{ $val }})"
+                                :aria-pressed="(value === {{ $val }}).toString()"
+                                :class="value === {{ $val }}
                                     ? 'border-forest-500 bg-forest-600 text-white ring-2 ring-forest-400 ring-offset-2 ring-offset-paper dark:ring-offset-[#1a221e] shadow-md scale-[1.04]'
-                                    : 'border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570] hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400' }}">
+                                    : 'border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570] hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400'"
+                                class="text-center py-2 rounded-xl border-2 text-[13px] font-semibold transition-colors">
                             {{ $val }}
                         </button>
                         @endforeach
