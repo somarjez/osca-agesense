@@ -184,7 +184,8 @@
 
             <div class="space-y-5">
                 @foreach ($questions as $prop => $q)
-                <div class="border rounded-xl p-4 transition-colors
+                <div wire:key="qol-question-{{ $prop }}"
+                     class="border rounded-xl p-4 transition-colors
                      {{ $errors->has($prop)
                          ? 'border-moderate-300 bg-moderate-50 dark:border-moderate-500/30 dark:bg-moderate-500/10'
                          : 'border-paper-rule dark:border-[#2b3530] hover:border-forest-200 dark:hover:border-forest-700/50' }}"
