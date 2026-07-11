@@ -16,8 +16,11 @@ Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/xai/model-insights', [XaiController::class, 'modelInsights'])->name('xai.model-insights');
     });
 
-    // Admin only: exports and snapshots
-    Route::middleware('role:admin')->group(function () {
+    // Admin only: exports and snapshots. no.time.limit matches routes/ml.php's
+    // convention for actions that legitimately run longer than PHP's default
+    // max_execution_time (this is the confirmed cause of the reported 30s
+    // "Maximum execution time exceeded" errors on report exports).
+    Route::middleware(['role:admin', 'no.time.limit'])->group(function () {
         Route::get('/risk/export', [ReportController::class, 'exportRisk'])->name('risk.export');
         Route::get('/cluster/export', [ReportController::class, 'exportCluster'])->name('cluster.export');
         Route::get('/gis/export', [ReportController::class, 'exportGis'])->name('gis.export');

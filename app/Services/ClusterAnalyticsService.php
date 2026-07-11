@@ -6,16 +6,22 @@ use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ClusterAnalyticsService
 {
     public function latestResultIds(): Collection
     {
-        return MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereHas('seniorCitizen', fn ($q) => $q->active())
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        return collect(Cache::remember(
+            'ml.latest_result_ids',
+            now()->addMinutes(5),
+            fn () => MlResult::select(DB::raw('MAX(id) as id'))
+                ->whereHas('seniorCitizen', fn ($q) => $q->active())
+                ->groupBy('senior_citizen_id')
+                ->pluck('id')
+                ->all()
+        ));
     }
 
     public function latestResultsQuery(?string $barangay = null): Builder
@@ -32,22 +38,32 @@ class ClusterAnalyticsService
 
     public function clusterDistribution(?string $barangay = null): array
     {
-        $groups = $this->latestResultsQuery($barangay)
-            ->get()
+        $rows = $this->latestResultsQuery($barangay)
+            ->without('seniorCitizen')
+            ->select(
+                'cluster_named_id',
+                DB::raw('MIN(cluster_name) as cluster_name'),
+                DB::raw('COUNT(*) as cnt'),
+                DB::raw('AVG(ic_risk) as avg_ic'),
+                DB::raw('AVG(env_risk) as avg_env'),
+                DB::raw('AVG(func_risk) as avg_func'),
+                DB::raw('AVG(composite_risk) as avg_composite')
+            )
             ->groupBy('cluster_named_id')
-            ->sortKeys();
+            ->orderBy('cluster_named_id')
+            ->get();
 
         return [
-            'ids' => $groups->keys()->map(fn ($id) => (int) $id)->values()->toArray(),
-            'labels' => $groups->map(fn ($group) => $group->first()->cluster_name)->values()->toArray(),
-            'data' => $groups->map(fn ($group) => $group->count())->values()->toArray(),
-            'colors' => $groups->keys()->map(fn ($id) => $this->clusterColor((int) $id))->values()->toArray(),
+            'ids' => $rows->pluck('cluster_named_id')->map(fn ($id) => (int) $id)->values()->toArray(),
+            'labels' => $rows->pluck('cluster_name')->values()->toArray(),
+            'data' => $rows->pluck('cnt')->map(fn ($c) => (int) $c)->values()->toArray(),
+            'colors' => $rows->pluck('cluster_named_id')->map(fn ($id) => $this->clusterColor((int) $id))->values()->toArray(),
             // Per-group domain-risk averages for the dashboard ranked-bar display
-            'domains' => $groups->map(fn ($group) => [
-                'ic' => (float) $group->avg('ic_risk'),
-                'env' => (float) $group->avg('env_risk'),
-                'func' => (float) $group->avg('func_risk'),
-                'composite' => (float) $group->avg('composite_risk'),
+            'domains' => $rows->map(fn ($row) => [
+                'ic' => (float) $row->avg_ic,
+                'env' => (float) $row->avg_env,
+                'func' => (float) $row->avg_func,
+                'composite' => (float) $row->avg_composite,
             ])->values()->toArray(),
         ];
     }

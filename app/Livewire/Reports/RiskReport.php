@@ -3,8 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Models\MlResult;
-use App\Models\SeniorCitizen;
-use Illuminate\Support\Facades\DB;
+use App\Services\ClusterAnalyticsService;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,6 +11,8 @@ use Livewire\WithPagination;
 class RiskReport extends Component
 {
     use WithPagination;
+
+    private ClusterAnalyticsService $clusterAnalytics;
 
     public string $filterRisk = '';
 
@@ -25,6 +26,11 @@ class RiskReport extends Component
 
     public string $sortDir = 'desc';
 
+    public function boot(ClusterAnalyticsService $clusterAnalytics): void
+    {
+        $this->clusterAnalytics = $clusterAnalytics;
+    }
+
     public function placeholder(): View
     {
         return view('components.skeletons.report-panel');
@@ -32,12 +38,7 @@ class RiskReport extends Component
 
     public function render()
     {
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         $query = MlResult::with(['seniorCitizen'])
             ->whereIn('id', $latestIds)

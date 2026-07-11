@@ -31,7 +31,7 @@
                 <option value="{{ $brgy }}">{{ $brgy }}</option>
             @endforeach
         </select>
-        <span class="text-sm text-ink-500">{{ $results->count() }} total records</span>
+        <span class="text-sm text-ink-500">{{ $resultsCount }} total records</span>
         <a href="{{ route('reports.cluster.export') }}" class="btn ml-auto">Export CSV</a>
     </div>
 

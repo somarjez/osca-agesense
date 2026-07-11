@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class Facility extends Model
 {
@@ -27,6 +29,26 @@ class Facility extends Model
         'longitude' => 'decimal:7',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Active facilities with usable coordinates, cached 24h — facilities change
+     * rarely (only via the ImportOsmFacilities command), mirroring
+     * GisApiController::barangayBoundaryFeatures()'s cache convention.
+     */
+    public static function cachedActiveWithCoordinates(): Collection
+    {
+        return Cache::remember(
+            'facilities.active_with_coordinates',
+            now()->addHours(24),
+            fn () => static::query()
+                ->where('is_active', true)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->orderBy('type')
+                ->orderBy('name')
+                ->get(['id', 'name', 'type', 'barangay', 'latitude', 'longitude', 'source', 'osm_id'])
+        );
+    }
 
     public function nearestForHealthCenterMetrics(): HasMany
     {

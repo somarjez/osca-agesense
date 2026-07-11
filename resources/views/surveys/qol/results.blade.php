@@ -109,6 +109,17 @@
         </div>
     </div>
 
+    @php
+        $__qolDomainChartJson = json_encode(
+            [
+                'labels' => array_values($domainLabels),
+                'data' => collect($domainLabels)->keys()->map(fn ($k) => round(($survey->{$k} ?? 0) * 100, 1))->values(),
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG
+        );
+    @endphp
+    <script type="application/json" id="qol-domain-chart-data">{!! $__qolDomainChartJson !!}</script>
+
     {{-- Domain breakdown table --}}
     <div class="card overflow-hidden">
         <div class="card-head">
@@ -177,8 +188,10 @@
 @push('scripts')
 <script>
 (function () {
-    const labels = @json(array_values($domainLabels));
-    const data   = @json(collect($domainLabels)->keys()->map(fn($k) => round(($survey->{$k} ?? 0) * 100, 1))->values());
+    function readData() {
+        const el = document.getElementById('qol-domain-chart-data');
+        return el ? JSON.parse(el.textContent) : { labels: [], data: [] };
+    }
 
     function isDark() {
         return document.documentElement.classList.contains('dark');
@@ -190,6 +203,7 @@
         const existing = Object.values(Chart.instances).find(c => c.canvas === canvas);
         if (existing) existing.destroy();
 
+        const { labels, data } = readData();
         const dark = isDark();
         const gridColor   = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
         const tickColor   = dark ? '#6b7570' : '#8a8f86';
@@ -232,11 +246,20 @@
 
     const boot = () => window.OSCA.charts().then(() => initDomainRadar());
 
-    // Observe dark mode class changes and re-render chart
-    new MutationObserver(() => setTimeout(boot, 50))
-        .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    // Persistent (document-level) registrations must only bind once per page
+    // session — this whole <script> tag re-executes on every wire:navigate
+    // navigation, so without this guard the observer/listener would accumulate
+    // unboundedly. initDomainRadar() reads #qol-domain-chart-data fresh at call
+    // time, so a single bound registration stays correct across every future
+    // navigation.
+    if (!window.__oscaBound_qolResults) {
+        window.__oscaBound_qolResults = true;
+        // Observe dark mode class changes and re-render chart
+        new MutationObserver(() => setTimeout(boot, 50))
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    }
     boot();
 })();
 </script>

@@ -101,6 +101,14 @@
         </div>
     </div>
 
+    @php
+        $__clusterReportChartJson = json_encode(
+            ['domainByCluster' => $domainByCluster, 'qolByCluster' => $qolByCluster],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG
+        );
+    @endphp
+    <script type="application/json" id="cluster-report-chart-data">{!! $__clusterReportChartJson !!}</script>
+
     {{-- ── Evaluation Metrics ── --}}
     @if ($evalMetrics['silhouette'])
     <div class="card">
@@ -296,8 +304,11 @@
     ];
     const clusterColors  = ['rgb(46,204,113)', 'rgb(52,152,219)', 'rgb(243,156,18)', 'rgb(231,76,60)'];
     const clusterBgAlpha = ['rgba(46,204,113,0.2)', 'rgba(52,152,219,0.2)', 'rgba(243,156,18,0.2)', 'rgba(231,76,60,0.2)'];
-    const domainByCluster = @json($domainByCluster);
-    const qolByCluster    = @json($qolByCluster);
+
+    function readData() {
+        const el = document.getElementById('cluster-report-chart-data');
+        return el ? JSON.parse(el.textContent) : { domainByCluster: {}, qolByCluster: {} };
+    }
 
     function upsert(id, config) {
         const canvas = document.getElementById(id);
@@ -308,6 +319,8 @@
     }
 
     function initClusterCharts() {
+        const { domainByCluster, qolByCluster } = readData();
+
         upsert('domainByClusterChart', {
             type: 'bar',
             data: {
@@ -371,7 +384,17 @@
     }
 
     const boot = () => window.OSCA.charts().then(() => initClusterCharts());
-    document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+
+    // Persistent (document-level) registration must only bind once per page
+    // session — this whole <script> tag re-executes on every wire:navigate
+    // navigation, so without this guard the listener would accumulate
+    // unboundedly. initClusterCharts() reads #cluster-report-chart-data fresh
+    // at call time, so a single bound listener stays correct across every
+    // future navigation.
+    if (!window.__oscaBound_clusterReport) {
+        window.__oscaBound_clusterReport = true;
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+    }
     // Fallback for a direct page load / hard refresh (livewire:navigated only fires
     // on SPA navigation). upsert() destroys any existing chart, so this is idempotent.
     if (document.readyState !== 'loading') setTimeout(boot, 0);
