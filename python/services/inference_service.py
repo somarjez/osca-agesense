@@ -491,6 +491,26 @@ _FEATURE_TO_SECTION: Dict[str, str] = {
     for feat in feats
 }
 
+# Clinical direction overrides for XAI effect signs.
+# feature_effect_signs in cluster_feature_means.json is derived purely from
+# correlating each feature against the model's predicted risk (see
+# generate_xai_means.py). That is an OBSERVATIONAL signal and can be flipped
+# by reverse causation / confounding — e.g. seniors who already have a chronic
+# condition are more likely to have a regular check-up, so "has check-up"
+# correlates positively with risk in the sample even though preventive care is
+# protective. These features are protective by clinical/WHO evidence
+# regardless of what the sample correlation says, so their sign is pinned
+# here instead of trusting the raw correlation. Evidence: regular medical
+# check-ups reduce disability risk (~1.85x higher risk without them); pension/
+# income security and community participation are established WHO Healthy
+# Ageing protective factors.
+_CLINICAL_EFFECT_SIGNS: Dict[str, int] = {
+    "checkup_enc":              -1,  # regular preventive check-up — protective
+    "has_pension":               -1,  # income security — protective
+    "income_enc":                -1,  # higher income bracket — protective
+    "community_service_count":   -1,  # social participation / active ageing — protective
+}
+
 
 @lru_cache(maxsize=1)
 def _load_cluster_feature_means() -> Optional[Dict[str, Any]]:
@@ -527,6 +547,8 @@ def _compute_xai(
             return {"section_drivers": [], "feature_drivers": []}
         importances = gbr.feature_importances_
         # Per-feature sign of effect on risk (+1 raises, -1 lowers). Default +1.
+        # _CLINICAL_EFFECT_SIGNS takes precedence over the correlation-derived
+        # sign — see its docstring for why (confounding/reverse causation).
         signs = effect_signs_all.get(domain, {})
         contribs: List[Dict[str, Any]] = []
         for i, feat in enumerate(ml_risk_feature_names):
@@ -535,7 +557,7 @@ def _compute_xai(
             imp     = float(importances[i])
             val     = float(feature_map.get(feat, 0.0))
             mean    = float(cluster_means.get(feat, 0.5))
-            sign    = int(signs.get(feat, 1))
+            sign    = _CLINICAL_EFFECT_SIGNS.get(feat, int(signs.get(feat, 1)))
             # Signed contribution to RISK: positive => raises risk, negative => lowers risk
             contrib = imp * (val - mean) * sign
             contribs.append({

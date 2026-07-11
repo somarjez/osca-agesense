@@ -219,6 +219,22 @@ global_mean = dict(zip(risk_features, global_arr.mean(axis=0).tolist()))
 #   correlation > 0  → higher feature value associates with higher risk → +1
 #   correlation < 0  → higher feature value associates with lower risk  → -1
 # In _compute_xai:  risk_contrib = importance x (value - mean) x effect_sign
+#
+# CAVEAT: this correlation is observational and can be flipped by reverse
+# causation / confounding — e.g. seniors who already have a chronic condition
+# are more likely to have a regular check-up, so "has check-up" correlates
+# positively with risk in the sample even though preventive care is
+# protective. inference_service.py applies a _CLINICAL_EFFECT_SIGNS override
+# at runtime for such features regardless of what's written here; we bake the
+# same override into the artifact so it stays consistent on disk. Keep this
+# list in sync with _CLINICAL_EFFECT_SIGNS in
+# python/services/inference_service.py.
+_CLINICAL_EFFECT_SIGNS = {
+    "checkup_enc":              -1,  # regular preventive check-up — protective
+    "has_pension":               -1,  # income security — protective
+    "income_enc":                -1,  # higher income bracket — protective
+    "community_service_count":   -1,  # social participation / active ageing — protective
+}
 print("\nComputing feature effect signs...")
 
 def _load_gbr(name):
@@ -253,6 +269,10 @@ for domain, gbr in _GBR_BY_DOMAIN.items():
                 signs[feat] = 1 if corr >= 0 else -1
         except Exception as exc:
             print(f"  WARN: effect-sign for {domain} failed ({exc}); defaulting to +1")
+    # Clinical override wins over the raw correlation (see caveat above).
+    for feat, clinical_sign in _CLINICAL_EFFECT_SIGNS.items():
+        if feat in signs:
+            signs[feat] = clinical_sign
     feature_effect_signs[domain] = signs
     pos = sum(1 for v in signs.values() if v == 1)
     neg = sum(1 for v in signs.values() if v == -1)
