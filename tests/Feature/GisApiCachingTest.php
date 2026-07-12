@@ -133,20 +133,28 @@ class GisApiCachingTest extends TestCase
     #[Test]
     public function geocode_dispatch_busts_seniors_geojson_cache(): void
     {
-        // The geocode command now chains a queued ORS route recompute; fake the
-        // queue so the dispatch test never makes a real ORS call.
+        // gis:geocode now runs synchronously in the request (so the "Bulk
+        // Geocode Status" badge is fresh on first click — see
+        // ReportController::runGisGeocode), but it still chains a queued ORS
+        // route recompute per updated senior; fake the queue so this test
+        // never makes a real ORS call.
         Queue::fake();
 
-        Cache::put('gis.seniors_geojson.full', ['dummy' => true], now()->addMinutes(5));
-        Cache::put('gis.seniors_geojson.generalized', ['dummy' => true], now()->addMinutes(5));
-        $this->assertTrue(Cache::has('gis.seniors_geojson.full'));
-        $this->assertTrue(Cache::has('gis.seniors_geojson.generalized'));
+        // Seed the exact key GisApiController::seniors() would currently read
+        // with a distinguishable dummy payload.
+        $key = 'gis.seniors_geojson.full.'.SeniorDataVersion::current();
+        Cache::put($key, ['type' => 'DummyCachedPayload', 'features' => []], now()->addMinutes(5));
 
         $this->actingAs($this->admin)
             ->post(route('reports.gis.geocode'))
             ->assertRedirect();
 
-        $this->assertFalse(Cache::has('gis.seniors_geojson.full'));
-        $this->assertFalse(Cache::has('gis.seniors_geojson.generalized'));
+        // The controller invalidates via SeniorDataVersion::bump() (same
+        // pattern as SeniorLocationObserver), not by forgetting a literal key.
+        // That folds a new version into the cache key GisApiController reads
+        // next, so the stale dummy payload above is never served again.
+        $response = $this->actingAs($this->admin)->getJson('/api/gis/seniors');
+        $response->assertStatus(200);
+        $this->assertNotSame('DummyCachedPayload', $response->json('type'));
     }
 }

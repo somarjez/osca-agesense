@@ -11,10 +11,10 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
+use App\Support\SeniorDataVersion;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -49,12 +49,24 @@ class ReportController extends Controller
      */
     public function runGisGeocode()
     {
-        Artisan::queue('gis:geocode');
-        // Bust both role-precision cache variants — see GisApiController::seniors().
-        Cache::forget('gis.seniors_geojson.full');
-        Cache::forget('gis.seniors_geojson.generalized');
+        // Synchronous (not ::queue): the status badge below is recomputed from
+        // a live DB read immediately after this returns, so the assignment has
+        // to be done by then or the badge shows stale "Needs Update" until a
+        // second click/refresh. This step is local and quick (no external API
+        // calls) — see the "local and quick" comment in GeocodeSeniors::handle().
+        // The slow, rate-limited ORS route-distance step still runs in the
+        // background: the command queues it internally, unaffected by this call
+        // being synchronous.
+        Artisan::call('gis:geocode');
 
-        return back()->with('success', 'Geocoding job queued. Coordinates will update within a few minutes — refresh the GIS map to see the results.');
+        // Bump the version stamp folded into the GIS GeoJSON cache keys so the
+        // map doesn't wait out its TTL to notice the new coordinates — same
+        // pattern as SeniorLocationObserver. (The old Cache::forget() calls here
+        // targeted literal keys that GisApiController never uses; it reads
+        // version-stamped keys, so those forgets were a no-op.)
+        SeniorDataVersion::bump();
+
+        return back()->with('success', 'Bulk geocoding complete. The map and status now reflect the latest coordinates.');
     }
 
     private function gisGeocodeStatus(): array
