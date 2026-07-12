@@ -220,6 +220,17 @@ class CacheGisRouteDistances extends Command
                         usleep($sleepMs * 1000);
                     }
                 }
+
+                // Stop trying further facilities for THIS senior as soon as the
+                // rate-limit guard trips, instead of continuing through the rest
+                // of the candidate list. Previously $hitRequestCap was only
+                // checked at the top of the outer senior loop (line ~117), so a
+                // single rate-limited senior would still burn through every
+                // remaining facility (each costing a request + the sleep above)
+                // before the guard actually took effect on the next senior.
+                if ($hitRequestCap) {
+                    break;
+                }
             }
 
             $bar->advance();

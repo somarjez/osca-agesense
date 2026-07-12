@@ -147,8 +147,8 @@ $mlStartLog    = "$PROJECT\storage\logs\python-services-start.log"
 $mlStartErrLog = "$PROJECT\storage\logs\python-services-start.err.log"
 Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","`"$PROJECT\python\start_services.ps1`"" -WindowStyle Hidden -RedirectStandardOutput $mlStartLog -RedirectStandardError $mlStartErrLog
 
-# ── [2/3] Queue worker ──────────────────────────────────────────────────────────
-Write-Host " [2/3] Starting Laravel queue worker in background..."
+# ── [2/3] Queue workers ─────────────────────────────────────────────────────────
+Write-Host " [2/3] Starting Laravel queue workers in background (default + ml)..."
 
 # Kill any stale queue workers from a previous session so they pick up the
 # current .env (e.g. QUEUE_CONNECTION change). Use WMI to match by command line
@@ -169,6 +169,21 @@ $queuePsi.UseShellExecute = $false
 $queuePsi.RedirectStandardOutput = $true
 $queuePsi.RedirectStandardError  = $true
 [System.Diagnostics.Process]::Start($queuePsi) | Out-Null
+
+# Dedicated worker for the `ml` queue (ProcessMlSingle, RunMlPipeline) so a
+# senior's re-analysis never waits behind heavier `default`-queue work (e.g.
+# the GIS route-distance recompute a barangay edit queues) — real concurrency
+# via a second OS process, not just queue-order priority, since a single
+# worker can't preempt a job it's already mid-way through.
+$mlQueuePsi = New-Object System.Diagnostics.ProcessStartInfo
+$mlQueuePsi.FileName        = $PHP
+$mlQueuePsi.Arguments       = "-d max_execution_time=0 `"$PROJECT\artisan`" queue:work --queue=ml --tries=1 --sleep=3"
+$mlQueuePsi.WorkingDirectory = $PROJECT
+$mlQueuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
+$mlQueuePsi.UseShellExecute = $false
+$mlQueuePsi.RedirectStandardOutput = $true
+$mlQueuePsi.RedirectStandardError  = $true
+[System.Diagnostics.Process]::Start($mlQueuePsi) | Out-Null
 
 # ── [2b] Task scheduler ─────────────────────────────────────────────────────────
 Write-Host " [2b]  Starting Laravel task scheduler in background..."

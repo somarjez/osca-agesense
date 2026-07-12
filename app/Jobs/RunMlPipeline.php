@@ -20,7 +20,13 @@ class RunMlPipeline implements ShouldQueue
     public function __construct(
         public readonly int $seniorId,
         public readonly int $surveyId,
-    ) {}
+    ) {
+        // Same reasoning as ProcessMlSingle: this runs a single senior's
+        // first analysis right after QoL survey submission (QolSurveyForm.php)
+        // — a user is waiting on it, so it shouldn't queue behind heavier
+        // background work like the GIS auto-chain on the `default` queue.
+        $this->onQueue('ml');
+    }
 
     public function handle(MlService $ml): void
     {

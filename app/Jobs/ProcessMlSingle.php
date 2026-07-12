@@ -19,7 +19,17 @@ class ProcessMlSingle implements ShouldQueue
     public function __construct(
         public readonly int $seniorId,
         public readonly int $surveyId,
-    ) {}
+    ) {
+        // Dedicated queue, worked by its own process (see start.ps1), so a
+        // single senior's re-analysis never waits behind heavier background
+        // work (e.g. the GIS auto-chain a barangay edit queues on the
+        // `default` queue) on a shared serial worker. Users click "Re-run
+        // Assessment" and wait for it. Set in the constructor rather than as
+        // a redeclared property — Queueable's own $queue property has no
+        // default value, and PHP treats a class property with a different
+        // default than the trait's as an incompatible redeclaration.
+        $this->onQueue('ml');
+    }
 
     public function handle(MlService $ml): void
     {

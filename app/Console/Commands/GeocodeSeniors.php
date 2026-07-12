@@ -187,7 +187,20 @@ class GeocodeSeniors extends Command
                 count($updatedIds)
             ));
             foreach ($updatedIds as $id) {
-                Artisan::queue('gis:cache-route-distances', ['--senior-id' => $id]);
+                // Lighter than the bulk-run defaults (--facilities=12,
+                // --sleep-ms=2500): this call is always scoped to specific
+                // seniors (an edit-triggered re-geocode, or an admin's
+                // barangay-scoped run), not a whole-population sweep, so it
+                // doesn't need the same conservative quota pacing. 5 facilities
+                // matches what's actually shown prominently (map popup /
+                // profile "nearest ~5"); a run for many updated seniors still
+                // queues one bounded job per senior rather than one unbounded
+                // job for everyone.
+                Artisan::queue('gis:cache-route-distances', [
+                    '--senior-id' => $id,
+                    '--facilities' => 5,
+                    '--sleep-ms' => 500,
+                ]);
             }
         }
 
