@@ -58,6 +58,7 @@ class GeocodeSeniors extends Command
             'municipal_fallback' => 0,
         ];
         $invalidBarangays = [];
+        $updatedIds = [];
 
         $this->info('GIS barangay-level geocoding');
         $this->line('Dry run: '.($dryRun ? 'yes' : 'no'));
@@ -70,7 +71,7 @@ class GeocodeSeniors extends Command
         }
         $this->newLine();
 
-        $processSeniors = function ($seniors) use ($dryRun, $force, &$stats, &$invalidBarangays): void {
+        $processSeniors = function ($seniors) use ($dryRun, $force, &$stats, &$invalidBarangays, &$updatedIds): void {
             foreach ($seniors as $senior) {
                 $stats['checked']++;
 
@@ -107,6 +108,7 @@ class GeocodeSeniors extends Command
                 }
 
                 $stats['updated']++;
+                $updatedIds[] = $senior->id;
 
                 if (! $dryRun) {
                     $senior->forceFill([
@@ -163,6 +165,16 @@ class GeocodeSeniors extends Command
         // scoring is local and quick, so run it inline; the ORS route cache is the
         // slow, rate-limited part, so queue it to run in the background. The route
         // cache is freshness-aware, so moved seniors are recomputed automatically.
+        //
+        // Scoped to the seniors actually updated (--senior-id per job) rather than
+        // one unscoped `gis:cache-route-distances` call. That command has no
+        // barangay filter, so an unscoped call recomputes ORS routes for the
+        // ENTIRE active population — against the rate-limited free-tier ORS quota,
+        // this can occupy the single queue worker for a very long time and starve
+        // other queued work (e.g. "Re-run Assessment" via ProcessMlSingle, which
+        // shares the same `default` queue). This path runs on every barangay edit
+        // (SeniorLocationObserver queues `gis:geocode --barangay=X` for the one
+        // edited senior), so keeping it scoped matters a lot in practice.
         if (! $dryRun && ! $this->option('skip-recompute') && $stats['updated'] > 0) {
             $this->newLine();
             $this->info('Recomputing accessibility (proximity) scores for the updated coordinates…');
@@ -170,8 +182,13 @@ class GeocodeSeniors extends Command
                 '--barangay' => $barangay,
             ]));
 
-            $this->info('Queuing ORS route-distance recompute (runs in the background)…');
-            Artisan::queue('gis:cache-route-distances');
+            $this->info(sprintf(
+                'Queuing ORS route-distance recompute for %d updated senior(s) (runs in the background)…',
+                count($updatedIds)
+            ));
+            foreach ($updatedIds as $id) {
+                Artisan::queue('gis:cache-route-distances', ['--senior-id' => $id]);
+            }
         }
 
         return self::SUCCESS;
