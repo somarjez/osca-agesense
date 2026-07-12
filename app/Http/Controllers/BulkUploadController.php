@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkUploadRequest;
+use App\Jobs\ProcessMlBatch;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
-use App\Services\MlService;
 use App\Support\DateParser;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use League\Csv\Reader;
@@ -345,22 +347,48 @@ class BulkUploadController extends Controller
             return back()->withErrors(['file' => 'Import failed: '.$e->getMessage()]);
         }
 
-        // Trigger ML pipeline asynchronously for inserted seniors
+        // Queue ML analysis for the inserted seniors — mirrors
+        // MlController::batchRun() (chunked Bus::batch() of ProcessMlBatch,
+        // same cache-key progress counters the Batch Assessment page reads).
+        // This used to call MlService::runBatchPipeline() directly, which
+        // held this request open for however long it took to score every
+        // imported senior — fine for a handful of rows, but a large import
+        // risked a web-server/proxy timeout and a stuck-feeling upload
+        // page. Dispatching returns immediately; scoring happens in the
+        // background on the queue workers, same as a manual batch run.
         $mlWarning = null;
         if ($pairs) {
             try {
-                app(MlService::class)->runBatchPipeline($pairs);
+                $seniorIds = array_map(fn ($pair) => $pair['senior']->id, $pairs);
+                $cacheKey = 'ml_batch_'.now()->format('YmdHis');
+                $chunks = array_chunk($seniorIds, 100);
+                $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
+
+                $batch = Bus::batch($jobs)
+                    ->name('ML Batch — Bulk Upload — '.now()->format('Y-m-d H:i'))
+                    ->allowFailures()
+                    ->dispatch();
+
+                Cache::put("{$cacheKey}:batch_id", $batch->id, now()->addHours(2));
+                Cache::put("{$cacheKey}:total", count($seniorIds), now()->addHours(2));
+                Cache::put("{$cacheKey}:processed", 0, now()->addHours(2));
+                Cache::put("{$cacheKey}:failed", 0, now()->addHours(2));
+                Cache::put('ml_last_batch_started', now(), now()->addDays(90));
+                Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
             } catch (\Throwable $mlEx) {
-                // ML failure does not block the import — seniors are saved.
+                // Dispatch failure does not block the import — seniors are saved.
                 // Surface a warning so staff knows to run batch analysis manually.
-                $mlWarning = 'ML analysis failed for imported seniors ('.$mlEx->getMessage().'). Run Batch Assessment manually to generate risk scores.';
-                Log::warning('Bulk upload ML pipeline failed', ['error' => $mlEx->getMessage()]);
+                $mlWarning = 'Could not queue ML analysis for imported seniors ('.$mlEx->getMessage().'). Run Batch Assessment manually to generate risk scores.';
+                Log::warning('Bulk upload ML batch dispatch failed', ['error' => $mlEx->getMessage()]);
             }
         }
 
         $msg = "Imported {$inserted} senior(s) successfully.";
         if ($skipped) {
             $msg .= " Skipped {$skipped} row(s) with missing required fields.";
+        }
+        if ($pairs && ! $mlWarning) {
+            $msg .= ' Risk assessment is running in the background — check Batch Assessment for progress.';
         }
 
         if ($mlWarning) {
