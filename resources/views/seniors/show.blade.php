@@ -1032,15 +1032,25 @@
             </div>
         </div>
         @else
-        {{-- No coordinate stored yet --}}
+        {{-- No coordinate stored yet. This is also the state a barangay edit puts a
+             senior in (SeniorLocationObserver nulls coordinates so gis:geocode picks
+             them up) — a queued re-geocode usually clears it within a few minutes if
+             a queue worker is running, but staff shouldn't have to guess when that
+             hasn't happened yet, so the notice always points at the manual fallback. --}}
         <div class="p-5 flex items-start gap-3">
-            <div class="w-9 h-9 rounded-lg bg-paper-2 dark:bg-[#1a201d] grid place-items-center flex-shrink-0">
-                <x-heroicon-o-map-pin class="w-5 h-5 text-ink-400" />
+            <div class="w-9 h-9 rounded-lg bg-moderate-50 dark:bg-moderate-50/10 grid place-items-center flex-shrink-0">
+                <x-heroicon-o-map-pin class="w-5 h-5 text-moderate-700 dark:text-moderate-500" />
             </div>
             <div>
                 <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc] font-medium">No location on record</p>
                 <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-0.5">
-                    This senior has not been geocoded yet.
+                    The map pin and facility access score are unavailable until this senior is geocoded.
+                    If a barangay was just changed, this usually resolves automatically within a few
+                    minutes — if it doesn't,
+                    <a href="{{ route('reports.gis') }}" class="text-moderate-700 dark:text-moderate-500 font-semibold underline decoration-dotted underline-offset-2 hover:no-underline">
+                        run Bulk Geocode in GIS
+                    </a>
+                    to update it now.
                 </p>
             </div>
         </div>
