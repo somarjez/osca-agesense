@@ -5,29 +5,7 @@
 @section('content')
 <div class="space-y-5">
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        @php
-        $gisCards = [
-            ['id' => 'gis-stat-total',    'label' => 'Total Mapped Seniors', 'value' => $stats['mapped_seniors'],   'rule' => 'bg-low-500',      'caption' => 'Current visible records'],
-            ['id' => 'gis-stat-high-risk','label' => 'High Risk Seniors',    'value' => $stats['high_risk_mapped'], 'rule' => 'bg-high-500',     'caption' => 'Current visible records'],
-            ['id' => 'gis-stat-barangays','label' => 'Barangays Covered',    'value' => $stats['barangays_covered'],'rule' => 'bg-info-500',     'caption' => 'Distinct visible barangays'],
-            ['id' => 'gis-stat-source',   'label' => 'Data Source',          'value' => 'Loading',                  'rule' => 'bg-forest-500',   'caption' => 'API-driven GIS source'],
-        ];
-        @endphp
-        @foreach ($gisCards as $card)
-        <div class="kpi">
-            <div class="kpi-rule {{ $card['rule'] }}"></div>
-            <div class="kpi-label">{{ $card['label'] }}</div>
-            <div id="{{ $card['id'] }}" class="kpi-value">{{ is_numeric($card['value']) ? number_format($card['value']) : $card['value'] }}</div>
-            <div class="kpi-delta">{{ $card['caption'] }}</div>
-        </div>
-        @endforeach
-    </div>
-
-    <div class="card card-body py-3">
-        <p class="eyebrow">Prototype Note</p>
-        <p class="text-sm text-ink-700 dark:text-[#b0b5b2] mt-1 leading-relaxed">Each senior is visualized as a generalized point within their recorded barangay because available address data only contains barangay information. Points do not represent exact household locations.</p>
-    </div>
+    <x-page-header title="GIS Analytics" subtitle="Spatial visibility for senior distribution and community accessibility context" />
 
     @php
         $geocodeTone = match ($geocodeStatus['status'] ?? 'Pending') {
@@ -36,210 +14,591 @@
             default => 'text-high-700 bg-high-50 border-high-200',
         };
     @endphp
+
+    {{-- Toolbar — Visualization / Barangay / Risk-or-Cluster / Export --}}
     <div class="card card-body">
-        <div class="flex flex-col gap-3">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div class="flex flex-wrap items-center gap-2 min-w-0">
-                    <p class="eyebrow">Bulk Geocode Status</p>
-                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $geocodeTone }}">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_auto] gap-3 xl:items-start">
+            <label class="block">
+                <span class="eyebrow block mb-1.5">Visualization</span>
+                <select id="gis-visualization-mode" class="form-select">
+                    <option value="markers">Senior Population Overview</option>
+                    <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
+                    <option value="cluster-heatmap">Profile Groups Heatmap</option>
+                    <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
+                </select>
+            </label>
+            <label class="block">
+                <span class="eyebrow block mb-1.5">Barangay</span>
+                <select id="gis-barangay-filter" class="form-select">
+                    <option value="all">All Barangays</option>
+                </select>
+                <button id="gis-recenter-btn" type="button"
+                    class="mt-1 text-[11px] text-ink-500 dark:text-[#7a8580] hover:text-forest-700 dark:hover:text-forest-400 underline underline-offset-2 transition-colors">
+                    ↺ Re-center map
+                </button>
+            </label>
+            <label class="block">
+                <span id="gis-secondary-filter-label" class="eyebrow block mb-1.5">Risk Level</span>
+                <select id="gis-risk-filter" class="form-select">
+                    <option value="all">All Risk Levels</option>
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
+                </select>
+                <select id="gis-cluster-filter" class="form-select hidden">
+                    <option value="all">All Groups</option>
+                </select>
+            </label>
+            @role('admin')
+            <div class="block">
+                <span class="eyebrow block mb-1.5 invisible select-none" aria-hidden="true">Export</span>
+                <a href="{{ route('reports.gis.export') }}"
+                   class="btn text-[12px] px-3 py-2.5 whitespace-nowrap justify-center w-full md:w-auto">
+                    <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" />
+                    Export CSV
+                </a>
+            </div>
+            @endrole
+        </div>
+    </div>
+
+    {{-- Map (left) + context sidebar (right) --}}
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+
+        {{-- Map card --}}
+        <div class="card overflow-hidden">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Senior Citizen Spatial Distribution</div>
+                    <div class="card-sub">Generalized senior distribution and accessibility context within Pagsanjan</div>
+                </div>
+                <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] whitespace-nowrap">Centered on Pagsanjan, Laguna</span>
+            </div>
+
+            <div class="card-body space-y-4">
+                <div class="relative">
+                    <label class="block">
+                        <span class="eyebrow block mb-1.5">Find a Senior</span>
+                        <input id="gis-senior-search" type="text" autocomplete="off"
+                            class="form-input" placeholder="Search by name or OSCA-ID...">
+                    </label>
+                    <ul id="gis-senior-search-results"
+                        class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-paper-0 dark:bg-[#1b211e] shadow-lg text-sm">
+                    </ul>
+                </div>
+
+                {{-- Map layers — collapsible so the map gets the room --}}
+                <details class="group border border-paper-rule dark:border-[#2b3530] rounded-lg">
+                    <summary class="cursor-pointer select-none list-none px-3 py-2 flex items-center justify-between text-[12px] font-semibold text-ink-700 dark:text-[#d8ddd9] [&::-webkit-details-marker]:hidden">
+                        <span>Map layers</span>
+                        <x-heroicon-o-chevron-down class="w-3.5 h-3.5 transition-transform duration-150 group-open:rotate-180" />
+                    </summary>
+                    <div class="px-3 pb-3 space-y-3 border-t border-paper-rule dark:border-[#2b3530] pt-3">
+                        <div id="gis-layer-options" class="hidden space-y-3">
+                            <div id="gis-layer-options-markers" class="hidden">
+                                <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                                    <label class="inline-flex items-center gap-2">
+                                        <input id="gis-show-senior-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                                        <span>Show senior points</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-2">
+                                        <input id="gis-show-barangay-density-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                                        <span>Show barangay density fill</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="gis-layer-options-cluster" class="hidden">
+                                <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                                    <label class="inline-flex items-center gap-2">
+                                        <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                                        <span>Show senior distribution points</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="gis-accessibility-point-display" style="display: none;">
+                            <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                                <input id="gis-show-heatmap-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                                <span>Show senior points on accessibility heatmap</span>
+                            </label>
+                        </div>
+
+                        <div id="gis-risk-point-display" style="display: none;">
+                            <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
+                                <input id="gis-show-risk-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
+                                <span>Show senior points on risk heatmap</span>
+                            </label>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="relative">
+                    <div id="gis-map"
+                         class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[520px]"
+                         data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
+                         data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
+                         data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
+                         data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
+                         data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
+                    </div>
+
+                    {{-- Loading overlay — masks the basemap until GIS layers finish loading --}}
+                    <div id="gis-map-loading"
+                         class="absolute inset-0 z-[1200] flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#f2efe9] dark:bg-[#161b18] text-ink-500 dark:text-[#8a958f] transition-opacity duration-300"
+                         role="status" aria-live="polite">
+                        <svg class="w-7 h-7 animate-spin motion-reduce:animate-none text-forest-600 dark:text-forest-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        <p class="text-[12.5px] font-medium">Loading map…</p>
+                    </div>
+
+                    {{-- Legend — floats over the map on desktop, flows below it on mobile. Collapsible,
+                         and caps its own height with a Show all/less toggle once content grows past a
+                         handful of rows (heatmap modes add facility + boundary + band rows).
+                         #gis-map-legend stays the single element updateLegend(mode) rewrites. --}}
+                    <div x-data="{ legendOpen: true, legendExpanded: false }"
+                         class="mt-3 md:mt-0 md:absolute md:top-3 md:right-3 md:z-[1100] md:w-64 max-w-full rounded-xl border border-paper-rule dark:border-[#2b3530] bg-white/95 dark:bg-[#1a201d]/95 md:shadow-md overflow-hidden">
+                        <button type="button" @click="legendOpen = !legendOpen"
+                                class="w-full flex items-center justify-between gap-2 px-3 py-2 text-left">
+                            <span class="inline-flex items-center gap-1.5">
+                                <x-heroicon-o-map class="w-3.5 h-3.5 text-ink-400 dark:text-[#6b7570]" />
+                                <span class="eyebrow">Legend</span>
+                            </span>
+                            <x-heroicon-o-chevron-down class="w-3.5 h-3.5 text-ink-400 transition-transform duration-150"
+                                                        x-bind:class="legendOpen ? 'rotate-180' : ''" />
+                        </button>
+                        <div x-show="legendOpen" x-transition.opacity.duration.150ms class="px-3 pb-2.5">
+                            <div class="relative">
+                                <div :class="legendExpanded ? '' : 'max-h-32 overflow-hidden'" class="transition-[max-height] duration-200">
+                                    <div id="gis-map-legend" class="flex flex-wrap md:flex-col gap-x-4 gap-y-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]">
+                                        <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-low-500 inline-block"></span>Low Risk</span>
+                                        <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-500 inline-block"></span>Moderate Risk</span>
+                                        <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-high-500 inline-block"></span>High Risk</span>
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden="true" class="flex-shrink-0"><circle cx="8" cy="8" r="7" fill="#527a9b" stroke="#ffffff" stroke-width="1"/><path d="M8 4.5v7M4.5 8h7" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/></svg>
+                                            Facilities
+                                        </span>
+                                        <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-100 inline-block"></span>Outer Zone</span>
+                                    </div>
+                                </div>
+                                <div x-show="!legendExpanded"
+                                     class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white dark:from-[#1a201d] to-transparent"></div>
+                            </div>
+                            <button type="button" @click="legendExpanded = !legendExpanded"
+                                    class="mt-1.5 text-[11px] font-semibold text-forest-700 dark:text-forest-400 hover:underline underline-offset-2">
+                                <span x-text="legendExpanded ? 'Show less' : 'Show all'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg bg-paper-2 dark:bg-[#1f2622] px-3 py-2.5 text-[12px] text-ink-600 dark:text-[#b0b5b2] leading-relaxed">
+                    <p>Points represent approximate barangay-level locations only. These do not indicate exact home addresses of senior citizens.</p>
+                    <p class="mt-1 font-mono tnum text-[11.5px] text-ink-500 dark:text-[#8a958f]">
+                        {{ number_format($geocodeStatus['total_seniors']) }} senior record{{ $geocodeStatus['total_seniors'] === 1 ? '' : 's' }} loaded ·
+                        <span class="text-low-700 dark:text-low-100">{{ number_format($geocodeStatus['verified_coordinates']) }} verified</span> ·
+                        <span class="text-info-700 dark:text-info-100">{{ number_format($geocodeStatus['approximate_coordinates']) }} approximate</span>
+                        @if (($geocodeStatus['missing_coordinates'] ?? 0) > 0)
+                            · <span class="text-high-700 dark:text-high-100">{{ number_format($geocodeStatus['missing_coordinates']) }} missing</span>
+                        @endif
+                    </p>
+                </div>
+                <p id="gis-map-status" class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Loading barangay-level GIS data...</p>
+            </div>
+        </div>
+
+        {{-- Context sidebar --}}
+        <div class="space-y-4">
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-info-100 text-info-700 dark:bg-info-700/20 dark:text-info-100 flex-shrink-0">
+                            <x-heroicon-o-information-circle class="w-4 h-4" />
+                        </span>
+                        <div class="card-title">What This Map Shows</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-[12.5px] text-ink-700 dark:text-[#b0b5b2] leading-relaxed">
+                        This map displays senior citizen distribution using approximate barangay-level locations only. It does not show exact household locations.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-forest-100 text-forest-700 dark:bg-forest-700/20 dark:text-forest-100 flex-shrink-0">
+                            <x-heroicon-o-circle-stack class="w-4 h-4" />
+                        </span>
+                        <div class="card-title">Data Source</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-[12.5px] text-ink-700 dark:text-[#b0b5b2] leading-relaxed mb-2">
+                        OSCA Senior Citizen Records <span id="gis-stat-source" class="text-ink-400 dark:text-[#6b7570]">(minimal data)</span>:
+                    </p>
+                    <ul class="space-y-1 text-[12.5px] text-ink-700 dark:text-[#b0b5b2] list-disc list-inside">
+                        <li>Age</li>
+                        <li>Address (Barangay only)</li>
+                        <li>Family Composition</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-moderate-100 text-moderate-700 dark:bg-moderate-700/20 dark:text-moderate-100 flex-shrink-0">
+                            <x-heroicon-o-arrow-path class="w-4 h-4" />
+                        </span>
+                        <div class="card-title">Bulk Geocode Status</div>
+                    </div>
+                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap {{ $geocodeTone }}">
                         {{ $geocodeStatus['status'] }}
                     </span>
                 </div>
-                @role('admin')
-                <div x-data="{ open: false }" class="shrink-0 sm:ml-auto">
-                    <button type="button" @click="open = true" class="btn text-[12px] px-3 py-2 whitespace-nowrap">
-                        Run Bulk Geocode
-                    </button>
-                    <form x-ref="geocodeForm" method="POST" action="{{ route('reports.gis.geocode') }}" class="hidden">
-                        @csrf
-                    </form>
-                    <x-confirm-modal show="open"
-                                     title="Run bulk geocoding?"
-                                     tone="primary"
-                                     confirm="$refs.geocodeForm.submit()"
-                                     confirm-label="Run geocoding">
-                        <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
-                    </x-confirm-modal>
-                </div>
-                @endrole
-            </div>
-            <div class="border-t border-paper-rule dark:border-[#2b3530]"></div>
-            <p class="text-sm text-ink-700 dark:text-[#b0b5b2] leading-relaxed">
-                Bulk geocoding assigns approximate coordinates inside each senior's barangay so records can be mapped for barangay-level planning. These are not exact home locations.
-            </p>
-            @if (($geocodeStatus['missing_coordinates'] ?? 0) > 0)
-                <x-alert type="warning">
-                    <strong>{{ number_format($geocodeStatus['missing_coordinates']) }}</strong>
-                    senior{{ $geocodeStatus['missing_coordinates'] === 1 ? '' : 's' }} changed barangay or {{ $geocodeStatus['missing_coordinates'] === 1 ? 'is' : 'are' }} not yet mapped.
-                    @role('admin')
-                        Run Bulk Geocode above to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
-                    @else
-                        Ask an admin to run Bulk Geocode to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
-                    @endrole
-                </x-alert>
-            @endif
-        </div>
+                <div class="card-body space-y-3">
+                    <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-[12px]">
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Last Run</dt>
+                            <dd class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['last_run_at'] ?? 'Not recorded' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Mode</dt>
+                            <dd class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['coordinate_mode'] }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Total Seniors</dt>
+                            <dd class="font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['total_seniors']) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Approximate</dt>
+                            <dd class="font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['approximate_coordinates']) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Verified/Manual</dt>
+                            <dd class="font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['verified_coordinates']) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-ink-400 dark:text-[#6b7570]">Missing</dt>
+                            <dd class="font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['missing_coordinates']) }}</dd>
+                        </div>
+                    </dl>
 
-        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-4 text-sm">
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Coordinate Mode</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['coordinate_mode'] }}</div>
+                    @if (($geocodeStatus['missing_coordinates'] ?? 0) > 0)
+                        <x-alert type="warning">
+                            <strong>{{ number_format($geocodeStatus['missing_coordinates']) }}</strong>
+                            senior{{ $geocodeStatus['missing_coordinates'] === 1 ? '' : 's' }} changed barangay or {{ $geocodeStatus['missing_coordinates'] === 1 ? 'is' : 'are' }} not yet mapped.
+                            @role('admin')
+                                Run Bulk Geocode below to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
+                            @else
+                                Ask an admin to run Bulk Geocode to update {{ $geocodeStatus['missing_coordinates'] === 1 ? 'its' : 'their' }} map location.
+                            @endrole
+                        </x-alert>
+                    @endif
+
+                    @role('admin')
+                    <div x-data="{ open: false }">
+                        <button type="button" @click="open = true" class="btn btn-primary w-full justify-center text-[12px] px-3 py-2">
+                            <x-heroicon-o-arrow-path class="w-3.5 h-3.5" />
+                            Run Bulk Geocode
+                        </button>
+                        <form x-ref="geocodeForm" method="POST" action="{{ route('reports.gis.geocode') }}" class="hidden">
+                            @csrf
+                        </form>
+                        <x-confirm-modal show="open"
+                                         title="Run bulk geocoding?"
+                                         tone="primary"
+                                         confirm="$refs.geocodeForm.submit()"
+                                         confirm-label="Run geocoding">
+                            <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
+                        </x-confirm-modal>
+                    </div>
+                    @endrole
+                </div>
             </div>
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Total Seniors</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['total_seniors']) }}</div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-info-100 text-info-700 dark:bg-info-700/20 dark:text-info-100 flex-shrink-0">
+                            <x-heroicon-o-map-pin class="w-4 h-4" />
+                        </span>
+                        <div class="card-title">About Coordinates</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-[12.5px] text-ink-700 dark:text-[#b0b5b2] leading-relaxed">
+                        Coordinates are generated from barangay centroids or privacy-safe points inside each barangay boundary, for planning and accessibility context only.
+                    </p>
+                </div>
             </div>
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Approximate</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['approximate_coordinates']) }}</div>
-            </div>
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Verified/Manual</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['verified_coordinates']) }}</div>
-            </div>
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Missing</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ number_format($geocodeStatus['missing_coordinates']) }}</div>
-            </div>
-            <div>
-                <div class="text-[11px] uppercase tracking-wide text-ink-400">Last Run</div>
-                <div class="font-semibold text-ink-800 dark:text-[#d8ddd9]">{{ $geocodeStatus['last_run_at'] ?? 'Not recorded' }}</div>
-            </div>
+
         </div>
     </div>
 
-    <div class="card overflow-hidden">
-        <div class="card-head">
-            <div>
-                <div class="card-title">Senior Citizen Spatial Distribution</div>
-                <div class="card-sub">Generalized senior distribution and accessibility context within Pagsanjan</div>
+    {{-- Bottom summary row --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+
+        {{-- Senior Count Per Barangay — proportional data-bar list (same idiom as the
+             dashboard's Barangay Breakdown), not a rigid table: it's inherently
+             responsive since only the bar and truncated name flex with the card's
+             width, instead of fighting for space across fixed table columns. --}}
+        <div class="card overflow-hidden">
+            <div class="card-head">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-forest-100 text-forest-700 dark:bg-forest-700/20 dark:text-forest-100 flex-shrink-0">
+                        <x-heroicon-o-users class="w-4 h-4" />
+                    </span>
+                    <div class="card-title">Senior Count Per Barangay</div>
+                </div>
             </div>
-            <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] whitespace-nowrap">Centered on Pagsanjan, Laguna</span>
+            <div class="card-body pb-3">
+                @php $barangayMax = max(1, collect($barangayCounts)->max('count') ?: 1); @endphp
+                <div class="relative">
+                    {{-- scrollbar-thin + top/bottom fade keep the scroll affordance quiet
+                         (a soft shadow, not a hard clip or a bulky native scrollbar). --}}
+                    <div class="scrollbar-thin overflow-y-auto max-h-72 space-y-3 pr-1">
+                        @forelse ($barangayCounts as $i => $row)
+                            @php
+                                $totalPct = round($row['count'] / $barangayMax * 100);
+                                $highPct = round(($row['high_risk_count'] ?? 0) / $barangayMax * 100);
+                            @endphp
+                            <a href="{{ route('reports.barangay', $row['barangay']) }}"
+                               class="flex items-center gap-2.5 group">
+                                <span class="w-4 flex-shrink-0 text-[11px] text-ink-400 dark:text-[#6b7570] tnum">{{ $i + 1 }}</span>
+                                <span class="w-[30%] sm:w-24 flex-shrink-0 truncate text-[12px] font-medium text-ink-800 dark:text-[#d8ddd9] group-hover:text-forest-700 dark:group-hover:text-forest-400 transition-colors"
+                                      title="{{ $row['barangay'] }}">
+                                    {{ $row['barangay'] }}
+                                </span>
+                                <span class="flex-1 relative h-2.5 rounded-full bg-paper-2 dark:bg-[#202a26] overflow-hidden">
+                                    <span class="absolute inset-y-0 left-0 rounded-full bg-forest-300 dark:bg-forest-700" style="width: {{ max($totalPct, 3) }}%"></span>
+                                    @if (($row['high_risk_count'] ?? 0) > 0)
+                                        <span class="absolute inset-y-0 left-0 rounded-full bg-high-500" style="width: {{ max($highPct, 2) }}%"></span>
+                                    @endif
+                                </span>
+                                <span class="w-10 flex-shrink-0 text-right font-mono tnum text-[12px] font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ number_format($row['count']) }}</span>
+                                <span class="w-11 flex-shrink-0 text-right font-mono tnum text-[11px] text-ink-400 dark:text-[#6b7570]">{{ number_format($row['percent'], 1) }}%</span>
+                            </a>
+                        @empty
+                            <p class="text-center py-8 text-[12.5px] text-ink-400 dark:text-[#6b7570]">No barangay data available yet.</p>
+                        @endforelse
+                    </div>
+                    <div class="pointer-events-none absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-white dark:from-[#1a201d] to-transparent"></div>
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white dark:from-[#1a201d] to-transparent"></div>
+                </div>
+
+                @if (count($barangayCounts))
+                    <div class="mt-3 pt-3 border-t border-paper-rule dark:border-[#2b3530] flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-4 text-[10.5px] text-ink-400 dark:text-[#6b7570]">
+                            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-forest-300 dark:bg-forest-700"></span>Total seniors</span>
+                            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-high-500"></span>High risk</span>
+                        </div>
+                        <span class="font-mono tnum text-[11.5px] font-semibold text-ink-700 dark:text-[#d8ddd9] whitespace-nowrap">
+                            {{ number_format($stats['mapped_seniors']) }} total
+                        </span>
+                    </div>
+                @endif
+            </div>
+            <div class="card-body pt-3 border-t border-paper-rule dark:border-[#2b3530]">
+                <a href="{{ route('reports.barangay.index') }}" class="text-[12.5px] font-semibold text-forest-700 dark:text-forest-400 hover:underline underline-offset-2">
+                    View Full Report →
+                </a>
+            </div>
         </div>
 
-        <div class="card-body space-y-4">
-            <div class="relative">
-                <label class="block">
-                    <span class="eyebrow block mb-1.5">Find a Senior</span>
-                    <input id="gis-senior-search" type="text" autocomplete="off"
-                        class="form-input" placeholder="Search by name or OSCA-ID...">
-                </label>
-                <ul id="gis-senior-search-results"
-                    class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-paper-0 dark:bg-[#1b211e] shadow-lg text-sm">
-                </ul>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                <label class="block">
-                    <span class="eyebrow block mb-1.5">Visualization</span>
-                    <select id="gis-visualization-mode" class="form-select">
-                        <option value="markers">Senior Population Overview</option>
-                        <option value="risk-indicator-heatmap">Risk Indicator Distribution</option>
-                        <option value="cluster-heatmap">Profile Groups Heatmap</option>
-                        <option value="senior-distribution-accessibility-heatmap">Accessibility Heatmap</option>
-                    </select>
-                </label>
-                <label class="block">
-                    <span class="eyebrow block mb-1.5">Barangay</span>
-                    <select id="gis-barangay-filter" class="form-select">
-                        <option value="all">All Barangays</option>
-                    </select>
-                    <button id="gis-recenter-btn" type="button"
-                        class="mt-1 text-[11px] text-ink-500 dark:text-[#7a8580] hover:text-forest-700 dark:hover:text-forest-400 underline underline-offset-2 transition-colors">
-                        ↺ Re-center map
-                    </button>
-                </label>
-                <label class="block">
-                    <span id="gis-secondary-filter-label" class="eyebrow block mb-1.5">Risk Level</span>
-                    <select id="gis-risk-filter" class="form-select">
-                        <option value="all">All Risk Levels</option>
-                        <option value="low">Low</option>
-                        <option value="moderate">Moderate</option>
-                        <option value="high">High</option>
-                    </select>
-                    <select id="gis-cluster-filter" class="form-select hidden">
-                        <option value="all">All Groups</option>
-                    </select>
-                </label>
-            </div>
-
-            <div id="gis-layer-options" class="hidden">
-                <div id="gis-layer-options-markers" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
-                    <div class="eyebrow mb-2">Layer Options</div>
-                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                        <label class="inline-flex items-center gap-2">
-                            <input id="gis-show-senior-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                            <span>Show senior points</span>
-                        </label>
-                        <label class="inline-flex items-center gap-2">
-                            <input id="gis-show-barangay-density-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                            <span>Show barangay density fill</span>
-                        </label>
-                    </div>
-                </div>
-                <div id="gis-layer-options-cluster" class="hidden border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2">
-                    <div class="eyebrow mb-2">Layer Options</div>
-                    <div class="flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                        <label class="inline-flex items-center gap-2">
-                            <input id="gis-cluster-points-toggle" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                            <span>Show senior distribution points</span>
-                        </label>
-                    </div>
+        {{-- Risk Level Distribution --}}
+        <div class="card">
+            <div class="card-head">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-high-100 text-high-700 dark:bg-high-700/20 dark:text-high-100 flex-shrink-0">
+                        <x-heroicon-o-chart-pie class="w-4 h-4" />
+                    </span>
+                    <div class="card-title">Risk Level Distribution</div>
                 </div>
             </div>
-
-            <div id="gis-accessibility-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
-                <div class="eyebrow mb-2">Accessibility Point Display</div>
-                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                    <input id="gis-show-heatmap-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                    <span>Show senior points on accessibility heatmap</span>
-                </label>
-            </div>
-
-            <div id="gis-risk-point-display" class="border border-paper-rule dark:border-[#2b3530] rounded-lg px-3 py-2" style="display: none;">
-                <div class="eyebrow mb-2">Risk Point Display</div>
-                <label class="inline-flex items-center gap-2 text-[12px] text-ink-600 dark:text-[#b0b5b2]">
-                    <input id="gis-show-risk-senior-points" type="checkbox" class="rounded border-paper-rule text-forest-700 focus:ring-forest-700" checked>
-                    <span>Show senior points on risk heatmap</span>
-                </label>
-            </div>
-
-            <div class="relative">
-                <div id="gis-map"
-                     class="rounded-2xl border border-paper-rule dark:border-[#2b3530] min-h-[420px] md:min-h-[460px]"
-                     data-geojson-url="{{ route('api.gis.seniors', [], false) }}"
-                     data-facilities-url="{{ route('api.gis.facilities', [], false) }}"
-                     data-route-distance-url="{{ route('api.gis.route-distance', [], false) }}"
-                     data-pagsanjan-boundary-url="{{ route('api.gis.boundary.pagsanjan', [], false) }}"
-                     data-barangay-boundaries-url="{{ route('api.gis.boundary.barangays', [], false) }}">
+            <div class="card-body">
+                <div class="h-44 relative">
+                    <canvas id="gis-risk-doughnut" role="img" aria-label="Risk level distribution doughnut chart"></canvas>
                 </div>
-
-                {{-- Loading overlay — masks the basemap until GIS layers finish loading --}}
-                <div id="gis-map-loading"
-                     class="absolute inset-0 z-[1200] flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#f2efe9] dark:bg-[#161b18] text-ink-500 dark:text-[#8a958f] transition-opacity duration-300"
-                     role="status" aria-live="polite">
-                    <svg class="w-7 h-7 animate-spin motion-reduce:animate-none text-forest-600 dark:text-forest-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    <p class="text-[12.5px] font-medium">Loading map…</p>
+                <div class="mt-4 space-y-2 text-[12.5px]">
+                    @php
+                        $riskRows = [
+                            ['label' => 'Low Risk', 'value' => $riskDistribution['low'], 'class' => 'bg-low-500'],
+                            ['label' => 'Moderate Risk', 'value' => $riskDistribution['moderate'], 'class' => 'bg-moderate-500'],
+                            ['label' => 'High Risk', 'value' => $riskDistribution['high'], 'class' => 'bg-high-500'],
+                        ];
+                        $riskGrandTotal = max($riskDistribution['total'], 1);
+                    @endphp
+                    @foreach ($riskRows as $row)
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 {{ $row['class'] }}"></span>
+                            <span class="text-ink-700 dark:text-[#b0b5b2]">{{ $row['label'] }}</span>
+                            <span class="ml-auto font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">
+                                {{ number_format($row['value']) }} ({{ round($row['value'] / $riskGrandTotal * 100) }}%)
+                            </span>
+                        </div>
+                    @endforeach
                 </div>
-            </div>
-            <div>
-                <p id="gis-map-status" class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Loading barangay-level GIS data...</p>
-            </div>
-            <div id="gis-map-legend" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11.5px] text-ink-500 dark:text-[#6b7570]">
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-low-500 inline-block"></span>Low</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-500 inline-block"></span>Moderate</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-high-500 inline-block"></span>High</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-info-500 inline-block"></span>Facilities</span>
-                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-moderate-100 inline-block"></span>Outer Zone</span>
+                <p class="mt-3 text-[11.5px] text-ink-400 dark:text-[#6b7570] leading-relaxed">
+                    Risk classification is computed from the latest available ML assessment per senior.
+                </p>
             </div>
         </div>
+
+        {{-- Facility Accessibility Summary --}}
+        <div class="card">
+            <div class="card-head">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-info-100 text-info-700 dark:bg-info-700/20 dark:text-info-100 flex-shrink-0">
+                        <x-heroicon-o-heart class="w-4 h-4" />
+                    </span>
+                    <div class="card-title">Facility Accessibility Summary</div>
+                </div>
+            </div>
+            <div class="card-body space-y-3">
+                @php
+                    $facilityRows = [
+                        ['label' => 'Nearest Health Center (Avg)', 'value' => $facilityAccessibility['health_center_km'], 'icon' => 'building-office-2', 'class' => 'bg-high-100 text-high-700 dark:bg-high-700/20 dark:text-high-100'],
+                        ['label' => 'Nearest Barangay Hall (Avg)', 'value' => $facilityAccessibility['barangay_hall_km'], 'icon' => 'building-library', 'class' => 'bg-forest-100 text-forest-700 dark:bg-forest-700/20 dark:text-forest-100'],
+                        ['label' => 'Nearest Pharmacy (Avg)', 'value' => $facilityAccessibility['pharmacy_km'], 'icon' => 'beaker', 'class' => 'bg-info-100 text-info-700 dark:bg-info-700/20 dark:text-info-100'],
+                    ];
+                @endphp
+                @foreach ($facilityRows as $row)
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 {{ $row['class'] }}">
+                            <x-dynamic-component :component="'heroicon-o-'.$row['icon']" class="w-4 h-4" />
+                        </span>
+                        <span class="text-[12.5px] text-ink-700 dark:text-[#b0b5b2] flex-1">{{ $row['label'] }}</span>
+                        <span class="font-mono tnum font-semibold text-ink-900 dark:text-[#e4e1d8]">
+                            {{ $row['value'] !== null ? number_format($row['value'], 2).' km' : '—' }}
+                        </span>
+                    </div>
+                @endforeach
+
+                <x-alert type="info">
+                    Distances are calculated from approximate barangay-level locations, not exact addresses.
+                </x-alert>
+            </div>
+        </div>
+
     </div>
 
 </div>
+
+@php
+    $gisRiskChartJson = json_encode([
+        'labels' => ['Low', 'Moderate', 'High'],
+        'data' => [$riskDistribution['low'], $riskDistribution['moderate'], $riskDistribution['high']],
+        'colors' => ['#4a8a68', '#c19a3b', '#e0621a'],
+        'total' => $riskDistribution['total'],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+@endphp
+<script type="application/json" id="gis-risk-chart-data">{!! $gisRiskChartJson !!}</script>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    function isDark() {
+        return document.documentElement.classList.contains('dark');
+    }
+
+    function prefersReducedMotion() {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function upsert(id, config) {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const existing = Object.values(window.Chart.instances).find(c => c.canvas === canvas);
+        if (existing) existing.destroy();
+        new window.Chart(canvas, config);
+    }
+
+    // Center label: the running total + a small caption (matches dashboard.blade.php).
+    function centerTextPlugin(caption) {
+        return {
+            id: 'gisCenterText',
+            afterDraw(chart) {
+                const ds = chart.data.datasets[0];
+                if (!ds || !chart.chartArea) return;
+                const total = ds.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                const { ctx, chartArea } = chart;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+                const dark = isDark();
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = dark ? '#e4e1d8' : '#1a1d1a';
+                ctx.font = "600 22px 'Source Serif 4', Georgia, serif";
+                ctx.fillText(String(total), cx, cy - 6);
+                ctx.fillStyle = dark ? '#8a9087' : '#8a8f86';
+                try { ctx.letterSpacing = '1.2px'; } catch (e) {}
+                ctx.font = "600 9px 'Plus Jakarta Sans', system-ui, sans-serif";
+                ctx.fillText('TOTAL', cx, cy + 13);
+                ctx.restore();
+            },
+        };
+    }
+
+    function render() {
+        const el = document.getElementById('gis-risk-chart-data');
+        if (!el) return;
+        const p = JSON.parse(el.textContent);
+        const reduced = prefersReducedMotion();
+
+        upsert('gis-risk-doughnut', {
+            type: 'doughnut',
+            data: {
+                labels: p.labels,
+                datasets: [{
+                    data: p.data,
+                    backgroundColor: p.colors,
+                    borderWidth: 2,
+                    borderColor: isDark() ? '#1a201d' : '#ffffff',
+                    hoverOffset: 8,
+                    hoverBorderColor: isDark() ? '#1a201d' : '#ffffff',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                animation: reduced ? { duration: 0 } : { animateRotate: true, animateScale: true, duration: 300, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } },
+                },
+            },
+            plugins: [centerTextPlugin('Total')],
+        });
+    }
+
+    const boot = () => window.OSCA.charts().then(() => render());
+
+    // Same once-guard idiom as dashboard.blade.php: the <script> tag re-executes
+    // on every wire:navigate SPA navigation, but window survives, so document
+    // listeners must only bind once per page session.
+    if (!window.__oscaBound_gisRiskChart) {
+        window.__oscaBound_gisRiskChart = true;
+        document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
+        if (document.readyState !== 'loading') setTimeout(boot, 0);
+        document.addEventListener('DOMContentLoaded', boot);
+
+        const html = document.documentElement;
+        new MutationObserver((mutations) => {
+            if (mutations.some(m => m.attributeName === 'class')) render();
+        }).observe(html, { attributes: true });
+    }
+})();
+</script>
+@endpush
 
 @push('styles')
 <style>
@@ -837,7 +1196,7 @@
             legendEl.innerHTML = `
                 <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
                     <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border-2 border-dashed border-teal-500 bg-white inline-block"></span>Generalized barangay point</span>
-                    <span class="inline-flex items-center gap-2 min-w-[260px]">
+                    <span class="inline-flex flex-wrap items-center gap-1.5 max-w-full">
                         <span>Lower count</span>
                         <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:linear-gradient(90deg,#dbeafe 0%,#38bdf8 35%,#facc15 68%,#ef4444 100%);"></span>
                         <span>Higher count</span>
@@ -868,12 +1227,12 @@
                 `).join('');
                 const selectedCluster = selectedClusterGroup();
                 const selectedClusterScale = selectedCluster === 'all'
-                    ? `<span class="inline-flex items-center gap-2 min-w-[320px]">
+                    ? `<span class="inline-flex flex-wrap items-center gap-1.5 max-w-full">
                         <span>Lower local cluster density</span>
                         <span class="h-3 w-40 rounded-full inline-block border border-white/70" style="background:${gradientCss(CLUSTER_HEATMAP_GRADIENT)};"></span>
                         <span>Higher local cluster density</span>
                     </span>`
-                    : `<span class="inline-flex items-center gap-2 min-w-[320px]">
+                    : `<span class="inline-flex flex-wrap items-center gap-1.5 max-w-full">
                         <span>Lower intensity within selected cluster</span>
                         <span class="h-3 w-40 rounded-full inline-block border border-white/70" style="background:${gradientCss(clusterGradientForLabel(selectedCluster))};"></span>
                         <span>${clusterLegendLabel(selectedCluster)}</span>
@@ -909,7 +1268,7 @@
             legendEl.innerHTML = `
                 <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
                     <span class="font-semibold text-ink-700 dark:text-[#b0b5b2]">${heatmapLabel[0]}</span>
-                    <span class="inline-flex items-center gap-2 min-w-[260px]">
+                    <span class="inline-flex flex-wrap items-center gap-1.5 max-w-full">
                         <span>${heatmapLabel[1]}</span>
                         <span class="h-2.5 w-28 rounded-full inline-block border border-white/70" style="background:${gradient};"></span>
                         <span>${heatmapLabel[2]}</span>
@@ -952,6 +1311,37 @@
         return FACILITY_TYPE_COLORS[type] ?? DEFAULT_FACILITY_COLOR;
     }
 
+    // Small legend-only glyph for a facility type: a colored circle (matching the
+    // on-map marker color) with a simple straight-line pictogram — medical cross
+    // for health-related facilities, a building for civic ones, a plain dot
+    // otherwise. This only affects the legend swatch text; the actual on-map
+    // marker shape (createFacilityIcon()) is unrelated and untouched.
+    function facilityIconGlyph(type, color) {
+        const t = String(type || '').toLowerCase();
+        const isMedical = /health|hospital|pharmac|senior center|clinic/.test(t);
+        const isCivic = /hall|government|police|fire|municipal/.test(t);
+
+        if (isMedical) {
+            return `<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" class="flex-shrink-0">
+                <circle cx="8" cy="8" r="7" fill="${color}" stroke="#ffffff" stroke-width="1"/>
+                <path d="M8 4.5v7M4.5 8h7" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        if (isCivic) {
+            return `<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" class="flex-shrink-0">
+                <circle cx="8" cy="8" r="7" fill="${color}" stroke="#ffffff" stroke-width="1"/>
+                <path d="M4.5 11V7L8 4.5 11.5 7v4" stroke="#ffffff" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4.5 11h7" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        return `<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" class="flex-shrink-0">
+            <circle cx="8" cy="8" r="7" fill="${color}" stroke="#ffffff" stroke-width="1"/>
+            <circle cx="8" cy="8" r="2.25" fill="#ffffff"/>
+        </svg>`;
+    }
+
     function facilityLegendHtml() {
         const features = latestFacilityGeoJson?.features || [];
         const types = [...new Set(features.map((feature) => facilityType(feature)))]
@@ -959,12 +1349,12 @@
             .sort((a, b) => a.localeCompare(b));
 
         if (!types.length) {
-            return `<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-[3px] bg-sky-600 inline-block rotate-45"></span>Facilities</span>`;
+            return `<span class="inline-flex items-center gap-1.5">${facilityIconGlyph('Facility', DEFAULT_FACILITY_COLOR)}Facilities</span>`;
         }
 
         const items = types.map((type) => `
             <span class="inline-flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-[3px] inline-block rotate-45 border border-white/80" style="background:${facilityColor(type)};"></span>${escapeHtml(type)}
+                ${facilityIconGlyph(type, facilityColor(type))}${escapeHtml(type)}
             </span>
         `).join('');
 

@@ -8,6 +8,7 @@ use App\Models\ClusterSnapshot;
 use App\Models\Facility;
 use App\Models\MlResult;
 use App\Models\Recommendation;
+use App\Models\SeniorAccessibilityMetric;
 use App\Models\SeniorCitizen;
 use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
@@ -15,6 +16,7 @@ use App\Support\SeniorDataVersion;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -41,7 +43,118 @@ class ReportController extends Controller
             'facilities_recorded' => Facility::query()->count(),
         ];
 
-        return view('reports.gis', compact('stats', 'geocodeStatus'));
+        // Senior-count-per-barangay, risk distribution, and facility-accessibility
+        // averages for the GIS Analytics summary cards. Cached under the same
+        // version stamp the GeoJSON feed uses (bumped by runGisGeocode() and the
+        // senior/location observers), so repeat page loads skip these grouped
+        // queries entirely until the underlying data actually changes.
+        $summary = Cache::remember(
+            'gis.summary.'.SeniorDataVersion::current(),
+            now()->addMinutes(5),
+            fn () => $this->gisSummaryAggregates($mappedCount)
+        );
+
+        return view('reports.gis', array_merge(
+            compact('stats', 'geocodeStatus'),
+            $summary
+        ));
+    }
+
+    /**
+     * Senior-count-per-barangay (with each barangay's dominant risk level),
+     * overall risk distribution, and average facility-accessibility distances
+     * across active seniors — the data behind the GIS Analytics summary cards.
+     */
+    private function gisSummaryAggregates(int $totalSeniors): array
+    {
+        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
+
+        $latestMlIds = MlResult::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
+        $countsByBarangay = SeniorCitizen::active()
+            ->select('barangay', DB::raw('COUNT(*) as count'))
+            ->groupBy('barangay')
+            ->orderByDesc('count')
+            ->get();
+
+        $riskRows = MlResult::whereIn('id', $latestMlIds)
+            ->whereHas('seniorCitizen', fn ($q) => $q->active())
+            ->with('seniorCitizen:id,barangay')
+            ->get(['id', 'senior_citizen_id', 'overall_risk_level']);
+
+        $riskCountsByBarangay = [];
+        $riskTotals = ['HIGH' => 0, 'MODERATE' => 0, 'LOW' => 0];
+
+        foreach ($riskRows as $row) {
+            $barangay = $row->seniorCitizen->barangay ?? 'Unknown';
+            $level = strtoupper((string) $row->overall_risk_level);
+            if ($level === 'CRITICAL') {
+                $level = 'HIGH'; // CRITICAL is no longer an official level (see <x-risk-badge>)
+            }
+            if (! in_array($level, ['HIGH', 'MODERATE', 'LOW'], true)) {
+                continue;
+            }
+
+            $riskCountsByBarangay[$barangay][$level] = ($riskCountsByBarangay[$barangay][$level] ?? 0) + 1;
+            $riskTotals[$level]++;
+        }
+
+        $barangayCounts = $countsByBarangay->map(fn ($row) => [
+            'barangay' => $row->barangay,
+            'count' => (int) $row->count,
+            'percent' => $totalSeniors > 0 ? round($row->count / $totalSeniors * 100, 1) : 0.0,
+            'dominant_risk' => $this->dominantRiskLevel($riskCountsByBarangay[$row->barangay] ?? []),
+            'high_risk_count' => $riskCountsByBarangay[$row->barangay]['HIGH'] ?? 0,
+        ])->values()->all();
+
+        $riskDistribution = [
+            'low' => $riskTotals['LOW'],
+            'moderate' => $riskTotals['MODERATE'],
+            'high' => $riskTotals['HIGH'],
+            'total' => array_sum($riskTotals),
+        ];
+
+        // Average distance from the latest accessibility snapshot of each active
+        // senior (barangay-level approximate coordinates, not exact addresses).
+        $latestAccessibilityIds = SeniorAccessibilityMetric::select(DB::raw('MAX(id) as id'))
+            ->whereIn('senior_citizen_id', $activeSeniorIds)
+            ->groupBy('senior_citizen_id')
+            ->pluck('id');
+
+        $avg = SeniorAccessibilityMetric::whereIn('id', $latestAccessibilityIds)
+            ->selectRaw('AVG(distance_to_health_center_m) as health_center_m')
+            ->selectRaw('AVG(distance_to_barangay_hall_m) as barangay_hall_m')
+            ->selectRaw('AVG(distance_to_pharmacy_m) as pharmacy_m')
+            ->first();
+
+        $toKm = fn (?float $meters) => $meters !== null ? round($meters / 1000, 2) : null;
+
+        $facilityAccessibility = [
+            'health_center_km' => $toKm($avg?->health_center_m),
+            'barangay_hall_km' => $toKm($avg?->barangay_hall_m),
+            'pharmacy_km' => $toKm($avg?->pharmacy_m),
+        ];
+
+        return compact('barangayCounts', 'riskDistribution', 'facilityAccessibility');
+    }
+
+    private function dominantRiskLevel(array $counts): ?string
+    {
+        $best = null;
+        $bestCount = 0;
+
+        foreach (['HIGH', 'MODERATE', 'LOW'] as $level) {
+            $count = $counts[$level] ?? 0;
+            if ($count > $bestCount) {
+                $bestCount = $count;
+                $best = $level;
+            }
+        }
+
+        return $best;
     }
 
     /**
