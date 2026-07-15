@@ -3,7 +3,7 @@
 > **Authoritative guide:** [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md) is the current recommended guide with full step-by-step instructions.
 > This file contains supplementary detail on export/import commands, verification queries, and privacy rules.
 >
-> **⚠️ Outdated figures:** Cluster/risk/count figures in this file are from earlier builds (`C1=75, C2=132, C3=76` = K=3/v1.1.1; `total 283` + `notebook_cache` = the pre-2026-06-11 state). **Current state (2026-06-11): v2.0.0 K=4, 290 seniors, `ENABLE_NOTEBOOK_OVERRIDES=false` (live model).** Live dashboard distribution: HIGH=56, MODERATE=196, LOW=38; clusters C1=61, C2=85, C3=77, C4=67; `prediction_source = live_model` for all 290. Authoritative numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md). The export/import commands and privacy rules in this file remain valid.
+> **⚠️ Outdated figures:** Every count below (`283`, `290`, `C1=75/C2=132/C3=76`, `C1=61/C2=85/C3=77/C4=67`) is from a superseded seed state — the dataset keeps growing as more seniors are surveyed, so these snapshots go stale fast. **Current state (2026-07-15): 367 active seniors, `ENABLE_NOTEBOOK_OVERRIDES=false` (live model).** Live dashboard distribution: HIGH=42, MODERATE=154, LOW=171; clusters: High Functioning/Well-Supported=51, Stable Ageing=88, Environmentally/Financially Vulnerable=154, Low Functioning/Multi-Domain=74; `prediction_source = live_model` for all 367. Verified directly against `osca_db` on 2026-07-15 (see the query pattern in section D below — it uses the latest `ml_results` row per active senior, matching dashboard/`MlController` logic). Authoritative reference table: [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md#official-validated-seed-result). The export/import commands and privacy rules in this file remain valid — don't trust the embedded counts further down this file without re-querying.
 
 This guide covers two approaches for keeping all three team devices in sync:
 
@@ -17,13 +17,13 @@ This guide covers two approaches for keeping all three team devices in sync:
 ## When Identical Results Require the Same DB Dump
 
 **You need the same database dump when:**
-- All devices must show the exact same risk distribution (HIGH=56, MODERATE=192, LOW=38)
-- All devices must show the exact same cluster distribution (C1=75, C2=132, C3=76)
+- All devices must show the exact same risk distribution (see current figures at the top of this file, or re-query — don't hardcode a snapshot)
+- All devices must show the exact same cluster distribution
 - You need screenshots or data from multiple devices to match identically for Chapter 4
 
 **You do NOT need the same dump when:**
 - You are developing or testing on a local device
-- The database was independently seeded from `osca.csv` with `ENABLE_NOTEBOOK_OVERRIDES=true` — the 283 notebook_cache rows will have the same risk scores, but new seniors added locally will differ
+- The database was independently seeded from `osca.csv` with `ENABLE_NOTEBOOK_OVERRIDES=true` — the notebook_cache rows will have the same risk scores, but new seniors added locally will differ
 - You are only testing the live model path on a new senior
 
 **Why different local databases may naturally produce different outputs for new seniors:**
@@ -36,20 +36,7 @@ This guide covers two approaches for keeping all three team devices in sync:
 
 ## Official Validated Seed Result
 
-Before sharing the database, verify the main laptop shows exactly:
-
-| Metric | Expected |
-|---|---|
-| Total active seniors | 283 |
-| Risk — HIGH | 55 |
-| Risk — MODERATE | 191 |
-| Risk — LOW | 37 |
-| Cluster C1 — High Functioning / Well-Supported Seniors | 60 |
-| Cluster C2 — Stable Ageing / Moderate Support Needs | 84 |
-| Cluster C3 — Environmentally and Financially Vulnerable Seniors | 74 |
-| Cluster C4 — Low Functioning / Multi-Domain Priority Seniors | 65 |
-| Prediction source — Notebook-Validated Cache | 283 |
-| Prediction source — Live ML Model | 0 |
+Before sharing the database, verify the main laptop matches the current authoritative table in [DATABASE_SHARING_AND_TEAM_SETUP.md § Official Validated Seed Result](DATABASE_SHARING_AND_TEAM_SETUP.md#official-validated-seed-result) — do not use any figures previously hardcoded here, they go stale as more seniors are added. As of 2026-07-15 that table shows 367 total active seniors, HIGH=42/MODERATE=154/LOW=171.
 
 Run the validation script to confirm:
 ```powershell
@@ -79,7 +66,7 @@ Replace `osca_db` with whatever `DB_DATABASE` is in your `.env` if different.
 
 ### What the dump contains
 - All table structure (`CREATE TABLE`)
-- All 283 senior records
+- All active senior records (367 as of 2026-07-15 — this count grows over time)
 - All QoL survey data
 - All `ml_results` (prediction_source, scores, clusters)
 - All recommendations
@@ -205,10 +192,10 @@ And restart Flask inference service on those devices.
 
 ### Step 7 — Verify all devices show the same dashboard
 Open the dashboard on each device and confirm:
-- Same total seniors
-- Same Risk Distribution (HIGH=56, MODERATE=192, LOW=38)
-- Same Health Groups (C1=75, C2=132, C3=76)
-- Same Prediction Source Summary (Notebook-Validated Cache: 283, Live: 3)
+- Same total seniors (see current authoritative count in [DATABASE_SHARING_AND_TEAM_SETUP.md](DATABASE_SHARING_AND_TEAM_SETUP.md#official-validated-seed-result) — 367 as of 2026-07-15)
+- Same Risk Distribution
+- Same Health Groups
+- Same Prediction Source Summary
 - Same Model Version
 - Same DB host shown in the info strip
 
@@ -229,24 +216,24 @@ Expected: `osca_db`
 ```powershell
 python python/check_prediction_sources.py
 ```
-Expected output:
+Expected output (figures below are the 2026-07-15 snapshot — the script prints whatever is currently in the DB, so trust its live output over this example):
 ```
   PREDICTION SOURCE BREAKDOWN
-    Notebook-Validated Cache : 283
-    Live ML Model            : 0
+    Notebook-Validated Cache : 0
+    Live ML Model            : 367
     Heuristic Fallback       : 0
 
   RISK INDICATOR DISTRIBUTION
-    HIGH                     : 55   (expected 55)
-    MODERATE                 : 191  (expected 191)
-    LOW                      : 37   (expected 37)
-    Total                    : 283  [PASS]
+    HIGH                     : 42
+    MODERATE                 : 154
+    LOW                      : 171
+    Total                    : 367  [PASS]
 
   CLUSTER DISTRIBUTION
-    C1 High Functioning      : 60   (expected 60)
-    C2 Stable Ageing         : 84   (expected 84)
-    C3 Environmentally/Fin.  : 74   (expected 74)
-    C4 Low Functioning       : 65   (expected 65)
+    High Functioning         : 51
+    Stable Ageing            : 88
+    Environmentally/Fin.     : 154
+    Low Functioning          : 74
     Cluster check            : [PASS]
 
   OVERALL VALIDATION: PASS
@@ -255,22 +242,29 @@ Expected output:
 ### 3. Check via Tinker
 ```php
 // Active seniors
-App\Models\SeniorCitizen::active()->count();              // 283
+App\Models\SeniorCitizen::active()->count();              // 367 as of 2026-07-15
 
-// ML results
-App\Models\MlResult::count();                            // ≥ 283
+// ML results (may exceed active-senior count if duplicate rows exist for a senior —
+// dedupe with the latest-per-senior pattern below before treating this as the total)
+App\Models\MlResult::count();
 
-// Prediction sources
-App\Models\MlResult::groupBy('prediction_source')
+// Prediction sources — latest ml_results row per senior, active seniors only
+// (matches dashboard/MlController logic; a plain groupBy will double-count seniors
+// with more than one ml_results row)
+App\Models\MlResult::whereIn('id', App\Models\MlResult::selectRaw('MAX(id)')->groupBy('senior_citizen_id'))
+    ->whereHas('seniorCitizen', fn ($q) => $q->where('status', 'active'))
+    ->groupBy('prediction_source')
     ->selectRaw('prediction_source, COUNT(*) as cnt')
     ->pluck('cnt','prediction_source');
-// ['notebook_cache' => 283]
+// ['live_model' => 367] as of 2026-07-15
 
-// Risk distribution
-App\Models\MlResult::groupBy('overall_risk_level')
+// Risk distribution — same latest-per-senior pattern
+App\Models\MlResult::whereIn('id', App\Models\MlResult::selectRaw('MAX(id)')->groupBy('senior_citizen_id'))
+    ->whereHas('seniorCitizen', fn ($q) => $q->where('status', 'active'))
+    ->groupBy('overall_risk_level')
     ->selectRaw('overall_risk_level, COUNT(*) as cnt')
     ->pluck('cnt','overall_risk_level');
-// ['HIGH'=>55, 'MODERATE'=>191, 'LOW'=>37]
+// ['HIGH'=>42, 'MODERATE'=>154, 'LOW'=>171] as of 2026-07-15
 ```
 
 ---

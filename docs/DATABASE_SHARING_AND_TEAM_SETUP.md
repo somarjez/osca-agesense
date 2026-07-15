@@ -7,26 +7,26 @@
 >
 > Do not let each member work from a separate local database and compare results.
 
-> **⚠️ Current state (2026-06-11): 290 seniors, live-model canonical.** This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` — all 290 seniors are `prediction_source = live_model` (notebook_cache: 0), and the dashboard distribution is **HIGH=56, MODERATE=196, LOW=38** (clusters C1=61, C2=85, C3=77, C4=67). The tables below showing "Total 283", "MODERATE 191", and "Notebook-Validated Cache: 283" describe the earlier 283-senior / overrides-`true` state. Authoritative current numbers: [2026-06-11 re-sync record](superpowers/plans/2026-06-11-model-resync-290-osca-id-overrides.md).
+> **⚠️ Current state (2026-07-15): 367 active seniors, live-model canonical.** This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false` — all 367 active seniors are `prediction_source = live_model` (notebook_cache: 0), and the dashboard distribution is **HIGH=42, MODERATE=154, LOW=171** (clusters: Stable Ageing=88, Low Functioning/Multi-Domain=74, Environmentally/Financially Vulnerable=154, High Functioning/Well-Supported=51). Every earlier count in this file (283, 290, "Notebook-Validated Cache") describes a superseded seed state — the dataset has grown since and no rows remain on the notebook-cache path. Treat the table below as the only authoritative figures; re-run the verification query in `docs/DATABASE_SHARING.md` section D before trusting any number here again, since new seniors keep getting added.
 
 ---
 
 ## Official Validated Seed Result
 
-Before any sharing, the main device must confirm these exact numbers:
+Before any sharing, the main device must confirm these exact numbers (verified 2026-07-15 via direct query against `osca_db`, using the latest `ml_results` row per active senior — the same "latest per senior" logic the dashboard and `MlController` use):
 
 | Metric | Expected |
 |---|---|
-| Total active seniors | 283 |
-| QoL Surveyed | 283 |
-| Risk — HIGH | 55 |
-| Risk — MODERATE | 191 |
-| Risk — LOW | 37 |
-| Cluster C1 — High Functioning / Well-Supported Seniors | 60 |
-| Cluster C2 — Stable Ageing / Moderate Support Needs | 84 |
-| Cluster C3 — Environmentally and Financially Vulnerable Seniors | 74 |
-| Cluster C4 — Low Functioning / Multi-Domain Priority Seniors | 65 |
-| Prediction Source | Notebook-Validated Cache: 283 |
+| Total active seniors | 367 |
+| QoL Surveyed | 367 |
+| Risk — HIGH | 42 |
+| Risk — MODERATE | 154 |
+| Risk — LOW | 171 |
+| Cluster — Stable Ageing / Moderate Support Needs | 88 |
+| Cluster — Low Functioning / Multi-Domain Priority Seniors | 74 |
+| Cluster — Environmentally and Financially Vulnerable Seniors | 154 |
+| Cluster — High Functioning / Well-Supported Seniors | 51 |
+| Prediction Source | Live ML Model: 367 |
 | Model Version | 2.0.0 |
 
 ---
@@ -107,25 +107,27 @@ php artisan view:clear
 Open the app in a browser and confirm:
 
 ```
-Total Seniors   : 283
-QoL Surveyed    : 283
+Total Seniors   : 367
+QoL Surveyed    : 367
 
 Risk Distribution:
-  LOW           : 37
-  MODERATE      : 191
-  HIGH          : 55
+  LOW           : 171
+  MODERATE      : 154
+  HIGH          : 42
 
 Health Groups:
-  C1 High Functioning / Well-Supported Seniors          : 60
-  C2 Stable Ageing / Moderate Support Needs             : 84
-  C3 Environmentally and Financially Vulnerable Seniors : 74
-  C4 Low Functioning / Multi-Domain Priority Seniors    : 65
+  High Functioning / Well-Supported Seniors          : 51
+  Stable Ageing / Moderate Support Needs             : 88
+  Environmentally and Financially Vulnerable Seniors : 154
+  Low Functioning / Multi-Domain Priority Seniors    : 74
 
 Prediction Source Summary:
-  Notebook-Validated Cache : 283
-  Live ML Model            : 0
+  Notebook-Validated Cache : 0
+  Live ML Model            : 367
   Fallback                 : 0
 ```
+
+> These figures are current as of 2026-07-15 and will drift as more seniors are added/surveyed. Re-verify against the live DB (see `docs/DATABASE_SHARING.md` section D) rather than trusting this snapshot indefinitely.
 
 ### Step 5 — Run the validation script
 
@@ -408,7 +410,7 @@ Also restart Flask inference service on client devices so it reconnects to the n
 Open the Analysis Services page on each device. The **Database & System Status** panel shows:
 - DB Host (should all show the same IP)
 - DB Database (should all show `osca_db`)
-- Notebook-Validated Cache count (should all show 283)
+- Live ML Model count (should all show the same total — 367 as of 2026-07-15, re-verify before relying on this number)
 - Model Version (should all show 2.0.0)
 
 All dashboards should show identical results.
@@ -622,7 +624,7 @@ python\venv\Scripts\python.exe python\scripts\test_staleness.py
 
 # Step 8 — Start and verify dashboard
 .\start.bat
-# Expected: Total=283, HIGH=55, MODERATE=191, LOW=37, Notebook-Validated Cache: 283
+# Expected (as of 2026-07-15, re-verify against live DB before trusting): Total=367, HIGH=42, MODERATE=154, LOW=171, Live ML Model: 367
 ```
 
 ### Shared MySQL — client device `.env`
