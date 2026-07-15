@@ -1,4 +1,10 @@
 #Requires -Version 5.1
+param(
+    # Skip the trailing Read-Host so this can be run hidden (e.g. from the
+    # "Stop OSCA System" shortcut via stop-osca.vbs), where nobody can see or
+    # respond to a console prompt.
+    [switch]$Quiet
+)
 $PROJECT = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host ""
@@ -6,6 +12,10 @@ Write-Host " =========================================="
 Write-Host "  AgeSense OSCA System - Stopping"
 Write-Host " =========================================="
 Write-Host ""
+
+# Clear the "start in progress" lock (start-quiet.ps1) in case a stop is issued
+# mid-launch, so the next "Start OSCA System" click isn't mistaken for a duplicate.
+Remove-Item -Path "$PROJECT\storage\logs\.osca-start.lock" -Force -ErrorAction SilentlyContinue
 
 $killed = 0
 
@@ -74,6 +84,8 @@ if ($portsStillBound -eq 0) {
 }
 
 Write-Host ""
-Write-Host " You can now safely close this window."
-Write-Host ""
-Read-Host " Press Enter to exit"
+if (-not $Quiet) {
+    Write-Host " You can now safely close this window."
+    Write-Host ""
+    Read-Host " Press Enter to exit"
+}

@@ -54,7 +54,7 @@ If you are a teammate contributing code, also read:
 
 ### [DEPLOYMENT.md](DEPLOYMENT.md)
 
-Complete system setup guide for Windows development. Covers system requirements, step-by-step installation using `setup.bat`, manual installation steps, environment configuration, starting the system with `start.bat`, stopping with `stop.bat`, and common setup errors.
+Complete system setup guide for Windows development. Covers system requirements, step-by-step installation using `setup.bat`, manual installation steps, environment configuration, starting/stopping the system — via the windowless **"Start/Stop OSCA System"** desktop & Start Menu icons (office staff) or `start.bat`/`stop.bat` (developers) — and common setup errors.
 
 Also includes:
 - **Pre-Defense Device Checklist** — everything to do before a demo or defense on a new device

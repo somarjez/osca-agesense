@@ -189,6 +189,8 @@ This:
 
 > If this is your first run after a `git pull`, always run `start.bat` **before** re-seeding so the `.env` sync runs first.
 
+> **Non-developer machines (office deployment):** `setup.bat` also installs a **"Start OSCA System"** / **"Stop OSCA System"** icon pair on the Desktop and Start Menu — a windowless, no-console way to run the app day-to-day. See [Running the System](#running-the-system).
+
 ---
 
 ## Manual Setup
@@ -333,7 +335,20 @@ PROVINCE_NAME="Laguna"
 
 ## Running the System
 
-### Start (every session)
+There are two ways to run the system, depending on who's using it:
+
+| Who | How | What it looks like |
+|---|---|---|
+| **Office staff** | Double-click the **"Start OSCA System"** icon (Desktop or Start Menu → *AgeSense OSCA*) | No console window. The browser just opens to the app. |
+| **Developers** | Double-click `start.bat` (or `php artisan serve`) | A console window stays open showing logs; `Ctrl+C` / `stop.bat` to stop. |
+
+The desktop/Start Menu icons are created automatically the first time `setup.bat` runs. To (re)install them manually — e.g. after moving the project folder — double-click `Install-Shortcuts.bat`. The icons are real Windows shortcuts (`.lnk`), so the **Desktop one can be copied anywhere** (another folder, pinned to the Taskbar, etc.) and will still work; only moving the *project folder itself* requires re-running the installer.
+
+### Start (every session) — office staff
+
+Double-click **"Start OSCA System"** on the Desktop or in the Start Menu. A branded "Starting…" loading screen opens in your browser **immediately** (so the click always feels like it registered), then auto-redirects to the app once the server responds — usually within 5–15 seconds. Clicking the icon again while it's already starting shows a "please wait" popup instead of restarting everything; clicking it while the system is already running just reopens the (instantly-redirecting) loading page.
+
+### Start (every session) — developers
 
 ```bash
 php artisan serve
@@ -341,7 +356,7 @@ php artisan serve
 
 or double-click `start.bat`.
 
-This starts:
+Either way, this starts:
 - **Laravel dev server** at `http://127.0.0.1:8000`
 - **Python preprocessor** at `http://127.0.0.1:5001` (background)
 - **Python inference service** at `http://127.0.0.1:5002` (background)
@@ -350,22 +365,22 @@ The Python services load their models in the background (first request may take 
 
 ### Stop (end of session)
 
-```
-Double-click  stop.bat
-```
+- **Office staff:** double-click **"Stop OSCA System"** (Desktop or Start Menu). A brief confirmation popup appears once everything is shut down.
+- **Developers:**
+  ```
+  Double-click  stop.bat
+  ```
+  or in PowerShell:
+  ```powershell
+  .\stop.ps1
+  ```
 
-or in PowerShell:
+> **Important:** Pressing `Ctrl+C` in the `php artisan serve` window stops the Laravel server, but the Python ML services (ports 5001 and 5002) continue running in the background. Always use `stop.bat`/`stop.ps1` or the **"Stop OSCA System"** icon to fully shut down all AgeSense processes.
 
-```powershell
-.\stop.ps1
-```
-
-> **Important:** Pressing `Ctrl+C` in the `php artisan serve` window stops the Laravel server, but the Python ML services (ports 5001 and 5002) continue running in the background. Always use `stop.bat` or `stop.ps1` to fully shut down all AgeSense processes before closing the window.
-
-`stop.bat` / `stop.ps1` will:
-- Terminate all `php.exe` processes tied to this project (serve, queue:work, scheduler)
-- Kill Python processes listening on ports 5001 (preprocessor) and 5002 (inference)
-- Stop any PowerShell scheduler loops started by `start.bat`
+Both the icon and `stop.bat` / `stop.ps1` run the same teardown, which:
+- Terminates all `php.exe` processes tied to this project (serve, queue:work, scheduler)
+- Kills Python processes listening on ports 5001 (preprocessor) and 5002 (inference)
+- Stops any PowerShell scheduler loops started at startup
 
 ### Frontend hot-reload (optional, during active UI development)
 
@@ -649,9 +664,20 @@ osca-system/
 │   ├── api.php                      # GIS API: /api/gis/seniors, /api/gis/facilities, /api/gis/boundary/*
 │
 ├── setup.bat                        # First-time setup (run once after cloning)
-├── start.bat                        # Daily launcher (run every session)
-├── stop.bat                         # Shutdown script — kills all AgeSense processes
-├── stop.ps1                         # PowerShell core of stop.bat (terminates PHP, Python, and PS scheduler)
+├── start.bat                        # Daily launcher, developer mode (console stays open)
+├── start-quiet.ps1                  # Windowless launcher used by the "Start OSCA System" icon
+├── launch-osca.vbs                  # Zero-window entry point for the Start icon (runs start-quiet.ps1 hidden)
+├── stop.bat                         # Shutdown script, developer mode — kills all AgeSense processes
+├── stop.ps1                         # PowerShell core of stop.bat / stop-osca.vbs (terminates PHP, Python, and PS scheduler)
+├── stop-osca.vbs                    # Zero-window entry point for the "Stop OSCA System" icon
+├── Install-Shortcuts.bat            # (Re)installs the Desktop/Start Menu icon pair
+├── tools/
+│   ├── install-shortcuts.ps1        # Creates the .lnk shortcuts (Desktop + Start Menu)
+│   └── make-icons.ps1               # Generates resources/branding/*.ico from the AgeSense mark
+├── resources/branding/
+│   ├── osca.ico                     # Start icon
+│   ├── osca-stop.ico                # Stop icon
+│   └── loading.html                 # "Starting…" page shown immediately by the Start icon; polls and auto-redirects
 ├── .env.example                     # Environment template
 ├── composer.json
 └── package.json

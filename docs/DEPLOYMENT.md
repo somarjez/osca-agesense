@@ -102,12 +102,17 @@ Or from a terminal:
 10. Install Python ML dependencies from `python/requirements.txt`
 11. Copy ML model files from `osca_output/model/` (if present)
 12. **Run `validate_model_artifacts.py`** — setup stops with a clear error if artifacts are missing or mismatched
+13. Install **"Start OSCA System" / "Stop OSCA System"** shortcut icons on the Desktop and Start Menu — a windowless, no-console way to run the app day-to-day. See [Section 4](#4-starting-the-system) for details.
 
 When setup completes, you will see:
 
 ```
   Next step — start the system:
-    Double-click  start.bat
+    Double-click the 'Start OSCA System' icon
+    on your Desktop (or Start Menu > AgeSense OSCA).
+
+    -- developers / terminal --
+    .\start.bat
 ```
 
 If setup stops at step 12 with an artifact validation failure, the `python/models/` bundle is missing or incomplete. Copy the correct bundle from the main laptop and re-run setup. **Do not retrain models.**
@@ -205,6 +210,14 @@ If any check fails, the artifact bundle is incomplete. Re-transfer from the main
 .\start.bat
 ```
 
+### Step 14 — (Optional) Install desktop/Start Menu shortcuts
+
+Manual setup skips the shortcut installer that `setup.bat` runs automatically. To add the **"Start OSCA System" / "Stop OSCA System"** icons:
+
+```powershell
+.\Install-Shortcuts.bat
+```
+
 ---
 
 ## 3b. Updating an existing deployment (pulling changes)
@@ -236,7 +249,13 @@ Both also run automatically after a `gis:geocode` that changes coordinates (with
 
 ## 4. Starting the System
 
-### Recommended — start.bat
+### Office staff — "Start OSCA System" icon
+
+Double-click **"Start OSCA System"** on the Desktop or Start Menu (`AgeSense OSCA` folder). No console window appears — a branded loading page opens immediately in the browser and auto-redirects to the app once the server responds (usually 5–15 seconds). Clicking the icon again while it's already starting shows a "please wait" popup instead of restarting everything; clicking it while already running just reopens the loading page.
+
+This runs `start-quiet.ps1` (via `launch-osca.vbs`), the windowless equivalent of `start.bat` below — same startup sequence, but `artisan serve` runs in the background instead of the foreground, so nothing stays open on screen. If it's missing (e.g. after moving the project folder), double-click `Install-Shortcuts.bat` to recreate it.
+
+### Developers — start.bat
 
 ```
 Double-click start.bat
@@ -293,16 +312,19 @@ php artisan serve
 
 ## 5. Stopping the System
 
+**Office staff:** double-click **"Stop OSCA System"** (Desktop or Start Menu). A brief confirmation popup appears once everything is shut down.
+
+**Developers:**
 ```
 Double-click stop.bat
 ```
 
-`stop.bat` will:
+Both run the same teardown (`stop.ps1`, with `-Quiet` behind the icon so it doesn't wait on a keypress):
 - Stop PHP processes for this project (artisan serve, queue worker, scheduler)
 - Stop the Python ML services on ports 5001 and 5002
 - Confirm that ports 5001 and 5002 are free after stopping
 
-Always run `stop.bat` before running `start.bat` again. This prevents duplicate services from binding the same port.
+Always stop the system before starting it again from a different mode (e.g. `stop.bat` before switching to the icon, or vice versa). This prevents duplicate services from binding the same port — though the icon's own "already running" / "already starting" checks make accidental double-starts from the icon itself harmless.
 
 ---
 

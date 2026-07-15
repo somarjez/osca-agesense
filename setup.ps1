@@ -281,6 +281,16 @@ if (Test-Path $validateScript) {
 }
 Write-Host ""
 
+# ── STEP 11: Install desktop/Start Menu shortcuts ────────────────────────────────
+Write-Host " -- [11/12] Installing desktop/Start Menu shortcuts --"
+$installShortcuts = "$PROJECT\tools\install-shortcuts.ps1"
+if (Test-Path $installShortcuts) {
+    & $installShortcuts
+} else {
+    Write-Host " [WARN] tools\install-shortcuts.ps1 not found - skipping shortcut install."
+}
+Write-Host ""
+
 # ── DONE ────────────────────────────────────────────────────────────────────────
 Write-Host " =========================================="
 Write-Host ""
@@ -288,8 +298,10 @@ Write-Host "  Setup complete!"
 Write-Host ""
 Write-Host "  Next step — start the system:"
 Write-Host ""
-Write-Host "    Double-click  start.bat"
-Write-Host "    -- or run in terminal --"
+Write-Host "    Double-click the 'Start OSCA System' icon"
+Write-Host "    on your Desktop (or Start Menu > AgeSense OSCA)."
+Write-Host ""
+Write-Host "    -- developers / terminal --"
 Write-Host "    .\start.bat"
 Write-Host ""
 Write-Host "  System URL : http://127.0.0.1:8000"

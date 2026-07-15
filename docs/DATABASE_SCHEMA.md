@@ -372,7 +372,7 @@ Stores user session data. Used when `SESSION_DRIVER=database`.
 
 ## 10. Table: `jobs`
 
-Laravel queue jobs table. `QUEUE_CONNECTION=database` is the default (set in `.env.example`). The queue worker starts automatically in the background when `start.bat` is run. Batch ML inference dispatches `ProcessMlBatch` jobs here — each job processes 100 seniors.
+Laravel queue jobs table. `QUEUE_CONNECTION=database` is the default (set in `.env.example`). The queue worker starts automatically in the background when the system is started (`start.bat`, or the "Start OSCA System" icon). Batch ML inference dispatches `ProcessMlBatch` jobs here — each job processes 100 seniors.
 
 | Column | Type | Description |
 |---|---|---|

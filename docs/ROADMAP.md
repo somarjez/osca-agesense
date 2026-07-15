@@ -1,8 +1,8 @@
 # Project Roadmap — AgeSense
 
 > **System:** AgeSense — OSCA Senior Citizen Profiling and Analytics System
-> **Last Updated:** 2026-06-04
-> **Status:** Phase 1, Phase 2, and Phase 3 (GIS module) complete — including bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was built then removed; `gis:geocode` is the sole coordinate source.) Phase 4 planned.
+> **Last Updated:** 2026-07-15
+> **Status:** Phase 1, Phase 2, and Phase 3 (GIS module) complete — including bulk geocoding, accessibility proximity scoring, GIS CSV export, road-network route distances, and OpenStreetMap facility import. (The manual profile coordinate-picker was built then removed; `gis:geocode` is the sole coordinate source.) Phase 4 in progress — the ML model retraining workflow (manual, notebook-based) and the survey-version schema field are done; senior photo upload remains planned. Longitudinal risk tracking, mobile-responsive field entry, and OSCA multi-office support have been removed from scope (see [§6](#6-phase-4--advanced-features)).
 
 ---
 
@@ -26,7 +26,7 @@
 | Phase 1 | Core System | Jan 2026 – Apr 2026 | ✅ Complete |
 | Phase 2 | Production Hardening | May 2026 | ✅ Complete |
 | Phase 3 | GIS Module | May 2026 – Jun 2026 | ✅ Complete |
-| Phase 4 | Advanced Features | Jun 2026 – Jul 2026 | 📋 Planned |
+| Phase 4 | Advanced Features | Jun 2026 – Jul 2026 | 🔄 In Progress |
 
 ---
 
@@ -87,16 +87,15 @@ Field GPS data collection workflow      ░░░░ ░░░░ ░░░░ �
 Road-network route distances (ORS)      ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 OpenStreetMap facility import           ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 
-PHASE 4 — ADVANCED FEATURES  📋 PLANNED
+PHASE 4 — ADVANCED FEATURES  🔄 IN PROGRESS
 ─────────────────────────────
-Longitudinal risk tracking dashboard   ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░
-ML model retraining pipeline            ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░
+ML model retraining pipeline (manual)   ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████ ░░░░  ✓
+Survey versioning (schema-level)        ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████  ✓
 Senior photo upload                     ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Survey versioning UI                    ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
-Mobile-responsive field entry UI        ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████ ████
-OSCA network multi-office support       ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ░░░░ ████
 
 Legend:  ████ = Active development / done   ░░░░ = Not yet started   ✓ = Complete
+
+(Removed from scope — see §6: Longitudinal risk tracking dashboard, Mobile-responsive field entry UI, OSCA network multi-office support)
 ```
 
 ---
@@ -200,16 +199,19 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 ## 6. Phase 4 — Advanced Features
 
 **Period:** June 2026 – July 2026
-**Status:** 📋 Planned
+**Status:** 🔄 In Progress
 
-| Feature | Description | Dependency |
+| Feature | Status | Description |
 |---|---|---|
-| Longitudinal risk tracking | Dashboard showing risk score trends over time per senior and per barangay; uses `cluster_snapshots` table | Phase 2 cluster snapshots |
-| ML model retraining pipeline | Web-triggered or scheduled retraining on accumulated data; updates `.pkl` artefacts and logs model version | Requires sufficient new data |
-| Senior photo upload | Photo field on profile form; stored in `storage/app/public/seniors/` | None |
-| Survey versioning UI | Manage multiple QoL instrument versions; display which version was used for each survey | None |
-| Mobile-responsive field entry | Optimise QoL survey form and profile form for tablet/phone use by field workers | None |
-| Multi-office support | Extend the system to serve multiple OSCA offices (multi-tenancy); separate data per municipality | Major architectural change |
+| ML model retraining pipeline | ✅ Done (manual) | Retrain in the Jupyter notebook, then redeploy via the documented artifact-transfer workflow ([UPDATING_THE_MODEL.md](UPDATING_THE_MODEL.md)) — a person runs it; not web-triggered or scheduled. Used successfully for the 360-senior K=4 retrain (dataset expansion, Magdapio batch). |
+| Survey versioning | ✅ Done (schema-level) | `survey_version` column stored on every QoL survey record, currently hardcoded to `v1` everywhere since only one instrument version exists. No management UI yet — not needed until a second version is introduced. |
+| Senior photo upload | 📋 Planned | Photo field on profile form; stored in `storage/app/public/seniors/` |
+
+### Removed from scope
+
+- **Longitudinal risk tracking dashboard** — removed from the roadmap.
+- **Mobile-responsive field entry UI** — removed. The system will remain web-only for desktop/laptop use in the OSCA office; no dedicated mobile/tablet field-entry optimization is planned.
+- **OSCA network multi-office support** — removed. Extending the system to serve multiple OSCA offices is the OSCA office's own responsibility, not a deliverable of this system.
 
 ---
 
@@ -222,7 +224,7 @@ The GIS module adds geographic visualisation of senior citizen locations and pro
 | **M3 — GIS MVP** | Map view live with senior pins and POI overlay; basic proximity report available. ✅ Achieved May 2026 (prototype). |
 | **M4 — GIS Full** | Bulk geocoding, accessibility proximity scoring, GIS CSV export, route distances, and OSM facility import complete. ✅ Achieved June 2026. (The manual coordinate picker was built then removed; wiring `gis_proximity_score` into the ML pipeline remains a future enhancement requiring a model retrain.) |
 | **M5 — Production** | All Phase 2 and 3 complete; system deployed on a production server with HTTPS and automated backups. Target: June 2026. |
-| **M6 — Advanced** | Longitudinal tracking, model retraining, and mobile UI complete. Target: July 2026. |
+| **M6 — Advanced** | Model retraining workflow validated and survey-version schema in place. ✅ Achieved July 2026 (manual retraining — automated/web-triggered retraining remains a future enhancement if needed). Senior photo upload remains open; longitudinal tracking, mobile UI, and multi-office support removed from scope. |
 
 ---
 
@@ -238,6 +240,6 @@ Items below are identified but not yet scheduled into a phase:
 | Automated data retention | Permanently delete records older than a configurable retention period per Data Privacy Act | Medium |
 | Senior consent tracking | Record informed consent date and method per senior for RA 10173 compliance | Low |
 | DSWD / PhilSys API integration | Verify senior identity and eligibility against national databases | High (external) |
-| Benchmarking across OSCA offices | Compare risk distributions across multiple municipalities | Depends on M6 |
+| Benchmarking across OSCA offices | Compare risk distributions across multiple municipalities | Depends on OSCA's own future multi-office rollout (out of scope for this system) |
 | Custom report builder | Allow staff to configure which fields appear in exports | Medium |
 | Senior self-assessment portal | Public-facing survey form seniors or family members can fill in | High |
