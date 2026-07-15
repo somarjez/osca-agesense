@@ -800,7 +800,7 @@ The following features are either partially implemented or explicitly absent fro
 | Feature | Notes |
 |---|---|
 | Activity audit logging | `ActivityLogObserver` wired to Senior, Survey, Recommendation; viewable at `/activity-log` |
-| Queued batch ML inference | `ProcessMlBatch` dispatched via `Bus::batch()`; queue worker starts automatically with `start.bat` |
+| Queued batch ML inference | `ProcessMlBatch` dispatched via `Bus::batch()`; queue worker starts automatically with the system (`start.bat`, or the "Start OSCA System" icon) |
 | Dynamic cluster evaluation metrics | Read from `python/models/cluster_eval_metrics.json` — updates when model is retrained |
 | Data Privacy Act compliance | Field encryption (contact_number, place_of_birth, philsys_id), consent fields, `osca:purge-expired` command |
 | Barangay-specific report page | Full drill-down at `/reports/barangay/{brgy}` with KPIs, domain bars, cluster distribution, senior roster |
@@ -906,7 +906,7 @@ The dataset comprises **360 senior citizens** (290 original + 70 Magdapio/Barang
 | Phase 1 — Core System | ✅ Complete (April 2026) |
 | Phase 2 — Production Hardening | ✅ Complete (May 2026) |
 | Phase 3 — GIS Module | ✅ Complete (June 2026) |
-| Phase 4 — Advanced Features | 📋 Planned (June–July 2026) |
+| Phase 4 — Advanced Features | 🔄 In Progress (June–July 2026) — model retraining workflow and survey-version schema done; senior photo upload planned. See [ROADMAP.md §6](ROADMAP.md#6-phase-4--advanced-features). |
 
 ### Remaining gaps
 
@@ -914,8 +914,8 @@ The dataset comprises **360 senior citizens** (290 original + 70 Magdapio/Barang
 |---|---|
 | **Medium** | `gis_proximity_score` not yet wired into the ML pipeline as a feature — accessibility scores are computed and stored, but feeding them to the GBR/RFR models requires a model retrain |
 | **Low** | No notification system — critical risk events are not automatically communicated to staff |
-| **Low** | No automated/in-app model retraining pipeline — models are static committed artefacts |
+| **Low** | No automated/in-app (web-triggered or scheduled) model retraining — retraining is a manual, notebook-based workflow (retrain, then redeploy via [UPDATING_THE_MODEL.md](UPDATING_THE_MODEL.md)); models are static committed artefacts between retrains |
 
-**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested. Role-based access control (`spatie/laravel-permission`) is fully implemented with `admin`, `encoder`, and `viewer` roles enforced at route and UI level. The `setup.bat`/`start.bat` launcher workflow and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines.
+**Technology maturity:** The Laravel/Livewire stack and Python ML microservices are production-grade in design. The three-tier fallback strategy for ML execution is robust and well-tested. Role-based access control (`spatie/laravel-permission`) is fully implemented with `admin`, `encoder`, and `viewer` roles enforced at route and UI level. The `setup.bat` launcher workflow — started day-to-day via either the windowless "Start/Stop OSCA System" desktop icons (office staff) or `start.bat`/`stop.bat` (developers) — and committed model artefacts (`python/models/`) with notebook-validated prediction CSVs ensure reproducible results across all machines.
 
 **Academic readiness:** The system's use of WHO Healthy Ageing framework terminology, WHOQOL-BREF-derived instrument, K-Means clustering with UMAP, interpretable domain-level risk scores, prescriptive recommendation generation, and role-differentiated access control makes it suitable as a thesis research system prototype. The documented cluster evaluation metrics and feature engineering pipeline provide sufficient methodological grounding for academic presentation.

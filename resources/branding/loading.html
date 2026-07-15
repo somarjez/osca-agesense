@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Starting AgeSense OSCA System…</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%; margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #16213a;
+    color: #fbfaf6;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    text-align: center;
+    padding: 2.5rem 3rem;
+    max-width: 26rem;
+  }
+  .mark {
+    width: 64px; height: 64px; margin: 0 auto 1.5rem;
+    border-radius: 18px;
+    background: #16213a;
+    border: 1px solid rgba(255,255,255,.12);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark svg { width: 40px; height: 40px; }
+  h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .4rem; }
+  p.sub { font-size: .9rem; color: rgba(251,250,246,.6); margin: 0 0 1.75rem; line-height: 1.5; }
+  .spinner {
+    width: 34px; height: 34px; margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    border: 3px solid rgba(86,137,214,.25);
+    border-top-color: #5689d6;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status { font-size: .82rem; color: rgba(251,250,246,.45); min-height: 1.2em; }
+  .retry-btn {
+    display: none;
+    margin-top: 1.25rem;
+    background: #2657aa; color: #fbfaf6; border: none;
+    padding: .6rem 1.4rem; border-radius: 8px;
+    font-size: .85rem; cursor: pointer;
+  }
+  .retry-btn:hover { background: #1f4a92; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 8.4 L12 31.6" stroke="#fbfaf6" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M20 8.4 L28 31.6" stroke="#fbfaf6" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M14.7 24.3 L25.3 24.3" stroke="#5689d6" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="spinner" id="spinner"></div>
+    <h1 id="title">Starting AgeSense OSCA System…</h1>
+    <p class="sub" id="subtitle">This can take up to 30 seconds the first time — please don't close this tab or click the icon again.</p>
+    <div class="status" id="status"></div>
+    <button class="retry-btn" id="retryBtn" onclick="location.reload()">Check again</button>
+  </div>
+
+<script>
+  var TARGET = "http://127.0.0.1:8000";
+  var attempts = 0;
+  var MAX_ATTEMPTS = 60; // ~60s at 1s interval
+
+  function tick() {
+    attempts++;
+    document.getElementById('status').textContent =
+      attempts > 5 ? "Still starting… (" + attempts + "s)" : "";
+
+    fetch(TARGET, { mode: 'no-cors', cache: 'no-store' })
+      .then(function () {
+        // A response (even opaque, due to no-cors) means the server is up.
+        document.getElementById('title').textContent = "Ready — opening now…";
+        location.replace(TARGET);
+      })
+      .catch(function () {
+        if (attempts >= MAX_ATTEMPTS) {
+          document.getElementById('spinner').style.display = 'none';
+          document.getElementById('title').textContent = "Taking longer than expected";
+          document.getElementById('subtitle').textContent =
+            "The system is still starting in the background. If this continues, check storage\\logs\\quiet-launcher.log or contact your administrator.";
+          document.getElementById('retryBtn').style.display = 'inline-block';
+        } else {
+          setTimeout(tick, 1000);
+        }
+      });
+  }
+
+  setTimeout(tick, 800);
+</script>
+</body>
+</html>
