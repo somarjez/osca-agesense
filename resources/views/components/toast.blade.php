@@ -39,7 +39,7 @@
     role="status"
     aria-live="polite"
     aria-atomic="true"
-    class="fixed top-24 right-5 z-50 flex items-start gap-3 max-w-sm w-full rounded-2xl border px-4 py-3 shadow-lg {{ $styles[$type] ?? $styles['info'] }}"
+    class="fixed top-24 right-5 z-[2000] flex items-start gap-3 max-w-sm w-full rounded-2xl border px-4 py-3 shadow-lg {{ $styles[$type] ?? $styles['info'] }}"
     x-cloak
 >
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
