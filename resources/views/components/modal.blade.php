@@ -20,7 +20,7 @@
      aria-modal="true"
      @if($title) aria-labelledby="{{ $titleId }}" @endif
      @if($ariaLabel) aria-label="{{ $ariaLabel }}" @endif
-     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     class="fixed inset-0 z-[2000] flex items-center justify-center p-4"
      @if($closeable) @keydown.escape.window="{{ $show }} = false" @endif
      x-effect="document.body.classList.toggle('overflow-hidden', !!({{ $show }}))"
      x-transition.opacity.duration.150ms>
