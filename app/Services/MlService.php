@@ -33,6 +33,10 @@ class MlService
 
     protected int $coldStartTimeout;
 
+    protected int $healthTimeout;
+
+    protected int $healthConnectTimeout;
+
     protected ?bool $preprocessAvailable = null;
 
     protected ?bool $inferenceAvailable = null;
@@ -48,6 +52,8 @@ class MlService
         $inferencePort = (int) config('services.python.inference_port', 5002);
         $this->timeout = (int) config('services.python.timeout', 120);
         $this->coldStartTimeout = (int) config('services.python.cold_start_timeout', 120);
+        $this->healthTimeout = (int) config('services.python.health_timeout', 2);
+        $this->healthConnectTimeout = (int) config('services.python.health_connect_timeout', 1);
 
         $this->preprocessUrl = $base.':'.$preprocessPort;
         $this->inferenceUrl = $base.':'.$inferencePort;
@@ -256,10 +262,11 @@ class MlService
             'inference' => $this->inferenceUrl.'/health',
         ] as $name => $url) {
             try {
-                // 10s timeout: Flask loads models in ~30s on cold start but the
-                // /health endpoint responds quickly once the process is up.
-                // 3s connect timeout catches a completely dead port fast.
-                $resp = Http::timeout(10)->connectTimeout(3)->get($url);
+                // /health does no model loading, so a live service answers in
+                // milliseconds even during a cold start elsewhere — this short
+                // budget only matters for the down/slow case, keeping the
+                // ≤2s health-check SLA.
+                $resp = Http::timeout($this->healthTimeout)->connectTimeout($this->healthConnectTimeout)->get($url);
                 $results[$name] = $resp->successful() ? 'ok' : 'error';
             } catch (\Exception) {
                 $results[$name] = 'unreachable';
@@ -728,7 +735,10 @@ class MlService
     private function checkHealth(string $url, string $serviceName): bool
     {
         try {
-            $resp = Http::timeout(10)->connectTimeout(3)->get($url);
+            // Short, configurable budget (see healthCheck() above) so a down
+            // service is declared unavailable — and fallback kicks in — well
+            // inside the ≤10s fallback-activation SLA.
+            $resp = Http::timeout($this->healthTimeout)->connectTimeout($this->healthConnectTimeout)->get($url);
             if ($resp->successful()) {
                 return true;
             }

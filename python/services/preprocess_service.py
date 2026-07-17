@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import pickle
+import threading
 import warnings
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -1105,7 +1106,33 @@ def preprocess_endpoint():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+def _warm_up_models() -> None:
+    """Pre-load encoders/scaler/UMAP artifacts into their @lru_cache stores in
+    a background thread so the first real /preprocess request isn't the one
+    paying the cold-load cost. /health responds immediately regardless of
+    warm-up progress. Best-effort only — never fatal to service startup.
+    """
+    try:
+        _runtime_weights()
+        _load_pickle_if_exists("edu_encoder.pkl")
+        _load_pickle_if_exists("income_encoder.pkl")
+        _load_json_if_exists("feature_list.json")
+        _load_json_if_exists("vif_retained_features.json")
+        _load_pickle_if_exists("scaler.pkl")
+        _load_pickle_if_exists("umap_nd.pkl") or _load_pickle_if_exists("umap_reducer.pkl")
+        logger.info("Model warm-up complete — caches primed for first request")
+    except Exception:
+        logger.exception("Model warm-up failed (non-fatal); artifacts will load lazily on first request")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PREPROCESS_PORT", 5001))
     logger.info("Starting OSCA Preprocessing Service on port %s", port)
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    threading.Thread(target=_warm_up_models, daemon=True, name="model-warmup").start()
+    try:
+        from waitress import serve
+        logger.info("Serving via waitress (production WSGI) on port %s", port)
+        serve(app, host="0.0.0.0", port=port, threads=8)
+    except ImportError:
+        logger.warning("waitress not installed; falling back to Flask dev server (not for production use)")
+        app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
