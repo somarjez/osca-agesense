@@ -20,6 +20,7 @@ import json
 import logging
 import pickle
 import re
+import threading
 import unicodedata
 import warnings
 from functools import lru_cache
@@ -2588,8 +2589,42 @@ def batch_infer_endpoint():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+def _warm_up_models() -> None:
+    """Pre-load model artifacts into their @lru_cache stores in a background
+    thread so the FIRST real /infer request doesn't pay the ~30s cold-load
+    cost (models otherwise load lazily on first use). Runs off the request
+    path — /health responds immediately regardless of warm-up progress, and a
+    request arriving mid-warm-up just loads on demand as it does today.
+    Best-effort only: any failure here is logged and swallowed, never fatal.
+    """
+    try:
+        _load_model("scaler.pkl")
+        _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
+        _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
+        _load_knn_classifier()
+        _load_cluster_centroids_scaled()
+        _load_cluster_feature_means()
+        _load_cluster_profiles()
+        for domain in ("ic", "env", "func"):
+            _load_model(f"gbr_{domain}_risk.pkl")
+            _load_model(f"rfr_{domain}_risk.pkl")
+        if ENABLE_NOTEBOOK_OVERRIDES:
+            _load_notebook_cluster_index()
+            _load_notebook_recommendation_index()
+        logger.info("Model warm-up complete — caches primed for first request")
+    except Exception:
+        logger.exception("Model warm-up failed (non-fatal); models will load lazily on first request")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("INFERENCE_PORT", os.environ.get("PYTHON_INFERENCE_PORT", 5002)))
     logger.info("Starting OSCA Inference Service on port %s — MODEL_DIR=%s", port, MODEL_DIR)
     _validate_artifacts_at_startup()
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    threading.Thread(target=_warm_up_models, daemon=True, name="model-warmup").start()
+    try:
+        from waitress import serve
+        logger.info("Serving via waitress (production WSGI) on port %s", port)
+        serve(app, host="0.0.0.0", port=port, threads=8)
+    except ImportError:
+        logger.warning("waitress not installed; falling back to Flask dev server (not for production use)")
+        app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)

@@ -37,6 +37,11 @@ return [
         'inference_port' => env('PYTHON_INFERENCE_PORT', 5002),
         'timeout' => env('PYTHON_TIMEOUT', 120),
         'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 120),
+        // /health does no model loading, so a live service answers in
+        // milliseconds — this budget only matters for the down/slow case, and
+        // a short one lets the ≤2s health-check / ≤10s fallback SLAs pass.
+        'health_timeout' => env('PYTHON_HEALTH_TIMEOUT', 2),
+        'health_connect_timeout' => env('PYTHON_HEALTH_CONNECT_TIMEOUT', 1),
         'token' => env('ML_SERVICE_TOKEN'),
     ],
 

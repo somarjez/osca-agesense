@@ -39,7 +39,11 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION', null),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => env('DB_QUEUE_RETRY_AFTER', 90),
+            // Must exceed the longest ShouldQueue job's $timeout (ProcessMlBatch /
+            // ProcessMlSingle = 300s) or the queue considers a still-running ML
+            // chunk "stalled" and re-dispatches it to another worker mid-run,
+            // causing duplicate processing. See app/Jobs/ProcessMl*.php.
+            'retry_after' => env('DB_QUEUE_RETRY_AFTER', 600),
             'after_commit' => false,
         ],
 
@@ -47,7 +51,7 @@ return [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),
             'queue' => env('BEANSTALKD_QUEUE', 'default'),
-            'retry_after' => env('BEANSTALKD_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => env('BEANSTALKD_QUEUE_RETRY_AFTER', 600),
             'block_for' => 0,
             'after_commit' => false,
         ],
@@ -67,7 +71,7 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => env('REDIS_QUEUE_RETRY_AFTER', 600),
             'block_for' => null,
             'after_commit' => false,
         ],
