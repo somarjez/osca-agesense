@@ -49,7 +49,7 @@ class ReimportRecommendations extends Command
         $this->line('');
 
         // ── 2. Walk active seniors, match, replace recs on latest ml_result ─────
-        $seniors = SeniorCitizen::query()->with('latestMlResult')->get();
+        $seniors = SeniorCitizen::active()->with('latestMlResult')->get();
 
         $matched = 0;
         $unmatched = [];

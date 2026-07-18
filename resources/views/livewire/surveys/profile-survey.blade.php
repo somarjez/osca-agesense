@@ -86,6 +86,49 @@
             {{-- ─── STEP 1: Identifying Information ─── --}}
             @if ($step === 1)
             <h3 class="font-display text-xl text-ink-800 mb-5">I. Identifying Information</h3>
+
+            {{-- Record Status — edit-only. New profiles are always created Active. --}}
+            @if ($senior)
+            <div class="mb-5 p-4 rounded-xl border {{ $status === 'deceased' ? 'border-critical-200 dark:border-critical-700/30 bg-critical-50 dark:bg-critical-50/10' : 'border-paper-rule bg-paper' }}">
+                <p class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Record Status</p>
+                <div class="flex gap-3">
+                    @foreach (['active' => 'Active', 'deceased' => 'Deceased'] as $val => $label)
+                    <label class="flex-1 flex items-center gap-2 cursor-pointer px-3 py-2.5 rounded-lg border transition-colors
+                                   {{ $status === $val
+                                      ? ($val === 'deceased' ? 'border-critical-500 bg-critical-100 dark:bg-critical-700/20' : 'border-forest-500 bg-forest-50 dark:bg-forest-900/30')
+                                      : 'border-paper-rule hover:bg-paper dark:hover:bg-[#202a26]' }}">
+                        <input type="radio" wire:model.live="status" value="{{ $val }}" class="accent-forest-700">
+                        <span class="text-sm font-medium text-ink-700">{{ $label }}</span>
+                    </label>
+                    @endforeach
+                </div>
+                @error('status') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
+
+                @if ($status === 'deceased')
+                <div class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-paper-2">
+                    <div>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Date of Death</label>
+                        <input type="date" wire:model="dateOfDeath" min="1900-01-01" max="{{ date('Y-m-d') }}"
+                               class="form-input {{ $errors->has('dateOfDeath') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                        @error('dateOfDeath') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Note (optional)</label>
+                        <textarea wire:model="deceasedNote" rows="2" maxlength="500" placeholder="Cause, context, or other notes…"
+                                  class="form-input"></textarea>
+                        @error('deceasedNote') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                @endif
+
+                @if ($senior->status_changed_at)
+                <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-2">
+                    Status last changed by {{ $senior->status_changed_by ?? 'unknown' }} on {{ $senior->status_changed_at->format('M j, Y g:ia') }}
+                </p>
+                @endif
+            </div>
+            @endif
+
             <div class="grid grid-cols-2 gap-4">
 
                 <div>
