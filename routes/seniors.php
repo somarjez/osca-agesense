@@ -28,6 +28,8 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
     // Wildcard routes below
     Route::middleware('role:admin,encoder,viewer')->group(function () {
         Route::get('/', [SeniorCitizenController::class, 'index'])->name('index');
+        // Literal path — must stay before the /{senior} wildcard below so it wins.
+        Route::get('/deceased', [SeniorCitizenController::class, 'deceasedIndex'])->name('deceased');
         Route::get('/{senior}', [SeniorCitizenController::class, 'show'])->name('show');
         Route::get('/{senior}/export', [SeniorCitizenController::class, 'export'])->name('export');
     });

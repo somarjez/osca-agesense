@@ -52,6 +52,13 @@ class ProfileSurvey extends Component
 
     public string $bloodType = '';
 
+    // ── Lifecycle status (edit-only; new profiles are always 'active') ─────────
+    public string $status = 'active';
+
+    public string $dateOfDeath = '';
+
+    public string $deceasedNote = '';
+
     // ── II. Family Composition ────────────────────────────────────────────────
     public int $numChildren = 0;
 
@@ -258,7 +265,21 @@ class ProfileSurvey extends Component
             'encoded_by' => Auth::user()?->name,
             'consent_given_at' => $this->consentGivenAt ?: null,
             'consent_method' => $this->consentMethod ?: null,
+            'status' => $this->status,
+            // Deceased-only fields; cleared on reactivation (or any non-deceased
+            // status) so a status flip never leaves stale death info behind.
+            'date_of_death' => $this->status === 'deceased' ? ($this->dateOfDeath ?: null) : null,
+            'deceased_note' => $this->status === 'deceased' ? ($this->deceasedNote ?: null) : null,
         ];
+
+        // Status control is edit-only, so this only ever fires for an existing
+        // record whose status actually flipped (e.g. active -> deceased, or
+        // reactivation). A brand-new profile always saves with the 'active'
+        // default and never touches these audit columns.
+        if ($this->senior && $this->senior->status !== $this->status) {
+            $data['status_changed_by'] = Auth::user()?->name;
+            $data['status_changed_at'] = now();
+        }
 
         if ($this->senior) {
             $this->senior->update($data);
@@ -361,6 +382,9 @@ class ProfileSurvey extends Component
             'barangay' => 'required|string|in:'.implode(',', SeniorCitizen::barangayList()),
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
+            'status' => ['required', ValidationRule::in(['active', 'deceased'])],
+            'dateOfDeath' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
+            'deceasedNote' => 'nullable|string|max:500',
         ];
     }
 
@@ -371,6 +395,8 @@ class ProfileSurvey extends Component
             'dateOfBirth.before' => 'Date of birth must be in the past.',
             'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
+            'dateOfDeath.after_or_equal' => 'Date of death must be in the year 1900 or later.',
+            'dateOfDeath.before_or_equal' => 'Date of death cannot be in the future.',
         ];
     }
 
@@ -453,6 +479,11 @@ class ProfileSurvey extends Component
         $this->validateOnly('consentGivenAt', $this->step1Rules(), $this->step1Messages());
     }
 
+    public function updatedDateOfDeath(): void
+    {
+        $this->validateOnly('dateOfDeath', $this->step1Rules(), $this->step1Messages());
+    }
+
     private function populateFromModel(SeniorCitizen $s): void
     {
         $this->firstName = $s->first_name;
@@ -468,6 +499,9 @@ class ProfileSurvey extends Component
         $this->religion = $s->religion ?? '';
         $this->ethnicOrigin = $s->ethnic_origin ?? '';
         $this->bloodType = $s->blood_type ?? '';
+        $this->status = $s->status ?? 'active';
+        $this->dateOfDeath = $s->date_of_death?->format('Y-m-d') ?? '';
+        $this->deceasedNote = $s->deceased_note ?? '';
         $this->numChildren = $s->num_children;
         $this->numWorkingChildren = $s->num_working_children;
         $this->childFinancialSupport = $s->child_financial_support ?? '';
@@ -505,6 +539,7 @@ class ProfileSurvey extends Component
             'maritalStatus' => $this->maritalStatus, 'gender' => $this->gender,
             'religion' => $this->religion, 'ethnicOrigin' => $this->ethnicOrigin,
             'bloodType' => $this->bloodType,
+            'status' => $this->status, 'dateOfDeath' => $this->dateOfDeath, 'deceasedNote' => $this->deceasedNote,
             'numChildren' => $this->numChildren, 'numWorkingChildren' => $this->numWorkingChildren,
             'childFinancialSupport' => $this->childFinancialSupport, 'spouseWorking' => $this->spouseWorking,
             'householdSize' => $this->householdSize,

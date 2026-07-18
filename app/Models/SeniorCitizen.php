@@ -56,11 +56,14 @@ class SeniorCitizen extends Model
         'latitude', 'longitude', 'location_source', 'location_accuracy', 'location_verified_at',
         'status', 'encoded_by',
         'consent_given_at', 'consent_method',
+        'date_of_death', 'deceased_note', 'status_changed_by', 'status_changed_at',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
         'consent_given_at' => 'datetime',
+        'date_of_death' => 'date',
+        'status_changed_at' => 'datetime',
         'has_medical_checkup' => 'boolean',
         // Non-searchable PII encrypted at rest
         'contact_number' => EncryptedOrPlainText::class,
@@ -227,6 +230,16 @@ class SeniorCitizen extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    /**
+     * Seniors marked deceased. Kept separate from the SoftDeletes archive —
+     * these rows stay in the normal, queryable table; only the active-roster
+     * scope above excludes them.
+     */
+    public function scopeDeceased($query)
+    {
+        return $query->where('status', 'deceased');
     }
 
     public function scopeByBarangay($query, string $barangay)

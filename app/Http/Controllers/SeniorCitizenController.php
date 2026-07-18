@@ -56,6 +56,31 @@ class SeniorCitizenController extends Controller
         return view('seniors.index', compact('seniors', 'barangays', 'stats'));
     }
 
+    /**
+     * Deceased roster — a lifecycle status (SeniorCitizen::deceased()), not the
+     * soft-delete archive. Records here stay in the normal table, fully
+     * queryable; they're just excluded from the active roster's index() above.
+     */
+    public function deceasedIndex(Request $request)
+    {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
+        $query = SeniorCitizen::deceased()
+            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
+                ->orWhere('last_name', 'like', "%{$request->search}%")
+                ->orWhere('osca_id', 'like', "%{$request->search}%")
+            ))
+            ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
+            ->orderByDesc('date_of_death')
+            ->orderByDesc('status_changed_at');
+
+        $seniors = $query->paginate(20)->withQueryString();
+        $barangays = SeniorCitizen::barangayList();
+        $total = SeniorCitizen::deceased()->count();
+
+        return view('seniors.deceased', compact('seniors', 'barangays', 'total'));
+    }
+
     public function create()
     {
         return view('seniors.create');

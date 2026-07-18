@@ -93,6 +93,14 @@
                 <x-heroicon-o-users class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Senior Records</span>
             </a>
+            <a href="{{ route('seniors.deceased') }}"
+               wire:navigate
+               class="nav-link {{ request()->routeIs('seniors.deceased') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Deceased Seniors'">
+                <x-heroicon-o-user-minus class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Deceased Seniors</span>
+            </a>
 
             @hasanyrole('admin|encoder')
             <a href="{{ route('seniors.create') }}"
