@@ -3,12 +3,19 @@
 @section('page-subtitle', 'Individual record · Pagsanjan, Laguna')
 
 @section('content')
-@php $ml = $senior->latestMlResult; @endphp
+@php
+    $ml = $senior->latestMlResult;
+    // A deceased senior lives outside the active roster (SeniorCitizen::active()
+    // scope), so "back" must return to the Deceased Seniors list, not the
+    // active Senior Records list they're no longer part of.
+    $recordsLabel = $senior->status === 'deceased' ? 'Deceased Seniors' : 'Senior Records';
+    $recordsRoute = $senior->status === 'deceased' ? route('seniors.deceased') : route('seniors.index');
+@endphp
 <div class="space-y-6">
 
     <x-breadcrumb :links="[
         ['label' => 'Dashboard', 'href' => route('dashboard')],
-        ['label' => 'Senior Records', 'href' => route('seniors.index')],
+        ['label' => $recordsLabel, 'href' => $recordsRoute],
         ['label' => $senior->full_name],
     ]" />
     {{-- Eyebrow only — identity card below carries the name --}}
@@ -19,8 +26,8 @@
 
     {{-- Top action bar --}}
     <div class="flex items-center gap-3 flex-wrap">
-        <a href="{{ route('seniors.index') }}" class="btn btn-ghost gap-1.5 pl-1.5">
-            <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to records
+        <a href="{{ $recordsRoute }}" class="btn btn-ghost gap-1.5 pl-1.5">
+            <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to {{ $senior->status === 'deceased' ? 'deceased list' : 'records' }}
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
             @if (!empty($draftSurvey))

@@ -87,25 +87,30 @@
             @if ($step === 1)
             <h3 class="font-display text-xl text-ink-800 mb-5">I. Identifying Information</h3>
 
-            {{-- Record Status — edit-only. New profiles are always created Active. --}}
+            {{-- Record Status — edit-only. New profiles are always created Active.
+                 recordStatus is a client-side Alpine mirror of $status so the
+                 Deceased fields reveal instantly on click instead of waiting on
+                 a Livewire round-trip; wire:model (deferred) still carries the
+                 real value to the server on the next save/step action. --}}
             @if ($senior)
-            <div class="mb-5 p-4 rounded-xl border {{ $status === 'deceased' ? 'border-critical-200 dark:border-critical-700/30 bg-critical-50 dark:bg-critical-50/10' : 'border-paper-rule bg-paper' }}">
+            <div class="mb-5 p-4 rounded-xl border transition-colors"
+                 x-data="{ recordStatus: @js($status) }"
+                 :class="recordStatus === 'deceased' ? 'border-critical-200 dark:border-critical-700/30 bg-critical-50 dark:bg-critical-50/10' : 'border-paper-rule bg-paper'">
                 <p class="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Record Status</p>
                 <div class="flex gap-3">
                     @foreach (['active' => 'Active', 'deceased' => 'Deceased'] as $val => $label)
-                    <label class="flex-1 flex items-center gap-2 cursor-pointer px-3 py-2.5 rounded-lg border transition-colors
-                                   {{ $status === $val
-                                      ? ($val === 'deceased' ? 'border-critical-500 bg-critical-100 dark:bg-critical-700/20' : 'border-forest-500 bg-forest-50 dark:bg-forest-900/30')
-                                      : 'border-paper-rule hover:bg-paper dark:hover:bg-[#202a26]' }}">
-                        <input type="radio" wire:model.live="status" value="{{ $val }}" class="accent-forest-700">
+                    <label class="flex-1 flex items-center gap-2 cursor-pointer px-3 py-2.5 rounded-lg border transition-colors"
+                           :class="recordStatus === '{{ $val }}'
+                                   ? '{{ $val === 'deceased' ? 'border-critical-500 bg-critical-100 dark:bg-critical-700/20' : 'border-forest-500 bg-forest-50 dark:bg-forest-900/30' }}'
+                                   : 'border-paper-rule hover:bg-paper dark:hover:bg-[#202a26]'">
+                        <input type="radio" wire:model="status" x-model="recordStatus" value="{{ $val }}" class="accent-forest-700">
                         <span class="text-sm font-medium text-ink-700">{{ $label }}</span>
                     </label>
                     @endforeach
                 </div>
                 @error('status') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
 
-                @if ($status === 'deceased')
-                <div class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-paper-2">
+                <div x-show="recordStatus === 'deceased'" x-cloak class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-paper-2">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Date of Death</label>
                         <input type="date" wire:model="dateOfDeath" min="1900-01-01" max="{{ date('Y-m-d') }}"
@@ -119,7 +124,6 @@
                         @error('deceasedNote') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
                     </div>
                 </div>
-                @endif
 
                 @if ($senior->status_changed_at)
                 <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-2">

@@ -3,7 +3,16 @@
 @section('page-subtitle', number_format($total) . ' deceased seniors · records preserved, excluded from the active roster')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="{
+        singleArchiveOpen: false,
+        singleArchiveName: '',
+        singleArchiveId: null,
+        openArchive(id, name) {
+            this.singleArchiveId   = id;
+            this.singleArchiveName = name;
+            this.singleArchiveOpen = true;
+        },
+    }">
 
     <x-breadcrumb :links="[
         ['label' => 'Dashboard', 'href' => route('dashboard')],
@@ -119,6 +128,13 @@
                                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
                             </a>
                             @endrole
+                            @hasanyrole('admin')
+                            <button @click="openArchive('{{ $senior->uuid }}', '{{ addslashes($senior->full_name) }}')"
+                                    class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
+                                    title="Archive record">
+                                <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
+                            </button>
+                            @endrole
                         </div>
                     </td>
                 </tr>
@@ -139,6 +155,45 @@
             {{ $seniors->links() }}
         </div>
         @endif
+    </div>
+
+    {{-- ── Single Archive Confirmation Modal ─────────────────────────── --}}
+    <div x-show="singleArchiveOpen" x-cloak
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="single-archive-title"
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+         @keydown.escape.window="singleArchiveOpen = false">
+        <div class="card max-w-sm w-full shadow-2xl" @click.outside="singleArchiveOpen = false">
+            <div class="card-head">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-high-50 dark:bg-high-50/10 grid place-items-center flex-shrink-0">
+                        <x-heroicon-o-archive-box class="w-4 h-4 text-high-700" />
+                    </div>
+                    <div class="card-title" id="single-archive-title">Archive this record?</div>
+                </div>
+                <button @click="singleArchiveOpen = false" class="btn btn-ghost p-1.5">
+                    <x-heroicon-o-x-mark class="w-4 h-4" />
+                </button>
+            </div>
+            <div class="card-body space-y-4">
+                <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
+                    <span class="font-semibold" x-text="singleArchiveName"></span> will be moved to Archives. Their data is preserved and can be restored at any time.
+                </p>
+                <form id="single-archive-form" method="POST" :action="`/seniors/${singleArchiveId}`">
+                    @csrf
+                    @method('DELETE')
+                </form>
+                <div class="flex gap-2 justify-end pt-1">
+                    <button @click="singleArchiveOpen = false" class="btn">Cancel</button>
+                    <button @click="document.getElementById('single-archive-form').submit()"
+                            class="btn btn-danger">
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
+                        Archive Record
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
