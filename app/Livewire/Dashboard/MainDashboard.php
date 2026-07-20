@@ -89,6 +89,7 @@ class MainDashboard extends Component
             $total = $baseQuery->count();
 
             $surveyed = QolSurvey::where('status', 'processed')
+                ->whereHas('seniorCitizen', fn ($sq) => $sq->active())
                 ->when($this->selectedBarangay, fn ($q) => $q->whereHas('seniorCitizen',
                     fn ($sq) => $sq->where('barangay', $this->selectedBarangay)
                 ))
@@ -264,6 +265,7 @@ class MainDashboard extends Component
     {
         return Cache::remember($this->cacheKey('domain'), now()->addSeconds(90), function () {
             $avgs = QolSurvey::where('status', 'processed')
+                ->whereHas('seniorCitizen', fn ($sq) => $sq->active())
                 ->when($this->selectedBarangay, fn ($q) => $q->whereHas('seniorCitizen',
                     fn ($sq) => $sq->where('barangay', $this->selectedBarangay)
                 ))

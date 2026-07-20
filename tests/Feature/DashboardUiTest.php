@@ -9,6 +9,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -107,6 +108,51 @@ class DashboardUiTest extends TestCase
             ->assertSee('ranked by size')
             ->assertSee('Needs attention (below 50)')
             ->assertSee('need monitoring or action');
+    }
+
+    #[Test]
+    public function qol_surveyed_count_excludes_deceased_seniors(): void
+    {
+        // Regression: "QoL Surveyed" must never exceed "Total Seniors" (active).
+        // A senior who was surveyed and later marked deceased should drop out
+        // of both counts, not just the active total.
+        //
+        // Tests run against the real dev database inside a rolled-back
+        // transaction (DatabaseTransactions), so pre-existing rows are still
+        // present here — assert on deltas from a baseline, not raw totals.
+        $this->actingAs($this->admin);
+
+        $baseline = Livewire::test(MainDashboard::class)->viewData('stats');
+
+        $active = $this->makeSenior(['osca_id' => SeniorCitizen::generateOscaId('Anibong')]);
+        QolSurvey::create([
+            'senior_citizen_id' => $active->id,
+            'survey_date' => now()->format('Y-m-d'),
+            'status' => 'processed',
+            'score_qol' => 0.8,
+        ]);
+
+        $deceased = $this->makeSenior([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'status' => 'deceased',
+        ]);
+        QolSurvey::create([
+            'senior_citizen_id' => $deceased->id,
+            'survey_date' => now()->format('Y-m-d'),
+            'status' => 'processed',
+            'score_qol' => 0.2,
+        ]);
+
+        // Bust the 90s stats cache so the new rows are picked up immediately.
+        Cache::flush();
+
+        $stats = Livewire::test(MainDashboard::class)->viewData('stats');
+
+        // Only the active senior should move either count; the deceased
+        // senior's survey must not inflate "surveyed" past "total".
+        $this->assertSame($baseline['total'] + 1, $stats['total']);
+        $this->assertSame($baseline['surveyed'] + 1, $stats['surveyed']);
+        $this->assertLessThanOrEqual($stats['total'], $stats['surveyed']);
     }
 
     #[Test]
