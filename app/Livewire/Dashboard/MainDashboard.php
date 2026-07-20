@@ -12,6 +12,7 @@ use App\Support\SeniorDataVersion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -30,6 +31,11 @@ class MainDashboard extends Component
     public function boot(ClusterAnalyticsService $clusterAnalytics): void
     {
         $this->clusterAnalytics = $clusterAnalytics;
+    }
+
+    public function placeholder(): View
+    {
+        return view('components.skeletons.dashboard');
     }
 
     public function render()
@@ -228,26 +234,30 @@ class MainDashboard extends Component
 
     private function getRecentSeniors(): \Illuminate\Database\Eloquent\Collection
     {
-        return SeniorCitizen::active()
-            ->with(['latestMlResult'])
-            ->when($this->selectedBarangay, fn ($q) => $q->where('barangay', $this->selectedBarangay))
-            ->when($this->selectedRisk, fn ($q) => $q->byRiskLevel($this->selectedRisk))
-            ->latest()
-            ->limit(10)
-            ->get();
+        return Cache::remember($this->cacheKey('recent_seniors'), now()->addSeconds(90), function () {
+            return SeniorCitizen::active()
+                ->with(['latestMlResult'])
+                ->when($this->selectedBarangay, fn ($q) => $q->where('barangay', $this->selectedBarangay))
+                ->when($this->selectedRisk, fn ($q) => $q->byRiskLevel($this->selectedRisk))
+                ->latest()
+                ->limit(10)
+                ->get();
+        });
     }
 
     private function getPendingRecommendations(): \Illuminate\Database\Eloquent\Collection
     {
-        return Recommendation::with(['seniorCitizen'])
-            ->current()
-            ->pending()
-            ->whereHas('seniorCitizen')
-            ->whereIn('urgency', ['urgent', 'immediate'])
-            ->orderBy('urgency')
-            ->orderBy('priority')
-            ->limit(8)
-            ->get();
+        return Cache::remember($this->cacheKey('pending_recs'), now()->addSeconds(90), function () {
+            return Recommendation::with(['seniorCitizen'])
+                ->current()
+                ->pending()
+                ->whereHas('seniorCitizen')
+                ->whereIn('urgency', ['urgent', 'immediate'])
+                ->orderBy('urgency')
+                ->orderBy('priority')
+                ->limit(8)
+                ->get();
+        });
     }
 
     private function getDomainScores(): array
