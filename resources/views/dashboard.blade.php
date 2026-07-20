@@ -4,7 +4,7 @@
 @section('page-subtitle', 'Senior Citizen Analytics Overview — Pagsanjan, Laguna')
 
 @section('content')
-<livewire:dashboard.main-dashboard />
+<livewire:dashboard.main-dashboard lazy />
 @endsection
 
 @push('scripts')

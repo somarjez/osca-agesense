@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Dashboard\MainDashboard;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
@@ -9,6 +10,7 @@ use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -75,14 +77,32 @@ class DashboardUiTest extends TestCase
     }
 
     #[Test]
-    public function dashboard_renders_with_wellbeing_bands_and_ranked_profile_groups(): void
+    public function dashboard_page_shows_shell_and_skeleton_before_lazy_hydration(): void
     {
+        // MainDashboard is lazy-loaded: the initial HTTP response renders the
+        // page shell (title) + skeleton placeholder, not the component's own
+        // aggregated content, which only exists after Livewire's follow-up
+        // hydration request. Same convention as reports/risk.blade.php.
         $senior = $this->makeSenior();
         $this->makeMlResult($senior);
 
         $this->actingAs($this->admin)
             ->get(route('dashboard'))
             ->assertOk()
+            ->assertSee('Dashboard')
+            ->assertDontSee('Risk Distribution')
+            ->assertDontSee('Needs attention (below 50)');
+    }
+
+    #[Test]
+    public function dashboard_component_renders_with_wellbeing_bands_and_ranked_profile_groups(): void
+    {
+        $senior = $this->makeSenior();
+        $this->makeMlResult($senior);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(MainDashboard::class)
             ->assertSee('Risk Distribution')
             ->assertSee('ranked by size')
             ->assertSee('Needs attention (below 50)')
