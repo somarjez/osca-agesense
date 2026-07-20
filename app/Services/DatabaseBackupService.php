@@ -66,7 +66,7 @@ class DatabaseBackupService
         $port = $conn['port'] ?: '3306';
         $password = $conn['password'] ?? '';
 
-        $mysqldump = $this->locateMysqldump();
+        $mysqldump = $this->findMysqldumpBinary();
         if (! $mysqldump) {
             throw new \RuntimeException(
                 'mysqldump not found on PATH or in common Laragon/XAMPP/MySQL install locations. '
@@ -218,7 +218,7 @@ class DatabaseBackupService
         return $files;
     }
 
-    private function locateMysqldump(): ?string
+    private function findMysqldumpBinary(): ?string
     {
         $onPath = (new ExecutableFinder)->find('mysqldump');
         if ($onPath) {
