@@ -39,7 +39,7 @@ class SeniorCitizen extends Model
     }
 
     protected $fillable = [
-        'osca_id',
+        'osca_id', 'official_osca_id',
         'first_name', 'middle_name', 'last_name', 'name_extension',
         'barangay', 'date_of_birth', 'contact_number', 'place_of_birth',
         'marital_status', 'gender', 'religion', 'ethnic_origin',
@@ -100,6 +100,16 @@ class SeniorCitizen extends Model
         ]);
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * The official OSCA-ID isn't known for most seniors yet, so views render
+     * this instead of the raw column to avoid every table/PDF re-implementing
+     * the "Unassigned" placeholder.
+     */
+    public function getOfficialOscaIdDisplayAttribute(): string
+    {
+        return $this->official_osca_id ?? 'Unassigned';
     }
 
     public function getAgeAttribute(): int

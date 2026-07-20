@@ -22,8 +22,12 @@ class BulkUploadController extends Controller
         'first_name', 'last_name', 'barangay', 'dob', 'gender',
     ];
 
+    // The 'osca_id' column is the official OSCA-ID (optional, staff-entered) —
+    // distinct from the system-generated osca_id column, which every imported
+    // row gets automatically via generateOscaId() regardless of this column.
+
     private const SAMPLE_HEADERS = [
-        'first_name', 'middle_name', 'last_name', 'name_ext', 'barangay', 'dob',
+        'first_name', 'middle_name', 'last_name', 'name_ext', 'barangay', 'dob', 'osca_id',
         'contact_number', 'place_of_birth', 'marital_status', 'gender', 'religion',
         'ethnic_origin', 'blood_type', 'num_children', 'num_working_children',
         'child_financial_support', 'spouse_working', 'household_size',
@@ -139,7 +143,7 @@ class BulkUploadController extends Controller
         $rows = [
             self::SAMPLE_HEADERS,
             [
-                'Juan', 'D.', 'Santos', 'Jr.', 'Pinagsanjan', '01/15/1948',
+                'Juan', 'D.', 'Santos', 'Jr.', 'Pinagsanjan', '01/15/1948', '',
                 '09123456789', 'Pagsanjan, Laguna', 'Widowed', 'Male', 'Catholic',
                 '', 'A+', '3', '1', 'Yes', 'Deceased', '4',
                 'Elementary Graduate', '', 'Social Work', 'Spouse,Children',
@@ -217,6 +221,7 @@ class BulkUploadController extends Controller
         DB::beginTransaction();
         try {
             $pairs = [];
+            $usedOscaIds = [];
 
             foreach ($dataRows as $lineNum => $line) {
                 $row = $this->rowToAssoc($header, $line);
@@ -254,8 +259,36 @@ class BulkUploadController extends Controller
                     continue;
                 }
 
+                // Optional staff-entered OSCA ID — never blocks the row on
+                // conflict, since it's supplementary to the required, always
+                // auto-generated osca_id. A duplicate (against the DB or an
+                // earlier row in this same file) is dropped with a warning
+                // rather than failing the whole import.
+                $officialOscaId = $this->strVal($row['osca_id'] ?? null);
+                if ($officialOscaId !== null) {
+                    $oscaIdKey = strtolower($officialOscaId);
+                    // withTrashed(): official_osca_id is unique at the DB level regardless of
+                    // soft-delete status (archived rows still occupy the value), so the app-level
+                    // check must see them too — otherwise this passes an archived senior's OSCA ID
+                    // through, only for the DB to reject it and abort the whole import.
+                    // withTrashed(): official_osca_id is unique at the DB level regardless of
+                    // soft-delete status (archived rows still occupy the value), so the app-level
+                    // check must see them too — otherwise this passes an archived senior's OSCA ID
+                    // through, only for the DB to reject it and abort the whole import.
+                    $isDuplicate = isset($usedOscaIds[$oscaIdKey])
+                        || SeniorCitizen::withTrashed()->where('official_osca_id', $officialOscaId)->exists();
+
+                    if ($isDuplicate) {
+                        $errors[] = 'Row '.($lineNum + 2).": OSCA ID '{$officialOscaId}' is already in use — imported without it.";
+                        $officialOscaId = null;
+                    } else {
+                        $usedOscaIds[$oscaIdKey] = true;
+                    }
+                }
+
                 $senior = SeniorCitizen::create([
                     'osca_id' => SeniorCitizen::generateOscaId($barangay),
+                    'official_osca_id' => $officialOscaId,
                     'first_name' => $firstName,
                     'middle_name' => $this->strVal($row['middle_name'] ?? null),
                     'last_name' => $lastName,

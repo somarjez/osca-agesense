@@ -47,7 +47,14 @@
                     @forelse ($preview as $senior)
                     @php $ml = $senior->latestMlResult; @endphp
                     <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
-                        <td class="td font-mono text-[12px] text-ink-600 dark:text-[#b0b5b2]">{{ $senior->osca_id }}</td>
+                        <td class="td font-mono text-[12px]">
+                            <div class="{{ $senior->official_osca_id ? 'font-semibold text-ink-800 dark:text-[#e4e1d8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">
+                                {{ $senior->official_osca_id_display }}
+                            </div>
+                            <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] mt-0.5">
+                                SYS: {{ $senior->osca_id }}
+                            </div>
+                        </td>
                         <td class="td font-medium text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</td>
                         <td class="td text-ink-500 dark:text-[#8a9087]">{{ $senior->barangay }}</td>
                         <td class="td text-center">

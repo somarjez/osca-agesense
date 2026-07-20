@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('page-title', 'Quality of Life Survey')
-@section('page-subtitle', $senior->full_name . ' · OSCA ID: ' . $senior->osca_id)
+@section('page-subtitle', $senior->full_name . ' · System ID: ' . $senior->osca_id)
 
 @section('content')
 <livewire:surveys.qol-survey-form

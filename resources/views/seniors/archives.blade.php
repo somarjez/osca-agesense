@@ -17,7 +17,7 @@
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1.5">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Name or OSCA ID…"
+                       placeholder="Name, OSCA ID or System ID…"
                        class="form-input">
             </div>
             <div class="min-w-[140px]">
@@ -93,7 +93,12 @@
                                @change="toggleRow({{ $senior->id }}, $event.target.checked)">
                     </td>
                     <td class="td">
-                        <span class="font-mono text-[11.5px] text-ink-500 tnum">{{ $senior->osca_id }}</span>
+                        <div class="font-mono text-[12px] {{ $senior->official_osca_id ? 'font-semibold text-ink-800 dark:text-[#e4e1d8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">
+                            {{ $senior->official_osca_id_display }}
+                        </div>
+                        <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] font-mono mt-0.5">
+                            SYS: {{ $senior->osca_id }}
+                        </div>
                     </td>
                     <td class="td">
                         <div class="flex items-center gap-3">

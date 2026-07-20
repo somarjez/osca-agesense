@@ -80,7 +80,7 @@
                     <label class="block">
                         <span class="eyebrow block mb-1.5">Find a Senior</span>
                         <input id="gis-senior-search" type="text" autocomplete="off"
-                            class="form-input" placeholder="Search by name or OSCA-ID...">
+                            class="form-input" placeholder="Search by name, OSCA ID or System ID...">
                     </label>
                     <ul id="gis-senior-search-results"
                         class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-paper-0 dark:bg-[#1b211e] shadow-lg text-sm">
@@ -4296,6 +4296,7 @@
         const p = feature.properties || {};
         const seniorName = escapeHtml(p.senior_name ?? 'Senior record');
         const oscaId = escapeHtml(p.osca_id ?? `#${p.senior_id ?? 'N/A'}`);
+        const officialOscaId = escapeHtml(p.official_osca_id || 'Unassigned');
         const barangay = escapeHtml(p.barangay ?? 'N/A');
         const riskLevel = escapeHtml(p.risk_level ?? 'Unknown');
         const healthGroup = escapeHtml(clusterDisplayName(feature));
@@ -4318,7 +4319,8 @@
             return `
                 <div class="space-y-1 text-[12px] leading-snug">
                     <div><strong>Senior:</strong> ${seniorName}</div>
-                    <div><strong>OSCA ID:</strong> ${oscaId}</div>
+                    <div class="${p.official_osca_id ? 'font-semibold text-forest-800 dark:text-forest-300' : 'italic'}"><strong>OSCA ID:</strong> ${officialOscaId}</div>
+                    <div class="text-[11px] opacity-75"><strong>System ID:</strong> ${oscaId}</div>
                     <div><strong>Barangay:</strong> ${barangay}</div>
                     <div><strong>Point Type:</strong> Generalized senior point</div>
                     <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
@@ -4332,7 +4334,8 @@
         return `
             <div class="space-y-1 text-[12px] leading-snug">
                 <div><strong>Senior:</strong> ${seniorName}</div>
-                <div><strong>OSCA ID:</strong> ${oscaId}</div>
+                <div class="${p.official_osca_id ? 'font-semibold text-forest-800 dark:text-forest-300' : 'italic'}"><strong>OSCA ID:</strong> ${officialOscaId}</div>
+                <div class="text-[11px] opacity-75"><strong>System ID:</strong> ${oscaId}</div>
                 <div><strong>Barangay:</strong> ${barangay}</div>
                 <div><strong>Total Seniors:</strong> ${p.senior_count ?? p.total_seniors ?? 0}</div>
                 <div><strong>Risk Indicator:</strong> ${riskLevel}</div>
@@ -5985,7 +5988,7 @@
         }, 0);
     }
 
-    // ── Senior search (Name / OSCA-ID) ──────────────────────────────────────
+    // ── Senior search (Name / System ID / OSCA-ID) ──────────────────────────
     // Operates entirely on the already-loaded latestSeniorGeoJson — no new
     // endpoint. Respects the same role-based coordinate precision as the map
     // (search results come from the same feature properties the pins use).
@@ -6003,8 +6006,9 @@
                 const props = feature.properties || {};
                 const name = String(props.senior_name || '').toLowerCase();
                 const oscaId = String(props.osca_id || '').toLowerCase();
+                const officialOscaId = String(props.official_osca_id || '').toLowerCase();
 
-                return name.includes(needle) || oscaId.includes(needle);
+                return name.includes(needle) || oscaId.includes(needle) || officialOscaId.includes(needle);
             })
             .slice(0, MAX_SEARCH_RESULTS);
     }

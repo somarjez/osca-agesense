@@ -118,7 +118,9 @@
             <div class="flex-1 min-w-0">
                 <h1 class="font-serif text-[20px] font-semibold text-ink-900 dark:text-[#e4e1d8] leading-tight">{{ $senior->full_name }}</h1>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[12.5px] text-ink-500">
-                    <span class="font-mono tnum" title="OSCA-ID is a permanent registration number. Its prefix reflects the barangay at original registration and does not change if the senior later moves — see current barangay below.">{{ $senior->osca_id }}</span>
+                    <span class="{{ $senior->official_osca_id ? 'font-semibold text-ink-800 dark:text-[#e4e1d8]' : 'italic text-ink-400 dark:text-[#6b7570]' }}">OSCA ID: {{ $senior->official_osca_id_display }}</span>
+                    <span class="text-ink-300">·</span>
+                    <span class="font-mono tnum text-[11px] text-ink-400" title="System ID is a permanent, system-generated registration number. Its prefix reflects the barangay at original registration and does not change if the senior later moves — see current barangay below.">SYS: {{ $senior->osca_id }}</span>
                     <span class="text-ink-300">·</span>
                     <span>{{ $senior->barangay }}</span>
                     <span class="text-ink-300">·</span>
@@ -444,7 +446,8 @@
                     <div x-show="tab === 'info'">
                         <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                             <x-profile-field label="Full Name"          :value="$senior->full_name"/>
-                            <x-profile-field label="OSCA ID"            :value="$senior->osca_id"/>
+                            <x-profile-field label="OSCA ID"            :value="$senior->official_osca_id_display"/>
+                            <x-profile-field label="System ID"          :value="$senior->osca_id"/>
                             <x-profile-field label="Date of Birth"      :value="$senior->date_of_birth?->format('F j, Y')"/>
                             <x-profile-field label="Age"                :value="$senior->age . ' years old'"/>
                             <x-profile-field label="Place of Birth"     :value="$senior->place_of_birth"/>

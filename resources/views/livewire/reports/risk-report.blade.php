@@ -30,7 +30,7 @@
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Search</span>
                     <input type="text" wire:model.live.debounce.300ms="filterSearch"
-                           placeholder="Name or OSCA ID…" class="form-input w-full">
+                           placeholder="Name, OSCA ID or System ID…" class="form-input w-full">
                 </label>
 
                 <label class="block">
@@ -126,7 +126,12 @@
                                {{ $result->priority_flag === 'urgent' ? 'bg-high-50/30 dark:bg-high-500/5' : '' }}">
                         <td class="td">
                             <div class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior?->full_name ?? '—' }}</div>
-                            <div class="text-[11px] text-ink-400 dark:text-[#6b7570] font-mono">{{ $senior?->osca_id }}</div>
+                            <div class="text-[11px] font-mono {{ $senior?->official_osca_id ? 'font-semibold text-ink-700 dark:text-[#d8d4c8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">
+                                OSCA: {{ $senior?->official_osca_id_display ?? 'Unassigned' }}
+                            </div>
+                            <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] font-mono">
+                                SYS: {{ $senior?->osca_id }}
+                            </div>
                         </td>
                         <td class="td text-ink-500 dark:text-[#8a9087]">{{ $senior?->barangay }}</td>
                         <td class="td text-center font-mono tnum text-ink-700 dark:text-[#b0b5b2]">{{ $senior?->age }}</td>

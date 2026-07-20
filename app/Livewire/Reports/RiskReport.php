@@ -48,6 +48,7 @@ class RiskReport extends Component
             )
             ->when($this->filterSearch, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq
                 ->where('osca_id', 'like', "%{$this->filterSearch}%")
+                ->orWhere('official_osca_id', 'like', "%{$this->filterSearch}%")
                 ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($this->filterSearch).'%'])
             ))
             ->orderBy($this->sortBy, $this->sortDir);
