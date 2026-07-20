@@ -44,7 +44,11 @@
                 </div>
                 <h2 class="font-display text-xl text-ink-900 dark:text-[#e4e1d8] mb-1">Profile Saved</h2>
                 <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] mb-1">OSCA ID</p>
-                <p class="font-mono text-lg font-bold tracking-wide text-forest-700 dark:text-forest-300 mb-5">
+                <p class="font-mono text-lg mb-2 {{ $senior->official_osca_id ? 'font-bold tracking-wide text-forest-700 dark:text-forest-300' : 'italic font-normal text-ink-400 dark:text-[#6b7570]' }}">
+                    {{ $senior->official_osca_id_display }}
+                </p>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] mb-1">System ID</p>
+                <p class="font-mono text-sm font-medium tracking-wide text-ink-500 dark:text-[#8a9087] mb-5">
                     {{ $senior->osca_id }}
                 </p>
                 <div class="flex flex-col gap-2">
@@ -174,6 +178,13 @@
                     <input type="date" wire:model.live="dateOfBirth" min="1900-01-01" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
                            class="form-input {{ $errors->has('dateOfBirth') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                     @error('dateOfBirth') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">OSCA ID</label>
+                    <input type="text" wire:model="officialOscaId" placeholder="e.g. 12-3456-789"
+                           class="form-input {{ $errors->has('officialOscaId') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                    <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-1">Leave blank if not yet assigned.</p>
+                    @error('officialOscaId') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">Gender</label>

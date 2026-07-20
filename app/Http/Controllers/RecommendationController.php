@@ -32,10 +32,11 @@ class RecommendationController extends Controller
             ->when($request->has_urgent, fn ($q) => $q->whereHas('currentRecommendations', fn ($r) => $r->whereIn('urgency', ['immediate', 'urgent'])->where('status', 'pending')
             )
             )
-            ->when($request->search, fn ($q, $term) => $q
-                ->where('osca_id', 'like', "%{$term}%")
-                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%'])
-            )
+            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
+                $w->where('osca_id', 'like', "%{$term}%")
+                    ->orWhere('official_osca_id', 'like', "%{$term}%")
+                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
+            }))
             ->when($request->quick === 'pending', fn ($q) => $q->having('pending_count', '>', 0))
             ->when($request->quick === 'done', fn ($q) => $q->having('pending_count', '=', 0))
             ->orderByDesc('immediate_count')

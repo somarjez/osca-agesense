@@ -460,6 +460,7 @@ class ReportController extends Controller
             ->with('latestMlResult')
             ->when($request->roster_search, fn ($q, $term) => $q->where(function ($w) use ($term) {
                 $w->where('osca_id', 'like', "%{$term}%")
+                    ->orWhere('official_osca_id', 'like', "%{$term}%")
                     ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
             }))
             ->orderBy('last_name')
@@ -555,7 +556,7 @@ class ReportController extends Controller
 
         $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Gender',
+            fputcsv($file, ['System ID', 'Name', 'Barangay', 'Age', 'Gender',
                 'Profile Group ID', 'Profile Group Name', 'Risk Level', 'Composite Risk',
                 'IC Risk', 'Env Risk', 'Func Risk', 'Wellbeing Score', 'Processed At']);
 
@@ -775,6 +776,7 @@ class ReportController extends Controller
             ->when($request->cluster, fn ($q, $c) => $q->where('ml_results.cluster_named_id', $c))
             ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
                 $w->where('senior_citizens.osca_id', 'like', "%{$term}%")
+                    ->orWhere('senior_citizens.official_osca_id', 'like', "%{$term}%")
                     ->orWhereRaw("LOWER(CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name)) LIKE ?", ['%'.strtolower($term).'%']);
             }))
             ->select(
@@ -795,7 +797,7 @@ class ReportController extends Controller
 
         $callback = function () use ($query) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['OSCA ID', 'Name', 'Barangay', 'Age', 'Risk Level',
+            fputcsv($file, ['System ID', 'Name', 'Barangay', 'Age', 'Risk Level',
                 'Composite Risk', 'IC Risk Level', 'Env Risk Level', 'Func Risk Level', 'Processed At']);
 
             $query->chunk(200, function ($rows) use ($file) {

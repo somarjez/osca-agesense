@@ -30,7 +30,7 @@ class PurgeExpiredRecords extends Command
         }
 
         $this->table(
-            ['ID', 'OSCA ID', 'Name', 'Archived At'],
+            ['ID', 'System ID', 'Name', 'Archived At'],
             $expired->map(fn ($s) => [
                 $s->id,
                 $s->osca_id,

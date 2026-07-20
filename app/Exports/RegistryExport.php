@@ -28,6 +28,7 @@ class RegistryExport implements FromQuery, WithChunkReading, WithHeadings, WithM
                     ->whereIn('ml_results.id', $latestIds);
             })
             ->select(
+                'senior_citizens.official_osca_id',
                 'senior_citizens.osca_id',
                 'senior_citizens.last_name',
                 'senior_citizens.first_name',
@@ -57,7 +58,7 @@ class RegistryExport implements FromQuery, WithChunkReading, WithHeadings, WithM
     public function map($row): array
     {
         return [
-            $row->osca_id, $row->last_name, $row->first_name, $row->middle_name,
+            $row->official_osca_id ?? 'Unassigned', $row->osca_id, $row->last_name, $row->first_name, $row->middle_name,
             $row->date_of_birth, $row->age, $row->gender, $row->marital_status, $row->barangay,
             $row->monthly_income_range, $row->status,
             $row->cluster, $row->cluster_name, $row->risk_level,
@@ -69,7 +70,7 @@ class RegistryExport implements FromQuery, WithChunkReading, WithHeadings, WithM
     public function headings(): array
     {
         return [
-            'OSCA ID', 'Last Name', 'First Name', 'Middle Name',
+            'OSCA ID', 'System ID', 'Last Name', 'First Name', 'Middle Name',
             'Date of Birth', 'Age', 'Gender', 'Marital Status', 'Barangay',
             'Monthly Income Range', 'Status',
             'Profile Group', 'Profile Group Name', 'Risk Level',

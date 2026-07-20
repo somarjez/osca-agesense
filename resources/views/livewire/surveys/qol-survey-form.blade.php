@@ -35,7 +35,7 @@
             </div>
             <div class="flex-1 min-w-0">
                 <p class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</p>
-                <p class="text-[12.5px] text-ink-500 dark:text-[#6b7570]">{{ $senior->barangay }} · Age {{ $senior->age }} · OSCA ID: {{ $senior->osca_id }}</p>
+                <p class="text-[12.5px] text-ink-500 dark:text-[#6b7570]">{{ $senior->barangay }} · Age {{ $senior->age }} · System ID: {{ $senior->osca_id }}</p>
             </div>
             <div class="flex-shrink-0">
                 <label class="eyebrow block mb-1">Survey Date</label>

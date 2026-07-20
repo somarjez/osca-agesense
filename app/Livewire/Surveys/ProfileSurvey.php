@@ -35,6 +35,9 @@ class ProfileSurvey extends Component
     #[Rule('required')]
     public string $barangay = '';
 
+    /** Official OSCA-ID issued by the OSCA office; optional, blank until assigned. */
+    public string $officialOscaId = '';
+
     #[Rule('required|date')]
     public string $dateOfBirth = '';
 
@@ -231,6 +234,7 @@ class ProfileSurvey extends Component
             'last_name' => $this->lastName,
             'name_extension' => $this->nameExtension ?: null,
             'barangay' => $this->barangay,
+            'official_osca_id' => $this->officialOscaId !== '' ? $this->officialOscaId : null,
             'date_of_birth' => $this->dateOfBirth,
             'contact_number' => $this->contactNumber ?: null,
             'place_of_birth' => $this->placeOfBirth ?: null,
@@ -292,7 +296,7 @@ class ProfileSurvey extends Component
         $this->draft?->delete();
         $this->draft = null;
         $this->dispatch('profile-saved', seniorId: $this->senior->id);
-        session()->flash('success', "Senior citizen profile saved. OSCA ID: {$this->senior->osca_id}");
+        session()->flash('success', "Senior citizen profile saved. OSCA ID: {$this->senior->official_osca_id_display}");
     }
 
     public function saveDraft(): void
@@ -380,6 +384,10 @@ class ProfileSurvey extends Component
             'firstName' => 'required|string|max:100',
             'lastName' => 'required|string|max:100',
             'barangay' => 'required|string|in:'.implode(',', SeniorCitizen::barangayList()),
+            'officialOscaId' => [
+                'nullable', 'string', 'max:50',
+                ValidationRule::unique('senior_citizens', 'official_osca_id')->ignore($this->senior?->id),
+            ],
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
@@ -491,6 +499,7 @@ class ProfileSurvey extends Component
         $this->lastName = $s->last_name;
         $this->nameExtension = $s->name_extension ?? '';
         $this->barangay = $s->barangay;
+        $this->officialOscaId = $s->official_osca_id ?? '';
         $this->dateOfBirth = $s->date_of_birth?->format('Y-m-d') ?? '';
         $this->contactNumber = $s->contact_number ?? '';
         $this->placeOfBirth = $s->place_of_birth ?? '';
@@ -534,7 +543,8 @@ class ProfileSurvey extends Component
         return [
             'firstName' => $this->firstName, 'middleName' => $this->middleName,
             'lastName' => $this->lastName, 'nameExtension' => $this->nameExtension,
-            'barangay' => $this->barangay, 'dateOfBirth' => $this->dateOfBirth,
+            'barangay' => $this->barangay, 'officialOscaId' => $this->officialOscaId,
+            'dateOfBirth' => $this->dateOfBirth,
             'contactNumber' => $this->contactNumber, 'placeOfBirth' => $this->placeOfBirth,
             'maritalStatus' => $this->maritalStatus, 'gender' => $this->gender,
             'religion' => $this->religion, 'ethnicOrigin' => $this->ethnicOrigin,

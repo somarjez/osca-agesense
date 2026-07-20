@@ -7,6 +7,7 @@ use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -161,7 +162,7 @@ class ExportTest extends TestCase
         $this->assertNotEmpty($body);
 
         // Header row must be present
-        $this->assertStringContainsString('OSCA ID', $body);
+        $this->assertStringContainsString('System ID', $body);
         $this->assertStringContainsString('Profile Group ID', $body);
         $this->assertStringContainsString('Risk Level', $body);
         $this->assertStringContainsString('Composite Risk', $body);
@@ -171,7 +172,7 @@ class ExportTest extends TestCase
         $this->assertGreaterThan(1, count($lines), 'CSV has no data rows — only the header was written.');
 
         // Age column must never be 0 for a senior born in 1950.
-        // Column order in cluster CSV: OSCA ID, Name, Barangay, Age, Gender, …
+        // Column order in cluster CSV: System ID, Name, Barangay, Age, Gender, …
         $dataRow = str_getcsv($lines[1]);   // first data row (index 0 = header)
         $ageValue = (int) $dataRow[3];      // Age is the 4th column (0-indexed: 3)
         $this->assertGreaterThan(0, $ageValue,
@@ -210,7 +211,7 @@ class ExportTest extends TestCase
         $body = $response->streamedContent();
         $this->assertNotEmpty($body);
 
-        $this->assertStringContainsString('OSCA ID', $body);
+        $this->assertStringContainsString('System ID', $body);
         $this->assertStringContainsString('Risk Level', $body);
         $this->assertStringContainsString('Composite Risk', $body);
 
@@ -222,7 +223,7 @@ class ExportTest extends TestCase
         }
 
         // Age must be non-zero in the risk CSV as well.
-        // Column order in risk CSV: OSCA ID, Name, Barangay, Age, Risk Level, …
+        // Column order in risk CSV: System ID, Name, Barangay, Age, Risk Level, …
         $firstDataRow = str_getcsv($lines[1]);
         $ageValue = (int) $firstDataRow[3];
         $this->assertGreaterThan(0, $ageValue,
@@ -267,6 +268,35 @@ class ExportTest extends TestCase
 
         $this->assertGreaterThan(1000, strlen($content),
             'XLSX file is suspiciously small — may be empty or broken.');
+    }
+
+    #[Test]
+    public function registry_excel_export_includes_both_system_id_and_osca_id_columns(): void
+    {
+        SeniorCitizen::create([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'official_osca_id' => 'REG-TEST-'.uniqid(),
+            'first_name' => 'RegistryColumn',
+            'last_name' => 'Check',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1950-01-01',
+            'household_size' => 1,
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('reports.registry.export'));
+        $response->assertOk();
+
+        $path = method_exists($response->baseResponse, 'getFile')
+            ? $response->baseResponse->getFile()->getPathname()
+            : tap(tempnam(sys_get_temp_dir(), 'xlsx'), fn ($p) => file_put_contents($p, $response->streamedContent()));
+
+        $sheet = IOFactory::load($path)->getActiveSheet();
+        $headerRow = $sheet->toArray()[0];
+
+        $this->assertContains('System ID', $headerRow);
+        $this->assertContains('OSCA ID', $headerRow);
     }
 
     #[Test]

@@ -23,7 +23,7 @@
             <div class="min-w-[200px] flex-1">
                 <label class="eyebrow block mb-1.5">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Name or OSCA ID…" class="form-input w-full">
+                       placeholder="Name, OSCA ID or System ID…" class="form-input w-full">
             </div>
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
@@ -61,7 +61,13 @@
             <tbody>
                 @forelse ($surveys as $survey)
                 <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors group">
-                    <td class="td font-medium text-ink-900 dark:text-[#e4e1d8]">{{ $survey->seniorCitizen?->full_name }}</td>
+                    <td class="td font-medium text-ink-900 dark:text-[#e4e1d8]">
+                        <div>{{ $survey->seniorCitizen?->full_name }}</div>
+                        <div class="text-[10.5px] font-normal font-mono mt-0.5">
+                            <span class="{{ $survey->seniorCitizen?->official_osca_id ? 'font-semibold text-ink-700 dark:text-[#d8d4c8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">OSCA: {{ $survey->seniorCitizen?->official_osca_id_display ?? 'Unassigned' }}</span>
+                            <span class="text-ink-400 dark:text-[#6b7570]"> · SYS: {{ $survey->seniorCitizen?->osca_id }}</span>
+                        </div>
+                    </td>
                     <td class="td text-ink-500 dark:text-[#8a9087]">{{ $survey->seniorCitizen?->barangay }}</td>
                     <td class="td text-ink-600 dark:text-[#b0b5b2]">{{ $survey->survey_date?->format('M j, Y') }}</td>
                     <td class="td text-center">

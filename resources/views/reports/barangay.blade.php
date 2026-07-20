@@ -185,7 +185,12 @@
                     <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors">
                         <td class="td">
                             <div class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</div>
-                            <div class="text-[11px] text-ink-400 dark:text-[#6b7570] font-mono">{{ $senior->osca_id }}</div>
+                            <div class="text-[11px] font-mono {{ $senior->official_osca_id ? 'font-semibold text-ink-700 dark:text-[#d8d4c8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">
+                                OSCA: {{ $senior->official_osca_id_display }}
+                            </div>
+                            <div class="text-[10.5px] text-ink-400 dark:text-[#6b7570] font-mono">
+                                SYS: {{ $senior->osca_id }}
+                            </div>
                         </td>
                         <td class="td text-center font-mono tnum text-ink-700 dark:text-[#b0b5b2]">{{ $senior->age }}</td>
                         <td class="td text-center text-ink-500 dark:text-[#8a9087]">{{ $senior->gender ?? '—' }}</td>

@@ -20,7 +20,7 @@
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Name or OSCA ID…" class="form-input w-full">
+                       placeholder="Name, OSCA ID or System ID…" class="form-input w-full">
             </div>
             <div class="min-w-[150px]">
                 <label class="eyebrow block mb-1">Barangay</label>
@@ -109,6 +109,10 @@
                                 <div>
                                     <p class="font-semibold text-ink-900">{{ $senior->full_name }}</p>
                                     <p class="text-[11.5px] text-ink-500">Age {{ $senior->age }}</p>
+                                    <p class="text-[10.5px] font-mono mt-0.5">
+                                        <span class="{{ $senior->official_osca_id ? 'font-semibold text-ink-700 dark:text-[#d8d4c8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">OSCA: {{ $senior->official_osca_id_display }}</span>
+                                        <span class="text-ink-400 dark:text-[#6b7570]"> · SYS: {{ $senior->osca_id }}</span>
+                                    </p>
                                 </div>
                             </div>
                         </td>

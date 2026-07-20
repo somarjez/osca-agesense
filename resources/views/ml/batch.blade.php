@@ -201,7 +201,7 @@
             </div>
             <form method="GET" action="{{ route('ml.batch') }}" class="flex items-center gap-2">
                 <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Search name or OSCA ID…" class="form-input text-[12px] max-w-[200px]">
+                       placeholder="Search name, OSCA ID or System ID…" class="form-input text-[12px] max-w-[200px]">
                 @if (request('search'))
                 <a href="{{ route('ml.batch') }}" class="btn btn-ghost text-[12px]">Clear</a>
                 @endif
@@ -222,7 +222,13 @@
                 @forelse ($pending as $senior)
                 @php $ml = $senior->latestMlResult; $survey = $senior->latestQolSurvey; @endphp
                 <tr class="hover:bg-forest-50/40 dark:hover:bg-forest-900/10 transition-colors group">
-                    <td class="td font-medium text-ink-900">{{ $senior->full_name }}</td>
+                    <td class="td font-medium text-ink-900">
+                        <div>{{ $senior->full_name }}</div>
+                        <div class="text-[10.5px] font-normal font-mono mt-0.5">
+                            <span class="{{ $senior->official_osca_id ? 'font-semibold text-ink-700 dark:text-[#d8d4c8]' : 'italic text-ink-300 dark:text-[#4a5550]' }}">OSCA: {{ $senior->official_osca_id_display }}</span>
+                            <span class="text-ink-400 dark:text-[#6b7570]"> · SYS: {{ $senior->osca_id }}</span>
+                        </div>
+                    </td>
                     <td class="td text-ink-500">{{ $senior->barangay }}</td>
                     <td class="td text-center text-ink-400">
                         {{ $survey?->survey_date?->format('M j, Y') ?? '—' }}

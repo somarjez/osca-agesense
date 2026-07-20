@@ -284,9 +284,9 @@
                     <input x-ref="topbarSearch"
                            type="text"
                            name="search"
-                           aria-label="Search seniors by name or OSCA ID"
+                           aria-label="Search seniors by name, OSCA ID or System ID"
                            value="{{ request()->routeIs('seniors.*') ? request('search') : '' }}"
-                           placeholder="Search seniors by name or OSCA ID…"
+                           placeholder="Search seniors by name, OSCA ID or System ID…"
                            autocomplete="off" />
                     <kbd class="text-[10px] text-ink-300 dark:text-[#4a5550] font-mono bg-paper-rule/60 dark:bg-[#2b3530]/80 px-1.5 py-0.5 rounded-md flex-shrink-0 leading-none">/</kbd>
                 </div>

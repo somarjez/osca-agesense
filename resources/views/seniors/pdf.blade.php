@@ -104,7 +104,8 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     </div>
     <div class="lh-right">
         <div class="lh-title">Senior Citizen Profile Report</div>
-        <div class="lh-meta">OSCA ID: {{ $senior->osca_id }}</div>
+        <div class="lh-meta" style="{{ $senior->official_osca_id ? 'font-weight:600; color:#334155;' : 'font-style:italic;' }}">OSCA ID: {{ $senior->official_osca_id_display }}</div>
+        <div class="lh-meta">System ID: {{ $senior->osca_id }}</div>
         <div class="lh-meta">Generated on {{ now()->format('F j, Y') }}</div>
     </div>
 </div>
@@ -115,7 +116,12 @@ body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1e2
     <div class="snb-left">
         <div class="senior-name">{{ $senior->full_name }}</div>
         <div class="senior-meta">
-            OSCA ID: {{ $senior->osca_id }}
+            @if($senior->official_osca_id)
+                <strong style="color:#1e293b;">OSCA ID: {{ $senior->official_osca_id_display }}</strong>
+            @else
+                <span style="font-style:italic;">OSCA ID: {{ $senior->official_osca_id_display }}</span>
+            @endif
+            &nbsp;·&nbsp; System ID: {{ $senior->osca_id }}
             &nbsp;·&nbsp; {{ $senior->barangay }}
             &nbsp;·&nbsp; Age {{ $senior->age }}
             @if($senior->gender) &nbsp;·&nbsp; {{ $senior->gender }} @endif
