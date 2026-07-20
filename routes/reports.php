@@ -29,6 +29,9 @@ Route::prefix('reports')->name('reports.')->group(function () {
         Route::delete('/cluster/snapshot/{date}', [ReportController::class, 'destroySnapshot'])->name('cluster.snapshot.destroy');
         Route::get('/registry', [ReportController::class, 'registryIndex'])->name('registry');
         Route::get('/registry/export', [ReportController::class, 'exportRegistry'])->name('registry.export');
+        Route::post('/registry/backup', [ReportController::class, 'createBackup'])->name('registry.backup');
+        Route::get('/registry/backup/{file}/download', [ReportController::class, 'downloadBackup'])->name('registry.backup.download');
+        Route::delete('/registry/backup/{file}', [ReportController::class, 'destroyBackup'])->name('registry.backup.destroy');
 
         // System Validation — model evaluation evidence (admin only)
         Route::get('/validation', [ModelValidationController::class, 'index'])->name('validation');

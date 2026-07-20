@@ -10,6 +10,7 @@ use App\Models\MlResult;
 use App\Models\Recommendation;
 use App\Models\SeniorAccessibilityMetric;
 use App\Models\SeniorCitizen;
+use App\Services\DatabaseBackupService;
 use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
 use App\Support\SeniorDataVersion;
@@ -659,10 +660,11 @@ class ReportController extends Controller
     }
 
     /**
-     * Export Registry landing page — summary previews + a sample of the registry,
-     * with a button to download the full XLSX. Admin only.
+     * Registry and Backup landing page — summary previews + a sample of the
+     * registry with a button to download the full XLSX, plus database backup
+     * create/download/delete. Admin only.
      */
-    public function registryIndex()
+    public function registryIndex(DatabaseBackupService $backupService)
     {
         $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
             ->groupBy('senior_citizen_id')
@@ -696,7 +698,9 @@ class ReportController extends Controller
             'barangays' => $barangaysCovered,
         ];
 
-        return view('reports.registry', compact('stats', 'preview'));
+        $backups = $backupService->list();
+
+        return view('reports.registry', compact('stats', 'preview', 'backups'));
     }
 
     public function exportRegistry()
@@ -706,6 +710,55 @@ class ReportController extends Controller
         $filename = 'osca_senior_registry_'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new RegistryExport, $filename);
+    }
+
+    /**
+     * Create an on-demand full database backup via mysqldump (POST from the
+     * Registry and Backup page). Keeps only the latest 3 app-created backups —
+     * see DatabaseBackupService::rotate(). Admin only.
+     */
+    public function createBackup(DatabaseBackupService $backupService)
+    {
+        try {
+            $filename = $backupService->create();
+        } catch (\RuntimeException $e) {
+            return back()->with('error', 'Backup failed: '.$e->getMessage());
+        }
+
+        ActivityLog::record('backup', auth()->user(), "Database backup created: {$filename}");
+
+        return back()->with('success', "Backup created ({$filename}). Keeping the latest ".DatabaseBackupService::DEFAULT_KEEP.'.');
+    }
+
+    /**
+     * Download one of the latest app-created database backups. Admin only.
+     * Contains full unencrypted senior-citizen PII (except the 3 fields
+     * encrypted at rest) — every download is activity-logged.
+     */
+    public function downloadBackup(string $file, DatabaseBackupService $backupService)
+    {
+        $path = $backupService->resolvePath($file);
+
+        ActivityLog::record('exported', auth()->user(), "Database backup downloaded: {$file}");
+
+        return response()->download($path, $file);
+    }
+
+    /**
+     * Permanently delete one app-created database backup. Admin only.
+     */
+    public function destroyBackup(string $file, DatabaseBackupService $backupService)
+    {
+        $deleted = $backupService->delete($file);
+
+        if ($deleted) {
+            ActivityLog::record('backup_deleted', auth()->user(), "Database backup deleted: {$file}");
+        }
+
+        return back()->with(
+            $deleted ? 'success' : 'error',
+            $deleted ? "Backup {$file} permanently deleted." : "Could not delete {$file}."
+        );
     }
 
     /**
