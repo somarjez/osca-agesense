@@ -41,6 +41,9 @@ class ProfileSurvey extends Component
     #[Rule('required|date')]
     public string $dateOfBirth = '';
 
+    /** When the senior was registered with the OSCA office; defaults to today for new profiles. */
+    public string $registrationDate = '';
+
     public string $contactNumber = '';
 
     public string $placeOfBirth = '';
@@ -177,6 +180,7 @@ class ProfileSurvey extends Component
         foreach (self::CREATE_DEFAULT_GROUPS as $prop) {
             $this->$prop = [self::EXCLUSIVE_TOKENS[$prop]];
         }
+        $this->registrationDate = now()->format('Y-m-d');
     }
 
     /**
@@ -236,6 +240,7 @@ class ProfileSurvey extends Component
             'barangay' => $this->barangay,
             'official_osca_id' => $this->officialOscaId !== '' ? $this->officialOscaId : null,
             'date_of_birth' => $this->dateOfBirth,
+            'registration_date' => $this->registrationDate ?: null,
             'contact_number' => $this->contactNumber ?: null,
             'place_of_birth' => $this->placeOfBirth ?: null,
             'marital_status' => $this->maritalStatus ?: null,
@@ -389,6 +394,7 @@ class ProfileSurvey extends Component
                 ValidationRule::unique('senior_citizens', 'official_osca_id')->ignore($this->senior?->id),
             ],
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
+            'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
             'dateOfDeath' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
@@ -401,6 +407,8 @@ class ProfileSurvey extends Component
         return [
             'dateOfBirth.after_or_equal' => 'Date of birth must be in the year 1900 or later.',
             'dateOfBirth.before' => 'Date of birth must be in the past.',
+            'registrationDate.after_or_equal' => 'Registration date must be in the year 1900 or later.',
+            'registrationDate.before_or_equal' => 'Registration date cannot be in the future.',
             'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
             'dateOfDeath.after_or_equal' => 'Date of death must be in the year 1900 or later.',
@@ -482,6 +490,11 @@ class ProfileSurvey extends Component
         $this->validateOnly('dateOfBirth', $this->step1Rules(), $this->step1Messages());
     }
 
+    public function updatedRegistrationDate(): void
+    {
+        $this->validateOnly('registrationDate', $this->step1Rules(), $this->step1Messages());
+    }
+
     public function updatedConsentGivenAt(): void
     {
         $this->validateOnly('consentGivenAt', $this->step1Rules(), $this->step1Messages());
@@ -501,6 +514,7 @@ class ProfileSurvey extends Component
         $this->barangay = $s->barangay;
         $this->officialOscaId = $s->official_osca_id ?? '';
         $this->dateOfBirth = $s->date_of_birth?->format('Y-m-d') ?? '';
+        $this->registrationDate = $s->registration_date?->format('Y-m-d') ?? '';
         $this->contactNumber = $s->contact_number ?? '';
         $this->placeOfBirth = $s->place_of_birth ?? '';
         $this->maritalStatus = $s->marital_status ?? '';
@@ -544,7 +558,7 @@ class ProfileSurvey extends Component
             'firstName' => $this->firstName, 'middleName' => $this->middleName,
             'lastName' => $this->lastName, 'nameExtension' => $this->nameExtension,
             'barangay' => $this->barangay, 'officialOscaId' => $this->officialOscaId,
-            'dateOfBirth' => $this->dateOfBirth,
+            'dateOfBirth' => $this->dateOfBirth, 'registrationDate' => $this->registrationDate,
             'contactNumber' => $this->contactNumber, 'placeOfBirth' => $this->placeOfBirth,
             'maritalStatus' => $this->maritalStatus, 'gender' => $this->gender,
             'religion' => $this->religion, 'ethnicOrigin' => $this->ethnicOrigin,
