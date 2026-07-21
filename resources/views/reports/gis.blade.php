@@ -885,6 +885,19 @@
     let latestBarangayBoundaryGeoJson = null;
     let latestRouteDistanceUrl = null;
 
+    // At 10k+ seniors, fetching one GeoJSON feature per senior on every page
+    // load measured ~11MB / ~196MB peak PHP memory — a hard crash under the
+    // common 128M memory_limit default (see GisApiController::seniors()). The
+    // initial load instead fetches a small barangay-level aggregate; individual
+    // senior markers are fetched once, on demand, the first time the user asks
+    // for them (picks a specific barangay, or clicks a bubble/"View individual
+    // seniors" prompt). latestSeniorGeoJson stays null while in aggregate mode
+    // so the existing filter/render pipeline (which expects per-senior
+    // features) safely no-ops until the upgrade fetch completes.
+    let seniorDetailMode = 'pending'; // 'pending' | 'aggregate' | 'full'
+    let seniorDetailUpgrading = false;
+    let seniorAggregateLayerGroup = null;
+
     function getCanvasRenderer(map) {
         if (!map._gisCanvasRenderer) {
             const renderer = window.L.canvas({ padding: 0.5, pane: 'gis-senior-pane' });
@@ -6223,6 +6236,129 @@
         return geojson;
     }
 
+    /**
+     * Lightweight overview layer for aggregate mode: one circle bubble per
+     * barangay (radius by senior count, color by dominant risk), built from
+     * GisApiController's SQL-only aggregate feed. Deliberately does not touch
+     * renderDataLayers/prevalidateAllFeatures/initializeFilters — those assume
+     * full per-senior features and only run once upgradeToFullSeniorDetail()
+     * fetches the real per-senior dataset.
+     */
+    function renderAggregateBubbles(map, aggregateGeoJson) {
+        if (seniorAggregateLayerGroup) {
+            map.removeLayer(seniorAggregateLayerGroup);
+            seniorAggregateLayerGroup = null;
+        }
+
+        const features = aggregateGeoJson.features || [];
+        const maxCount = Math.max(1, ...features.map((f) => f.properties?.senior_count || 0));
+        const layers = features.map((feature) => {
+            const props = feature.properties || {};
+            const [lng, lat] = feature.geometry.coordinates;
+            const count = props.senior_count || 0;
+            // Area-proportional radius (sqrt of count) so bubble size reads as
+            // "amount of seniors", not a linear (visually misleading) scale.
+            const radius = 10 + Math.round(28 * Math.sqrt(count / maxCount));
+
+            const marker = window.L.circleMarker([lat, lng], {
+                radius,
+                weight: 2,
+                color: '#ffffff',
+                fillColor: riskColor(props.dominant_risk),
+                fillOpacity: 0.75,
+                renderer: getCanvasRenderer(map),
+                pane: 'gis-senior-pane',
+            });
+
+            marker.bindPopup(`
+                <div class="text-sm">
+                    <div class="font-semibold mb-1">${escapeHtml(props.barangay || 'Unknown barangay')}</div>
+                    <div>${count.toLocaleString()} senior${count === 1 ? '' : 's'}</div>
+                    <div class="text-xs mt-1 space-y-0.5">
+                        <div>High risk: ${(props.high_risk_count || 0).toLocaleString()}</div>
+                        <div>Moderate risk: ${(props.moderate_risk_count || 0).toLocaleString()}</div>
+                        <div>Low risk: ${(props.low_risk_count || 0).toLocaleString()}</div>
+                    </div>
+                    <button type="button" class="gis-bubble-drilldown mt-2 text-xs underline underline-offset-2 text-forest-700 dark:text-forest-400"
+                        data-barangay="${escapeHtml(props.barangay || '')}">
+                        View individual seniors &rarr;
+                    </button>
+                </div>
+            `);
+
+            return marker;
+        });
+
+        seniorAggregateLayerGroup = window.L.layerGroup(layers).addTo(map);
+
+        // Popup drill-down button: pick this barangay in the filter and fetch
+        // full per-senior detail. Delegated (popups are created/destroyed by
+        // Leaflet, so a direct listener would be lost on re-open).
+        map.getContainer().addEventListener('click', function (event) {
+            const btn = event.target.closest?.('.gis-bubble-drilldown');
+            if (!btn) return;
+            const barangaySelect = document.getElementById(BARANGAY_FILTER_ID);
+            if (barangaySelect && btn.dataset.barangay) {
+                barangaySelect.value = btn.dataset.barangay;
+            }
+            map.closePopup();
+            upgradeToFullSeniorDetail(map);
+        });
+
+        setStatus(`Showing barangay overview (${features.reduce((sum, f) => sum + (f.properties?.senior_count || 0), 0).toLocaleString()} seniors). Pick a barangay or click a bubble for individual markers.`, 'neutral');
+    }
+
+    /**
+     * Fetches the full per-senior GeoJSON once and hands off to the existing,
+     * unchanged rendering pipeline. Safe to call multiple times — no-ops after
+     * the first successful upgrade or while one is already in flight.
+     */
+    async function upgradeToFullSeniorDetail(map) {
+        if (seniorDetailMode === 'full' || seniorDetailUpgrading) return;
+
+        // Defense in depth: a per-senior fetch is only ever safe when scoped to
+        // one barangay (a few hundred rows). An unscoped fetch across all
+        // barangays is exactly the ~10k-record request that crashes under the
+        // default PHP memory_limit (see GisApiController::seniors()) — refuse
+        // it here even if some future caller forgets to check first.
+        const barangay = selectedBarangay();
+        if (barangay === 'all') {
+            console.warn('upgradeToFullSeniorDetail() called without a specific barangay selected; refusing unscoped fetch.');
+            return;
+        }
+
+        seniorDetailUpgrading = true;
+
+        const el = document.getElementById(MAP_ID);
+        if (!el) { seniorDetailUpgrading = false; return; }
+
+        setStatus('Loading individual senior markers...', 'neutral');
+        const requestId = ++latestRequestId;
+        const seniorUrl = el.dataset.geojsonUrl + (el.dataset.geojsonUrl.includes('?') ? '&' : '?') + 'barangay=' + encodeURIComponent(barangay);
+
+        try {
+            const seniorGeoJson = await fetchGeoJson(seniorUrl, requestId, 'Senior');
+            if (requestId !== latestRequestId) return;
+
+            if (seniorAggregateLayerGroup) {
+                map.removeLayer(seniorAggregateLayerGroup);
+                seniorAggregateLayerGroup = null;
+            }
+
+            latestSeniorGeoJson = seniorGeoJson;
+            seniorDetailMode = 'full';
+            prevalidateAllFeatures(seniorGeoJson.features || []);
+            initializeFilters(seniorGeoJson.features || []);
+            await Promise.resolve(renderDataLayers(map, seniorGeoJson, latestFacilityGeoJson ?? emptyFeatureCollection()));
+            setMapLoading(false);
+        } catch (error) {
+            console.error('Failed to load individual senior markers:', error);
+            setStatus('Could not load individual senior markers.', 'error');
+        } finally {
+            seniorDetailUpgrading = false;
+        }
+    }
+
     function renderMap() {
         const el = document.getElementById(MAP_ID);
         if (!el || !window.L) { setMapLoading(false); return; }
@@ -6232,6 +6368,9 @@
         latestMunicipalBoundaryGeoJson = null;
         latestBarangayBoundaryGeoJson = null;
         latestRouteDistanceUrl = el.dataset.routeDistanceUrl || null;
+        seniorDetailMode = 'pending';
+        seniorDetailUpgrading = false;
+        seniorAggregateLayerGroup = null;
         setStatus('Loading GIS layers for Pagsanjan...', 'neutral');
         setMapLoading(true);
 
@@ -6292,8 +6431,14 @@
         attachResizeObserver(map, el);
         scheduleMapSizeSync(map);
 
+        // Initial load requests the cheap barangay-level aggregate (default
+        // barangay filter is always 'all' on first paint — see BARANGAY_FILTER_ID's
+        // markup). Individual senior markers are fetched on demand via
+        // upgradeToFullSeniorDetail() once the user asks for them.
+        const seniorUrl = el.dataset.geojsonUrl + (el.dataset.geojsonUrl.includes('?') ? '&' : '?') + 'aggregate=1';
+
         Promise.all([
-            fetchGeoJson(el.dataset.geojsonUrl, requestId, 'Senior'),
+            fetchGeoJson(seniorUrl, requestId, 'Senior'),
             fetchGeoJson(el.dataset.facilitiesUrl, requestId, 'Facility', emptyFeatureCollection('database')),
             fetchGeoJson(el.dataset.pagsanjanBoundaryUrl, requestId, 'Pagsanjan boundary', emptyFeatureCollection('file')),
             fetchGeoJson(el.dataset.barangayBoundariesUrl, requestId, 'Barangay boundaries', emptyFeatureCollection('file')),
@@ -6301,21 +6446,32 @@
             .then(([seniorGeoJson, facilityGeoJson, municipalBoundaryGeoJson, barangayBoundaryGeoJson]) => {
                 if (requestId !== latestRequestId) return;
 
-                latestSeniorGeoJson = seniorGeoJson;
                 latestFacilityGeoJson = facilityGeoJson;
                 latestMunicipalBoundaryGeoJson = municipalBoundaryGeoJson;
                 latestBarangayBoundaryGeoJson = barangayBoundaryGeoJson;
-                prevalidateAllFeatures(seniorGeoJson.features || []);
-                initializeFilters(seniorGeoJson.features || []);
                 renderBoundaryLayers(map, municipalBoundaryGeoJson, barangayBoundaryGeoJson);
                 applyMapBoundaryConstraints(map);
                 applyMapZoomConstraints(map);
-                Promise.resolve(renderDataLayers(map, seniorGeoJson, facilityGeoJson))
-                    .then(() => setMapLoading(false))
-                    .catch((error) => {
-                        setMapLoading(false);
-                        console.error('GIS render failed:', error);
-                    });
+
+                if (seniorGeoJson.metadata?.aggregation === 'barangay_aggregate') {
+                    seniorDetailMode = 'aggregate';
+                    setSelectOptions(BARANGAY_FILTER_ID, 'All Barangays', uniqueSortedValues(seniorGeoJson.features || [], 'barangay'));
+                    renderAggregateBubbles(map, seniorGeoJson);
+                    setMapLoading(false);
+                } else {
+                    // Fallback path (server declined aggregation, e.g. a barangay
+                    // filter was already active): unchanged full-detail rendering.
+                    latestSeniorGeoJson = seniorGeoJson;
+                    seniorDetailMode = 'full';
+                    prevalidateAllFeatures(seniorGeoJson.features || []);
+                    initializeFilters(seniorGeoJson.features || []);
+                    Promise.resolve(renderDataLayers(map, seniorGeoJson, facilityGeoJson))
+                        .then(() => setMapLoading(false))
+                        .catch((error) => {
+                            setMapLoading(false);
+                            console.error('GIS render failed:', error);
+                        });
+                }
                 scheduleMapSizeSync(map);
             })
             .catch((error) => {
@@ -6350,6 +6506,22 @@
                     // control updates before the debounced re-render runs.
                     syncSecondaryFilter();
                 }
+
+                // Still showing barangay bubbles (no per-senior data fetched yet).
+                // Only a genuine barangay pick justifies a full-detail fetch — it's
+                // bounded to that one barangay's seniors (a few hundred, safe).
+                // Risk/cluster/mode/toggle changes have nothing to act on yet in
+                // aggregate mode and must NOT trigger an unscoped fetch of every
+                // senior (the exact 10k-record memory crash this fix exists to
+                // avoid) — debouncedRefresh() below safely no-ops for them since
+                // latestSeniorGeoJson is still null.
+                if (seniorDetailMode === 'aggregate' && event.target?.id === BARANGAY_FILTER_ID && selectedBarangay() !== 'all') {
+                    const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
+                    if (map) upgradeToFullSeniorDetail(map);
+
+                    return;
+                }
+
                 debouncedRefresh();
             }
         });

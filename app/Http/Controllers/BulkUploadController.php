@@ -7,6 +7,7 @@ use App\Jobs\ProcessMlBatch;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Support\DateParser;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -213,171 +214,238 @@ class BulkUploadController extends Controller
             ]);
         }
 
-        $dataRows = array_slice($rows, 1);
+        $dataRows = array_slice($rows, 1, null, true);
         $inserted = 0;
         $skipped = 0;
         $errors = [];
 
-        DB::beginTransaction();
-        try {
-            $pairs = [];
-            $usedOscaIds = [];
+        // ── Pre-pass: batch the lookups that used to run as separate queries
+        // INSIDE the per-row loop (duplicate-senior check, duplicate-OSCA-ID
+        // check, osca_id sequence generation via generateOscaId()'s MAX(...))
+        // — at 10k rows that was ~3-4 queries per row, ~30k-40k total, all
+        // inside one long-held transaction. Collect what the file actually
+        // touches once, up front, then check membership in PHP instead.
+        $candidateBarangays = [];
+        $existingKeys = [];
+        $existingOscaIds = [];
 
-            foreach ($dataRows as $lineNum => $line) {
-                $row = $this->rowToAssoc($header, $line);
-
-                // Skip blank rows
-                if (empty(array_filter(array_map('trim', $line)))) {
-                    continue;
-                }
-
-                // Required field check
-                $firstName = $this->strVal($row['first_name'] ?? null);
-                $lastName = $this->strVal($row['last_name'] ?? null);
-                $barangay = $this->strVal($row['barangay'] ?? null);
-                $dob = DateParser::parse($row['dob'] ?? null, dobMode: true);
-
-                if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
-                    $skipped++;
-                    $errors[] = 'Row '.($lineNum + 2).': missing required field(s) — skipped.';
-
-                    continue;
-                }
-
-                // Duplicate guard: skip if an active (non-archived) senior with the
-                // same name, date of birth, and barangay already exists.
-                $alreadyExists = SeniorCitizen::where('first_name', $firstName)
-                    ->where('last_name', $lastName)
-                    ->where('date_of_birth', $dob)
-                    ->where('barangay', $barangay)
-                    ->exists();
-
-                if ($alreadyExists) {
-                    $skipped++;
-                    $errors[] = 'Row '.($lineNum + 2).": {$firstName} {$lastName} ({$barangay}, {$dob}) already exists — skipped.";
-
-                    continue;
-                }
-
-                // Optional staff-entered OSCA ID — never blocks the row on
-                // conflict, since it's supplementary to the required, always
-                // auto-generated osca_id. A duplicate (against the DB or an
-                // earlier row in this same file) is dropped with a warning
-                // rather than failing the whole import.
-                $officialOscaId = $this->strVal($row['osca_id'] ?? null);
-                if ($officialOscaId !== null) {
-                    $oscaIdKey = strtolower($officialOscaId);
-                    // withTrashed(): official_osca_id is unique at the DB level regardless of
-                    // soft-delete status (archived rows still occupy the value), so the app-level
-                    // check must see them too — otherwise this passes an archived senior's OSCA ID
-                    // through, only for the DB to reject it and abort the whole import.
-                    // withTrashed(): official_osca_id is unique at the DB level regardless of
-                    // soft-delete status (archived rows still occupy the value), so the app-level
-                    // check must see them too — otherwise this passes an archived senior's OSCA ID
-                    // through, only for the DB to reject it and abort the whole import.
-                    $isDuplicate = isset($usedOscaIds[$oscaIdKey])
-                        || SeniorCitizen::withTrashed()->where('official_osca_id', $officialOscaId)->exists();
-
-                    if ($isDuplicate) {
-                        $errors[] = 'Row '.($lineNum + 2).": OSCA ID '{$officialOscaId}' is already in use — imported without it.";
-                        $officialOscaId = null;
-                    } else {
-                        $usedOscaIds[$oscaIdKey] = true;
-                    }
-                }
-
-                $senior = SeniorCitizen::create([
-                    'osca_id' => SeniorCitizen::generateOscaId($barangay),
-                    'official_osca_id' => $officialOscaId,
-                    'first_name' => $firstName,
-                    'middle_name' => $this->strVal($row['middle_name'] ?? null),
-                    'last_name' => $lastName,
-                    'name_extension' => $this->strVal($row['name_ext'] ?? null),
-                    'barangay' => $barangay,
-                    'date_of_birth' => $dob,
-                    'contact_number' => $this->strVal($row['contact_number'] ?? null),
-                    'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
-                    'marital_status' => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
-                    'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
-                    'religion' => $this->strVal($row['religion'] ?? null),
-                    'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
-                    'blood_type' => $this->strVal($row['blood_type'] ?? null),
-                    'num_children' => $this->intVal($row['num_children'] ?? null),
-                    'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
-                    'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
-                    'spouse_working' => $this->enumOrNull($row['spouse_working'] ?? null, ['Yes', 'No', 'Deceased', 'N/A']),
-                    'household_size' => max(1, $this->intVal($row['household_size'] ?? null, 1)),
-                    'educational_attainment' => $this->strVal($row['education'] ?? null),
-                    'specialization' => $this->toList($row['specialization'] ?? null),
-                    'community_service' => $this->toList($row['community_service'] ?? null),
-                    'living_with' => $this->toList($row['living_with'] ?? null),
-                    'household_condition' => $this->toList($row['household_condition'] ?? null),
-                    'income_source' => $this->normalizeList($this->toList($row['income_source'] ?? null), self::INCOME_SOURCE_MAP),
-                    'real_assets' => $this->toList($row['real_assets'] ?? null),
-                    'movable_assets' => $this->toList($row['movable_assets'] ?? null),
-                    'monthly_income_range' => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
-                    'problems_needs' => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
-                    'medical_concern' => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
-                    'dental_concern' => $this->toList($row['dental_concern'] ?? null),
-                    'optical_concern' => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
-                    'hearing_concern' => $this->normalizeList($this->toList($row['hearing_concern'] ?? null), self::HEARING_CONCERN_MAP),
-                    'social_emotional_concern' => $this->normalizeList($this->toList($row['social_emotional_concern'] ?? null), self::SOCIAL_EMOTIONAL_CONCERN_MAP),
-                    'healthcare_difficulty' => $this->normalizeList($this->toList($row['healthcare_difficulty'] ?? null), self::HEALTHCARE_DIFFICULTY_MAP),
-                    'has_medical_checkup' => $this->boolVal($row['has_medical_checkup'] ?? null),
-                    'checkup_schedule' => $this->strVal($row['checkup_schedule'] ?? null),
-                    'status' => 'active',
-                    'encoded_by' => 'Bulk Upload',
-                ]);
-
-                $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
-                $survey = QolSurvey::create([
-                    'senior_citizen_id' => $senior->id,
-                    'survey_version' => 'v1',
-                    'survey_date' => $surveyDate,
-                    'a1_enjoy_life' => $this->scoreVal($row['qol_enjoy_life'] ?? null),
-                    'a2_life_satisfaction' => $this->scoreVal($row['qol_life_satisfaction'] ?? null),
-                    'a3_future_outlook' => $this->scoreVal($row['qol_future_outlook'] ?? null),
-                    'a4_meaningfulness' => $this->scoreVal($row['qol_meaningfulness'] ?? null),
-                    'b1_physical_energy' => $this->scoreVal($row['phy_energy'] ?? null),
-                    'b2_pain_discomfort' => $this->scoreVal($row['phy_pain_r'] ?? null),
-                    'b3_health_self_care' => $this->scoreVal($row['phy_health_limit_r'] ?? null),
-                    'b4_health_outside' => $this->scoreVal($row['phy_mobility_outside'] ?? null),
-                    'b5_mobility' => $this->scoreVal($row['phy_mobility_indoor'] ?? null),
-                    'c1_happiness' => $this->scoreVal($row['psych_happiness'] ?? null),
-                    'c2_calm_peace' => $this->scoreVal($row['psych_peace'] ?? null),
-                    'c3_loneliness' => $this->scoreVal($row['psych_lonely_r'] ?? null),
-                    'c4_confidence' => $this->scoreVal($row['psych_confidence'] ?? null),
-                    'd1_independence' => $this->scoreVal($row['func_independence'] ?? null),
-                    'd2_time_control' => $this->scoreVal($row['func_autonomy'] ?? null),
-                    'd3_life_control' => $this->scoreVal($row['func_control'] ?? null),
-                    'd4_income_limits' => $this->scoreVal($row['env_income_limit_r'] ?? null),
-                    'e1_social_support' => $this->scoreVal($row['soc_social_support'] ?? null),
-                    'e2_close_person' => $this->scoreVal($row['soc_close_friend'] ?? null),
-                    'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
-                    'e4_participation' => $this->scoreVal($row['soc_opportunity'] ?? null),
-                    'e5_respect' => $this->scoreVal($row['soc_respect'] ?? null),
-                    'f1_home_safety' => $this->scoreVal($row['env_safe_home'] ?? null),
-                    'f2_neighborhood_safety' => $this->scoreVal($row['env_safe_neighborhood'] ?? null),
-                    'f3_service_access' => $this->scoreVal($row['env_service_access'] ?? null),
-                    'f4_home_comfort' => $this->scoreVal($row['env_home_comfort'] ?? null),
-                    'g1_household_expenses' => $this->scoreVal($row['env_fin_household'] ?? null),
-                    'g2_medical_afford' => $this->scoreVal($row['env_fin_medical'] ?? null),
-                    'g3_personal_wants' => $this->scoreVal($row['env_fin_personal'] ?? null),
-                    'h1_belief_comfort' => $this->scoreVal($row['spi_belief_comfort'] ?? null),
-                    'h2_belief_practice' => $this->scoreVal($row['spi_belief_practice'] ?? null),
-                    'status' => 'submitted',
-                ]);
-
-                $survey->computeScores();
-                $pairs[] = ['senior' => $senior, 'survey' => $survey];
-                $inserted++;
+        foreach ($dataRows as $line) {
+            $row = $this->rowToAssoc($header, $line);
+            if (empty(array_filter(array_map('trim', $line)))) {
+                continue;
             }
+            $barangay = $this->strVal($row['barangay'] ?? null);
+            if ($barangay) {
+                $candidateBarangays[] = $barangay;
+            }
+        }
+        $candidateBarangays = array_values(array_unique($candidateBarangays));
 
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
+        if ($candidateBarangays) {
+            SeniorCitizen::select('first_name', 'last_name', 'date_of_birth', 'barangay')
+                ->whereIn('barangay', $candidateBarangays)
+                ->get()
+                ->each(function ($s) use (&$existingKeys) {
+                    $dob = $s->date_of_birth instanceof CarbonInterface
+                        ? $s->date_of_birth->format('Y-m-d')
+                        : (string) $s->date_of_birth;
+                    $existingKeys[strtolower("{$s->first_name}|{$s->last_name}|{$dob}|{$s->barangay}")] = true;
+                });
 
-            return back()->withErrors(['file' => 'Import failed: '.$e->getMessage()]);
+            // withTrashed(): official_osca_id is unique at the DB level regardless of
+            // soft-delete status (archived rows still occupy the value), so this
+            // check must see them too — otherwise a staff-entered ID that matches an
+            // archived senior would pass here only for the DB to reject the insert.
+            $existingOscaIds = SeniorCitizen::withTrashed()
+                ->whereNotNull('official_osca_id')
+                ->pluck('official_osca_id')
+                ->map(fn ($v) => strtolower((string) $v))
+                ->flip()
+                ->toArray();
+        }
+
+        // One MAX(...) query per distinct barangay-prefix present in the file
+        // (typically a handful) instead of one per row.
+        $seqCounters = SeniorCitizen::oscaIdMaxSequences($candidateBarangays);
+        $importYear = now()->format('Y');
+
+        $pairs = [];
+        $usedOscaIds = [];
+
+        // Chunked commits: a 10k-row file used to sit in one open transaction
+        // for the whole import (long lock hold, all-or-nothing on any single
+        // bad row). Committing every 500 rows bounds that, at the cost of a
+        // changed failure mode — a chunk that errors rolls back only its own
+        // rows; earlier successfully-committed chunks are kept, and the import
+        // continues with the next chunk rather than discarding everything.
+        foreach (array_chunk($dataRows, 500, true) as $chunk) {
+            try {
+                $chunkResult = DB::transaction(function () use (
+                    $chunk, $header, &$errors, &$usedOscaIds, &$existingKeys,
+                    &$existingOscaIds, &$seqCounters, $importYear
+                ) {
+                    $chunkInserted = 0;
+                    $chunkSkipped = 0;
+                    $chunkPairs = [];
+
+                    foreach ($chunk as $lineNum => $line) {
+                        $row = $this->rowToAssoc($header, $line);
+
+                        // Skip blank rows
+                        if (empty(array_filter(array_map('trim', $line)))) {
+                            continue;
+                        }
+
+                        // Required field check
+                        $firstName = $this->strVal($row['first_name'] ?? null);
+                        $lastName = $this->strVal($row['last_name'] ?? null);
+                        $barangay = $this->strVal($row['barangay'] ?? null);
+                        $dob = DateParser::parse($row['dob'] ?? null, dobMode: true);
+
+                        if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
+                            $chunkSkipped++;
+                            $errors[] = 'Row '.($lineNum + 2).': missing required field(s) — skipped.';
+
+                            continue;
+                        }
+
+                        // Duplicate guard: skip if an active (non-archived) senior with the
+                        // same name, date of birth, and barangay already exists.
+                        $dupKey = strtolower("{$firstName}|{$lastName}|{$dob}|{$barangay}");
+                        if (isset($existingKeys[$dupKey])) {
+                            $chunkSkipped++;
+                            $errors[] = 'Row '.($lineNum + 2).": {$firstName} {$lastName} ({$barangay}, {$dob}) already exists — skipped.";
+
+                            continue;
+                        }
+
+                        // Optional staff-entered OSCA ID — never blocks the row on
+                        // conflict, since it's supplementary to the required, always
+                        // auto-generated osca_id. A duplicate (against the DB or an
+                        // earlier row in this same file) is dropped with a warning
+                        // rather than failing the whole import.
+                        $officialOscaId = $this->strVal($row['osca_id'] ?? null);
+                        if ($officialOscaId !== null) {
+                            $oscaIdKey = strtolower($officialOscaId);
+                            $isDuplicate = isset($usedOscaIds[$oscaIdKey]) || isset($existingOscaIds[$oscaIdKey]);
+
+                            if ($isDuplicate) {
+                                $errors[] = 'Row '.($lineNum + 2).": OSCA ID '{$officialOscaId}' is already in use — imported without it.";
+                                $officialOscaId = null;
+                            } else {
+                                $usedOscaIds[$oscaIdKey] = true;
+                            }
+                        }
+
+                        // Same format/collision rule as SeniorCitizen::generateOscaId(),
+                        // but the max-sequence lookup already happened once above —
+                        // here we just increment the in-memory counter per prefix.
+                        $prefix = SeniorCitizen::oscaIdPrefix($barangay);
+                        $seqCounters[$prefix] = ($seqCounters[$prefix] ?? 0) + 1;
+                        $oscaId = $prefix.'-'.$importYear.'-'.str_pad((string) $seqCounters[$prefix], 4, '0', STR_PAD_LEFT);
+                        $existingKeys[$dupKey] = true; // guard against duplicate rows within the same file
+
+                        $senior = SeniorCitizen::create([
+                            'osca_id' => $oscaId,
+                            'official_osca_id' => $officialOscaId,
+                            'first_name' => $firstName,
+                            'middle_name' => $this->strVal($row['middle_name'] ?? null),
+                            'last_name' => $lastName,
+                            'name_extension' => $this->strVal($row['name_ext'] ?? null),
+                            'barangay' => $barangay,
+                            'date_of_birth' => $dob,
+                            'contact_number' => $this->strVal($row['contact_number'] ?? null),
+                            'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
+                            'marital_status' => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
+                            'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
+                            'religion' => $this->strVal($row['religion'] ?? null),
+                            'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
+                            'blood_type' => $this->strVal($row['blood_type'] ?? null),
+                            'num_children' => $this->intVal($row['num_children'] ?? null),
+                            'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
+                            'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
+                            'spouse_working' => $this->enumOrNull($row['spouse_working'] ?? null, ['Yes', 'No', 'Deceased', 'N/A']),
+                            'household_size' => max(1, $this->intVal($row['household_size'] ?? null, 1)),
+                            'educational_attainment' => $this->strVal($row['education'] ?? null),
+                            'specialization' => $this->toList($row['specialization'] ?? null),
+                            'community_service' => $this->toList($row['community_service'] ?? null),
+                            'living_with' => $this->toList($row['living_with'] ?? null),
+                            'household_condition' => $this->toList($row['household_condition'] ?? null),
+                            'income_source' => $this->normalizeList($this->toList($row['income_source'] ?? null), self::INCOME_SOURCE_MAP),
+                            'real_assets' => $this->toList($row['real_assets'] ?? null),
+                            'movable_assets' => $this->toList($row['movable_assets'] ?? null),
+                            'monthly_income_range' => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
+                            'problems_needs' => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
+                            'medical_concern' => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
+                            'dental_concern' => $this->toList($row['dental_concern'] ?? null),
+                            'optical_concern' => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
+                            'hearing_concern' => $this->normalizeList($this->toList($row['hearing_concern'] ?? null), self::HEARING_CONCERN_MAP),
+                            'social_emotional_concern' => $this->normalizeList($this->toList($row['social_emotional_concern'] ?? null), self::SOCIAL_EMOTIONAL_CONCERN_MAP),
+                            'healthcare_difficulty' => $this->normalizeList($this->toList($row['healthcare_difficulty'] ?? null), self::HEALTHCARE_DIFFICULTY_MAP),
+                            'has_medical_checkup' => $this->boolVal($row['has_medical_checkup'] ?? null),
+                            'checkup_schedule' => $this->strVal($row['checkup_schedule'] ?? null),
+                            'status' => 'active',
+                            'encoded_by' => 'Bulk Upload',
+                        ]);
+
+                        $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+                        $survey = QolSurvey::create([
+                            'senior_citizen_id' => $senior->id,
+                            'survey_version' => 'v1',
+                            'survey_date' => $surveyDate,
+                            'a1_enjoy_life' => $this->scoreVal($row['qol_enjoy_life'] ?? null),
+                            'a2_life_satisfaction' => $this->scoreVal($row['qol_life_satisfaction'] ?? null),
+                            'a3_future_outlook' => $this->scoreVal($row['qol_future_outlook'] ?? null),
+                            'a4_meaningfulness' => $this->scoreVal($row['qol_meaningfulness'] ?? null),
+                            'b1_physical_energy' => $this->scoreVal($row['phy_energy'] ?? null),
+                            'b2_pain_discomfort' => $this->scoreVal($row['phy_pain_r'] ?? null),
+                            'b3_health_self_care' => $this->scoreVal($row['phy_health_limit_r'] ?? null),
+                            'b4_health_outside' => $this->scoreVal($row['phy_mobility_outside'] ?? null),
+                            'b5_mobility' => $this->scoreVal($row['phy_mobility_indoor'] ?? null),
+                            'c1_happiness' => $this->scoreVal($row['psych_happiness'] ?? null),
+                            'c2_calm_peace' => $this->scoreVal($row['psych_peace'] ?? null),
+                            'c3_loneliness' => $this->scoreVal($row['psych_lonely_r'] ?? null),
+                            'c4_confidence' => $this->scoreVal($row['psych_confidence'] ?? null),
+                            'd1_independence' => $this->scoreVal($row['func_independence'] ?? null),
+                            'd2_time_control' => $this->scoreVal($row['func_autonomy'] ?? null),
+                            'd3_life_control' => $this->scoreVal($row['func_control'] ?? null),
+                            'd4_income_limits' => $this->scoreVal($row['env_income_limit_r'] ?? null),
+                            'e1_social_support' => $this->scoreVal($row['soc_social_support'] ?? null),
+                            'e2_close_person' => $this->scoreVal($row['soc_close_friend'] ?? null),
+                            'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
+                            'e4_participation' => $this->scoreVal($row['soc_opportunity'] ?? null),
+                            'e5_respect' => $this->scoreVal($row['soc_respect'] ?? null),
+                            'f1_home_safety' => $this->scoreVal($row['env_safe_home'] ?? null),
+                            'f2_neighborhood_safety' => $this->scoreVal($row['env_safe_neighborhood'] ?? null),
+                            'f3_service_access' => $this->scoreVal($row['env_service_access'] ?? null),
+                            'f4_home_comfort' => $this->scoreVal($row['env_home_comfort'] ?? null),
+                            'g1_household_expenses' => $this->scoreVal($row['env_fin_household'] ?? null),
+                            'g2_medical_afford' => $this->scoreVal($row['env_fin_medical'] ?? null),
+                            'g3_personal_wants' => $this->scoreVal($row['env_fin_personal'] ?? null),
+                            'h1_belief_comfort' => $this->scoreVal($row['spi_belief_comfort'] ?? null),
+                            'h2_belief_practice' => $this->scoreVal($row['spi_belief_practice'] ?? null),
+                            'status' => 'submitted',
+                        ]);
+
+                        $survey->computeScores();
+                        $chunkPairs[] = ['senior' => $senior, 'survey' => $survey];
+                        $chunkInserted++;
+                    }
+
+                    return ['inserted' => $chunkInserted, 'skipped' => $chunkSkipped, 'pairs' => $chunkPairs];
+                });
+
+                // Only merge into the running totals once the chunk's transaction
+                // has actually committed — mutating these inside the closure
+                // itself would drift out of sync with the DB on a mid-chunk
+                // rollback (PHP variable writes aren't undone by a DB rollback).
+                $inserted += $chunkResult['inserted'];
+                $skipped += $chunkResult['skipped'];
+                $pairs = array_merge($pairs, $chunkResult['pairs']);
+            } catch (\Throwable $e) {
+                $errors[] = 'A batch of rows failed to import and was rolled back: '.$e->getMessage();
+                Log::warning('Bulk upload chunk failed', ['error' => $e->getMessage()]);
+            }
         }
 
         // Queue ML analysis for the inserted seniors — mirrors
@@ -452,7 +520,11 @@ class BulkUploadController extends Controller
         if (! class_exists(IOFactory::class)) {
             throw new \RuntimeException('Excel support requires phpoffice/phpspreadsheet. Upload a CSV instead.');
         }
-        $spreadsheet = IOFactory::load($path);
+        $reader = IOFactory::createReaderForFile($path);
+        // Cell values only — skip loading styles/formatting/comments, which we
+        // never read here but which otherwise dominate memory on a large sheet.
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
         $sheet = $spreadsheet->getActiveSheet();
         $rows = [];
         foreach ($sheet->toArray(null, true, true, false) as $row) {

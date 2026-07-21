@@ -122,14 +122,21 @@ Write-Host "=== Authenticated Pages ===" -ForegroundColor Cyan
 [void](probe "GET /activity-log"       "$Base/activity-log"       -Auth)
 
 # ── 4. GIS JSON API ──────────────────────────────────────────────────────────────
+# Tests the same request the real map page makes on initial load
+# (resources/views/reports/gis.blade.php always requests ?aggregate=1 first —
+# see GisApiController::seniors()). A bare, no-param call to this endpoint
+# intentionally still returns full per-senior data (existing callers —
+# CacheGisRouteDistances, the precision-role tests — depend on that), so it is
+# NOT scale-safe by itself and is deliberately not probed here; that's a known,
+# accepted tradeoff, documented in docs/SCALING_TO_10K.md.
 Write-Host ""
 Write-Host "=== GIS API ===" -ForegroundColor Cyan
 try {
-    $gis = Invoke-WebRequest -Uri "$Base/api/gis/seniors" -WebSession $script:sess -UseBasicParsing 2>$null
+    $gis = Invoke-WebRequest -Uri "$Base/api/gis/seniors?aggregate=1" -WebSession $script:sess -UseBasicParsing 2>$null
     $count = ($gis.Content | ConvertFrom-Json).features.Count
-    ok "GET /api/gis/seniors" $gis.StatusCode "$count features"
+    ok "GET /api/gis/seniors?aggregate=1" $gis.StatusCode "$count features"
 } catch {
-    err "GET /api/gis/seniors" $_.Exception.Message
+    err "GET /api/gis/seniors?aggregate=1" $_.Exception.Message
 }
 
 # ── Summary ──────────────────────────────────────────────────────────────────────
