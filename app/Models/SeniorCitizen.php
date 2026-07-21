@@ -41,7 +41,7 @@ class SeniorCitizen extends Model
     protected $fillable = [
         'osca_id', 'official_osca_id',
         'first_name', 'middle_name', 'last_name', 'name_extension',
-        'barangay', 'date_of_birth', 'contact_number', 'place_of_birth',
+        'barangay', 'date_of_birth', 'registration_date', 'contact_number', 'place_of_birth',
         'marital_status', 'gender', 'religion', 'ethnic_origin',
         'blood_type', 'philsys_id',
         'num_children', 'num_working_children',
@@ -61,6 +61,7 @@ class SeniorCitizen extends Model
 
     protected $casts = [
         'date_of_birth' => 'date',
+        'registration_date' => 'date',
         'consent_given_at' => 'datetime',
         'date_of_death' => 'date',
         'status_changed_at' => 'datetime',

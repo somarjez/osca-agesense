@@ -449,6 +449,7 @@
                             <x-profile-field label="OSCA ID"            :value="$senior->official_osca_id_display"/>
                             <x-profile-field label="System ID"          :value="$senior->osca_id"/>
                             <x-profile-field label="Date of Birth"      :value="$senior->date_of_birth?->format('F j, Y')"/>
+                            <x-profile-field label="Registered"         :value="$senior->registration_date?->format('F j, Y')" empty="No Registration Date"/>
                             <x-profile-field label="Age"                :value="$senior->age . ' years old'"/>
                             <x-profile-field label="Place of Birth"     :value="$senior->place_of_birth"/>
                             <x-profile-field label="Barangay"           :value="$senior->barangay"/>

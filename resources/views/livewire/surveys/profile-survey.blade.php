@@ -180,6 +180,13 @@
                     @error('dateOfBirth') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-ink-600 mb-1">Registration Date</label>
+                    <input type="date" wire:model.live="registrationDate" min="1900-01-01" max="{{ date('Y-m-d') }}"
+                           class="form-input {{ $errors->has('registrationDate') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                    <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-1">When the senior was registered with OSCA.</p>
+                    @error('registrationDate') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-ink-600 mb-1">OSCA ID</label>
                     <input type="text" wire:model="officialOscaId" placeholder="e.g. 12-3456-789"
                            class="form-input {{ $errors->has('officialOscaId') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
