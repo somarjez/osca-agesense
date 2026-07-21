@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Models\User;
+use App\Services\DatabaseBackupService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -305,6 +306,99 @@ class ExportTest extends TestCase
         $this->actingAs($this->viewer)
             ->get(route('reports.registry.export'))
             ->assertForbidden();
+    }
+
+    // ── Database backup ───────────────────────────────────────────────────
+    //
+    // These hit a real mysqldump subprocess against the real dev database
+    // (DatabaseTransactions doesn't cover filesystem side effects), so every
+    // test here cleans up any file it creates to avoid polluting the real
+    // database/backups/ directory or the app's own rotation.
+
+    #[Test]
+    public function admin_can_create_a_database_backup()
+    {
+        $response = $this->actingAs($this->admin)
+            ->post(route('reports.registry.backup'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $files = glob(database_path('backups'.DIRECTORY_SEPARATOR.DatabaseBackupService::PREFIX.'*.sql')) ?: [];
+        $this->assertNotEmpty($files, 'No backup file was created.');
+
+        $latest = collect($files)->sortByDesc(fn ($f) => filemtime($f))->first();
+        $this->assertGreaterThan(0, filesize($latest), 'Backup file is empty.');
+
+        @unlink($latest);
+    }
+
+    #[Test]
+    public function backup_rotation_keeps_latest_three_and_preserves_other_dumps()
+    {
+        $dir = database_path('backups');
+        $prefix = DatabaseBackupService::PREFIX;
+
+        $created = [];
+        for ($i = 0; $i < 5; $i++) {
+            $name = $prefix.now()->subMinutes(5 - $i)->format('Ymd_His').'.sql';
+            $path = $dir.DIRECTORY_SEPARATOR.$name;
+            file_put_contents($path, "-- test dump {$i}");
+            touch($path, time() - (5 - $i) * 60);
+            $created[] = $path;
+        }
+
+        $manualDump = $dir.DIRECTORY_SEPARATOR.'agesense_test_manual_dump.sql';
+        file_put_contents($manualDump, '-- manual dump, must never be auto-deleted by rotation');
+
+        app(DatabaseBackupService::class)->rotate(3);
+
+        $remainingAppBackups = glob($dir.DIRECTORY_SEPARATOR.$prefix.'*.sql') ?: [];
+        $this->assertCount(3, $remainingAppBackups, 'Rotation should keep exactly 3 app-created backups.');
+        $this->assertFileExists($manualDump, 'Rotation must never delete non-app-prefixed dumps.');
+
+        foreach ([...$created, $manualDump] as $path) {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function backup_actions_are_forbidden_for_viewer()
+    {
+        $this->actingAs($this->viewer)->post(route('reports.registry.backup'))->assertForbidden();
+        $this->actingAs($this->viewer)
+            ->get(route('reports.registry.backup.download', 'osca_backup_20260101_000000.sql'))
+            ->assertForbidden();
+        $this->actingAs($this->viewer)
+            ->delete(route('reports.registry.backup.destroy', 'osca_backup_20260101_000000.sql'))
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function backup_actions_are_forbidden_for_encoder()
+    {
+        $this->actingAs($this->encoder)->post(route('reports.registry.backup'))->assertForbidden();
+    }
+
+    #[Test]
+    public function download_backup_rejects_path_traversal_filename()
+    {
+        // Raw path (not route()) to avoid double-encoding — %2F must survive
+        // as a literal slash inside the {file} segment for this to be a
+        // meaningful traversal attempt.
+        $response = $this->actingAs($this->admin)
+            ->get('/reports/registry/backup/..%2F..%2F.env/download');
+
+        $response->assertNotFound();
+    }
+
+    #[Test]
+    public function download_backup_404s_for_nonexistent_file()
+    {
+        $response = $this->actingAs($this->admin)
+            ->get(route('reports.registry.backup.download', 'osca_backup_19990101_000000.sql'));
+
+        $response->assertNotFound();
     }
 
     // ── Bulk upload sample template ───────────────────────────────────────

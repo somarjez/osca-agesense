@@ -16,6 +16,21 @@ Three fields (`contact_number`, `place_of_birth`, `philsys_id` on `senior_citize
 
 ## Taking a backup
 
+### From the app (recommended for non-technical admins)
+
+Log in as an **admin** → sidebar **Registry and Backup** → **Create Backup Now**. This runs the
+same `mysqldump` logic as the PowerShell script (same flags, same password-via-env-var handling,
+same loud-failure-on-empty-dump guard), writing to `database/backups/osca_backup_YYYYMMDD_HHmmss.sql`.
+Only the **latest 3** app-created backups are kept — older ones are deleted automatically the next
+time a backup is created. This rotation only ever touches its own `osca_backup_*` files; it never
+deletes manual dumps or the PowerShell script's `osca_db_backup_*` files.
+
+From the same page you can **download** one of the latest 3 backups to your machine, or **delete**
+one manually. Every create/download/delete is recorded in the Activity Log. Downloaded files carry
+the same PII as any other backup — see the warning above.
+
+### From the command line
+
 From the repo root, on any team device with `mysqldump` available (bundled with Laragon/XAMPP/a standalone MySQL install — the script checks PATH and the common install locations for each):
 
 ```powershell
@@ -27,6 +42,7 @@ The script:
 - Passes the password via the `MYSQL_PWD` environment variable rather than a command-line argument, so it never appears in process listings or shell history, and clears it immediately afterward.
 - Writes a timestamped dump to `database/backups/osca_db_backup_YYYYMMDD_HHmmss.sql` (already gitignored — the folder itself stays tracked via `.gitkeep`, its contents never do).
 - Fails loudly — non-zero exit and a clear message — if `mysqldump` isn't found, `.env` is missing, the dump command itself fails, or the result is a 0-byte file. It never leaves a silently empty or partial backup behind.
+- Does not auto-rotate — CLI dumps accumulate until you delete them manually.
 
 ## Where to keep backups
 

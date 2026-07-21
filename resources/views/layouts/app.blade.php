@@ -217,9 +217,9 @@
                wire:navigate
                class="nav-link"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
-               :title="sidebarOpen ? '' : 'Export Registry'">
+               :title="sidebarOpen ? '' : 'Registry and Backup'">
                 <x-heroicon-o-table-cells class="w-4 h-4 flex-shrink-0" />
-                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Export Registry</span>
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Registry and Backup</span>
             </a>
             <a href="{{ route('users.index') }}"
                wire:navigate
