@@ -7,12 +7,14 @@ use App\Models\Facility;
 use App\Models\SeniorCitizen;
 use App\Models\SeniorFacilityRouteDistance;
 use App\Models\SeniorFacilityRouteFailure;
+use App\Services\ClusterAnalyticsService;
 use App\Support\AccessibilityBand;
 use App\Support\CoordinatePrivacy;
 use App\Support\SeniorDataVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -21,16 +23,54 @@ class GisApiController extends Controller
 {
     private ?array $barangayBoundaryFeatures = null;
 
-    public function __construct(private CoordinatePrivacy $coordinatePrivacy) {}
+    /**
+     * Below this Leaflet zoom level the "all barangays" overview requests
+     * barangay-level bubbles (one aggregated point per barangay, computed
+     * entirely in SQL) instead of one GeoJSON feature per senior. At 10k
+     * seniors the per-senior feed measured ~11MB / ~196MB peak PHP memory —
+     * a hard crash under the common 128M memory_limit default. A specific
+     * barangay filter always returns individual features regardless of zoom
+     * (that's already a bounded, small result set).
+     */
+    private const AGGREGATE_ZOOM_THRESHOLD = 14;
+
+    public function __construct(
+        private CoordinatePrivacy $coordinatePrivacy,
+        private ClusterAnalyticsService $clusterAnalytics
+    ) {}
 
     public function seniors(Request $request): JsonResponse
     {
         $barangayFilter = $request->query('barangay');
+        $zoom = $request->query('zoom');
+        $noSpecificBarangay = ! $barangayFilter || $barangayFilter === 'all';
+        $useAggregate = $noSpecificBarangay
+            && ($request->boolean('aggregate') || ($zoom !== null && (float) $zoom < self::AGGREGATE_ZOOM_THRESHOLD));
+
         $precisionMode = $this->precisionMode();
         $version = SeniorDataVersion::current();
-        $cacheKey = ($barangayFilter && $barangayFilter !== 'all')
+        $cacheKeyBase = ($barangayFilter && $barangayFilter !== 'all')
             ? 'gis.seniors_geojson.'.$precisionMode.'.'.$version.'.'.md5($barangayFilter)
             : 'gis.seniors_geojson.'.$precisionMode.'.'.$version;
+        $cacheKey = $useAggregate ? $cacheKeyBase.'.agg' : $cacheKeyBase;
+
+        if ($useAggregate) {
+            $payload = Cache::remember($cacheKey, now()->addMinutes(5), fn () => $this->buildAggregatedPayload());
+
+            return $this->geoJsonResponse(
+                $payload['features'],
+                'database',
+                'Barangay-level aggregate: one bubble per barangay, computed in SQL (no per-senior rows fetched). Zoom in or pick a barangay for individual seniors.',
+                [
+                    'placement' => 'barangay_aggregate_bubbles',
+                    'total' => $payload['total'],
+                    'metadata' => [
+                        'barangay_count' => count($payload['features']),
+                        'aggregation' => 'barangay_aggregate',
+                    ],
+                ]
+            );
+        }
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($barangayFilter) {
             $query = SeniorCitizen::active()
@@ -177,6 +217,116 @@ class GisApiController extends Controller
                 ],
             ]
         );
+    }
+
+    /**
+     * Barangay-level aggregate for the "all barangays" overview at low zoom.
+     * Pure SQL GROUP BY — never hydrates individual SeniorCitizen/MlResult
+     * models, so cost stays flat regardless of senior count (unlike the
+     * per-senior feed above, which measured a hard PHP memory-limit crash
+     * at 10k records). One Feature per barangay with a risk breakdown.
+     */
+    private function buildAggregatedPayload(): array
+    {
+        $latestIds = $this->clusterAnalytics->latestResultIds();
+
+        $rows = DB::table('senior_citizens as s')
+            ->leftJoin('ml_results as ml', function ($join) use ($latestIds) {
+                $join->on('s.id', '=', 'ml.senior_citizen_id')
+                    ->whereIn('ml.id', $latestIds);
+            })
+            ->where('s.status', 'active')
+            ->groupBy('s.barangay')
+            ->select(
+                's.barangay',
+                DB::raw('COUNT(*) as count'),
+                DB::raw("SUM(CASE WHEN ml.overall_risk_level = 'HIGH' THEN 1 ELSE 0 END) as high_risk_count"),
+                DB::raw("SUM(CASE WHEN ml.overall_risk_level = 'MODERATE' THEN 1 ELSE 0 END) as moderate_risk_count"),
+                DB::raw("SUM(CASE WHEN ml.overall_risk_level = 'LOW' THEN 1 ELSE 0 END) as low_risk_count"),
+                DB::raw('AVG(s.latitude) as avg_lat'),
+                DB::raw('AVG(s.longitude) as avg_lng'),
+                DB::raw('AVG(ml.composite_risk) as avg_composite_risk')
+            )
+            ->get();
+
+        $features = [];
+        $total = 0;
+
+        foreach ($rows as $row) {
+            $total += (int) $row->count;
+
+            // Most seniors resolve their map point client-side from a privacy-
+            // generalized fallback rather than a stored lat/lng (see
+            // CoordinatePrivacy), so AVG(s.latitude) is frequently null even
+            // for a populated barangay. Fall back to the same static anchor
+            // point CoordinatePrivacy uses so every barangay still gets a bubble.
+            $lat = $row->avg_lat !== null ? (float) $row->avg_lat : null;
+            $lng = $row->avg_lng !== null ? (float) $row->avg_lng : null;
+            if ($lat === null || $lng === null) {
+                $anchor = $this->barangayAnchors()[$row->barangay] ?? null;
+                if (! $anchor) {
+                    continue;
+                }
+                [$lat, $lng] = $anchor;
+            }
+
+            $riskCounts = [
+                'HIGH' => (int) $row->high_risk_count,
+                'MODERATE' => (int) $row->moderate_risk_count,
+                'LOW' => (int) $row->low_risk_count,
+            ];
+            arsort($riskCounts);
+            $dominantRisk = (int) $row->count > 0 ? array_key_first($riskCounts) : 'Unknown';
+
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'Point',
+                    'coordinates' => [$lng, $lat],
+                ],
+                'properties' => [
+                    'barangay' => $row->barangay,
+                    'senior_count' => (int) $row->count,
+                    'total_seniors' => (int) $row->count,
+                    'high_risk_count' => $riskCounts['HIGH'],
+                    'moderate_risk_count' => $riskCounts['MODERATE'],
+                    'low_risk_count' => $riskCounts['LOW'],
+                    'avg_composite_risk' => $row->avg_composite_risk !== null ? round((float) $row->avg_composite_risk, 4) : null,
+                    'dominant_risk' => ucfirst(strtolower($dominantRisk)),
+                    'is_barangay_aggregate' => true,
+                ],
+            ];
+        }
+
+        return ['features' => $features, 'total' => $total];
+    }
+
+    /**
+     * Static approximate barangay centers — fallback point when a barangay has
+     * no located seniors to average. Duplicated (small, pure) from
+     * CoordinatePrivacy::barangayAnchors() rather than shared, matching this
+     * codebase's existing small-duplication convention (see that method's docblock).
+     */
+    private function barangayAnchors(): array
+    {
+        return [
+            'Anibong' => [14.2782, 121.4588],
+            'Biñan' => [14.2757, 121.4506],
+            'Buboy' => [14.2667, 121.4602],
+            'Calusiche' => [14.2629, 121.4524],
+            'Cabanbanan' => [14.2685, 121.4477],
+            'Dingin' => [14.2738, 121.4621],
+            'Lambac' => [14.2688, 121.4591],
+            'Layugan' => [14.2712, 121.4495],
+            'Magdapio' => [14.2748, 121.4562],
+            'Maulawin' => [14.2737, 121.4625],
+            'Pinagsanjan' => [14.2657, 121.4512],
+            'Barangay I (Poblacion)' => [14.2719, 121.4551],
+            'Barangay II (Poblacion)' => [14.2704, 121.4567],
+            'Sabang' => [14.2752, 121.4529],
+            'Sampaloc' => [14.2674, 121.4632],
+            'San Isidro' => [14.2639, 121.4583],
+        ];
     }
 
     public function facilities(): JsonResponse

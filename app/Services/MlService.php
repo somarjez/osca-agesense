@@ -859,7 +859,13 @@ class MlService
 
     /**
      * Re-run batch UMAP+KMeans for all seniors in one transform and update ml_results.
-     * Called automatically after every batch analysis to keep cluster assignments stable.
+     *
+     * MAINTENANCE-ONLY: NOT called automatically after batch analysis or any
+     * other normal UI flow — per-senior scoring uses a frozen, already-fit
+     * UMAP+KMeans transform (see inference_service.py), so cluster assignment
+     * is O(1) per senior and never needs a full recluster to stay stable. This
+     * method is invoked only by the RecalculateClusters job, which callers
+     * must dispatch deliberately (see that job's docblock).
      *
      * Skipped when all active ml_results are notebook_cache — those rows are the
      * notebook-validated baseline and must not be overwritten by a live UMAP run.

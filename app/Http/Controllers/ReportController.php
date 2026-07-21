@@ -10,6 +10,7 @@ use App\Models\MlResult;
 use App\Models\Recommendation;
 use App\Models\SeniorAccessibilityMetric;
 use App\Models\SeniorCitizen;
+use App\Services\ClusterAnalyticsService;
 use App\Services\DatabaseBackupService;
 use App\Support\ClusterMetrics;
 use App\Support\DbHelper;
@@ -24,6 +25,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
+    public function __construct(private ClusterAnalyticsService $clusterAnalytics) {}
+
     /**
      * GIS Analytics landing page.
      */
@@ -68,12 +71,9 @@ class ReportController extends Controller
      */
     private function gisSummaryAggregates(int $totalSeniors): array
     {
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-
-        $latestMlIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        // Cached, active-filtered via whereHas (no giant senior-id bind list) — see
+        // ClusterAnalyticsService::latestResultIds().
+        $latestMlIds = $this->clusterAnalytics->latestResultIds();
 
         $countsByBarangay = SeniorCitizen::active()
             ->select('barangay', DB::raw('COUNT(*) as count'))
@@ -121,7 +121,7 @@ class ReportController extends Controller
         // Average distance from the latest accessibility snapshot of each active
         // senior (barangay-level approximate coordinates, not exact addresses).
         $latestAccessibilityIds = SeniorAccessibilityMetric::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
+            ->whereHas('seniorCitizen', fn ($q) => $q->active())
             ->groupBy('senior_citizen_id')
             ->pluck('id');
 
@@ -185,47 +185,59 @@ class ReportController extends Controller
 
     private function gisGeocodeStatus(): array
     {
-        $seniors = SeniorCitizen::active()
-            ->get(['latitude', 'longitude', 'location_source', 'location_accuracy']);
+        // Was an uncached full-table active()->get() + PHP loop on every /reports/gis
+        // load (measured: full row hydrate + scan at 10k records on every page view).
+        // Same version-stamped cache convention as gisSummaryAggregates() above —
+        // runGisGeocode() bumps SeniorDataVersion right after any geocode run, and
+        // the SeniorLocationObserver bumps it on any coordinate change, so this can't
+        // go stale between real updates.
+        return Cache::remember(
+            'gis.geocode_status.'.SeniorDataVersion::current(),
+            now()->addMinutes(5),
+            function () {
+                $seniors = SeniorCitizen::active()
+                    ->get(['latitude', 'longitude', 'location_source', 'location_accuracy']);
 
-        $total = $seniors->count();
-        $verified = 0;
-        $approximate = 0;
-        $missing = 0;
+                $total = $seniors->count();
+                $verified = 0;
+                $approximate = 0;
+                $missing = 0;
 
-        foreach ($seniors as $senior) {
-            if (! $this->hasValidGisCoordinates($senior->latitude, $senior->longitude)) {
-                $missing++;
+                foreach ($seniors as $senior) {
+                    if (! $this->hasValidGisCoordinates($senior->latitude, $senior->longitude)) {
+                        $missing++;
 
-                continue;
+                        continue;
+                    }
+
+                    if ($this->isVerifiedGisCoordinate($senior->location_source, $senior->location_accuracy)) {
+                        $verified++;
+
+                        continue;
+                    }
+
+                    $approximate++;
+                }
+
+                $lastRunAt = $this->lastGisGeocodeRunAt();
+                $status = 'Pending';
+                if ($total > 0 && $missing === 0) {
+                    $status = 'Completed';
+                } elseif ($approximate > 0 || $verified > 0 || $lastRunAt !== null) {
+                    $status = 'Needs Update';
+                }
+
+                return [
+                    'coordinate_mode' => 'Barangay-level approximate',
+                    'total_seniors' => $total,
+                    'approximate_coordinates' => $approximate,
+                    'verified_coordinates' => $verified,
+                    'missing_coordinates' => $missing,
+                    'last_run_at' => $lastRunAt,
+                    'status' => $status,
+                ];
             }
-
-            if ($this->isVerifiedGisCoordinate($senior->location_source, $senior->location_accuracy)) {
-                $verified++;
-
-                continue;
-            }
-
-            $approximate++;
-        }
-
-        $lastRunAt = $this->lastGisGeocodeRunAt();
-        $status = 'Pending';
-        if ($total > 0 && $missing === 0) {
-            $status = 'Completed';
-        } elseif ($approximate > 0 || $verified > 0 || $lastRunAt !== null) {
-            $status = 'Needs Update';
-        }
-
-        return [
-            'coordinate_mode' => 'Barangay-level approximate',
-            'total_seniors' => $total,
-            'approximate_coordinates' => $approximate,
-            'verified_coordinates' => $verified,
-            'missing_coordinates' => $missing,
-            'last_run_at' => $lastRunAt,
-            'status' => $status,
-        ];
+        );
     }
 
     private function lastGisGeocodeRunAt(): ?string
@@ -285,74 +297,14 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', SeniorCitizen::class);
 
-        // Latest ML result per active senior only
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
-
-        $clusterSummary = MlResult::whereIn('id', $latestIds)
-            ->whereNotNull('cluster_named_id')
-            ->select(
-                'cluster_named_id',
-                'cluster_name',
-                DB::raw('COUNT(*) as member_count'),
-                DB::raw('AVG(composite_risk) as avg_composite_risk'),
-                DB::raw('AVG(ic_risk) as avg_ic_risk'),
-                DB::raw('AVG(env_risk) as avg_env_risk'),
-                DB::raw('AVG(func_risk) as avg_func_risk'),
-                DB::raw('AVG(wellbeing_score) as avg_wellbeing')
-            )
-            ->groupBy('cluster_named_id', 'cluster_name')
-            ->orderBy('cluster_named_id')
-            ->get();
-
-        // Barangay × Cluster breakdown
-        $barangayCluster = SeniorCitizen::active()
-            ->join('ml_results', function ($join) use ($latestIds) {
-                $join->on('senior_citizens.id', '=', 'ml_results.senior_citizen_id')
-                    ->whereIn('ml_results.id', $latestIds);
-            })
-            ->select('barangay', 'cluster_named_id', 'cluster_name', DB::raw('COUNT(*) as count'))
-            ->groupBy('barangay', 'cluster_named_id', 'cluster_name')
-            ->orderBy('barangay')
-            ->get()
-            ->groupBy('barangay');
-
-        // WHO domain averages per cluster
-        $domainByCluster = MlResult::whereIn('id', $latestIds)
-            ->whereNotNull('cluster_named_id')
-            ->select(
-                'cluster_named_id',
-                DB::raw('AVG(ic_risk) as ic'),
-                DB::raw('AVG(env_risk) as env'),
-                DB::raw('AVG(func_risk) as func')
-            )
-            ->groupBy('cluster_named_id')
-            ->orderBy('cluster_named_id')
-            ->get()
-            ->keyBy('cluster_named_id');
-
-        // QoL domain scores per cluster
-        $qolByCluster = DB::table('qol_surveys')
-            ->join('ml_results', 'qol_surveys.id', '=', 'ml_results.qol_survey_id')
-            ->whereIn('ml_results.id', $latestIds)
-            ->whereNotNull('ml_results.cluster_named_id')
-            ->where('qol_surveys.status', 'processed')
-            ->select(
-                'ml_results.cluster_named_id',
-                DB::raw('AVG(qol_surveys.score_physical) as physical'),
-                DB::raw('AVG(qol_surveys.score_psychological) as psychological'),
-                DB::raw('AVG(qol_surveys.score_social) as social'),
-                DB::raw('AVG(qol_surveys.score_financial) as financial'),
-                DB::raw('AVG(qol_surveys.score_environment) as environment'),
-                DB::raw('AVG(qol_surveys.overall_score) as overall')
-            )
-            ->groupBy('ml_results.cluster_named_id')
-            ->orderBy('ml_results.cluster_named_id')
-            ->get()
-            ->keyBy('cluster_named_id');
+        // This report's aggregates are exactly ClusterAnalyticsService's cached,
+        // active-filtered "latest ML result per senior" queries — delegate instead
+        // of re-deriving $latestIds via a giant SeniorCitizen::active()->pluck('id')
+        // bind list on every page load (measured ~4-6s at 10k records before this fix).
+        $clusterSummary = $this->clusterAnalytics->clusterSummary();
+        $barangayCluster = $this->clusterAnalytics->barangayClusterBreakdown();
+        $domainByCluster = $this->clusterAnalytics->domainByCluster();
+        $qolByCluster = $this->clusterAnalytics->qolByCluster();
 
         $evalMetrics = ClusterMetrics::load();
 
@@ -383,11 +335,7 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', SeniorCitizen::class);
 
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         // Barangay × risk breakdown
         $barangayRisk = SeniorCitizen::active()
@@ -442,11 +390,7 @@ class ReportController extends Controller
             abort(404, 'Barangay not found.');
         }
 
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         // All active seniors in this barangay (drives the barangay-wide KPIs/aggregates)
         $seniors = SeniorCitizen::active()
@@ -518,11 +462,7 @@ class ReportController extends Controller
     {
         ActivityLog::record('exported', auth()->user(), 'Cluster report CSV exported');
 
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         $query = SeniorCitizen::active()
             ->join('ml_results', function ($join) use ($latestIds) {
@@ -666,15 +606,15 @@ class ReportController extends Controller
      */
     public function registryIndex(DatabaseBackupService $backupService)
     {
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        // Was previously computed over ALL seniors (including inactive/archived)
+        // then filtered with whereHas below — the cached, active-scoped service list
+        // is both correct-by-construction and reused across the page's other queries.
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         $total = SeniorCitizen::active()->count();
         $assessed = SeniorCitizen::active()->whereHas('latestMlResult')->count();
 
         $riskBreakdown = MlResult::whereIn('id', $latestIds)
-            ->whereHas('seniorCitizen', fn ($q) => $q->active())
             ->select('overall_risk_level', DB::raw('COUNT(*) as count'))
             ->groupBy('overall_risk_level')
             ->pluck('count', 'overall_risk_level');
@@ -809,11 +749,7 @@ class ReportController extends Controller
     {
         ActivityLog::record('exported', auth()->user(), 'Risk report CSV exported');
 
-        $activeSeniorIds = SeniorCitizen::active()->pluck('id');
-        $latestIds = MlResult::select(DB::raw('MAX(id) as id'))
-            ->whereIn('senior_citizen_id', $activeSeniorIds)
-            ->groupBy('senior_citizen_id')
-            ->pluck('id');
+        $latestIds = $this->clusterAnalytics->latestResultIds();
 
         $allowedSorts = ['composite_risk', 'overall_risk_level', 'ic_risk', 'env_risk', 'func_risk', 'wellbeing_score'];
         $sortBy = in_array($request->sort, $allowedSorts, true) ? $request->sort : 'composite_risk';

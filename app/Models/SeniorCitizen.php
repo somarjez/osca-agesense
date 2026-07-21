@@ -290,6 +290,48 @@ class SeniorCitizen extends Model
         return "{$prefix}-{$year}-{$seq}";
     }
 
+    /**
+     * The "{PREFIX}-{YEAR}-" portion of generateOscaId()'s output, exposed so
+     * bulk-insert callers (BulkUploadController) can batch-fetch each distinct
+     * prefix's current max sequence ONCE instead of running generateOscaId()'s
+     * MAX(...) query per row — the same collision-avoidance rule, just queried
+     * once per distinct barangay in a file instead of once per row.
+     */
+    public static function oscaIdPrefix(string $barangay): string
+    {
+        $special = [
+            'Barangay I (Poblacion)' => 'BR1',
+            'Barangay II (Poblacion)' => 'BR2',
+        ];
+
+        return $special[trim($barangay)]
+            ?? strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $barangay), 0, 3));
+    }
+
+    /**
+     * Current max sequence number (not next — caller increments) for each
+     * distinct prefix derived from the given barangays, for this year. Same
+     * withTrashed() + LIKE + MAX(SUBSTRING_INDEX) rule as generateOscaId(),
+     * batched to one query per distinct prefix rather than per row.
+     *
+     * @return array<string, int> prefix => current max sequence
+     */
+    public static function oscaIdMaxSequences(array $barangays): array
+    {
+        $year = now()->format('Y');
+        $prefixes = array_unique(array_map(fn ($b) => static::oscaIdPrefix($b), $barangays));
+
+        $result = [];
+        foreach ($prefixes as $prefix) {
+            $result[$prefix] = (int) static::withTrashed()
+                ->where('osca_id', 'like', "{$prefix}-{$year}-%")
+                ->selectRaw('COALESCE(MAX(CAST(SUBSTRING_INDEX(osca_id, "-", -1) AS UNSIGNED)), 0) AS m')
+                ->value('m');
+        }
+
+        return $result;
+    }
+
     public static function barangayList(): array
     {
         return [
