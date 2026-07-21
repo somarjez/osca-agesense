@@ -114,4 +114,19 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Single Active Session
+    |--------------------------------------------------------------------------
+    |
+    | An account is limited to one active session at a time. When a login is
+    | attempted while the account is already signed in on another device, the
+    | new login is blocked. A session that has been idle for longer than this
+    | many minutes is treated as stale and may be reclaimed by a fresh login,
+    | which prevents lockout when a user closes the browser without signing out.
+    |
+    */
+
+    'single_session_idle_minutes' => env('SINGLE_SESSION_IDLE_MINUTES', 20),
+
 ];
