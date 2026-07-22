@@ -36,7 +36,8 @@ class ProfileSurveyDefaultsTest extends TestCase
         );
         $this->admin->syncRoles(['admin']);
 
-        // A leftover create-mode draft would win over defaults in mount().
+        // Clean slate: a leftover create-mode draft from another test would
+        // otherwise pollute assertions that check the fresh-mount defaults.
         ProfileDraft::whereNull('senior_citizen_id')
             ->where('created_by', $this->admin->id)
             ->delete();
@@ -122,8 +123,13 @@ class ProfileSurveyDefaultsTest extends TestCase
     }
 
     #[Test]
-    public function existing_draft_wins_over_create_defaults(): void
+    public function create_mount_ignores_existing_drafts_and_starts_blank(): void
     {
+        // New Profile must always start fresh so any number of drafts can
+        // coexist — it no longer silently auto-resumes "my latest draft" the
+        // way it used to, since that capped every user to a single
+        // in-progress draft at a time. The Drafts list's explicit draftId is
+        // now the only way back into prior work (see the next test).
         ProfileDraft::create([
             'senior_citizen_id' => null,
             'created_by' => $this->admin->id,
@@ -132,6 +138,21 @@ class ProfileSurveyDefaultsTest extends TestCase
         ]);
 
         Livewire::test(ProfileSurvey::class)
+            ->assertSet('step', 1)
+            ->assertSet('medicalConcern', ['Physically Healthy']);
+    }
+
+    #[Test]
+    public function create_mount_with_explicit_draft_id_resumes_that_draft(): void
+    {
+        $draft = ProfileDraft::create([
+            'senior_citizen_id' => null,
+            'created_by' => $this->admin->id,
+            'step' => 5,
+            'data' => ['medicalConcern' => ['Diabetes']],
+        ]);
+
+        Livewire::test(ProfileSurvey::class, ['draftId' => $draft->id])
             ->assertSet('step', 5)
             ->assertSet('medicalConcern', ['Diabetes'])
             // Keys absent from a pre-feature draft stay empty — no defaults injected.
@@ -220,7 +241,10 @@ class ProfileSurveyDefaultsTest extends TestCase
         // Untouched groups keep their create-defaults in the draft snapshot.
         $this->assertSame(['Physically Healthy'], $draft->data['medicalConcern']);
 
-        Livewire::test(ProfileSurvey::class)
+        // Remounting bare (no draftId) now starts blank rather than
+        // auto-resuming — round-tripping into this specific draft requires
+        // its id explicitly, exactly as the Drafts list's "Continue" link does.
+        Livewire::test(ProfileSurvey::class, ['draftId' => $draft->id])
             ->assertSet('healthcareDifficulty', ['Long waiting time'])
             ->assertSet('medicalConcern', ['Physically Healthy']);
     }

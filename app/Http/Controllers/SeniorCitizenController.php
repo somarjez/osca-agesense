@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Facility;
 use App\Models\MlResult;
+use App\Models\ProfileDraft;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
@@ -87,6 +88,47 @@ class SeniorCitizenController extends Controller
     public function create()
     {
         return view('seniors.create');
+    }
+
+    /**
+     * In-progress "New Profile" drafts — senior_citizen_id is always null here
+     * (a draft tied to an existing senior is just an unsaved edit buffer for
+     * that already-active record, not a pending registration; it stays out of
+     * this list). Visible to every admin/encoder, not just the drafter — a
+     * colleague should be able to pick up someone else's unfinished entry.
+     */
+    public function draftsIndex(Request $request)
+    {
+        $this->authorize('viewAny', SeniorCitizen::class);
+
+        $drafts = ProfileDraft::whereNull('senior_citizen_id')
+            ->with('createdBy')
+            ->when($request->search, function ($q, $term) {
+                $term = strtolower($term);
+                $q->where(function ($q) use ($term) {
+                    $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.firstName'))) LIKE ?", ["%{$term}%"])
+                        ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.lastName'))) LIKE ?", ["%{$term}%"]);
+                });
+            })
+            ->latest('updated_at')
+            ->paginate(20)->withQueryString();
+
+        return view('seniors.drafts.index', compact('drafts'));
+    }
+
+    /**
+     * Hard delete — drafts are disposable scratch data (no SoftDeletes on the
+     * model), unlike an actual senior record. The senior_citizen_id guard is
+     * defense in depth: this action should only ever reach a new-profile draft.
+     */
+    public function draftsDestroy(ProfileDraft $draft)
+    {
+        $this->authorize('create', SeniorCitizen::class);
+        abort_if($draft->senior_citizen_id !== null, 403);
+
+        $draft->delete();
+
+        return redirect()->route('seniors.drafts.index')->with('success', 'Draft deleted.');
     }
 
     public function store(Request $request)

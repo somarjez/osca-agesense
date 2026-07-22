@@ -7,6 +7,7 @@ Route::prefix('surveys')->name('surveys.')->group(function () {
     // Admin and encoder can manage surveys
     Route::middleware('role:admin,encoder')->group(function () {
         Route::get('/profile/create/{senior?}', [SurveyController::class, 'profileCreate'])->name('profile.create');
+        Route::get('/profile/drafts/{draft}/continue', [SurveyController::class, 'profileDraftContinue'])->name('profile.draft.continue');
 
         Route::prefix('qol')->name('qol.')->group(function () {
             Route::get('/', [SurveyController::class, 'qolIndex'])->name('index');
