@@ -4,5 +4,5 @@
 @section('page-subtitle', 'Complete the OSCA profile survey form')
 
 @section('content')
-<livewire:surveys.profile-survey />
+<livewire:surveys.profile-survey :draft-id="$draftId ?? null" />
 @endsection

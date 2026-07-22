@@ -149,7 +149,7 @@ class ProfileSurvey extends Component
         'hearingConcern', 'healthcareDifficulty', 'problemsNeeds', 'realAssets', 'movableAssets',
     ];
 
-    public function mount(?int $seniorId = null): void
+    public function mount(?int $seniorId = null, ?int $draftId = null): void
     {
         if ($seniorId) {
             $this->senior = SeniorCitizen::findOrFail($seniorId);
@@ -161,18 +161,30 @@ class ProfileSurvey extends Component
                 return;
             }
             $this->populateFromModel($this->senior);
-        } else {
-            $this->authorize('create', SeniorCitizen::class);
-            $this->draft = ProfileDraft::whereNull('senior_citizen_id')
-                ->where('created_by', Auth::id())
-                ->latest()
-                ->first();
-            if ($this->draft) {
-                $this->populateFromDraft($this->draft);
-            } else {
-                $this->applyCreateDefaults();
-            }
+
+            return;
         }
+
+        $this->authorize('create', SeniorCitizen::class);
+
+        if ($draftId) {
+            // Resume THIS specific draft (from the Drafts list) — may belong to
+            // any staff member, not just the current user; visibility there is
+            // deliberately shared, not per-user.
+            $this->draft = ProfileDraft::whereNull('senior_citizen_id')->findOrFail($draftId);
+            $this->populateFromDraft($this->draft);
+
+            return;
+        }
+
+        // No explicit draft requested: always start a blank new profile. This
+        // used to silently resume the current user's single latest draft, which
+        // meant a second in-progress registration could never be started — every
+        // "New Profile" click just dumped you back into whatever draft #1 was.
+        // Now that the Drafts list is the dedicated way to resume prior work
+        // (by its own id), "New Profile" should always mean a fresh form, so
+        // any number of drafts can exist side by side.
+        $this->applyCreateDefaults();
     }
 
     private function applyCreateDefaults(): void
@@ -215,6 +227,60 @@ class ProfileSurvey extends Component
     public function goToStep(int $step): void
     {
         $this->step = $step;
+    }
+
+    /**
+     * Honest completion signal for the registration-guide rail: the share of
+     * fields that are ACTUALLY marked `required` across every step's rule set
+     * (not a fake per-step progress guess). Most fields in this form are
+     * optional by design (partial/legacy data is expected), so only step 1's
+     * core identity fields count — the ring will reach 100% as soon as those
+     * are filled, even while later steps remain open, which correctly reflects
+     * that the record is already submittable at that point.
+     */
+    public function completionPercent(): int
+    {
+        $rules = array_merge(
+            $this->step1Rules(), $this->step2Rules(), $this->step3Rules(),
+            $this->step4Rules(), $this->step5Rules(), $this->step6Rules(),
+        );
+
+        $requiredFields = [];
+        foreach ($rules as $field => $rule) {
+            if (str_ends_with($field, '.*')) {
+                continue;
+            }
+            $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
+            if (in_array('required', $tokens, true)) {
+                $requiredFields[] = $field;
+            }
+        }
+
+        if (! $requiredFields) {
+            return 0;
+        }
+
+        $filled = 0;
+        foreach ($requiredFields as $field) {
+            $value = $this->{$field} ?? null;
+            $isFilled = is_array($value) ? count($value) > 0 : ($value !== null && $value !== '');
+            if ($isFilled) {
+                $filled++;
+            }
+        }
+
+        return (int) round(($filled / count($requiredFields)) * 100);
+    }
+
+    public function stepStatusText(): string
+    {
+        $percent = $this->completionPercent();
+
+        return match (true) {
+            $percent === 0 => "Let's get started.",
+            $percent < 100 => 'In progress.',
+            default => 'Ready to submit.',
+        };
     }
 
     public function save(): void
@@ -310,7 +376,11 @@ class ProfileSurvey extends Component
 
         $payload = [
             'senior_citizen_id' => $this->senior?->id,
-            'created_by' => Auth::id(),
+            // Preserve the ORIGINAL drafter on repeat saves (the Drafts list's
+            // "Started by" column should reflect who started it, not whoever
+            // last happened to continue and save it — drafts are now shared,
+            // not per-user).
+            'created_by' => $this->draft?->created_by ?? Auth::id(),
             'step' => $this->step,
             'data' => $this->currentData(),
         ];
@@ -322,7 +392,11 @@ class ProfileSurvey extends Component
         session()->flash('success', 'Draft saved.');
         $this->redirect($this->senior
             ? route('seniors.edit', $this->senior)
-            : route('surveys.profile.create'));
+            // Always the SPECIFIC draft's own continue URL — not the generic
+            // "latest draft for me" entry point, which would silently swap a
+            // user onto their own unrelated draft if they were continuing
+            // someone else's (drafts are visible to everyone, not per-user).
+            : route('surveys.profile.draft.continue', $this->draft));
     }
 
     private function validateCurrentStep(): void

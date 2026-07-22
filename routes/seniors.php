@@ -25,6 +25,13 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
         Route::post('/bulk-delete', [SeniorCitizenController::class, 'bulkForceDestroy'])->name('bulk-delete');
     });
 
+    // In-progress "New Profile" drafts (senior_citizen_id is null — never an active senior).
+    // Literal path, must stay before the /{senior} wildcard below, same as /deceased.
+    Route::middleware('role:admin,encoder')->prefix('drafts')->name('drafts.')->group(function () {
+        Route::get('/', [SeniorCitizenController::class, 'draftsIndex'])->name('index');
+        Route::delete('/{draft}', [SeniorCitizenController::class, 'draftsDestroy'])->name('destroy');
+    });
+
     // Wildcard routes below
     Route::middleware('role:admin,encoder,viewer')->group(function () {
         Route::get('/', [SeniorCitizenController::class, 'index'])->name('index');

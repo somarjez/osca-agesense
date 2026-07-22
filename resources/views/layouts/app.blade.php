@@ -111,6 +111,14 @@
                 <x-heroicon-o-user-plus class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">New Profile</span>
             </a>
+            <a href="{{ route('seniors.drafts.index') }}"
+               wire:navigate
+               class="nav-link {{ request()->routeIs('seniors.drafts*') ? 'nav-link-active' : '' }}"
+               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :title="sidebarOpen ? '' : 'Drafts'">
+                <x-heroicon-o-pencil-square class="w-4 h-4 flex-shrink-0" />
+                <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Drafts</span>
+            </a>
             <a href="{{ route('surveys.qol.index') }}"
                wire:navigate
                class="nav-link {{ request()->routeIs('surveys.qol*') ? 'nav-link-active' : '' }}"

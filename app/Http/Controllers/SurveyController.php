@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProfileDraft;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\Request;
@@ -17,6 +18,28 @@ class SurveyController extends Controller
         $s = $senior;
 
         return view('seniors.create', compact('s'));
+    }
+
+    /**
+     * Resume a SPECIFIC new-profile draft by its own id (from the Drafts list),
+     * as opposed to ProfileSurvey::mount()'s "latest draft for me" convenience
+     * fallback used when visiting /seniors/create with no draft id at all —
+     * this is what lets anyone continue any draft, not just their own latest.
+     */
+    public function profileDraftContinue(ProfileDraft $draft)
+    {
+        // Defensive only: this list/route should never see a draft tied to an
+        // existing senior (that's an edit-in-progress buffer, not a pending
+        // registration), but if it ever happens, route to the right place.
+        if ($draft->senior_citizen_id) {
+            $this->authorize('update', $draft->seniorCitizen);
+
+            return redirect()->route('seniors.edit', $draft->seniorCitizen);
+        }
+
+        $this->authorize('create', SeniorCitizen::class);
+
+        return view('seniors.create', ['draftId' => $draft->id]);
     }
 
     public function qolIndex(Request $request)
