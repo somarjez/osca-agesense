@@ -323,6 +323,34 @@ class QolSurveyForm extends Component
         ];
     }
 
+    /**
+     * Honest completion signal for the survey-guide rail: answered items across
+     * sections A-G (29 required ratings) — Section H is intentionally optional
+     * (see validateSection()) and excluded from the denominator.
+     */
+    public function completionPercent(): int
+    {
+        $progress = $this->getSectionProgress();
+        $totalRequired = 29; // a1-g3: 4+5+4+4+5+4+3
+        $answered = 0;
+        for ($s = 1; $s <= 7; $s++) {
+            $answered += count($progress[$s]);
+        }
+
+        return (int) round(($answered / $totalRequired) * 100);
+    }
+
+    public function stepStatusText(): string
+    {
+        $percent = $this->completionPercent();
+
+        return match (true) {
+            $percent === 0 => "Let's get started.",
+            $percent < 100 => 'In progress.',
+            default => 'Ready to submit.',
+        };
+    }
+
     public function render()
     {
         return view('livewire.surveys.qol-survey-form');
