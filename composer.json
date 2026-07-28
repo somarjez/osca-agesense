@@ -13,6 +13,7 @@
         "livewire/livewire": "^3.0",
         "livewire/volt": "^1.0",
         "maatwebsite/excel": "^3.1",
+        "phpoffice/phpspreadsheet": "^1.30.6",
         "spatie/laravel-permission": "^6.0"
     },
     "require-dev": {
@@ -69,7 +70,13 @@
             "ignore": {
                 "CVE-2026-48019": "No patch for Laravel 11; mitigated by using email:filter rule. Upgrade to Laravel 12.60+ planned.",
                 "PKSA-3r5d-mb8f-1qw9": "Same CRLF-in-default-email-rule issue as CVE-2026-48019 (no-CVE advisory record). No Laravel 11 patch (fixed in 12.60); mitigated via email:filter rule. Upgrade to Laravel 12.61+ planned.",
-                "PKSA-m5cs-t1y6-qpcs": "Temporary signed URL path confusion. No Laravel 11 patch (fixed in 12.61.1); app generates/validates no temporary signed URLs, so no exposed surface. Upgrade to Laravel 12.61+ planned."
+                "PKSA-m5cs-t1y6-qpcs": "Temporary signed URL path confusion. No Laravel 11 patch (fixed in 12.61.1); app generates/validates no temporary signed URLs, so no exposed surface. Upgrade to Laravel 12.61+ planned.",
+                "CVE-2026-59943": "Dompdf SVG file/dir existence oracle. Fixed only in dompdf 3.1.6 (major bump from installed 2.0.8, needs its own upgrade + PDF regression pass). The app's only PDF view (seniors.pdf) renders internal, auto-escaped Blade data with no SVG, <img>, or raw HTML — no exposed surface. Major-version dompdf upgrade planned separately.",
+                "CVE-2026-59942": "Dompdf DoS via oversized image bitmaps. Same fixed-in-3.1.6-only situation as CVE-2026-59943; app's PDF view embeds no images, so no exposed surface.",
+                "CVE-2026-59941": "Dompdf uncontrolled resource consumption via BMP dimensions. Same fixed-in-3.1.6-only situation as CVE-2026-59943; app's PDF view embeds no images, so no exposed surface.",
+                "CVE-2026-56722": "Dompdf local file read via SVG data-URI. Same fixed-in-3.1.6-only situation as CVE-2026-59943; app's PDF view has no SVG content, so no exposed surface.",
+                "CVE-2026-55555": "Dompdf file existence oracle via font-face stylesheet. Same fixed-in-3.1.6-only situation as CVE-2026-59943; app's PDF view declares no font-face rules, so no exposed surface.",
+                "CVE-2026-55554": "Dompdf chroot validation bypass. Same fixed-in-3.1.6-only situation as CVE-2026-59943; app's PDF view has no user-influenced file paths, so no exposed surface."
             }
         }
     },
