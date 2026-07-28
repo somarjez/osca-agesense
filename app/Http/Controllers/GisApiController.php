@@ -34,6 +34,16 @@ class GisApiController extends Controller
      */
     private const AGGREGATE_ZOOM_THRESHOLD = 14;
 
+    /**
+     * Below this active-senior count, the per-senior feed is cheap enough to
+     * always return in full — even when the client requests aggregation.
+     * This keeps the "all barangays" overview showing individual markers,
+     * category filters, heatmaps, and facility legend rows for normal-sized
+     * deployments; aggregation only kicks in for datasets actually large
+     * enough to risk the memory crash described above.
+     */
+    private const AGGREGATE_SENIOR_COUNT_THRESHOLD = 2000;
+
     public function __construct(
         private CoordinatePrivacy $coordinatePrivacy,
         private ClusterAnalyticsService $clusterAnalytics
@@ -45,7 +55,8 @@ class GisApiController extends Controller
         $zoom = $request->query('zoom');
         $noSpecificBarangay = ! $barangayFilter || $barangayFilter === 'all';
         $useAggregate = $noSpecificBarangay
-            && ($request->boolean('aggregate') || ($zoom !== null && (float) $zoom < self::AGGREGATE_ZOOM_THRESHOLD));
+            && ($request->boolean('aggregate') || ($zoom !== null && (float) $zoom < self::AGGREGATE_ZOOM_THRESHOLD))
+            && $this->activeSeniorCount() >= self::AGGREGATE_SENIOR_COUNT_THRESHOLD;
 
         $precisionMode = $this->precisionMode();
         $version = SeniorDataVersion::current();
@@ -216,6 +227,21 @@ class GisApiController extends Controller
                     'aggregation' => 'per_senior_generalized_by_barangay',
                 ],
             ]
+        );
+    }
+
+    /**
+     * Active senior count, cached alongside the GeoJSON payloads and keyed by
+     * the same SeniorDataVersion so it invalidates whenever senior data
+     * changes. A single indexed COUNT — negligible cost even called on every
+     * request that considers aggregation.
+     */
+    private function activeSeniorCount(): int
+    {
+        return Cache::remember(
+            'gis.active_senior_count.'.SeniorDataVersion::current(),
+            now()->addMinutes(5),
+            fn () => SeniorCitizen::active()->count()
         );
     }
 
