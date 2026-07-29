@@ -386,11 +386,7 @@ Then restart both Flask services (stop.bat → start.bat).
 
 Three accounts are created automatically when you seed the database.
 
-| Role | Email | Initial Password |
-|---|---|---|
-| Administrator | `admin@osca.local` | `Admin@OSCA2026!` |
-| Encoder | `encoder@osca.local` | `Encoder@OSCA2026!` |
-| Viewer | `viewer@osca.local` | `Viewer@OSCA2026!` |
+Seeded accounts and their roles are defined in `database/seeders/UserSeeder.php` — initial credentials are not documented here to avoid keeping real login secrets in version control.
 
 > Change all passwords after first login. To reset to defaults: `php artisan db:seed --class=UserSeeder`
 

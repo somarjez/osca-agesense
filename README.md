@@ -400,18 +400,12 @@ Navigate to `/ml/status` in the browser. Both services should show `ok`. If they
 
 ## Default Login
 
-When you first run the system and visit the login page, a default admin account is created automatically if no users exist:
-
-| Field | Value |
-|---|---|
-| URL | http://127.0.0.1:8000 |
-| Email | admin@osca.local |
-| Password | password |
+When you first run the system and visit the login page, a default admin account is created automatically if no users exist. See `database/seeders/UserSeeder.php` for the seeded email/role — the initial password is set there, not documented here.
 
 > **Change this password immediately** before sharing access with anyone:
 > ```bash
 > php artisan tinker
-> App\Models\User::where('email','admin@osca.local')->update(['password' => bcrypt('your-new-password')]);
+> App\Models\User::where('email','<seeded-admin-email>')->update(['password' => bcrypt('your-new-password')]);
 > ```
 
 ---
