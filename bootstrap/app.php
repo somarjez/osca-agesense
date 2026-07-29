@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -22,6 +23,21 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'no.time.limit' => NoTimeLimit::class,
         ]);
+
+        // Trust Render's (and, once fronted by it, Cloudflare's) reverse proxy
+        // so Laravel correctly detects HTTPS and the real client IP from the
+        // X-Forwarded-* headers instead of the proxy hop's own address.
+        // Render's edge IPs aren't published/pinnable, so trust all proxies
+        // (`*`) rather than an IP allowlist — standard practice for PaaS
+        // deployments where the app only ever receives traffic through the
+        // platform's own proxy layer, never directly from the internet.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Production safety net: render friendly, information-free error pages
