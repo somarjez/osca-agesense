@@ -16,16 +16,15 @@ COPY --from=assets /app/public/build /var/www/html/public/build
 
 # Image config
 ENV SKIP_COMPOSER=1
-ENV WEBROOT=/var/www/html/public
 ENV PHP_ERRORS_STDERR=1
 ENV RUN_SCRIPTS=1
 ENV REAL_IP_HEADER=1
-# Route every non-file request through public/index.php (Laravel's front
-# controller) instead of Nginx 404ing on any URI with no matching file on
-# disk. Without this, only "/" (found via Nginx's own directory-index
-# resolution) ever reaches PHP — every other route 404s at the Nginx layer
-# before Laravel's router ever sees the request.
-ENV PHP_CATCHALL=1
+# NOTE: WEBROOT and PHP_CATCHALL are NOT set here, and setting them would do
+# nothing — the base image applies both via a `sed` patch to the *default*
+# Nginx config, but that patch runs BEFORE conf/nginx/nginx-site.conf gets
+# copied over it (see start.sh), so it's silently discarded either way.
+# Both concerns (webroot path, front-controller fallback) are instead
+# hardcoded directly in conf/nginx/nginx-site.conf.
 
 # Laravel config — APP_DEBUG/LOG_CHANNEL fixed here since they must never
 # be toggled on by accident in production; everything else (DB, keys, tokens)
