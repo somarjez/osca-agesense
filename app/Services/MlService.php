@@ -55,8 +55,11 @@ class MlService
         $this->healthTimeout = (int) config('services.python.health_timeout', 2);
         $this->healthConnectTimeout = (int) config('services.python.health_connect_timeout', 1);
 
-        $this->preprocessUrl = $base.':'.$preprocessPort;
-        $this->inferenceUrl = $base.':'.$inferencePort;
+        // Prefer full per-service URLs (Render: separate hostnames, no ports
+        // to append) when configured; otherwise fall back to base+port
+        // (local dev: one host, two ports).
+        $this->preprocessUrl = config('services.python.preprocess_url') ?: $base.':'.$preprocessPort;
+        $this->inferenceUrl = config('services.python.inference_url') ?: $base.':'.$inferencePort;
         $this->localPythonExecutable = $this->resolveLocalPythonExecutable();
         $this->localPythonRunner = base_path('python/services/local_ml_runner.py');
     }
