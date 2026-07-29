@@ -23,50 +23,6 @@ php artisan config:cache
 echo "Caching routes..."
 php artisan route:cache
 
-echo "--- debug: route/env state ---"
-php artisan config:show app.env --no-ansi 2>&1
-php artisan config:show app.debug --no-ansi 2>&1
-echo "Total registered routes:"
-php artisan route:list --no-ansi 2>&1 | wc -l
-echo "Dashboard route lookup:"
-php artisan route:list --path=dashboard --no-ansi 2>&1
-echo "Login route lookup:"
-php artisan route:list --path=login --no-ansi 2>&1
-echo "Sessions table check:"
-php artisan db:table sessions --no-ansi 2>&1 | head -20
-
-echo "--- debug: in-process kernel test for /dashboard ---"
-php -r '
-require "/var/www/html/vendor/autoload.php";
-$app = require "/var/www/html/bootstrap/app.php";
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-$request = Illuminate\Http\Request::create("/dashboard", "GET");
-try {
-    $response = $kernel->handle($request);
-    echo "Status: " . $response->getStatusCode() . "\n";
-    if (property_exists($response, "exception") && $response->exception) {
-        $e = $response->exception;
-        echo "Underlying exception class: " . get_class($e) . "\n";
-        echo "Message: " . $e->getMessage() . "\n";
-        echo "Thrown at: " . $e->getFile() . ":" . $e->getLine() . "\n";
-    } else {
-        echo "No exception attached to response.\n";
-    }
-    $route = $app["router"]->getRoutes()->match($request);
-    echo "Router matched to: " . $route->getActionName() . "\n";
-} catch (\Throwable $e) {
-    echo "THREW DURING HANDLING: " . get_class($e) . " - " . $e->getMessage() . "\n";
-    echo "at " . $e->getFile() . ":" . $e->getLine() . "\n";
-}
-' 2>&1 || echo "in-process test itself crashed"
-echo "--- end kernel test ---"
-
-echo "--- debug: php-fpm pool env config ---"
-grep -i "clear_env\|^env\[" /usr/local/etc/php-fpm.d/*.conf 2>&1 || echo "no explicit clear_env/env[] directives found (defaults apply)"
-echo "--- end fpm debug ---"
-
-echo "--- end debug ---"
-
 echo "Caching views..."
 php artisan view:cache
 
