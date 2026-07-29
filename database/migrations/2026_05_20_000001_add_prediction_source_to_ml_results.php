@@ -26,8 +26,17 @@ return new class extends Migration
         });
 
         // Back-fill existing rows based on raw_output model_metadata
+        $isPgsql = DB::getDriverName() === 'pgsql';
+
         // notebook_cache: rows where notebook_override_applied = true in raw_output
-        DB::statement("
+        DB::statement($isPgsql ? "
+            UPDATE ml_results
+            SET prediction_source   = 'notebook_cache',
+                is_cached_prediction = true,
+                critical_flag        = (composite_risk >= 0.70 AND overall_risk_level = 'HIGH')
+            WHERE raw_output IS NOT NULL
+              AND (raw_output -> 'model_metadata' ->> 'notebook_override_applied')::boolean = true
+        " : "
             UPDATE ml_results
             SET prediction_source   = 'notebook_cache',
                 is_cached_prediction = 1,
@@ -37,7 +46,15 @@ return new class extends Migration
         ");
 
         // fallback: rows whose raw_output status contains 'fallback'
-        DB::statement("
+        DB::statement($isPgsql ? "
+            UPDATE ml_results
+            SET prediction_source   = 'fallback',
+                is_cached_prediction = false,
+                critical_flag        = (composite_risk >= 0.70 AND overall_risk_level = 'HIGH')
+            WHERE raw_output IS NOT NULL
+              AND (raw_output ->> 'status') LIKE '%fallback%'
+              AND prediction_source = 'live_model'
+        " : "
             UPDATE ml_results
             SET prediction_source   = 'fallback',
                 is_cached_prediction = 0,
@@ -48,7 +65,12 @@ return new class extends Migration
         ");
 
         // critical_flag for all remaining rows not yet touched
-        DB::statement("
+        DB::statement($isPgsql ? "
+            UPDATE ml_results
+            SET critical_flag = (composite_risk >= 0.70 AND overall_risk_level = 'HIGH')
+            WHERE critical_flag = false
+              AND composite_risk IS NOT NULL
+        " : "
             UPDATE ml_results
             SET critical_flag = (composite_risk >= 0.70 AND overall_risk_level = 'HIGH')
             WHERE critical_flag = 0

@@ -22,6 +22,14 @@ return new class extends Migration
                 });
         }
 
+        if (DB::getDriverName() === 'pgsql') {
+            foreach (['dental_concern', 'optical_concern', 'hearing_concern', 'healthcare_difficulty'] as $col) {
+                DB::statement("ALTER TABLE senior_citizens ALTER COLUMN {$col} TYPE json USING {$col}::json");
+            }
+
+            return;
+        }
+
         Schema::table('senior_citizens', function (Blueprint $table) {
             $table->json('dental_concern')->nullable()->change();
             $table->json('optical_concern')->nullable()->change();
@@ -32,6 +40,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            foreach (['dental_concern', 'optical_concern', 'hearing_concern', 'healthcare_difficulty'] as $col) {
+                DB::statement("ALTER TABLE senior_citizens ALTER COLUMN {$col} TYPE varchar(255) USING {$col}::varchar");
+            }
+
+            return;
+        }
+
         Schema::table('senior_citizens', function (Blueprint $table) {
             $table->string('dental_concern')->nullable()->change();
             $table->string('optical_concern')->nullable()->change();
