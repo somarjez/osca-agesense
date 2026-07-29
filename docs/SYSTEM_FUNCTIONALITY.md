@@ -306,11 +306,7 @@ The system uses Laravel session-based authentication with role-based access cont
 
 Three accounts are seeded automatically during setup. Passwords must be changed after first login.
 
-| Role | Email | Initial password |
-|---|---|---|
-| Administrator | `admin@osca.local` | `Admin@OSCA2026!` |
-| Encoder | `encoder@osca.local` | `Encoder@OSCA2026!` |
-| Viewer | `viewer@osca.local` | `Viewer@OSCA2026!` |
+Seeded accounts and their roles are defined in `database/seeders/UserSeeder.php` — initial passwords are not documented here to avoid keeping real login secrets in version control.
 
 ### User management (`/users`) — admin only
 
@@ -768,7 +764,7 @@ The following table defines terms as they are used throughout the codebase, data
 
 - **ML service communication:** Requests between the Laravel application and the Python microservices are made over localhost HTTP without authentication tokens or TLS. This is acceptable for single-machine deployment but would require securing for network-distributed deployment.
 
-- **Default credentials:** The seeded accounts (`admin@osca.local` / `Admin@OSCA2026!`, `encoder@osca.local` / `Encoder@OSCA2026!`, `viewer@osca.local` / `Viewer@OSCA2026!`) must be changed before production deployment.
+- **Default credentials:** The seeded accounts (see `database/seeders/UserSeeder.php`) must be changed before production deployment.
 
 ---
 

@@ -306,11 +306,7 @@ Authentication table. Auth scaffolding is Laravel Breeze; roles and permissions 
 
 **Default accounts** (created by `UserSeeder`, idempotent via `updateOrCreate`):
 
-| Email | Password | Role |
-|---|---|---|
-| `admin@osca.local` | `Admin@OSCA2026!` | admin |
-| `encoder@osca.local` | `Encoder@OSCA2026!` | encoder |
-| `viewer@osca.local` | `Viewer@OSCA2026!` | viewer |
+Seeded accounts (email + role) are defined in `database/seeders/UserSeeder.php` — initial passwords are not documented here to avoid keeping real login secrets in version control.
 
 These seeded credentials must be changed before any production/public deployment.
 

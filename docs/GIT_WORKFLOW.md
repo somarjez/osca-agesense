@@ -99,9 +99,7 @@ php artisan db:seed
 php artisan serve
 ```
 
-Open `http://127.0.0.1:8000` and log in with:
-- Email: `admin@osca.local`
-- Password: `Admin@OSCA2026!`
+Open `http://127.0.0.1:8000` and log in with the seeded admin account (see `database/seeders/UserSeeder.php` for the email; initial password is not documented here).
 
 If the page loads, you are ready.
 
