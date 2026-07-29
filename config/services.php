@@ -35,6 +35,13 @@ return [
         'base_url' => env('PYTHON_SERVICE_URL', 'http://127.0.0.1'),
         'preprocess_port' => env('PYTHON_PREPROCESS_PORT', 5001),
         'inference_port' => env('PYTHON_INFERENCE_PORT', 5002),
+        // For platforms that give each service its own hostname instead of
+        // one host with multiple ports (e.g. Render: no way to "append a
+        // port" to reach a second service). When set, these take priority
+        // over base_url+port entirely. Leave unset for local dev, where
+        // base_url+port (http://127.0.0.1:5001 / :5002) still applies.
+        'preprocess_url' => env('PYTHON_PREPROCESS_URL'),
+        'inference_url' => env('PYTHON_INFERENCE_URL'),
         'timeout' => env('PYTHON_TIMEOUT', 120),
         'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 120),
         // /health does no model loading, so a live service answers in
