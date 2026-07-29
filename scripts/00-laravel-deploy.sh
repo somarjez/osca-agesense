@@ -28,3 +28,8 @@ php artisan view:cache
 
 echo "Running migrations..."
 php artisan migrate --force
+
+# TEMPORARY — one-time initial account creation. Remove this line in the
+# next commit once confirmed working; UserSeeder's hardcoded passwords are
+# public (committed to the repo) and must be rotated before real/public use.
+php artisan db:seed --class=UserSeeder --force
