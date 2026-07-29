@@ -20,6 +20,12 @@ ENV WEBROOT=/var/www/html/public
 ENV PHP_ERRORS_STDERR=1
 ENV RUN_SCRIPTS=1
 ENV REAL_IP_HEADER=1
+# Route every non-file request through public/index.php (Laravel's front
+# controller) instead of Nginx 404ing on any URI with no matching file on
+# disk. Without this, only "/" (found via Nginx's own directory-index
+# resolution) ever reaches PHP — every other route 404s at the Nginx layer
+# before Laravel's router ever sees the request.
+ENV PHP_CATCHALL=1
 
 # Laravel config — APP_DEBUG/LOG_CHANNEL fixed here since they must never
 # be toggled on by accident in production; everything else (DB, keys, tokens)
