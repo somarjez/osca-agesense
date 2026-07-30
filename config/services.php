@@ -50,6 +50,16 @@ return [
         'health_timeout' => env('PYTHON_HEALTH_TIMEOUT', 2),
         'health_connect_timeout' => env('PYTHON_HEALTH_CONNECT_TIMEOUT', 1),
         'token' => env('ML_SERVICE_TOKEN'),
+        // Phase E's cron-tick (see CronTickController) is the only guaranteed
+        // queue drain on Render's free tier, but it only fires every ~10 min.
+        // When true, runSingle()/batchRun() also kick a bounded, non-blocking
+        // `queue:work --stop-when-empty` immediately after their HTTP response
+        // is sent (Illuminate's dispatch(...)->afterResponse()), so typical
+        // small jobs finish in seconds instead of waiting for the next tick.
+        // The cron tick remains the safety net for anything too large to
+        // finish inside the bounded window. Set false to fall back to
+        // cron-only draining if this ever needs to be ruled out.
+        'immediate_queue_drain' => env('ML_IMMEDIATE_QUEUE_DRAIN', true),
     ],
 
     'overpass' => [
