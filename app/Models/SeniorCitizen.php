@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\EncryptedOrPlainText;
+use App\Support\DbHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -281,9 +282,10 @@ class SeniorCitizen extends Model
         // Use the highest existing sequence — including soft-deleted rows, which the
         // unique index still enforces — rather than count()+1. A row count collides
         // with trashed rows and any gaps left by deletions (e.g. BAR-2026-0037).
+        $seqExpr = DbHelper::lastDashSegmentAsInt('osca_id');
         $maxSeq = (int) static::withTrashed()
             ->where('osca_id', 'like', "{$prefix}-{$year}-%")
-            ->selectRaw('COALESCE(MAX(CAST(SUBSTRING_INDEX(osca_id, "-", -1) AS UNSIGNED)), 0) AS m')
+            ->selectRaw("COALESCE(MAX({$seqExpr}), 0) AS m")
             ->value('m');
 
         $seq = str_pad($maxSeq + 1, 4, '0', STR_PAD_LEFT);
@@ -322,11 +324,12 @@ class SeniorCitizen extends Model
         $year = now()->format('Y');
         $prefixes = array_unique(array_map(fn ($b) => static::oscaIdPrefix($b), $barangays));
 
+        $seqExpr = DbHelper::lastDashSegmentAsInt('osca_id');
         $result = [];
         foreach ($prefixes as $prefix) {
             $result[$prefix] = (int) static::withTrashed()
                 ->where('osca_id', 'like', "{$prefix}-{$year}-%")
-                ->selectRaw('COALESCE(MAX(CAST(SUBSTRING_INDEX(osca_id, "-", -1) AS UNSIGNED)), 0) AS m')
+                ->selectRaw("COALESCE(MAX({$seqExpr}), 0) AS m")
                 ->value('m');
         }
 

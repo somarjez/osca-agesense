@@ -11,6 +11,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Support\AccessibilityBand;
 use App\Support\CoordinatePrivacy;
+use App\Support\DbHelper;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -105,9 +106,11 @@ class SeniorCitizenController extends Controller
             ->with('createdBy')
             ->when($request->search, function ($q, $term) {
                 $term = strtolower($term);
-                $q->where(function ($q) use ($term) {
-                    $q->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.firstName'))) LIKE ?", ["%{$term}%"])
-                        ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.lastName'))) LIKE ?", ["%{$term}%"]);
+                $firstName = DbHelper::jsonTextExpr('data', 'firstName');
+                $lastName = DbHelper::jsonTextExpr('data', 'lastName');
+                $q->where(function ($q) use ($term, $firstName, $lastName) {
+                    $q->whereRaw("LOWER({$firstName}) LIKE ?", ["%{$term}%"])
+                        ->orWhereRaw("LOWER({$lastName}) LIKE ?", ["%{$term}%"]);
                 });
             })
             ->latest('updated_at')
