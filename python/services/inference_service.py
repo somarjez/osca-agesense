@@ -2621,7 +2621,12 @@ if __name__ == "__main__":
     # traffic to the port the process actually binds — it must win over the
     # service-specific vars below. Locally, $PORT is unset, so
     # INFERENCE_PORT/PYTHON_INFERENCE_PORT (set by start_services.sh) still apply.
-    port = int(os.environ.get("PORT") or os.environ.get("INFERENCE_PORT") or os.environ.get("PYTHON_INFERENCE_PORT") or 5002)
+    port = int(
+        os.environ.get("PORT")
+        or os.environ.get("INFERENCE_PORT")
+        or os.environ.get("PYTHON_INFERENCE_PORT")
+        or 5002
+    )
     logger.info("Starting OSCA Inference Service on port %s — MODEL_DIR=%s", port, MODEL_DIR)
     _validate_artifacts_at_startup()
     threading.Thread(target=_warm_up_models, daemon=True, name="model-warmup").start()
