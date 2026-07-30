@@ -310,13 +310,14 @@ class ReportController extends Controller
 
         // Snapshot history — last 30 distinct snapshot dates, newest first.
         // Fetch only those dates at DB level to avoid loading the entire table into memory.
-        $recentDates = ClusterSnapshot::selectRaw('DATE(snapshot_date) as snap_date')
+        $dateOnly = DbHelper::dateOnlyExpr('snapshot_date');
+        $recentDates = ClusterSnapshot::selectRaw("{$dateOnly} as snap_date")
             ->groupBy('snap_date')
             ->orderByDesc('snap_date')
             ->limit(30)
             ->pluck('snap_date');
 
-        $snapshots = ClusterSnapshot::whereIn(DB::raw('DATE(snapshot_date)'), $recentDates)
+        $snapshots = ClusterSnapshot::whereIn(DB::raw($dateOnly), $recentDates)
             ->orderByDesc('snapshot_date')
             ->orderBy('cluster_id')
             ->get()
