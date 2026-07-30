@@ -1,4 +1,9 @@
-<div class="space-y-7" wire:poll.300s>
+<div
+    class="space-y-7"
+    wire:poll.300s
+    x-data
+    x-init="$nextTick(() => window.dispatchEvent(new CustomEvent('osca:dashboard-hydrated')))"
+>
 
     <x-page-header title="Dashboard" subtitle="OSCA senior citizen overview · Pagsanjan, Laguna" />
 
