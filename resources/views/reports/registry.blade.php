@@ -92,7 +92,7 @@
                                  tone="primary"
                                  confirm="$refs.backupForm.submit()"
                                  confirm-label="Create backup">
-                    <p>This runs a full <code>mysqldump</code> of the database. Only the latest {{ \App\Services\DatabaseBackupService::DEFAULT_KEEP }} app-created backups are kept — older ones are deleted automatically.</p>
+                    <p>This creates a full backup of the database. Only the latest {{ \App\Services\DatabaseBackupService::DEFAULT_KEEP }} app-created backups are kept — older ones are deleted automatically.</p>
                 </x-confirm-modal>
             </div>
         </div>

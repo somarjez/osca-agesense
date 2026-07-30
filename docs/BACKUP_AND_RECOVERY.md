@@ -29,6 +29,27 @@ From the same page you can **download** one of the latest 3 backups to your mach
 one manually. Every create/download/delete is recorded in the Activity Log. Downloaded files carry
 the same PII as any other backup — see the warning above.
 
+### On Postgres (production / Render)
+
+The app's database connection determines which backup method runs — no configuration needed. On
+Postgres (`DB_CONNECTION=pgsql`, i.e. the live Neon deployment on Render), "Create Backup Now" does
+**not** shell out to `mysqldump` (there's no such binary in production, and Neon doesn't need one)
+— it uses a portable, pure-PHP data-only dump instead: plain `INSERT` statements for every table's
+data, no `CREATE TABLE` statements. Restoring one assumes the target database's schema already
+exists (via `php artisan migrate`), exactly like the "restore into a scratch database first"
+principle below already requires.
+
+**Render caveat:** the backup file is written to the running container's local disk, which is
+**ephemeral** on Render — it does not survive the next deploy or a free-tier sleep/wake cycle.
+Download a backup promptly after creating it; don't rely on the in-app "latest 3" list as durable
+storage the way you could on a local machine with a persistent disk.
+
+To restore a Postgres dump (into an already-migrated scratch database — see "Restoring a backup"
+below for the full scratch-database workflow):
+```bash
+psql "$DATABASE_URL" < database/backups/osca_backup_20260730_101500.sql
+```
+
 ### From the command line
 
 From the repo root, on any team device with `mysqldump` available (bundled with Laragon/XAMPP/a standalone MySQL install — the script checks PATH and the common install locations for each):

@@ -3,19 +3,26 @@
 namespace App\Services;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 /**
- * In-app equivalent of backup-database.ps1 — dumps the app's MySQL database via
- * mysqldump into database/backups/, keeps only the latest N app-created backups,
- * and exposes them for download/delete from the admin UI.
+ * Dumps the app's database into database/backups/, keeps only the latest N
+ * app-created backups, and exposes them for download/delete from the admin UI.
+ * Uses a distinct filename prefix (`osca_backup_`) so rotation never touches
+ * the pre-existing manual/defense dumps or backup-database.ps1's own
+ * `osca_db_backup_*` files.
  *
- * Deliberately mirrors the PowerShell script's behavior (same mysqldump flags,
- * same password-via-env-var handling, same loud-failure-on-empty-dump guard) so
- * the two paths produce interchangeable output. Uses a distinct filename prefix
- * (`osca_backup_`) so rotation never touches the pre-existing manual/defense
- * dumps or the PowerShell script's own `osca_db_backup_*` files.
+ * MySQL (local dev, matches backup-database.ps1's behavior — same mysqldump
+ * flags, same password-via-env-var handling, same loud-failure-on-empty-dump
+ * guard) shells out to mysqldump. Postgres/SQLite (production — Neon has no
+ * mysqldump-equivalent binary available on Render) use a portable pure-PHP
+ * data-only dump instead: no CREATE TABLE statements, restoring assumes an
+ * already-migrated empty schema, same as the documented mysqldump restore
+ * flow. Both paths produce the same osca_backup_*.sql naming convention, so
+ * list()/rotate()/resolvePath()/delete() work identically for either.
  */
 class DatabaseBackupService
 {
@@ -38,19 +45,47 @@ class DatabaseBackupService
     }
 
     /**
-     * Run mysqldump and write a new timestamped backup file. Rotates old
-     * app-created backups afterward. Returns the created filename.
+     * Write a new timestamped backup file (mysqldump on MySQL, a portable
+     * pure-PHP dump on Postgres/SQLite). Rotates old app-created backups
+     * afterward. Returns the created filename.
      *
      * @throws \RuntimeException on any failure — never leaves a partial/empty file behind.
      */
     public function create(int $keep = self::DEFAULT_KEEP): string
     {
-        if (config('database.default') !== 'mysql') {
-            throw new \RuntimeException(
-                "Unsupported DB_CONNECTION ('".config('database.default')."') — only mysqldump-based backups are supported."
-            );
+        $driver = config('database.default');
+        $dir = $this->backupsDir();
+        $filename = self::PREFIX.now()->format('Ymd_His').'.sql';
+        $outputFile = $dir.DIRECTORY_SEPARATOR.$filename;
+
+        if ($driver === 'mysql') {
+            $this->createViaMysqldump($outputFile);
+        } elseif (in_array($driver, ['pgsql', 'sqlite'], true)) {
+            $this->createViaPortableDump($outputFile, $driver);
+        } else {
+            throw new \RuntimeException("Unsupported DB_CONNECTION ('{$driver}') — no backup method available.");
         }
 
+        if (! is_file($outputFile) || filesize($outputFile) === 0) {
+            if (is_file($outputFile)) {
+                @unlink($outputFile);
+            }
+
+            throw new \RuntimeException('Backup produced no output or a 0-byte file. Check DB connectivity and try again.');
+        }
+
+        $this->rotate($keep);
+
+        return $filename;
+    }
+
+    /**
+     * MySQL backup via mysqldump — local-dev only (Windows binary search).
+     *
+     * @throws \RuntimeException on any failure — never leaves a partial/empty file behind.
+     */
+    private function createViaMysqldump(string $outputFile): void
+    {
         $conn = config('database.connections.mysql');
         $database = $conn['database'] ?? null;
         $username = $conn['username'] ?? null;
@@ -73,10 +108,6 @@ class DatabaseBackupService
                 .'Install MySQL client tools or add mysqldump.exe\'s folder to PATH, then retry.'
             );
         }
-
-        $dir = $this->backupsDir();
-        $filename = self::PREFIX.now()->format('Ymd_His').'.sql';
-        $outputFile = $dir.DIRECTORY_SEPARATOR.$filename;
 
         $process = new Process([
             $mysqldump,
@@ -123,18 +154,117 @@ class DatabaseBackupService
                 .trim($process->getErrorOutput())
             );
         }
+    }
 
-        if (! is_file($outputFile) || filesize($outputFile) === 0) {
-            if (is_file($outputFile)) {
-                @unlink($outputFile);
-            }
+    /**
+     * Laravel-infrastructure tables — not OSCA business data, never
+     * restorable in a meaningful way (sessions/cache expire, jobs are
+     * transient, the migrations table is auto-managed by `migrate`).
+     */
+    private const EXCLUDED_TABLES = [
+        'migrations', 'cache', 'cache_locks', 'sessions',
+        'jobs', 'job_batches', 'failed_jobs', 'password_reset_tokens',
+    ];
 
-            throw new \RuntimeException('mysqldump produced no output or a 0-byte file. Check DB connectivity/credentials and try again.');
+    /**
+     * Portable data-only dump for pgsql/sqlite: no CREATE TABLE statements —
+     * restoring assumes an already-migrated (empty) schema, same as the
+     * documented mysqldump restore flow (restore into a freshly-created
+     * database). Foreign-key checks are disabled for the whole file so
+     * insert order across tables never matters.
+     */
+    private function createViaPortableDump(string $outputFile, string $driver): void
+    {
+        $fh = fopen($outputFile, 'w');
+        if ($fh === false) {
+            throw new \RuntimeException("Could not open {$outputFile} for writing.");
         }
 
-        $this->rotate($keep);
+        try {
+            fwrite($fh, "-- OSCA AgeSense portable backup\n");
+            fwrite($fh, '-- Generated: '.now()->toDateTimeString()." (driver: {$driver})\n\n");
 
-        return $filename;
+            if ($driver === 'pgsql') {
+                fwrite($fh, "SET session_replication_role = 'replica';\n\n");
+            } else {
+                fwrite($fh, "PRAGMA foreign_keys = OFF;\n\n");
+            }
+
+            $pdo = DB::connection()->getPdo();
+            $quoteIdent = fn (string $name) => '"'.str_replace('"', '""', $name).'"';
+
+            $tables = collect(Schema::getTables())
+                ->pluck('name')
+                ->reject(fn (string $t) => in_array($t, self::EXCLUDED_TABLES, true))
+                ->values();
+
+            foreach ($tables as $table) {
+                $columnTypes = collect(Schema::getColumns($table))
+                    ->pluck('type_name', 'name');
+
+                fwrite($fh, "-- Table: {$table}\n");
+
+                // No ordering — foreign-key checks are disabled for the whole
+                // file (see above), so insert order never matters, and not
+                // every table has an "id" column (e.g. spatie/permission's
+                // pivot tables use composite primary keys only).
+                DB::table($table)->cursor()->each(function ($row) use ($fh, $table, $columnTypes, $pdo, $quoteIdent) {
+                    $rowArray = (array) $row;
+                    $columns = array_map($quoteIdent, array_keys($rowArray));
+
+                    $values = [];
+                    foreach ($rowArray as $col => $value) {
+                        $values[] = $this->formatDumpValue($value, $columnTypes->get($col), $pdo);
+                    }
+
+                    fwrite($fh, sprintf(
+                        "INSERT INTO %s (%s) VALUES (%s);\n",
+                        $quoteIdent($table),
+                        implode(', ', $columns),
+                        implode(', ', $values)
+                    ));
+                });
+
+                fwrite($fh, "\n");
+            }
+
+            fwrite($fh, $driver === 'pgsql'
+                ? "SET session_replication_role = 'origin';\n"
+                : "PRAGMA foreign_keys = ON;\n");
+        } finally {
+            fclose($fh);
+        }
+    }
+
+    /**
+     * Format one column value as a SQL literal for the portable dump. Column
+     * type name (from Schema::getColumns()) disambiguates booleans, since a
+     * PHP bool cast to string is '1'/'' (the empty string is not valid
+     * boolean input) and driver-returned representations vary ('t'/'f' vs
+     * true/false vs '1'/'0' depending on PDO config).
+     */
+    private function formatDumpValue($value, ?string $typeName, \PDO $pdo): string
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+
+        if ($typeName !== null && str_contains(strtolower($typeName), 'bool')) {
+            $truthy = $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+
+            return $truthy ? 'TRUE' : 'FALSE';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_string($value) && $value !== '' && is_numeric($value) && $typeName !== null
+            && preg_match('/int|numeric|decimal|float|double|real/i', $typeName)) {
+            return $value;
+        }
+
+        return $pdo->quote((string) $value);
     }
 
     /**
