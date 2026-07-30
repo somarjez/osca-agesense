@@ -66,7 +66,7 @@
                                 // this 3-min poll window), so the job is very
                                 // likely still genuinely queued, not lost.
                                 // Reload and hand off to the server-persisted
-                                // "still processing" banner (driven by
+                                // still-processing banner (driven by
                                 // ml_queued_at) instead of guessing here.
                                 clearInterval(this.pollTimer);
                                 location.reload();

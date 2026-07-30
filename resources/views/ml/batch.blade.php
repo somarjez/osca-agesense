@@ -285,7 +285,7 @@
                                         // Our hosting tier's queue drains every ~10
                                         // min — longer than this poll window — so
                                         // this is very likely still queued, not
-                                        // lost. Reload so the row's own "Queued"
+                                        // lost. Reload so the row's own Queued
                                         // badge (driven by ml_queued_at) takes over
                                         // instead of showing a false error here.
                                         clearInterval(this.pollTimer);
