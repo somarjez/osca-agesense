@@ -461,6 +461,14 @@ class BulkUploadController extends Controller
         if ($pairs) {
             try {
                 $seniorIds = array_map(fn ($pair) => $pair['senior']->id, $pairs);
+
+                // Same reload-survival marker as MlController::runSingle()/
+                // batchRun() — see the migration/model comments. Set before
+                // dispatch so the imported profiles show "still processing"
+                // rather than looking untouched if staff check back before a
+                // cron tick has drained the queue.
+                SeniorCitizen::whereIn('id', $seniorIds)->update(['ml_queued_at' => now()]);
+
                 $cacheKey = 'ml_batch_'.now()->format('YmdHis');
                 $chunks = array_chunk($seniorIds, 100);
                 $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);

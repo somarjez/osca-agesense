@@ -58,6 +58,7 @@ class SeniorCitizen extends Model
         'status', 'encoded_by',
         'consent_given_at', 'consent_method',
         'date_of_death', 'deceased_note', 'status_changed_by', 'status_changed_at',
+        'ml_queued_at',
     ];
 
     protected $casts = [
@@ -66,6 +67,7 @@ class SeniorCitizen extends Model
         'consent_given_at' => 'datetime',
         'date_of_death' => 'date',
         'status_changed_at' => 'datetime',
+        'ml_queued_at' => 'datetime',
         'has_medical_checkup' => 'boolean',
         // Non-searchable PII encrypted at rest
         'contact_number' => EncryptedOrPlainText::class,

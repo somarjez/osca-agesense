@@ -31,6 +31,8 @@ class ProcessMlBatch implements ShouldQueue
         set_time_limit(0);
 
         if ($this->batch()?->cancelled()) {
+            $this->clearQueuedMarker();
+
             return;
         }
 
@@ -46,6 +48,8 @@ class ProcessMlBatch implements ShouldQueue
             ->all();
 
         if (empty($items)) {
+            $this->clearQueuedMarker();
+
             return;
         }
 
@@ -57,5 +61,26 @@ class ProcessMlBatch implements ShouldQueue
         // Accumulate progress atomically into a shared cache key
         Cache::increment("{$this->cacheKey}:processed", $succeeded);
         Cache::increment("{$this->cacheKey}:failed", $failed);
+
+        // Every senior in this chunk is now either freshly scored or
+        // definitively failed — either way, no longer "queued". Cleared here
+        // (rather than solely inside MlService::persistResults()) because
+        // runBatchPipeline()'s reusable-result fast path updates an existing
+        // MlResult directly without going through persistResults().
+        $this->clearQueuedMarker();
+    }
+
+    /**
+     * tries=1, so a whole-chunk throw (e.g. runBatchPipeline itself failing,
+     * not a per-item failure which is already caught inside it) lands here.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $this->clearQueuedMarker();
+    }
+
+    private function clearQueuedMarker(): void
+    {
+        SeniorCitizen::whereIn('id', $this->seniorIds)->update(['ml_queued_at' => null]);
     }
 }

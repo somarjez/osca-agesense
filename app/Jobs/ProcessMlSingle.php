@@ -39,9 +39,25 @@ class ProcessMlSingle implements ShouldQueue
         $survey = QolSurvey::find($this->surveyId);
 
         if (! $senior || ! $survey) {
+            // Nothing to process (e.g. deleted between dispatch and pickup) —
+            // clear the reload-survival marker set in MlController::runSingle()
+            // so the profile doesn't show "still processing" forever.
+            $senior?->update(['ml_queued_at' => null]);
+
             return;
         }
 
         $ml->runPipeline($senior, $survey, force: true);
+    }
+
+    /**
+     * tries=1, so any thrown exception lands here once. MlService::persistResults()
+     * clears ml_queued_at on success — this is the matching clear for the
+     * failure path, so a real failure doesn't leave a permanent false
+     * "still processing" state on the senior's profile.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        SeniorCitizen::whereKey($this->seniorId)->update(['ml_queued_at' => null]);
     }
 }
