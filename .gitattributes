@@ -1,1 +1,7 @@
 * text=auto eol=lf
+
+# ML model artifacts are SHA-256 hash-verified at inference startup
+# (model_manifest.json) — any text normalization changes their bytes and
+# breaks that check even though the JSON content is unchanged. Treat the
+# whole artifact bundle as opaque binary so it's never touched.
+python/models/* binary
