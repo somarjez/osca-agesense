@@ -8,25 +8,32 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
-// Daily cluster snapshot at 23:55 (records cluster composition for longitudinal tracking)
+// Daily cluster snapshot (records cluster composition for longitudinal tracking).
+// Was 23:55 — moved into the 6am-8pm PHT business-hours window (Phase E,
+// .github/workflows/keep-alive.yml) since nothing runs schedule:run outside
+// it in production (no persistent scheduler on the free tier). All three
+// times below are on 10-minute boundaries to line up with the trigger's cadence.
 Schedule::command('osca:snapshot-clusters')
-    ->dailyAt('23:55')
+    ->dailyAt('06:00')
     ->appendOutputTo(storage_path('logs/snapshot.log'));
 
-// Daily GIS road-route backfill (05:00) — caches ORS road distances for the
-// nearest facility per type. It resumes where it left off (skips fresh-cached
-// pairs) and self-limits, so coverage completes over a few days within the ORS
-// free-tier daily quota without manual re-runs. withoutOverlapping guards against
-// a slow run still going when the next fires.
+// Daily GIS road-route backfill — caches ORS road distances for the nearest
+// facility per type. It resumes where it left off (skips fresh-cached pairs)
+// and self-limits, so coverage completes over a few days within the ORS
+// free-tier daily quota without manual re-runs. withoutOverlapping guards
+// against a slow run still going when the next fires. Was 05:00 — same
+// business-hours-window reason as above; kept sequential, still before
+// score-proximity.
 Schedule::command('gis:cache-route-distances --facilities=12')
-    ->dailyAt('05:00')
+    ->dailyAt('06:10')
     ->withoutOverlapping(120)
     ->appendOutputTo(storage_path('logs/gis-route-cache.log'));
 
 // After the backfill, refresh accessibility scores so newly-cached seniors flip
-// from straight-line to road-based distance (local, fast). Runs at 06:00 so it
-// follows the 05:00 route backfill.
+// from straight-line to road-based distance (local, fast). Was 06:00 — pushed
+// 20 min later (same business-hours-window reason) so it still follows the
+// route backfill above.
 Schedule::command('gis:score-proximity')
-    ->dailyAt('06:00')
+    ->dailyAt('06:20')
     ->withoutOverlapping(30)
     ->appendOutputTo(storage_path('logs/gis-score.log'));

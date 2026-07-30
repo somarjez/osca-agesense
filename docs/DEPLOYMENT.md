@@ -590,6 +590,33 @@ The queue worker must be restarted after any PHP code change — it loads classe
 
 ---
 
+## 12. Production reliability on Render (Phase E)
+
+Everything above this section covers local/office Windows deployment. This section covers the **live production deployment** at `pagsanjan-osca.online` (Render free tier + Neon Postgres), which has a structural gap the local setup doesn't: on Render, nothing runs continuously in the background. `start.bat` locally launches a queue worker and a scheduler loop alongside the web services (§4 above) — Render's container is purely request-driven and exits after `scripts/00-laravel-deploy.sh` finishes migrating.
+
+**What this means without a workaround:**
+- Queued jobs (ML analysis after a QoL survey, batch analysis, bulk-upload processing, GIS geocoding) sit in the `jobs` table forever in "pending" state — nothing drains them.
+- The 3 daily maintenance tasks in `routes/console.php` (cluster snapshot, GIS route-distance backfill, proximity scoring) never fire — nothing runs `schedule:run`.
+- The web service sleeps after ~15 min idle, causing a ~60-90s cold start on the next visit.
+
+**The fix — `.github/workflows/keep-alive.yml`:** a scheduled GitHub Actions workflow hits `POST /api/internal/cron-tick` (guarded by the `VerifyCronToken` middleware checking an `X-Cron-Token` header against `CRON_TRIGGER_TOKEN`) every 10 minutes during business hours (6am-8pm PHT, 7 days/week). That one request runs `schedule:run` (fires any due maintenance task) then `queue:work --queue=ml,default --stop-when-empty --max-time=240` (drains whatever's pending on both queues) — and, as a side effect of just being an HTTP request, keeps the Render service from going to sleep during that window.
+
+**Why business hours only, not 24/7:** the Render Hobby (free) plan pools **750 instance-hours/month across every free service in the workspace** — this project has 3 (`osca-agesense` Laravel + `osca-preprocess` + `osca-inference`). Pinging the Laravel app 24/7 alone would use ~720-730 of those 750 hours, leaving almost nothing for the 2 Python ML services and risking the whole workspace being suspended until the next monthly reset if they get any meaningful daily use too. The 6am-8pm PHT window uses roughly 360 hours/month instead, leaving real headroom. Outside the window, the first visit of the day eats one cold start — same as today, just narrowed to off-hours.
+
+**Why the Python services are never pinged:** `app/Services/MlService.php` already has a complete graceful-degradation chain for them being asleep — a fast health-gate probe, then an automatic cold-start retry (`PYTHON_COLD_START_TIMEOUT`), then a local-Python-subprocess tier (dev-only), then a pure-PHP heuristic fallback that always succeeds. Their cold start is already handled correctly; keeping them warm would only be a latency nicety, and isn't worth the shared instance-hour cost.
+
+**Setup (one-time, admin only):**
+1. Generate a random token: `openssl rand -hex 32`.
+2. Render dashboard → `osca-agesense` service → Environment → add `CRON_TRIGGER_TOKEN` with that value → redeploy (env var changes need a fresh deploy since `config:cache` bakes them in at deploy time).
+3. GitHub repo → Settings → Secrets and variables → Actions → add a repository secret named `CRON_TRIGGER_TOKEN` with the same value.
+4. Confirm `APP_TIMEZONE=Asia/Manila` is also set in Render's env vars (it's in `.env.example`/local `.env` — the 3 daily task times in `routes/console.php` assume this timezone).
+
+**To rotate the token:** repeat steps 1-3 with a new value — both sides must match or every request 403s.
+
+**To check it's working:** GitHub repo → Actions tab → "keep-alive" workflow → run history should show green ticks every 10 minutes during the window (or trigger one manually via "Run workflow" / `workflow_dispatch`). A 200 response body includes `schedule_output`/`queue_output` JSON fields showing what actually ran.
+
+---
+
 ## Related Documents
 
 - [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) — Artifact validation, service startup, prediction paths
