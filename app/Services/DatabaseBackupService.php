@@ -59,7 +59,7 @@ class DatabaseBackupService
         $outputFile = $dir.DIRECTORY_SEPARATOR.$filename;
 
         if ($driver === 'mysql') {
-            $this->createViaMysqldump($outputFile);
+            $this->createMysqldumpBackup($outputFile);
         } elseif (in_array($driver, ['pgsql', 'sqlite'], true)) {
             $this->createViaPortableDump($outputFile, $driver);
         } else {
@@ -84,7 +84,7 @@ class DatabaseBackupService
      *
      * @throws \RuntimeException on any failure — never leaves a partial/empty file behind.
      */
-    private function createViaMysqldump(string $outputFile): void
+    private function createMysqldumpBackup(string $outputFile): void
     {
         $conn = config('database.connections.mysql');
         $database = $conn['database'] ?? null;
