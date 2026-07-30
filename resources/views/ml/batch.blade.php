@@ -236,8 +236,18 @@
                     <td class="td text-center text-ink-400">
                         {!! $ml?->processed_at?->diffForHumans() ?? '<span class="text-high-700 font-semibold text-xs">Never</span>' !!}
                     </td>
+                    @php
+                        // ml_queued_at persists across reload (see the migration's
+                        // comment) — a row can be "Queued" even if the live
+                        // progress panel above reset to idle because the page
+                        // was reloaded mid-batch.
+                        $rowQueued = $senior->ml_queued_at
+                            && ! ($ml && $ml->processed_at && $ml->processed_at->gte($senior->ml_queued_at));
+                    @endphp
                     <td class="td text-center" data-risk-badge>
-                        @if ($ml)
+                        @if ($rowQueued)
+                        <span class="badge badge-info">Queued</span>
+                        @elseif ($ml)
                         <span class="badge {{ match($ml->overall_risk_level) {
                             'HIGH'     => 'badge-high',
                             'MODERATE' => 'badge-moderate',
@@ -272,9 +282,14 @@
                                 this.pollTimer = setInterval(() => {
                                     this.pollCount++;
                                     if (this.pollCount >= this.pollMax) {
+                                        // Our hosting tier's queue drains every ~10
+                                        // min — longer than this poll window — so
+                                        // this is very likely still queued, not
+                                        // lost. Reload so the row's own "Queued"
+                                        // badge (driven by ml_queued_at) takes over
+                                        // instead of showing a false error here.
                                         clearInterval(this.pollTimer);
-                                        this.loading = false;
-                                        this.err = 'Timed out. Refresh to see result.';
+                                        location.reload();
                                         return;
                                     }
                                     fetch(this.resultUrl, { headers: { 'Accept': 'application/json' } })

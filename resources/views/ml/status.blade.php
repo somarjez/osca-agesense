@@ -45,7 +45,20 @@
                         @endif
                     </p>
                 </div>
-                @if ($mode !== 'http')
+                @if (! $canControlLocalServices)
+                {{-- These controls shell out to python/start_services.ps1 / stop_services.ps1
+                     (PowerShell) — fundamentally Windows-only, see
+                     MlService::localServiceControlAvailable(). On the hosted
+                     deployment osca-preprocess/osca-inference are independent
+                     Render services, so there's nothing local to start/stop here;
+                     showing the buttons anyway just produced a confusing failure
+                     pointing at a log file this container doesn't have. --}}
+                <div class="text-xs text-ink-400 max-w-xs text-right flex-shrink-0">
+                    Start/Stop/Restart controls are for local development only. On the hosted
+                    deployment these run as independent Render services, managed from the
+                    Render dashboard — their sleep/wake is already handled gracefully above.
+                </div>
+                @elseif ($mode !== 'http')
                 <form method="POST" action="{{ route('ml.start') }}">
                     @csrf
                     <button type="submit" class="btn btn-primary flex-shrink-0">Start Services</button>

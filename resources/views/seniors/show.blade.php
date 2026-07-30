@@ -61,9 +61,15 @@
                         this.pollTimer = setInterval(() => {
                             this.pollCount++;
                             if (this.pollCount >= this.pollMax) {
+                                // Not necessarily a failure — our hosting tier's
+                                // queue only drains every ~10 min (longer than
+                                // this 3-min poll window), so the job is very
+                                // likely still genuinely queued, not lost.
+                                // Reload and hand off to the server-persisted
+                                // "still processing" banner (driven by
+                                // ml_queued_at) instead of guessing here.
                                 clearInterval(this.pollTimer);
-                                this.loading = false;
-                                this.err = 'Analysis timed out. Check that Python services are running, then try again.';
+                                location.reload();
                                 return;
                             }
                             fetch('{{ route('ml.result.senior', $senior) }}', {
@@ -130,14 +136,25 @@
         </div>
     </div>
 
-    {{-- Analysis dispatched banner — polls until job writes a fresher result --}}
+    {{-- Analysis dispatched banner — polls until job writes a fresher result.
+         Two independent triggers, both handled here so a reload never loses
+         "still queued" state:
+         (a) ml_queued_at is set (runSingle/batchRun/bulk-upload dispatch) and
+             no result has landed since — the reload-survival marker itself
+             (see the ml_queued_at migration/model comments).
+         (b) the original QoL-survey-submission-redirect flash flow. --}}
     @php
-        $latestSurvey    = $senior->latestQolSurvey;
-        $pendingAnalysis = session()->has('success')
-            && $latestSurvey
-            && (
-                !$ml
-                || ($ml->processed_at && $latestSurvey->updated_at && $ml->processed_at->lt($latestSurvey->updated_at))
+        $latestSurvey = $senior->latestQolSurvey;
+        $queuedAt = $senior->ml_queued_at;
+        $hasFreshResult = $queuedAt && $ml && $ml->processed_at && $ml->processed_at->gte($queuedAt);
+        $pendingAnalysis = ($queuedAt && ! $hasFreshResult)
+            || (
+                session()->has('success')
+                && $latestSurvey
+                && (
+                    !$ml
+                    || ($ml->processed_at && $latestSurvey->updated_at && $ml->processed_at->lt($latestSurvey->updated_at))
+                )
             );
     @endphp
 
@@ -167,14 +184,12 @@
         }"
         class="card border-l-[3px] border-l-forest-500">
         <div class="card-body flex items-center gap-3 text-sm text-ink-700">
-            <template x-if="!timedOut">
-                <svg class="w-4 h-4 animate-spin text-forest-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-            </template>
-            <span x-show="!timedOut">ML analysis is running in the background. This page will update automatically when complete.</span>
-            <span x-show="timedOut" class="text-critical-700 dark:text-[#e08070]">Analysis timed out. Check that Python services are running, then re-run the assessment.</span>
+            <svg class="w-4 h-4 animate-spin text-forest-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <span x-show="!timedOut">ML analysis is queued{{ $queuedAt ? ' (since '.$queuedAt->diffForHumans().')' : '' }}. This page will update automatically when it completes.</span>
+            <span x-show="timedOut">Still queued — this can take up to several minutes on our current hosting tier. Safe to leave this page; refresh anytime to check.</span>
         </div>
     </div>
     @endif

@@ -46,11 +46,17 @@ class MlController extends Controller
             'active_ml_mode' => env('ENABLE_NOTEBOOK_OVERRIDES', false) ? 'Notebook Overrides Enabled' : 'Live Model Only',
         ];
 
-        return view('ml.status', compact('health', 'stats'));
+        $canControlLocalServices = $this->ml->localServiceControlAvailable();
+
+        return view('ml.status', compact('health', 'stats', 'canControlLocalServices'));
     }
 
     public function startServices()
     {
+        if (! $this->ml->localServiceControlAvailable()) {
+            return back()->with('error', $this->localServiceControlUnavailableMessage());
+        }
+
         $success = $this->ml->startServices();
         Cache::forget('ml_nav_health');
 
@@ -64,6 +70,10 @@ class MlController extends Controller
 
     public function stopServices()
     {
+        if (! $this->ml->localServiceControlAvailable()) {
+            return back()->with('error', $this->localServiceControlUnavailableMessage());
+        }
+
         $success = $this->ml->stopServices();
         Cache::forget('ml_nav_health');
 
@@ -75,6 +85,10 @@ class MlController extends Controller
 
     public function restartServices()
     {
+        if (! $this->ml->localServiceControlAvailable()) {
+            return back()->with('error', $this->localServiceControlUnavailableMessage());
+        }
+
         $success = $this->ml->restartServices();
         Cache::forget('ml_nav_health');
 
@@ -84,6 +98,21 @@ class MlController extends Controller
                 ? 'Python ML services restarted successfully.'
                 : 'Failed to restart ML services. Check storage/logs/*.err.log for details.'
         );
+    }
+
+    /**
+     * Defense in depth against a direct POST bypassing the hidden buttons
+     * (see ml/status.blade.php) — the .ps1 scripts these actions run are
+     * fundamentally Windows-only (MlService::localServiceControlAvailable()),
+     * so on Render this can never succeed. The old generic failure message
+     * pointed at a log file on a machine this container isn't, which read as
+     * a real bug rather than an expected platform limitation.
+     */
+    private function localServiceControlUnavailableMessage(): string
+    {
+        return 'Start/Stop/Restart controls are only available in local development. '
+            .'On the hosted deployment, the ML services run as independent Render '
+            .'services managed from the Render dashboard.';
     }
 
     public function batchIndex(Request $request)
@@ -131,6 +160,11 @@ class MlController extends Controller
         }
 
         ActivityLog::record('ml_batch_triggered', auth()->user(), 'Batch ML analysis triggered for '.count($seniorIds).' seniors');
+
+        // Same reload-survival marker as runSingle() — see that method's
+        // comment. Bulk query-builder update, not $senior->update(), so it's
+        // one statement for the whole batch.
+        SeniorCitizen::whereIn('id', $seniorIds)->update(['ml_queued_at' => now()]);
 
         $chunks = array_chunk($seniorIds, 100);
         $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
@@ -207,6 +241,14 @@ class MlController extends Controller
         }
 
         ActivityLog::record('ml_run_triggered', $senior, "ML analysis triggered for {$senior->full_name}");
+
+        // Persists across reload (see 2026_07_30_182716_add_ml_queued_at...)
+        // — client-side poll state alone can't survive a page reload, and on
+        // Render's free tier the queue only drains every ~10 min (Phase E),
+        // so the poll will routinely outlive the page. Cleared by
+        // MlService::persistResults() on success or ProcessMlSingle::failed()
+        // on failure.
+        $senior->update(['ml_queued_at' => now()]);
 
         ProcessMlSingle::dispatch($senior->id, $survey->id);
 

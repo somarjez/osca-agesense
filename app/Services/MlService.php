@@ -285,6 +285,20 @@ class MlService
     }
 
     /**
+     * Whether the Start/Stop/Restart controls on the Service Status page can
+     * do anything here. startServices()/stopServices() below shell out to
+     * python/start_services.ps1 / stop_services.ps1 — PowerShell, so this is
+     * fundamentally a Windows-only capability, not a "not configured yet"
+     * one. Render's container is always Linux, so this correctly and
+     * permanently reads false there — the Python services are independent
+     * Render services managed from Render's own dashboard instead.
+     */
+    public function localServiceControlAvailable(): bool
+    {
+        return PHP_OS_FAMILY === 'Windows';
+    }
+
+    /**
      * Start Python HTTP services as background processes.
      */
     public function startServices(): bool
@@ -1032,6 +1046,8 @@ class MlService
                 && $existing->model_version === self::MODEL_VERSION
                 && ! $existing->is_stale
             ) {
+                $senior->update(['ml_queued_at' => null]);
+
                 return $existing->load('recommendations');
             }
         }
@@ -1123,6 +1139,11 @@ class MlService
         if ($recs) {
             Recommendation::insert($recs); // single INSERT for all rows
         }
+
+        // A real result just landed — no longer "queued" from the UI's
+        // perspective, regardless of which dispatch path (single/batch/bulk)
+        // put it in flight.
+        $senior->update(['ml_queued_at' => null]);
 
         return $mlResult->fresh(['recommendations']);
     }
