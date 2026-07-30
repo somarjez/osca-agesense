@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Facility;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -109,6 +110,12 @@ class PagsanjanFacilityDataset
                     ->update(['is_active' => false]);
             }
         });
+
+        // Mirrors ImportOsmFacilities' invalidation: the profile facility
+        // panel and the GIS map both read Facility::cachedActiveWithCoordinates()
+        // (a 24h cache), which this seeder path previously never invalidated —
+        // a reseed could sit behind a stale/empty cache for up to a day.
+        Cache::forget('facilities.active_with_coordinates');
 
         return $stats;
     }

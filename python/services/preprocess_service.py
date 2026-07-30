@@ -1126,7 +1126,11 @@ def _warm_up_models() -> None:
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PREPROCESS_PORT", 5001))
+    # Render (and similar PaaS hosts) assign a dynamic $PORT and only route
+    # traffic to the port the process actually binds — it must win over
+    # PREPROCESS_PORT. Locally, $PORT is unset, so PREPROCESS_PORT (set by
+    # start_services.sh) still applies.
+    port = int(os.environ.get("PORT") or os.environ.get("PREPROCESS_PORT") or 5001)
     logger.info("Starting OSCA Preprocessing Service on port %s", port)
     threading.Thread(target=_warm_up_models, daemon=True, name="model-warmup").start()
     try:

@@ -394,6 +394,15 @@
         window.__oscaBound_dashboard = true;
         document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
         document.addEventListener('livewire:updated', boot);
+        // MainDashboard is `lazy` (main-dashboard.blade.php), so on a fresh
+        // load #dashboard-chart-data isn't in the DOM yet at DOMContentLoaded
+        // — render() below bails out, and without this listener the next
+        // thing to fire livewire:updated would be the component's own
+        // wire:poll.300s (5 minutes later). The component dispatches this
+        // event itself via Alpine x-init once its lazy placeholder is
+        // replaced by the real content, so boot() runs as soon as the chart
+        // data actually exists.
+        window.addEventListener('osca:dashboard-hydrated', () => setTimeout(boot, 0));
         // Immediate paint when first reached via SPA nav (document already
         // loaded, so DOMContentLoaded won't refire); matches the sibling report
         // scripts. On a full load readyState is 'loading', so DOMContentLoaded
