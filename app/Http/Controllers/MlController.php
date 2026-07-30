@@ -9,6 +9,7 @@ use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,33 @@ use Illuminate\Support\Facades\DB;
 class MlController extends Controller
 {
     public function __construct(protected MlService $ml) {}
+
+    /**
+     * Kick a bounded, non-blocking queue drain right after this request's
+     * HTTP response has already been sent to the browser (Illuminate defers
+     * afterResponse() dispatches until fastcgi_finish_request(), which this
+     * Nginx+PHP-FPM stack supports). On Render's free tier the only other
+     * drain is CronTickController's 10-minute cron tick — this closes the gap
+     * for the common case (one senior, or a small batch) without adding a
+     * paid persistent worker. $maxTime bounds the worst case so a large
+     * backlog can't tie up a PHP-FPM worker indefinitely; the cron tick picks
+     * up whatever this run doesn't finish, exactly as it already does for
+     * itself. A no-op when ML_IMMEDIATE_QUEUE_DRAIN=false or during tests.
+     */
+    private function drainQueueAfterResponse(int $maxTime): void
+    {
+        if (! config('services.python.immediate_queue_drain') || app()->environment('testing')) {
+            return;
+        }
+
+        dispatch(function () use ($maxTime) {
+            Artisan::call('queue:work', [
+                '--queue' => 'ml,default',
+                '--stop-when-empty' => true,
+                '--max-time' => $maxTime,
+            ]);
+        })->afterResponse();
+    }
 
     public function status()
     {
@@ -183,6 +211,10 @@ class MlController extends Controller
         Cache::put('ml_last_batch_started', now(), now()->addDays(90));
         Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
 
+        // See drainQueueAfterResponse() — 60s covers a typical small/medium
+        // batch; anything left over is picked up by the next cron tick.
+        $this->drainQueueAfterResponse(60);
+
         return response()->json([
             'queued' => true,
             'batch_id' => $batch->id,
@@ -251,6 +283,10 @@ class MlController extends Controller
         $senior->update(['ml_queued_at' => now()]);
 
         ProcessMlSingle::dispatch($senior->id, $survey->id);
+
+        // See drainQueueAfterResponse() — a single senior's assessment
+        // normally finishes well inside 20s.
+        $this->drainQueueAfterResponse(20);
 
         return response()->json(['queued' => true]);
     }
