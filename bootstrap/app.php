@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\NoTimeLimit;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'no.time.limit' => NoTimeLimit::class,
+            'verify.cron.token' => VerifyCronToken::class,
         ]);
 
         // Trust Render's (and, once fronted by it, Cloudflare's) reverse proxy
