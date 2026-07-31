@@ -280,20 +280,25 @@
         @endif
         <span class="text-ink-300">&middot;</span>
         <span>Model: <span class="font-mono font-semibold text-ink-600">{{ $stats['model_version'] }}</span></span>
+        @if (app()->environment('local'))
         <span class="text-ink-300">&middot;</span>
         <span>DB: <span class="font-mono font-semibold text-ink-600">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.database') }}</span></span>
+        @endif
     </div>
 
-    {{-- DB + System Status Panel --}}
+    {{-- Model & Pipeline Status Panel — DB host/name only shown locally, never in production --}}
     <div class="card">
         <div class="card-head">
             <div>
-                <div class="card-title">Database &amp; System Status</div>
+                <div class="card-title">Model &amp; Pipeline Status</div>
+                @if (app()->environment('local'))
                 <div class="card-sub">Current runtime configuration — do not share DB password publicly</div>
+                @endif
             </div>
         </div>
         <div class="card-body">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-[12.5px]">
+                @if (app()->environment('local'))
                 <div>
                     <div class="eyebrow mb-1">DB Host</div>
                     <div class="font-mono font-semibold text-ink-800">{{ config('database.connections.mysql.host') }}:{{ config('database.connections.mysql.port', 3306) }}</div>
@@ -302,6 +307,7 @@
                     <div class="eyebrow mb-1">DB Database</div>
                     <div class="font-mono font-semibold text-ink-800">{{ config('database.connections.mysql.database') }}</div>
                 </div>
+                @endif
                 <div>
                     <div class="eyebrow mb-1">Model Version</div>
                     <div class="font-mono font-semibold text-ink-800">{{ $stats['model_version'] }}</div>
@@ -329,14 +335,17 @@
                     <div class="font-mono font-semibold {{ $stats['fallback'] > 0 ? 'text-high-700' : 'text-ink-400' }}">{{ number_format($stats['fallback']) }}</div>
                 </div>
             </div>
+            @if (app()->environment('local'))
             <p class="text-[11px] text-ink-400 mt-4 border-t border-paper-rule pt-3">
                 For final defense, all devices should point to the same DB host. See
                 <span class="font-mono">docs/DATABASE_SHARING.md</span> for export/import and shared MySQL setup steps.
             </p>
+            @endif
         </div>
     </div>
 
-    {{-- Instructions --}}
+    {{-- Instructions — local dev only; Render's Python services aren't started via PowerShell --}}
+    @if (app()->environment('local'))
     <div class="card">
         <div class="card-head">
             <div>
@@ -359,6 +368,7 @@
             </p>
         </div>
     </div>
+    @endif
 
     {{-- Batch prompt --}}
     @if ($stats['unprocessed'] > 0)
