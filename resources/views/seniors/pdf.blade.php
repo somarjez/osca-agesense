@@ -423,5 +423,12 @@ table.exec-table td.val { width: 30%; }
     </tr>
 </table>
 
+{{-- Static generation notice: appears once in normal document flow (unlike the
+     repeating per-page "Page X of Y" footer, which is drawn on the canvas in
+     SeniorCitizenController::export() — see the note in the stylesheet above). --}}
+<p class="small-ref text-center" style="margin-top:14pt;">
+    Generated on {{ now()->format('F j, Y g:i A') }} &nbsp;·&nbsp; AgeSense OSCA Decision Support System
+</p>
+
 </body>
 </html>
