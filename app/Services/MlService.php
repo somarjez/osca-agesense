@@ -289,9 +289,9 @@ class MlService
      * when a real request needs to.
      *
      * @return array{preprocess: bool, inference: bool} whether each ping got
-     *         a response within the short budget — false just means still
-     *         asleep when we gave up waiting, not that the wake failed to
-     *         trigger.
+     *                                                  a response within the short budget — false just means still
+     *                                                  asleep when we gave up waiting, not that the wake failed to
+     *                                                  trigger.
      */
     public function pingToWake(): array
     {
