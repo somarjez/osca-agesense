@@ -17,11 +17,14 @@
             pollTimer: null,
             processed: 0,
             failed: 0,
+            fallbackCount: 0,
+            coldStartLikely: false,
             total: {{ $totalEligible }},
             progress: 0,
             csrfToken: '{{ csrf_token() }}',
             batchUrl: '{{ route('ml.batch.run') }}',
             statusUrl: '{{ route('ml.batch.status') }}',
+            wakeStatusUrl: '{{ route('ml.wake-status') }}',
             cacheKey: '',
             batchId: '',
             start() {
@@ -30,8 +33,15 @@
                 this.running = true; this.done = false;
                 this.errMsg = ''; this.resultMsg = '';
                 this.processed = 0; this.failed = 0; this.progress = 0;
+                this.fallbackCount = 0; this.coldStartLikely = false;
                 this.elapsed = 0;
                 this.timer = setInterval(() => this.elapsed++, 1000);
+                // Best-effort, doesn't block start() — a more confident
+                // signal than only guessing from elapsed time below.
+                fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(d => { if (d.mode !== 'http') this.coldStartLikely = true; })
+                    .catch(() => {});
                 fetch(this.batchUrl, {
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' }
@@ -71,7 +81,9 @@
                             clearInterval(this.timer);
                             this.running = false;
                             this.done    = true;
-                            this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`;
+                            this.fallbackCount = d.fallback || 0;
+                            this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`
+                                + (this.fallbackCount > 0 ? ` Fallback: ${this.fallbackCount}.` : '');
                             if (d.failed > 0) this.errMsg = `${d.failed} senior(s) failed. Check the queue failed_jobs table.`;
                             setTimeout(() => location.reload(), 2000);
                         } else if (d.cancelled) {
@@ -139,6 +151,10 @@
                              :style="`width:${progress > 0 ? progress : 100}%`"></div>
                     </div>
                     <p class="text-xs text-ink-400">Queued — worker is processing in the background. You can safely close this tab.</p>
+                    <p x-show="coldStartLikely || elapsed >= 8" x-cloak class="text-xs text-info-700">
+                        <span x-show="coldStartLikely">A service looks asleep — the first few results can take up to ~2 minutes while it wakes up.</span>
+                        <span x-show="!coldStartLikely">If a service was asleep, the first few results can take up to ~2 minutes.</span>
+                    </p>
                 </div>
             </div>
 

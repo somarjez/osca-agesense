@@ -57,10 +57,15 @@ class ProcessMlBatch implements ShouldQueue
 
         $succeeded = count(array_filter($results, fn ($r) => $r['success']));
         $failed = count($results) - $succeeded;
+        $fallback = count(array_filter(
+            $results,
+            fn ($r) => $r['success'] && ($r['result']->prediction_source ?? null) === 'fallback'
+        ));
 
         // Accumulate progress atomically into a shared cache key
         Cache::increment("{$this->cacheKey}:processed", $succeeded);
         Cache::increment("{$this->cacheKey}:failed", $failed);
+        Cache::increment("{$this->cacheKey}:fallback", $fallback);
 
         // Every senior in this chunk is now either freshly scored or
         // definitively failed — either way, no longer "queued". Cleared here
