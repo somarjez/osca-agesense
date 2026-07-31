@@ -303,10 +303,44 @@ class MlService
             }
         };
 
+        // On Render, PYTHON_PREPROCESS_URL / PYTHON_INFERENCE_URL must be set
+        // to the services' onrender.com hostnames — without them, the
+        // base_url:port fallback in the constructor resolves to
+        // 127.0.0.1:5001/5002, which is loopback *inside the Laravel
+        // container* and can never reach the real Python services. That
+        // failure mode is silent (the ping just times out and returns
+        // false), so flag it loudly here rather than let this button quietly
+        // do nothing in production.
+        if (app()->environment('production')) {
+            if ($this->isLoopback($this->preprocessUrl)) {
+                Log::warning('MlService::pingToWake — preprocess URL resolves to loopback in production; set PYTHON_PREPROCESS_URL', [
+                    'url' => $this->preprocessUrl,
+                ]);
+            }
+            if ($this->isLoopback($this->inferenceUrl)) {
+                Log::warning('MlService::pingToWake — inference URL resolves to loopback in production; set PYTHON_INFERENCE_URL', [
+                    'url' => $this->inferenceUrl,
+                ]);
+            }
+        }
+
         return [
             'preprocess' => $ping($this->preprocessUrl),
             'inference' => $ping($this->inferenceUrl),
         ];
+    }
+
+    /**
+     * Whether $url's host is a loopback address — i.e. it can only ever
+     * reach a service running inside the same container/host, never an
+     * external one. Used to detect the PYTHON_PREPROCESS_URL /
+     * PYTHON_INFERENCE_URL misconfiguration described in pingToWake().
+     */
+    private function isLoopback(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
     }
 
     /**

@@ -5,10 +5,13 @@ namespace App\Livewire\Surveys;
 use App\Jobs\RunMlPipeline;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
+use App\Support\Concerns\DrainsMlQueue;
 use Livewire\Component;
 
 class QolSurveyForm extends Component
 {
+    use DrainsMlQueue;
+
     public SeniorCitizen $senior;
 
     public ?QolSurvey $survey = null;
@@ -223,8 +226,20 @@ class QolSurveyForm extends Component
         // Compute domain scores
         $this->survey->computeScores();
 
-        // Dispatch ML pipeline as a background job to avoid HTTP timeout
+        // Reload-survival marker — same as MlController::runSingle(). Client
+        // poll state alone can't survive the redirect+reload below, and on
+        // Render's free tier the queue only drains every ~10 min (Phase E)
+        // absent the drain kicked off after this response. Cleared by
+        // MlService::persistResults() on success or RunMlPipeline::failed()
+        // on failure.
+        $this->senior->update(['ml_queued_at' => now()]);
+
+        // Dispatch ML pipeline as a background job to avoid HTTP timeout, then
+        // drain it right after this response instead of waiting on the cron
+        // tick — see MlController::runSingle(), the working "Re-run
+        // Assessment" path this mirrors.
         RunMlPipeline::dispatch($this->senior->id, $this->survey->id);
+        $this->drainQueueAfterResponse(20);
         session()->flash('success', 'QoL Survey submitted. ML analysis is running in the background.');
 
         // Leave isProcessing true (and showConfirm never reset) so the modal/overlay

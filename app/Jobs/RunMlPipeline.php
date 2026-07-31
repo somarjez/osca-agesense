@@ -43,5 +43,11 @@ class RunMlPipeline implements ShouldQueue
             'survey_id' => $this->surveyId,
             'error' => $e->getMessage(),
         ]);
+
+        // Matching clear for the failure path — see ProcessMlSingle::failed().
+        // MlService::persistResults() clears ml_queued_at on success; without
+        // this, a genuine failure leaves the profile showing "still
+        // processing" forever.
+        SeniorCitizen::whereKey($this->seniorId)->update(['ml_queued_at' => null]);
     }
 }

@@ -115,6 +115,12 @@ class QolSurveyValidationTest extends TestCase
             'h2_belief_practice' => null,
             'status' => 'processed',
         ]);
+
+        // Reload-survival marker must be set alongside the dispatch — see
+        // MlController::runSingle(), the working "Re-run Assessment" path
+        // this mirrors. Without it the profile page's poll banner can't
+        // survive a reload while waiting on Render's queue drain.
+        $this->assertNotNull($this->senior->fresh()->ml_queued_at);
     }
 
     #[Test]

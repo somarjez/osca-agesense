@@ -56,10 +56,16 @@ return [
         // doesn't add real wall-clock delay to the suite.
         'cold_start_poll_interval' => env('PYTHON_COLD_START_POLL_INTERVAL', 5),
         // /health does no model loading, so a live service answers in
-        // milliseconds — this budget only matters for the down/slow case, and
-        // a short one lets the ≤2s health-check / ≤10s fallback SLAs pass.
-        'health_timeout' => env('PYTHON_HEALTH_TIMEOUT', 2),
-        'health_connect_timeout' => env('PYTHON_HEALTH_CONNECT_TIMEOUT', 1),
+        // milliseconds once actually warm — but cross-service HTTPS calls
+        // between two independent Render services (TLS handshake + real
+        // network hop, not same-host) were observed taking up to ~1.9s each
+        // even when healthy, occasionally tripping the previous 1s/2s budget
+        // and reporting a false "error" while the service was genuinely
+        // fine. Widened for headroom; two sequential checks (preprocessor +
+        // inference) at worst-case still land at 6s, comfortably inside the
+        // ≤10s fallback-activation SLA below.
+        'health_timeout' => env('PYTHON_HEALTH_TIMEOUT', 3),
+        'health_connect_timeout' => env('PYTHON_HEALTH_CONNECT_TIMEOUT', 2),
         'token' => env('ML_SERVICE_TOKEN'),
         // Phase E's cron-tick (see CronTickController) is the only guaranteed
         // queue drain on Render's free tier, but it only fires every ~10 min.
