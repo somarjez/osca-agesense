@@ -16,10 +16,17 @@ use Tests\TestCase;
  * Task 8 — ML API authentication (Flask). Verifies MlService sends the
  * X-Internal-Api-Key header (config('services.python.token'), backed by
  * ML_SERVICE_TOKEN) on every data-bearing call to the preprocess/inference
- * Flask services, and that /health polling calls are never given the header
- * — those are used by startServices()/stopServices()/healthCheck()/
- * checkHealth() before/without auth context and must stay reachable
- * regardless of token configuration.
+ * Flask services.
+ *
+ * runPipeline()/runBatchPipeline() no longer probe /health before attempting
+ * real work (see MlService::postWithColdStartRetry — a fast /health check
+ * can't safely decide "should we even try posting", since a sleeping Render
+ * free-tier service answers 502/503/504 just as fast as it would answer
+ * /health, and would be rejected outright before ever getting the chance to
+ * wake up). /health is still used elsewhere (startServices()/stopServices()/
+ * healthCheck()/checkHealth(), for the dashboard/status-page badges) and
+ * still never receives the auth header there — just not exercised by these
+ * pipeline-level tests.
  */
 class MlServiceAuthTest extends TestCase
 {
@@ -36,6 +43,9 @@ class MlServiceAuthTest extends TestCase
         parent::setUp();
 
         config(['services.python.token' => self::TEST_TOKEN]);
+        // Cold-start retries poll with a real usleep() between attempts
+        // (see MlService::postWithColdStartRetry) — 0 keeps this suite fast.
+        config(['services.python.cold_start_poll_interval' => 0]);
 
         $this->senior = SeniorCitizen::create([
             'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
@@ -101,11 +111,16 @@ class MlServiceAuthTest extends TestCase
         });
     }
 
+    /** No request at all — matching or not — may be sent to the given URL substring. */
+    private function assertNoRequestSentTo(string $urlContains): void
+    {
+        Http::assertNotSent(fn (HttpClientRequest $request) => str_contains($request->url(), $urlContains));
+    }
+
     #[Test]
-    public function preprocess_and_infer_calls_carry_the_auth_header_while_health_does_not(): void
+    public function preprocess_and_infer_calls_carry_the_auth_header(): void
     {
         Http::fake([
-            '*/health' => Http::response(['status' => 'ok'], 200),
             '*/preprocess' => Http::response(['section_scores' => []], 200),
             '*/infer' => Http::response($this->fakeInferResponse(), 200),
         ]);
@@ -117,14 +132,13 @@ class MlServiceAuthTest extends TestCase
 
         $this->assertHeaderSentTo('/preprocess');
         $this->assertHeaderSentTo('/infer');
-        $this->assertNoHeaderSentTo('/health');
+        $this->assertNoRequestSentTo('/health');
     }
 
     #[Test]
     public function batch_preprocess_and_batch_infer_calls_carry_the_auth_header(): void
     {
         Http::fake([
-            '*/health' => Http::response(['status' => 'ok'], 200),
             '*/batch_preprocess' => Http::response([
                 'results' => [['section_scores' => []]],
             ], 200),
@@ -143,22 +157,22 @@ class MlServiceAuthTest extends TestCase
 
         $this->assertHeaderSentTo('/batch_preprocess');
         $this->assertHeaderSentTo('/batch_infer');
-        $this->assertNoHeaderSentTo('/health');
+        $this->assertNoRequestSentTo('/health');
     }
 
     #[Test]
-    public function preprocess_retry_after_cold_start_timeout_still_carries_the_auth_header(): void
+    public function preprocess_retries_after_a_connection_timeout_and_still_carries_the_auth_header(): void
     {
         $calls = 0;
 
         Http::fake([
-            '*/health' => Http::response(['status' => 'ok'], 200),
             '*/preprocess' => function () use (&$calls) {
                 $calls++;
                 if ($calls === 1) {
-                    // First attempt "times out" — ConnectionException with a
-                    // message containing "timed out" triggers callPreprocess()'s
-                    // cold-start retry path (longer timeout, same headers).
+                    // First attempt "times out" — a ConnectionException whose
+                    // message contains "timed out" is what
+                    // postWithColdStartRetry() treats as a still-starting
+                    // signal worth polling through, same as a 502/503/504.
                     throw new ConnectionException('Connection timed out after 5000ms');
                 }
 
@@ -174,7 +188,37 @@ class MlServiceAuthTest extends TestCase
         $this->assertSame(2, $calls, 'Expected the preprocess call to be retried once after a simulated timeout.');
 
         $this->assertHeaderSentTo('/preprocess');
-        $this->assertNoHeaderSentTo('/health');
+        $this->assertNoRequestSentTo('/health');
+    }
+
+    #[Test]
+    public function preprocess_retries_after_a_503_and_still_carries_the_auth_header(): void
+    {
+        // This is Render's actual free-tier behaviour: a sleeping service's
+        // edge answers 503 almost instantly (it does not hang the
+        // connection) while the container wakes up. postWithColdStartRetry()
+        // must poll through this, not just a hung-connection timeout.
+        $calls = 0;
+
+        Http::fake([
+            '*/preprocess' => function () use (&$calls) {
+                $calls++;
+
+                return $calls === 1
+                    ? Http::response('', 503, ['Retry-After' => '1'])
+                    : Http::response(['section_scores' => []], 200);
+            },
+            '*/infer' => Http::response($this->fakeInferResponse(), 200),
+        ]);
+
+        $service = app(MlService::class);
+        $result = $service->runPipeline($this->senior, $this->survey, force: true);
+
+        $this->assertNotNull($result);
+        $this->assertSame(2, $calls, 'Expected the preprocess call to be retried once after a simulated 503.');
+
+        $this->assertHeaderSentTo('/preprocess');
+        $this->assertNoRequestSentTo('/health');
     }
 
     #[Test]
@@ -183,7 +227,6 @@ class MlServiceAuthTest extends TestCase
         config(['services.python.token' => null]);
 
         Http::fake([
-            '*/health' => Http::response(['status' => 'ok'], 200),
             '*/preprocess' => Http::response(['section_scores' => []], 200),
             '*/infer' => Http::response($this->fakeInferResponse(), 200),
         ]);
@@ -195,6 +238,6 @@ class MlServiceAuthTest extends TestCase
 
         $this->assertNoHeaderSentTo('/preprocess');
         $this->assertNoHeaderSentTo('/infer');
-        $this->assertNoHeaderSentTo('/health');
+        $this->assertNoRequestSentTo('/health');
     }
 }
