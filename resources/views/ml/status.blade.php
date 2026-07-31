@@ -15,7 +15,7 @@
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
             csrfToken: '{{ csrf_token() }}',
-            wakeMaxSeconds: 180,
+            wakeMaxSeconds: 240,
             startWake() {
                 if (this.waking) return;
                 this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeElapsed = 0;

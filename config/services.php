@@ -44,11 +44,12 @@ return [
         'inference_url' => env('PYTHON_INFERENCE_URL'),
         'timeout' => env('PYTHON_TIMEOUT', 120),
         // Wall-clock budget MlService::postWithColdStartRetry() polls a
-        // sleeping Render free-tier service for before giving up. A from-cold
-        // inference boot observed on Render took ~122s end-to-end (artifact
-        // load + waitress bind); 180 gives real margin over that instead of
+        // sleeping Render free-tier service for before giving up. From-cold
+        // inference boots observed on Render ranged ~122s-180s+ (free tier's
+        // 0.1 CPU is shared/throttled, so boot time varies run to run) —
+        // 240 gives real margin over the slower observed runs instead of
         // sitting right at the edge.
-        'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 180),
+        'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 240),
         // Wait between cold-start poll attempts (respects a platform
         // Retry-After header when present, capped by this as the default).
         // 0 disables the wait entirely — used by tests so the retry path
