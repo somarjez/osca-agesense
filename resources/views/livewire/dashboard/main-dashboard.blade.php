@@ -55,14 +55,14 @@
         </select>
 
         @if ($selectedBarangay || $selectedRisk)
-            <button wire:click="clearFilters" class="text-[12px] text-ink-500 hover:text-ink-900 underline underline-offset-2">
-                Clear filters
+            <button wire:click="clearFilters" class="btn btn-ghost text-[12.5px] gap-1.5">
+                <x-heroicon-o-x-mark class="w-3.5 h-3.5" /> Clear filters
             </button>
         @endif
 
         <div class="ml-auto flex items-center gap-3 text-[11.5px] text-ink-500">
             <span class="hidden md:inline text-ink-400">Tip: click a risk slice to filter</span>
-            <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 hover:text-ink-900 transition-colors">
+            <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors">
                 <span class="eyebrow">Analysis Services</span>
                 <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3 opacity-60" />
             </a>

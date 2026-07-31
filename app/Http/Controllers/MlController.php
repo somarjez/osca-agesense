@@ -8,42 +8,17 @@ use App\Models\ActivityLog;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
+use App\Support\Concerns\DrainsMlQueue;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class MlController extends Controller
 {
+    use DrainsMlQueue;
+
     public function __construct(protected MlService $ml) {}
-
-    /**
-     * Kick a bounded, non-blocking queue drain right after this request's
-     * HTTP response has already been sent to the browser (Illuminate defers
-     * afterResponse() dispatches until fastcgi_finish_request(), which this
-     * Nginx+PHP-FPM stack supports). On Render's free tier the only other
-     * drain is CronTickController's 10-minute cron tick — this closes the gap
-     * for the common case (one senior, or a small batch) without adding a
-     * paid persistent worker. $maxTime bounds the worst case so a large
-     * backlog can't tie up a PHP-FPM worker indefinitely; the cron tick picks
-     * up whatever this run doesn't finish, exactly as it already does for
-     * itself. A no-op when ML_IMMEDIATE_QUEUE_DRAIN=false or during tests.
-     */
-    private function drainQueueAfterResponse(int $maxTime): void
-    {
-        if (! config('services.python.immediate_queue_drain') || app()->environment('testing')) {
-            return;
-        }
-
-        dispatch(function () use ($maxTime) {
-            Artisan::call('queue:work', [
-                '--queue' => 'ml,default',
-                '--stop-when-empty' => true,
-                '--max-time' => $maxTime,
-            ]);
-        })->afterResponse();
-    }
 
     /**
      * Fresh (uncached) health snapshot — polled every few seconds by the
