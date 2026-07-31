@@ -15,7 +15,10 @@
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
             csrfToken: '{{ csrf_token() }}',
-            wakeMaxSeconds: 240,
+            // 240s undercounted observed inference cold starts (loads the
+            // actual ML model, unlike preprocess) — widened so the poll
+            // doesn't give up while the service is still genuinely booting.
+            wakeMaxSeconds: 300,
             startWake() {
                 if (this.waking) return;
                 this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeElapsed = 0;
@@ -116,7 +119,7 @@
                     <template x-if="waking">
                         <div class="flex items-center justify-end gap-2 text-sm text-info-700">
                             <svg class="w-4 h-4 animate-spin flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                            <span>Waking up services&hellip; <span x-text="fmt(wakeElapsed)" class="font-mono"></span> <span class="text-ink-400">(usually ~2 min)</span></span>
+                            <span>Waking up services&hellip; <span x-text="fmt(wakeElapsed)" class="font-mono"></span> <span class="text-ink-400">(usually 1&ndash;3 min)</span></span>
                         </div>
                     </template>
                     <template x-if="wakeDone">
