@@ -1243,6 +1243,18 @@ def _predict_model(model: Any, features: List[float]) -> Optional[float]:
         arr = np.asarray([features[:required]], dtype=np.float64)
         return float(np.clip(model.predict(arr)[0], 0.0, 1.0))
     except Exception:
+        # DIAGNOSTIC (temporary): this used to fail silently, which is why the
+        # cause of a systemic all-domains-land-on-0.5 report couldn't be seen
+        # in the logs at all. Logging the real exception here until root
+        # cause is confirmed, then this should go back to a quiet return None
+        # (a genuinely unavailable/incompatible model is an expected,
+        # non-error condition the caller already degrades from gracefully).
+        logger.exception(
+            "DIAGNOSTIC _predict_model failed — model=%s n_features_in_=%s len(features)=%s",
+            type(model).__name__,
+            getattr(model, "n_features_in_", "n/a"),
+            len(features),
+        )
         return None
 
 
@@ -2300,6 +2312,19 @@ def infer(preprocessed: Dict[str, Any]) -> Dict[str, Any]:
         warnings_list.append("ENV ML models unavailable/incompatible; fallback score used.")
     if gbr_func_pred is None and rfr_func_pred is None:
         warnings_list.append("FUNC ML models unavailable/incompatible; fallback score used.")
+
+    # DIAGNOSTIC (temporary): tracing a systemic all-domains-land-on-0.5
+    # report — this shows whether real WHO scores/feature_map are reaching
+    # this point, and whether the models are actually predicting or the
+    # fallback is doing all the work. Remove once root cause is confirmed.
+    logger.info(
+        "DIAGNOSTIC risk-compute who_scores=%s feature_map_len=%s ml_features_len=%s "
+        "ic=(gbr=%s rfr=%s fallback=%s) env=(gbr=%s rfr=%s fallback=%s) func=(gbr=%s rfr=%s fallback=%s)",
+        who_scores, len(feature_map), len(ml_features),
+        gbr_ic_pred, rfr_ic_pred, ic_fallback,
+        gbr_env_pred, rfr_env_pred, env_fallback,
+        gbr_func_pred, rfr_func_pred, func_fallback,
+    )
 
     ic_risk_raw = _notebook_ml_score(gbr_ic_pred, rfr_ic_pred, ic_fallback)
     env_risk_raw = _notebook_ml_score(gbr_env_pred, rfr_env_pred, env_fallback)
