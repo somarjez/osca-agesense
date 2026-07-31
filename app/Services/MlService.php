@@ -7,6 +7,7 @@ use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Exception\ProcessFailedException;
@@ -33,6 +34,8 @@ class MlService
 
     protected int $coldStartTimeout;
 
+    protected int $coldStartPollInterval;
+
     protected int $healthTimeout;
 
     protected int $healthConnectTimeout;
@@ -51,7 +54,8 @@ class MlService
         $preprocessPort = (int) config('services.python.preprocess_port', 5001);
         $inferencePort = (int) config('services.python.inference_port', 5002);
         $this->timeout = (int) config('services.python.timeout', 120);
-        $this->coldStartTimeout = (int) config('services.python.cold_start_timeout', 120);
+        $this->coldStartTimeout = (int) config('services.python.cold_start_timeout', 180);
+        $this->coldStartPollInterval = (int) config('services.python.cold_start_poll_interval', 5);
         $this->healthTimeout = (int) config('services.python.health_timeout', 2);
         $this->healthConnectTimeout = (int) config('services.python.health_connect_timeout', 1);
 
@@ -91,15 +95,13 @@ class MlService
 
         $raw = $this->buildRawPayload($senior, $survey);
 
-        if ($this->isPreprocessAvailable()) {
-            // HTTP mode: two separate service calls
-            $preprocessed = $this->callPreprocess($raw);
-            $inferResult = $this->callInfer($preprocessed);
-        } else {
-            // Local mode: combined preprocess+infer in ONE subprocess (no double cold-start)
-            $inferResult = $this->localCombinedOrFallback($raw);
-            $preprocessed = [];
-        }
+        // Always attempt HTTP first — callPreprocess()/callInfer() themselves
+        // poll through a Render cold start and only degrade to the local
+        // subprocess (dev-only) or PHP heuristic on a genuine failure. A
+        // prior fast /health probe used to gate this branch and would reject
+        // a merely-sleeping service outright; see postWithColdStartRetry().
+        $preprocessed = $this->callPreprocess($raw);
+        $inferResult = $this->callInfer($preprocessed);
 
         return $this->persistResults($senior, $survey, $preprocessed, $inferResult, force: $force);
     }
@@ -153,13 +155,9 @@ class MlService
 
         $raw = $this->buildRawPayload($senior, $survey);
 
-        if ($this->isPreprocessAvailable()) {
-            $preprocessed = $this->callPreprocess($raw);
-            $inferResult = $this->callInfer($preprocessed);
-        } else {
-            $inferResult = $this->localCombinedOrFallback($raw);
-            $preprocessed = [];
-        }
+        // See runPipeline() — always attempt HTTP first.
+        $preprocessed = $this->callPreprocess($raw);
+        $inferResult = $this->callInfer($preprocessed);
 
         return $this->persistResults($senior, $survey, $preprocessed, $inferResult, force: true);
     }
@@ -211,12 +209,10 @@ class MlService
             $itemsToCompute
         );
 
-        // Choose batch strategy based on service availability
-        if ($this->isPreprocessAvailable() && $this->isInferenceAvailable()) {
-            $rawResults = $this->callBatchHttp($payloads);
-        } else {
-            $rawResults = $this->callBatchLocal($payloads);
-        }
+        // Always attempt HTTP first — callBatchHttp() itself polls through a
+        // cold start and only falls back to local/heuristic on genuine
+        // failure. See postWithColdStartRetry().
+        $rawResults = $this->callBatchHttp($payloads);
 
         foreach ($itemsToCompute as $j => $item) {
             $originalIndex = $computeMap[$j];
@@ -485,46 +481,23 @@ class MlService
     }
 
     /**
-     * Combined local mode: one subprocess for preprocess + infer.
-     */
-    private function localCombinedOrFallback(array $raw): array
-    {
-        $result = $this->runLocalPythonStage('combined', $raw);
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        // Full PHP fallback
-        $preprocessed = $this->fallbackPreprocess($raw);
-
-        return $this->fallbackInfer($preprocessed);
-    }
-
-    /**
      * HTTP batch: call /batch_preprocess then /batch_infer (2 HTTP calls for N seniors).
      */
     private function callBatchHttp(array $payloads): array
     {
         try {
-            $preResp = Http::connectTimeout(5)
-                ->timeout($this->timeout)
-                ->withHeaders($this->authHeaders())
-                ->post($this->preprocessUrl.'/batch_preprocess', $payloads);
+            $preResp = $this->postWithColdStartRetry($this->preprocessUrl.'/batch_preprocess', $payloads);
 
-            if ($preResp->failed()) {
-                throw new \RuntimeException('Batch preprocess HTTP error: '.$preResp->status());
+            if (! $preResp || $preResp->failed()) {
+                throw new \RuntimeException('Batch preprocess HTTP error: '.($preResp?->status() ?? 'no response'));
             }
 
             $preprocessedList = $preResp->json('results') ?? [];
 
-            $infResp = Http::connectTimeout(5)
-                ->timeout($this->timeout)
-                ->withHeaders($this->authHeaders())
-                ->post($this->inferenceUrl.'/batch_infer', $preprocessedList);
+            $infResp = $this->postWithColdStartRetry($this->inferenceUrl.'/batch_infer', $preprocessedList);
 
-            if ($infResp->failed()) {
-                throw new \RuntimeException('Batch infer HTTP error: '.$infResp->status());
+            if (! $infResp || $infResp->failed()) {
+                throw new \RuntimeException('Batch infer HTTP error: '.($infResp?->status() ?? 'no response'));
             }
 
             $inferResults = $infResp->json('results') ?? [];
@@ -633,47 +606,79 @@ class MlService
         }, $payloads);
     }
 
+    /**
+     * POST with a Render-cold-start-aware retry. A sleeping free-tier
+     * service answers 502/503/504 almost instantly while it wakes up —
+     * that's Render's own edge responding, not the app, and it does not
+     * hang the connection — so a longer per-request timeout alone never
+     * helps recover from it. This polls with short waits between attempts
+     * (respecting Retry-After when the platform sends one) until the
+     * service responds with something other than "still starting", or the
+     * wall-clock budget (coldStartTimeout) runs out. Reference: a from-cold
+     * inference boot observed on Render took ~122s end-to-end (artifact
+     * load + waitress bind).
+     *
+     * A genuine connection failure (refused, DNS, etc — not a "still
+     * starting" signal) is not retried here; it's rethrown so the caller's
+     * normal catch block degrades to the local/heuristic fallback
+     * immediately, same as before.
+     */
+    private function postWithColdStartRetry(string $url, array $payload): ?Response
+    {
+        $deadline = microtime(true) + $this->coldStartTimeout;
+        $response = null;
+
+        while (true) {
+            try {
+                $response = Http::connectTimeout(5)
+                    ->timeout($this->timeout)
+                    ->withHeaders($this->authHeaders())
+                    ->post($url, $payload);
+
+                if ($response->successful() || ! in_array($response->status(), [502, 503, 504], true)) {
+                    return $response;
+                }
+            } catch (ConnectionException $e) {
+                if (! str_contains(strtolower($e->getMessage()), 'timed out')) {
+                    throw $e;
+                }
+            }
+
+            $remaining = $deadline - microtime(true);
+            if ($remaining <= 0) {
+                return $response;
+            }
+
+            // 0 disables the wait entirely (tests) instead of flooring to 1s.
+            if ($this->coldStartPollInterval <= 0) {
+                continue;
+            }
+
+            $retryAfter = $response?->header('Retry-After');
+            $sleepSeconds = max(1, min((int) ($retryAfter ?: $this->coldStartPollInterval), (int) $remaining));
+            usleep($sleepSeconds * 1_000_000);
+        }
+    }
+
     private function callPreprocess(array $raw): array
     {
-        if (! $this->isPreprocessAvailable()) {
+        if ($this->preprocessAvailable === false) {
             return $this->localPreprocessOrFallback($raw);
         }
 
         try {
-            $response = Http::connectTimeout(5)
-                ->timeout($this->timeout)
-                ->withHeaders($this->authHeaders())
-                ->post($this->preprocessUrl.'/preprocess', $raw);
+            $response = $this->postWithColdStartRetry($this->preprocessUrl.'/preprocess', $raw);
 
-            if ($response->failed()) {
+            if (! $response || $response->failed()) {
                 $this->preprocessAvailable = false;
-                Log::error('Preprocess service error', ['body' => $response->body()]);
+                Log::error('Preprocess service error', ['body' => $response?->body()]);
 
                 return $this->localPreprocessOrFallback($raw);
             }
 
+            $this->preprocessAvailable = true;
+
             return $response->json();
-        } catch (ConnectionException $e) {
-            if (str_contains(strtolower($e->getMessage()), 'timed out')) {
-                try {
-                    $response = Http::connectTimeout(5)
-                        ->timeout(max($this->timeout, $this->coldStartTimeout))
-                        ->withHeaders($this->authHeaders())
-                        ->post($this->preprocessUrl.'/preprocess', $raw);
-
-                    if ($response->successful()) {
-                        $this->preprocessAvailable = true;
-
-                        return $response->json();
-                    }
-                } catch (\Exception) {
-                }
-            }
-
-            $this->preprocessAvailable = false;
-            Log::warning('Preprocess service unreachable, using fallback', ['error' => $e->getMessage()]);
-
-            return $this->localPreprocessOrFallback($raw);
         } catch (\Exception $e) {
             $this->preprocessAvailable = false;
             Log::warning('Preprocess service error, using fallback', ['error' => $e->getMessage()]);
@@ -684,45 +689,23 @@ class MlService
 
     private function callInfer(array $preprocessed): array
     {
-        if (! $this->isInferenceAvailable()) {
+        if ($this->inferenceAvailable === false) {
             return $this->localInferOrFallback($preprocessed);
         }
 
         try {
-            $response = Http::connectTimeout(5)
-                ->timeout($this->timeout)
-                ->withHeaders($this->authHeaders())
-                ->post($this->inferenceUrl.'/infer', $preprocessed);
+            $response = $this->postWithColdStartRetry($this->inferenceUrl.'/infer', $preprocessed);
 
-            if ($response->failed()) {
+            if (! $response || $response->failed()) {
                 $this->inferenceAvailable = false;
-                Log::error('Inference service error', ['body' => $response->body()]);
+                Log::error('Inference service error', ['body' => $response?->body()]);
 
                 return $this->localInferOrFallback($preprocessed);
             }
 
+            $this->inferenceAvailable = true;
+
             return $response->json();
-        } catch (ConnectionException $e) {
-            if (str_contains(strtolower($e->getMessage()), 'timed out')) {
-                try {
-                    $response = Http::connectTimeout(5)
-                        ->timeout(max($this->timeout, $this->coldStartTimeout))
-                        ->withHeaders($this->authHeaders())
-                        ->post($this->inferenceUrl.'/infer', $preprocessed);
-
-                    if ($response->successful()) {
-                        $this->inferenceAvailable = true;
-
-                        return $response->json();
-                    }
-                } catch (\Exception) {
-                }
-            }
-
-            $this->inferenceAvailable = false;
-            Log::warning('Inference service unreachable, using fallback', ['error' => $e->getMessage()]);
-
-            return $this->localInferOrFallback($preprocessed);
         } catch (\Exception $e) {
             $this->inferenceAvailable = false;
             Log::warning('Inference service error, using fallback', ['error' => $e->getMessage()]);
