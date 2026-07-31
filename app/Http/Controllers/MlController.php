@@ -45,6 +45,26 @@ class MlController extends Controller
         })->afterResponse();
     }
 
+    /**
+     * Fresh (uncached) health snapshot — polled every few seconds by the
+     * "waking up" indicator on the status page, so it can't lag behind the
+     * 15-30s cache ml.nav-health uses for the topbar dot.
+     */
+    public function wakeStatus()
+    {
+        return response()->json($this->ml->healthCheck());
+    }
+
+    /**
+     * Ping both Python services to trigger Render waking a sleeping
+     * container, without waiting through a full cold start here — the
+     * caller polls wakeStatus() separately to watch for it coming online.
+     */
+    public function wake()
+    {
+        return response()->json($this->ml->pingToWake());
+    }
+
     public function status()
     {
         $health = $this->ml->healthCheck();
@@ -206,6 +226,7 @@ class MlController extends Controller
         Cache::put("{$cacheKey}:total", count($seniorIds), now()->addHours(2));
         Cache::put("{$cacheKey}:processed", 0, now()->addHours(2));
         Cache::put("{$cacheKey}:failed", 0, now()->addHours(2));
+        Cache::put("{$cacheKey}:fallback", 0, now()->addHours(2));
 
         // NEW — record when the last full batch was started, shown on the batch page.
         Cache::put('ml_last_batch_started', now(), now()->addDays(90));
@@ -244,6 +265,7 @@ class MlController extends Controller
         $total = (int) Cache::get("{$cacheKey}:total", $batch->totalJobs * 100);
         $processed = (int) Cache::get("{$cacheKey}:processed", 0);
         $failed = (int) Cache::get("{$cacheKey}:failed", 0);
+        $fallback = (int) Cache::get("{$cacheKey}:fallback", 0);
 
         // When the batch is finished the cache counters may lag the last job's
         // increment (file cache is not atomic). Use the batch's own counters as
@@ -259,6 +281,7 @@ class MlController extends Controller
             'total' => $total,
             'processed' => $processed,
             'failed' => $failed,
+            'fallback' => $fallback,
             'pending_jobs' => $batch->pendingJobs,
             'progress' => $total > 0 ? round($processed / $total * 100) : 0,
         ]);
@@ -309,6 +332,7 @@ class MlController extends Controller
             'cluster_name' => $result->cluster_name,
             'composite_risk' => $result->composite_risk,
             'processed_at' => $result->processed_at?->timestamp,
+            'prediction_source' => $result->prediction_source,
         ]);
     }
 }

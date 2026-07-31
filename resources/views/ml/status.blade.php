@@ -8,7 +8,55 @@
     {{-- Mode banner --}}
     @php $mode = $health['mode'] ?? 'php_fallback'; @endphp
 
-    <div x-data="{ stopOpen: false, restartOpen: false }">
+    <div x-data="{
+            stopOpen: false, restartOpen: false,
+            waking: false, wakeDone: false, wakeGaveUp: false, wakeElapsed: 0,
+            wakeTicker: null, wakePoller: null,
+            wakeStatusUrl: '{{ route('ml.wake-status') }}',
+            wakeUrl: '{{ route('ml.wake') }}',
+            csrfToken: '{{ csrf_token() }}',
+            wakeMaxSeconds: 180,
+            startWake() {
+                if (this.waking) return;
+                this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeElapsed = 0;
+                fetch(this.wakeUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' }
+                }).catch(() => {});
+                this.wakeTicker = setInterval(() => this.wakeElapsed++, 1000);
+                this.pollWake();
+            },
+            pollWake() {
+                this.wakePoller = setInterval(() => {
+                    if (this.wakeElapsed >= this.wakeMaxSeconds) {
+                        this.stopWake();
+                        this.wakeGaveUp = true;
+                        return;
+                    }
+                    fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.mode === 'http') {
+                                this.stopWake();
+                                this.wakeDone = true;
+                                setTimeout(() => location.reload(), 1200);
+                            }
+                        })
+                        .catch(() => {});
+                }, 3000);
+            },
+            stopWake() {
+                this.waking = false;
+                clearInterval(this.wakeTicker);
+                clearInterval(this.wakePoller);
+            },
+            fmt(s) {
+                const m = Math.floor(s / 60), sec = s % 60;
+                return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+            }
+         }"
+         x-init="if (@js($mode !== 'http')) startWake()"
+    >
         <div class="card">
             <div class="card-body flex items-center gap-4">
                 <span class="flex-shrink-0 status-dot
@@ -50,13 +98,39 @@
                      (PowerShell) — fundamentally Windows-only, see
                      MlService::localServiceControlAvailable(). On the hosted
                      deployment osca-preprocess/osca-inference are independent
-                     Render services, so there's nothing local to start/stop here;
-                     showing the buttons anyway just produced a confusing failure
-                     pointing at a log file this container doesn't have. --}}
-                <div class="text-xs text-ink-400 max-w-xs text-right flex-shrink-0">
-                    Start/Stop/Restart controls are for local development only. On the hosted
-                    deployment these run as independent Render services, managed from the
-                    Render dashboard — their sleep/wake is already handled gracefully above.
+                     Render services with no local process to start/stop — instead,
+                     "Wake up ML services" pings each one's /health endpoint, which
+                     is all it takes to trigger Render waking a sleeping free-tier
+                     container (see MlService::pingToWake()). Auto-fires on load
+                     when this page's initial $mode wasn't 'http'. --}}
+                <div class="text-right flex-shrink-0 max-w-xs">
+                    <template x-if="!waking && !wakeDone && !wakeGaveUp">
+                        <div>
+                            <button type="button" @click="startWake()" class="btn btn-secondary">Wake up ML services</button>
+                            <p class="text-xs text-ink-400 mt-2">
+                                Independent Render services — sleep/wake happens automatically, or
+                                trigger it proactively here instead of eating the wait on your next request.
+                            </p>
+                        </div>
+                    </template>
+                    <template x-if="waking">
+                        <div class="flex items-center justify-end gap-2 text-sm text-info-700">
+                            <svg class="w-4 h-4 animate-spin flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            <span>Waking up services&hellip; <span x-text="fmt(wakeElapsed)" class="font-mono"></span> <span class="text-ink-400">(usually ~2 min)</span></span>
+                        </div>
+                    </template>
+                    <template x-if="wakeDone">
+                        <div class="flex items-center justify-end gap-1.5 text-sm text-low-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <span>Services are online &mdash; refreshing&hellip;</span>
+                        </div>
+                    </template>
+                    <template x-if="wakeGaveUp">
+                        <div class="text-sm text-high-700">
+                            <p>Still waking up &mdash; taking longer than usual.</p>
+                            <button type="button" @click="startWake()" class="btn btn-ghost text-xs mt-1">Try again</button>
+                        </div>
+                    </template>
                 </div>
                 @elseif ($mode !== 'http')
                 <form method="POST" action="{{ route('ml.start') }}">

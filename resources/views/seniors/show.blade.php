@@ -41,21 +41,32 @@
             @endif
 
             <div x-data="{
-                    loading: false, done: false, err: '',
+                    loading: false, done: false, err: '', fallbackUsed: false,
                     pollTimer: null, pollCount: 0, pollMax: 60,
+                    elapsed: 0, elapsedTimer: null, coldStartLikely: false,
                     baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
                     run() {
                         this.loading = true; this.err = ''; this.pollCount = 0;
+                        this.done = false; this.fallbackUsed = false;
+                        this.elapsed = 0; this.coldStartLikely = false;
+                        this.elapsedTimer = setInterval(() => this.elapsed++, 1000);
+                        // Best-effort, doesn't block run() — just lets us show a
+                        // more confident a-service-is-asleep message right away
+                        // instead of only guessing from elapsed time below.
+                        fetch('{{ route('ml.wake-status') }}', { headers: { 'Accept': 'application/json' } })
+                            .then(r => r.json())
+                            .then(d => { if (d.mode !== 'http') this.coldStartLikely = true; })
+                            .catch(() => {});
                         fetch('{{ route('ml.run.single', $senior) }}', {
                             method: 'POST',
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
                         })
                         .then(r => r.json())
                         .then(d => {
-                            if (d.error) { this.err = d.error; this.loading = false; return; }
+                            if (d.error) { this.err = d.error; this.loading = false; clearInterval(this.elapsedTimer); return; }
                             this.poll();
                         })
-                        .catch(() => { this.err = 'Request failed.'; this.loading = false; });
+                        .catch(() => { this.err = 'Request failed.'; this.loading = false; clearInterval(this.elapsedTimer); });
                     },
                     poll() {
                         this.pollTimer = setInterval(() => {
@@ -69,6 +80,7 @@
                                 // still-processing banner (driven by
                                 // ml_queued_at) instead of guessing here.
                                 clearInterval(this.pollTimer);
+                                clearInterval(this.elapsedTimer);
                                 location.reload();
                                 return;
                             }
@@ -79,12 +91,18 @@
                             .then(d => {
                                 if (d.ready && d.processed_at && d.processed_at > this.baseTs) {
                                     clearInterval(this.pollTimer);
+                                    clearInterval(this.elapsedTimer);
                                     this.done = true;
+                                    this.fallbackUsed = d.prediction_source === 'fallback';
                                     setTimeout(() => location.reload(), 800);
                                 }
                             })
                             .catch(() => {});
                         }, 3000);
+                    },
+                    fmt(s) {
+                        const m = Math.floor(s / 60), sec = s % 60;
+                        return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
                     }
                 }">
                 <button @click="run()" :disabled="loading || done" class="btn btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
@@ -94,8 +112,11 @@
                             Analyzing…
                         </span>
                     </template>
-                    <template x-if="done">
+                    <template x-if="done && !fallbackUsed">
                         <span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Done — reloading…</span>
+                    </template>
+                    <template x-if="done && fallbackUsed">
+                        <span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Done (fallback used) — reloading…</span>
                     </template>
                     <template x-if="!loading && !done">
                         <span class="inline-flex items-center gap-1.5">
@@ -103,6 +124,12 @@
                         </span>
                     </template>
                 </button>
+                <p x-show="loading && !done && (coldStartLikely || elapsed >= 8)" x-cloak
+                   class="text-xs text-info-700 mt-1 text-right">
+                    <span x-show="coldStartLikely">A service looks asleep — this can take up to ~2 minutes while it wakes up.</span>
+                    <span x-show="!coldStartLikely">Still working — if a service was asleep, this can take up to ~2 minutes.</span>
+                    (<span x-text="fmt(elapsed)"></span> elapsed)
+                </p>
                 <p x-show="err" x-text="err" x-cloak class="text-xs text-critical-700 mt-1 text-right"></p>
             </div>
 

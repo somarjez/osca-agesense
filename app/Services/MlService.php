@@ -281,6 +281,35 @@ class MlService
     }
 
     /**
+     * Fire a short, best-effort ping at both Python services' /health
+     * endpoints to trigger Render waking a sleeping free-tier container —
+     * any request does that, we don't need a full response. Used by the
+     * "Wake up ML services" action; the actual work
+     * (postWithColdStartRetry()) still handles waiting out a cold start
+     * when a real request needs to.
+     *
+     * @return array{preprocess: bool, inference: bool} whether each ping got
+     *         a response within the short budget — false just means still
+     *         asleep when we gave up waiting, not that the wake failed to
+     *         trigger.
+     */
+    public function pingToWake(): array
+    {
+        $ping = function (string $url): bool {
+            try {
+                return Http::timeout(5)->connectTimeout(3)->get($url.'/health')->successful();
+            } catch (\Exception) {
+                return false;
+            }
+        };
+
+        return [
+            'preprocess' => $ping($this->preprocessUrl),
+            'inference' => $ping($this->inferenceUrl),
+        ];
+    }
+
+    /**
      * Whether the Start/Stop/Restart controls on the Service Status page can
      * do anything here. startServices()/stopServices() below shell out to
      * python/start_services.ps1 / stop_services.ps1 — PowerShell, so this is
