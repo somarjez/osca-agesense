@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessMlBatch;
 use App\Jobs\ProcessMlSingle;
+use App\Jobs\WakeMlServices;
 use App\Models\ActivityLog;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
@@ -31,13 +32,25 @@ class MlController extends Controller
     }
 
     /**
-     * Ping both Python services to trigger Render waking a sleeping
-     * container, without waiting through a full cold start here — the
-     * caller polls wakeStatus() separately to watch for it coming online.
+     * Trigger Render waking both sleeping Python services. Dispatched as a
+     * queued job rather than run inline: MlService::pingToWake() now waits
+     * patiently (up to a few minutes) for each service to actually come up
+     * — a short inline ping was found to be genuinely insufficient to wake
+     * a fully-cold Render free-tier container (the request needs real time
+     * to stay open, not just to be sent), so this can no longer be a fast
+     * synchronous call. The caller polls wakeStatus() separately to watch
+     * for the services coming online; it doesn't wait on this job at all.
      */
     public function wake()
     {
-        return response()->json($this->ml->pingToWake());
+        WakeMlServices::dispatch();
+
+        // Generous budget — this job can legitimately run for minutes
+        // waking a fully-cold service, unlike the single-senior ML jobs
+        // drainQueueAfterResponse() is more commonly used for.
+        $this->drainQueueAfterResponse(260);
+
+        return response()->json(['queued' => true]);
     }
 
     public function status()
