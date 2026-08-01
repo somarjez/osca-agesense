@@ -15,6 +15,8 @@
             wakeTicker: null, wakePoller: null, wakeStartedAt: null,
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
+            preprocessUrl: '{{ $preprocessUrl }}',
+            inferenceUrl: '{{ $inferenceUrl }}',
             csrfToken: '{{ csrf_token() }}',
             // Cold boots on Render's free tier are documented to range
             // ~122s-180s+ per service, and the Laravel app itself can
@@ -45,6 +47,15 @@
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' }
                 }).catch(() => {});
+                // Direct browser-side pings, alongside the server-side one
+                // above — confirmed in production that a real browser
+                // visiting these exact URLs reliably wakes a fully-cold
+                // Render free-tier container, independent of any
+                // server-side timeout/queue behavior. no-cors: cross-origin,
+                // and we don't need to read the response — just need the
+                // request to reach Render.
+                fetch(this.preprocessUrl + '/health', { mode: 'no-cors' }).catch(() => {});
+                fetch(this.inferenceUrl + '/health', { mode: 'no-cors' }).catch(() => {});
                 this.wakeTicker = setInterval(() => {
                     // Date.now()-based, not a naive counter — a throttled or
                     // delayed tick still shows the true elapsed wall-clock

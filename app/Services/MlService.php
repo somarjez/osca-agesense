@@ -69,6 +69,23 @@ class MlService
     }
 
     /**
+     * Exposed so the "Wake up ML services" UI can fire a direct
+     * client-side ping alongside the server-side one — see
+     * status.blade.php's startWake(). /health is intentionally
+     * unauthenticated, so there's nothing sensitive in surfacing the
+     * hostname to already-authenticated staff.
+     */
+    public function preprocessUrl(): string
+    {
+        return $this->preprocessUrl;
+    }
+
+    public function inferenceUrl(): string
+    {
+        return $this->inferenceUrl;
+    }
+
+    /**
      * Run the full pipeline for a single senior citizen.
      * Uses combined local mode (1 subprocess instead of 2) when Flask is unavailable.
      */

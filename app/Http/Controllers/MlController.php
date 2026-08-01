@@ -83,8 +83,10 @@ class MlController extends Controller
         ];
 
         $canControlLocalServices = $this->ml->localServiceControlAvailable();
+        $preprocessUrl = $this->ml->preprocessUrl();
+        $inferenceUrl = $this->ml->inferenceUrl();
 
-        return view('ml.status', compact('health', 'stats', 'canControlLocalServices'));
+        return view('ml.status', compact('health', 'stats', 'canControlLocalServices', 'preprocessUrl', 'inferenceUrl'));
     }
 
     public function startServices()
