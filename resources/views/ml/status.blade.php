@@ -10,23 +10,47 @@
 
     <div x-data="{
             stopOpen: false, restartOpen: false,
-            waking: false, wakeDone: false, wakeGaveUp: false, wakeElapsed: 0,
-            wakeTicker: null, wakePoller: null,
+            waking: false, wakeDone: false, wakeGaveUp: false, wakeError: null,
+            wakeElapsed: 0, wakeFailCount: 0,
+            wakeTicker: null, wakePoller: null, wakeStartedAt: null,
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
             csrfToken: '{{ csrf_token() }}',
-            // 240s undercounted observed inference cold starts (loads the
-            // actual ML model, unlike preprocess) — widened so the poll
-            // doesn't give up while the service is still genuinely booting.
-            wakeMaxSeconds: 300,
+            // Cold boots on Render's free tier are documented to range
+            // ~122s-180s+ per service, and the Laravel app itself can
+            // separately need its own ~40-90s cold start before this page
+            // (and this countdown) even loads — widened further so the
+            // ceiling has real headroom over the slow end.
+            wakeMaxSeconds: 420,
+            initWake() {
+                // Backgrounded/locked tabs throttle or fully suspend
+                // setInterval, so a status transition to online that
+                // happens while hidden can otherwise sit unnoticed until
+                // the next (possibly very late) timer tick. Re-check the
+                // moment the tab is foregrounded again instead of waiting.
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden && this.waking) this.checkStatus();
+                });
+            },
             startWake() {
                 if (this.waking) return;
-                this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeElapsed = 0;
+                this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeError = null;
+                this.wakeStartedAt = Date.now(); this.wakeElapsed = 0; this.wakeFailCount = 0;
+                // A failed/timed-out ping here doesn't necessarily mean the
+                // wake didn't trigger server-side (see MlService::pingToWake()
+                // — Render only needs the request to arrive, not a full
+                // response), so this alone isn't treated as fatal. The poll
+                // below is the reliable, repeated signal.
                 fetch(this.wakeUrl, {
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' }
                 }).catch(() => {});
-                this.wakeTicker = setInterval(() => this.wakeElapsed++, 1000);
+                this.wakeTicker = setInterval(() => {
+                    // Date.now()-based, not a naive counter — a throttled or
+                    // delayed tick still shows the true elapsed wall-clock
+                    // time once it fires, instead of drifting low.
+                    this.wakeElapsed = Math.floor((Date.now() - this.wakeStartedAt) / 1000);
+                }, 1000);
                 this.pollWake();
             },
             pollWake() {
@@ -36,17 +60,37 @@
                         this.wakeGaveUp = true;
                         return;
                     }
-                    fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
-                        .then(r => r.json())
-                        .then(d => {
-                            if (d.mode === 'http') {
-                                this.stopWake();
-                                this.wakeDone = true;
-                                setTimeout(() => location.reload(), 1200);
-                            }
-                        })
-                        .catch(() => {});
+                    this.checkStatus();
                 }, 3000);
+            },
+            checkStatus() {
+                fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(r => {
+                        if (!r.ok) throw new Error('status check failed: ' + r.status);
+                        return r.json();
+                    })
+                    .then(d => {
+                        this.wakeFailCount = 0;
+                        if (d.mode === 'http') {
+                            this.stopWake();
+                            this.wakeDone = true;
+                            setTimeout(() => location.reload(), 1200);
+                        }
+                    })
+                    .catch(() => {
+                        this.wakeFailCount++;
+                        // Tolerate a couple of transient blips (a single
+                        // failed poll during a multi-minute wait shouldn't
+                        // abort the whole flow) but a *sustained* run of
+                        // failures — expired session, lost connection, rate
+                        // limited — is a reliable signal worth surfacing
+                        // instead of silently counting with nothing actually
+                        // checking anymore.
+                        if (this.wakeFailCount >= 3) {
+                            this.stopWake();
+                            this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
+                        }
+                    });
             },
             stopWake() {
                 this.waking = false;
@@ -58,7 +102,7 @@
                 return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
             }
          }"
-         x-init="if (@js($mode !== 'http')) startWake()"
+         x-init="initWake(); if (@js($mode !== 'http')) startWake()"
     >
         <div class="card">
             <div class="card-body flex items-center gap-4">
@@ -107,7 +151,7 @@
                      container (see MlService::pingToWake()). Auto-fires on load
                      when this page's initial $mode wasn't 'http'. --}}
                 <div class="text-right flex-shrink-0 max-w-xs">
-                    <template x-if="!waking && !wakeDone && !wakeGaveUp">
+                    <template x-if="!waking && !wakeDone && !wakeGaveUp && !wakeError">
                         <div>
                             <button type="button" @click="startWake()" class="btn btn-secondary">Wake up ML services</button>
                             <p class="text-xs text-ink-400 mt-2">
@@ -132,6 +176,15 @@
                         <div class="text-sm text-high-700">
                             <p>Still waking up &mdash; taking longer than usual.</p>
                             <button type="button" @click="startWake()" class="btn btn-ghost text-xs mt-1">Try again</button>
+                        </div>
+                    </template>
+                    <template x-if="wakeError">
+                        <div class="flex items-start justify-end gap-1.5 text-sm text-critical-700 dark:text-[#e08070]">
+                            <x-heroicon-o-exclamation-triangle class="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p x-text="wakeError"></p>
+                                <button type="button" @click="startWake()" class="btn btn-ghost text-xs mt-1">Try again</button>
+                            </div>
                         </div>
                     </template>
                 </div>

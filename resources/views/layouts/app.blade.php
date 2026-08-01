@@ -320,6 +320,11 @@
                    :title="title">
                     <span class="status-dot"
                           :class="{ 'status-dot-ok': dot === 'ok', 'status-dot-warn': dot === 'warn', 'status-dot-err': dot === 'err' }"></span>
+                    {{-- Non-color signal alongside the dot — a colorblind or
+                         inattentive user shouldn't have to rely on red vs.
+                         green alone to notice services are down. --}}
+                    <x-heroicon-o-exclamation-triangle x-show="dot === 'err'" x-cloak
+                                                        class="w-3.5 h-3.5 text-critical-600 dark:text-[#e08070] flex-shrink-0" />
                     <span class="font-medium hidden sm:inline text-[11.5px]">Services</span>
                 </a>
 
