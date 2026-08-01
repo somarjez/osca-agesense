@@ -281,36 +281,40 @@ class MlService
     }
 
     /**
-     * Fire a short, best-effort ping at both Python services' /health
-     * endpoints to trigger Render waking a sleeping free-tier container —
-     * any request does that, we don't need a full response. Used by the
-     * "Wake up ML services" action; the actual work
-     * (postWithColdStartRetry()) still handles waiting out a cold start
-     * when a real request needs to.
+     * Wake both Python services and wait (round-robin, patiently) for each
+     * to actually come up, instead of a single short-timeout GET.
      *
-     * @return array{preprocess: bool, inference: bool} whether each ping got
-     *                                                  a response within the short budget — false just means still
-     *                                                  asleep when we gave up waiting, not that the wake failed to
-     *                                                  trigger.
+     * A prior version of this fired one `Http::timeout(5)->connectTimeout(3)`
+     * GET per service and treated the ping as "done" whether or not it got a
+     * response. In production that turned out to be genuinely insufficient
+     * to wake a *fully* cold Render free-tier container: a real browser
+     * visiting the same /health URL — which just waits, with no short
+     * timeout — reliably woke the service, but this method's 5s budget did
+     * not, repeatedly, even though it targets the identical URL. The
+     * working theory (consistent with what real prediction traffic already
+     * relies on via postWithColdStartRetry(), which uses the app's much
+     * longer $timeout/$coldStartTimeout budgets and does successfully wake
+     * services on demand) is that a client that gives up too quickly denies
+     * Render's boot the time it needs. This method now retries each service
+     * on its own short per-attempt timeout, round-robining between the two
+     * so both get repeated wake-triggering requests early rather than
+     * fully blocking on one before ever touching the other, until each
+     * responds or $deadlineSeconds elapses. Intended to run inside a queued
+     * job (see WakeMlServices) rather than inline in an HTTP request, since
+     * a full wait can take minutes.
+     *
+     * @return array{preprocess: bool, inference: bool} whether each service
+     *                                                  responded successfully before the deadline.
      */
-    public function pingToWake(): array
+    public function pingToWake(int $deadlineSeconds = 240): array
     {
-        $ping = function (string $url): bool {
-            try {
-                return Http::timeout(5)->connectTimeout(3)->get($url.'/health')->successful();
-            } catch (\Exception) {
-                return false;
-            }
-        };
-
         // On Render, PYTHON_PREPROCESS_URL / PYTHON_INFERENCE_URL must be set
         // to the services' onrender.com hostnames — without them, the
         // base_url:port fallback in the constructor resolves to
         // 127.0.0.1:5001/5002, which is loopback *inside the Laravel
         // container* and can never reach the real Python services. That
-        // failure mode is silent (the ping just times out and returns
-        // false), so flag it loudly here rather than let this button quietly
-        // do nothing in production.
+        // failure mode is silent (every attempt just times out), so flag it
+        // loudly here rather than let this action quietly do nothing.
         if (app()->environment('production')) {
             if ($this->isLoopback($this->preprocessUrl)) {
                 Log::warning('MlService::pingToWake — preprocess URL resolves to loopback in production; set PYTHON_PREPROCESS_URL', [
@@ -324,10 +328,29 @@ class MlService
             }
         }
 
-        return [
-            'preprocess' => $ping($this->preprocessUrl),
-            'inference' => $ping($this->inferenceUrl),
-        ];
+        $urls = ['preprocess' => $this->preprocessUrl, 'inference' => $this->inferenceUrl];
+        $done = ['preprocess' => false, 'inference' => false];
+        $deadline = microtime(true) + $deadlineSeconds;
+
+        while (microtime(true) < $deadline && in_array(false, $done, true)) {
+            foreach ($urls as $key => $url) {
+                if ($done[$key]) {
+                    continue;
+                }
+                try {
+                    if (Http::connectTimeout(8)->timeout(15)->get($url.'/health')->successful()) {
+                        $done[$key] = true;
+                    }
+                } catch (\Exception) {
+                    // Still booting, or a transient network hiccup — keep retrying.
+                }
+            }
+            if (in_array(false, $done, true) && microtime(true) < $deadline) {
+                sleep(5);
+            }
+        }
+
+        return $done;
     }
 
     /**
