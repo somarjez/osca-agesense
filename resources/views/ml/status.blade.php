@@ -11,7 +11,7 @@
     <div x-data="{
             stopOpen: false, restartOpen: false,
             waking: false, wakeDone: false, wakeGaveUp: false, wakeError: null,
-            wakeElapsed: 0, wakeFailCount: 0,
+            wakeElapsed: 0, wakeFailCount: 0, wakeRequestInFlight: false,
             wakeTicker: null, wakePoller: null, wakeStartedAt: null,
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
@@ -38,22 +38,18 @@
                 if (this.waking) return;
                 this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeError = null;
                 this.wakeStartedAt = Date.now(); this.wakeElapsed = 0; this.wakeFailCount = 0;
-                // A failed/timed-out ping here doesn't necessarily mean the
-                // wake didn't trigger server-side (see MlService::pingToWake()
-                // — Render only needs the request to arrive, not a full
-                // response), so this alone isn't treated as fatal. The poll
-                // below is the reliable, repeated signal.
-                fetch(this.wakeUrl, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' }
-                }).catch(() => {});
-                // Direct browser-side pings, alongside the server-side one
-                // above — confirmed in production that a real browser
+                // Bonus fast path only, not depended on — a real browser
                 // visiting these exact URLs reliably wakes a fully-cold
-                // Render free-tier container, independent of any
-                // server-side timeout/queue behavior. no-cors: cross-origin,
-                // and we don't need to read the response — just need the
-                // request to reach Render.
+                // Render free-tier container, but only on a device whose
+                // network/browser can actually reach *.onrender.com
+                // directly. That's not guaranteed (a device-side firewall,
+                // DNS filter, or ad-blocker can silently drop it — found in
+                // production to make the button appear to work on some
+                // devices and silently time out on others, with Render
+                // never receiving a single request from the failing
+                // device). wakeLoop() below is the mechanism this doesn't
+                // depend on: it runs server-side, from this app's own
+                // network egress.
                 fetch(this.preprocessUrl + '/health', { mode: 'no-cors' }).catch(() => {});
                 fetch(this.inferenceUrl + '/health', { mode: 'no-cors' }).catch(() => {});
                 this.wakeTicker = setInterval(() => {
@@ -62,6 +58,7 @@
                     // time once it fires, instead of drifting low.
                     this.wakeElapsed = Math.floor((Date.now() - this.wakeStartedAt) / 1000);
                 }, 1000);
+                this.wakeLoop();
                 this.pollWake();
             },
             pollWake() {
@@ -72,7 +69,45 @@
                         return;
                     }
                     this.checkStatus();
+                    this.wakeLoop();
                 }, 3000);
+            },
+            // Repeatedly POSTs /ml/wake — each call is a single bounded
+            // (~15s) server-side wake attempt (MlService::wakeAttempt()).
+            // wakeRequestInFlight guards against overlapping calls; since
+            // this also gets called every 3s tick from pollWake(), a call
+            // that's still in flight is simply skipped rather than piling
+            // up, so the real cadence is paced by however long each
+            // attempt actually took (at least 3s apart either way).
+            wakeLoop() {
+                if (this.wakeRequestInFlight || !this.waking) return;
+                this.wakeRequestInFlight = true;
+                fetch(this.wakeUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' }
+                })
+                .then(r => {
+                    if (!r.ok) { const e = new Error('wake request failed: ' + r.status); e.httpError = true; throw e; }
+                    return r.json();
+                })
+                .then(d => {
+                    this.wakeRequestInFlight = false;
+                    if (d.ready && this.waking) this.finishWake();
+                })
+                .catch(err => {
+                    this.wakeRequestInFlight = false;
+                    if (err && err.httpError) {
+                        // The app itself rejected the request (expired
+                        // session, rate limited, server error) — distinct
+                        // from still booting, surface it instead of
+                        // silently retrying forever.
+                        this.stopWake();
+                        this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
+                    }
+                    // A thrown network error (not httpError) is a transient
+                    // blip reaching our own server — tolerated, the next 3s
+                    // tick retries.
+                });
             },
             checkStatus() {
                 fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
@@ -82,11 +117,7 @@
                     })
                     .then(d => {
                         this.wakeFailCount = 0;
-                        if (d.mode === 'http') {
-                            this.stopWake();
-                            this.wakeDone = true;
-                            setTimeout(() => location.reload(), 1200);
-                        }
+                        if (d.mode === 'http') this.finishWake();
                     })
                     .catch(() => {
                         this.wakeFailCount++;
@@ -102,6 +133,11 @@
                             this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
                         }
                     });
+            },
+            finishWake() {
+                this.stopWake();
+                this.wakeDone = true;
+                setTimeout(() => location.reload(), 1200);
             },
             stopWake() {
                 this.waking = false;
@@ -159,7 +195,7 @@
                      Render services with no local process to start/stop — instead,
                      "Wake up ML services" pings each one's /health endpoint, which
                      is all it takes to trigger Render waking a sleeping free-tier
-                     container (see MlService::pingToWake()). Auto-fires on load
+                     container (see MlService::wakeAttempt()). Auto-fires on load
                      when this page's initial $mode wasn't 'http'. --}}
                 <div class="text-right flex-shrink-0 max-w-xs">
                     <template x-if="!waking && !wakeDone && !wakeGaveUp && !wakeError">

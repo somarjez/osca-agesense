@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessMlBatch;
 use App\Jobs\ProcessMlSingle;
-use App\Jobs\WakeMlServices;
 use App\Models\ActivityLog;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
@@ -32,25 +31,27 @@ class MlController extends Controller
     }
 
     /**
-     * Trigger Render waking both sleeping Python services. Dispatched as a
-     * queued job rather than run inline: MlService::pingToWake() now waits
-     * patiently (up to a few minutes) for each service to actually come up
-     * — a short inline ping was found to be genuinely insufficient to wake
-     * a fully-cold Render free-tier container (the request needs real time
-     * to stay open, not just to be sent), so this can no longer be a fast
-     * synchronous call. The caller polls wakeStatus() separately to watch
-     * for the services coming online; it doesn't wait on this job at all.
+     * Trigger Render waking both sleeping Python services — a single bounded
+     * (~15s) synchronous attempt via MlService::wakeAttempt(). Runs
+     * server-side, from this container's own network egress, so it wakes
+     * Render even when the *client* device's network/browser blocks direct
+     * requests to *.onrender.com (the client also fires its own direct
+     * fetch() as a bonus fast path, but that one silently does nothing on a
+     * device where such a request is blocked — see wakeAttempt()'s
+     * docblock). The client re-POSTs this in a loop while waking, so a
+     * cold boot gets covered by several bounded attempts in a row rather
+     * than one long-held request. `no.time.limit` on this route group
+     * means PHP's own execution limit doesn't cut this short.
      */
     public function wake()
     {
-        WakeMlServices::dispatch();
+        $result = $this->ml->wakeAttempt();
 
-        // Generous budget — this job can legitimately run for minutes
-        // waking a fully-cold service, unlike the single-senior ML jobs
-        // drainQueueAfterResponse() is more commonly used for.
-        $this->drainQueueAfterResponse(260);
-
-        return response()->json(['queued' => true]);
+        return response()->json([
+            'preprocess' => $result['preprocess'],
+            'inference' => $result['inference'],
+            'ready' => ! in_array(false, $result, true),
+        ]);
     }
 
     public function status()

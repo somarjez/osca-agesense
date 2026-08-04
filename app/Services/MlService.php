@@ -298,32 +298,35 @@ class MlService
     }
 
     /**
-     * Wake both Python services and wait (round-robin, patiently) for each
-     * to actually come up, instead of a single short-timeout GET.
+     * One bounded, concurrent wake attempt — a single health GET per
+     * service, fired together via Http::pool() so the total wall-clock
+     * hold is ~$budgetSeconds, not 2x.
      *
-     * A prior version of this fired one `Http::timeout(5)->connectTimeout(3)`
-     * GET per service and treated the ping as "done" whether or not it got a
-     * response. In production that turned out to be genuinely insufficient
-     * to wake a *fully* cold Render free-tier container: a real browser
-     * visiting the same /health URL — which just waits, with no short
-     * timeout — reliably woke the service, but this method's 5s budget did
-     * not, repeatedly, even though it targets the identical URL. The
-     * working theory (consistent with what real prediction traffic already
-     * relies on via postWithColdStartRetry(), which uses the app's much
-     * longer $timeout/$coldStartTimeout budgets and does successfully wake
-     * services on demand) is that a client that gives up too quickly denies
-     * Render's boot the time it needs. This method now retries each service
-     * on its own short per-attempt timeout, round-robining between the two
-     * so both get repeated wake-triggering requests early rather than
-     * fully blocking on one before ever touching the other, until each
-     * responds or $deadlineSeconds elapses. Intended to run inside a queued
-     * job (see WakeMlServices) rather than inline in an HTTP request, since
-     * a full wait can take minutes.
+     * Meant to be called repeatedly rather than once (see
+     * MlController::wake(), which the client re-POSTs in a loop while
+     * waking): a cold Render service starts booting the instant the
+     * request reaches Render's edge, even if this particular attempt
+     * times out before the boot finishes, so repeated bounded attempts
+     * accumulate real progress across the full ~122-180s+ documented
+     * cold-boot range — the same repeated-patient-request pattern
+     * postWithColdStartRetry() already uses successfully for real
+     * prediction traffic.
+     *
+     * Deliberately runs server-side, from the Laravel container's own
+     * network egress. The wake button also fires a direct fetch() to
+     * *.onrender.com from the *client's* browser as a bonus fast path,
+     * but that one depends on the clicking device's own network being
+     * able to reach Render directly — a device-side firewall, DNS
+     * filter, or ad-blocker can silently drop it with no visible error.
+     * In production that made the wake button work reliably on some
+     * devices and silently time out on others, even though Render never
+     * received a single request from the failing device. This method is
+     * the fallback that doesn't have that dependency.
      *
      * @return array{preprocess: bool, inference: bool} whether each service
-     *                                                  responded successfully before the deadline.
+     *                                                  responded successfully within this attempt's budget.
      */
-    public function pingToWake(int $deadlineSeconds = 240): array
+    public function wakeAttempt(int $budgetSeconds = 15): array
     {
         // On Render, PYTHON_PREPROCESS_URL / PYTHON_INFERENCE_URL must be set
         // to the services' onrender.com hostnames — without them, the
@@ -334,47 +337,33 @@ class MlService
         // loudly here rather than let this action quietly do nothing.
         if (app()->environment('production')) {
             if ($this->isLoopback($this->preprocessUrl)) {
-                Log::warning('MlService::pingToWake — preprocess URL resolves to loopback in production; set PYTHON_PREPROCESS_URL', [
+                Log::warning('MlService::wakeAttempt — preprocess URL resolves to loopback in production; set PYTHON_PREPROCESS_URL', [
                     'url' => $this->preprocessUrl,
                 ]);
             }
             if ($this->isLoopback($this->inferenceUrl)) {
-                Log::warning('MlService::pingToWake — inference URL resolves to loopback in production; set PYTHON_INFERENCE_URL', [
+                Log::warning('MlService::wakeAttempt — inference URL resolves to loopback in production; set PYTHON_INFERENCE_URL', [
                     'url' => $this->inferenceUrl,
                 ]);
             }
         }
 
-        $urls = ['preprocess' => $this->preprocessUrl, 'inference' => $this->inferenceUrl];
-        $done = ['preprocess' => false, 'inference' => false];
-        $deadline = microtime(true) + $deadlineSeconds;
+        $responses = Http::pool(fn ($pool) => [
+            $pool->as('preprocess')->connectTimeout(5)->timeout($budgetSeconds)->get($this->preprocessUrl.'/health'),
+            $pool->as('inference')->connectTimeout(5)->timeout($budgetSeconds)->get($this->inferenceUrl.'/health'),
+        ]);
 
-        while (microtime(true) < $deadline && in_array(false, $done, true)) {
-            foreach ($urls as $key => $url) {
-                if ($done[$key]) {
-                    continue;
-                }
-                try {
-                    if (Http::connectTimeout(8)->timeout(15)->get($url.'/health')->successful()) {
-                        $done[$key] = true;
-                    }
-                } catch (\Exception) {
-                    // Still booting, or a transient network hiccup — keep retrying.
-                }
-            }
-            if (in_array(false, $done, true) && microtime(true) < $deadline) {
-                sleep(5);
-            }
-        }
-
-        return $done;
+        return [
+            'preprocess' => $responses['preprocess'] instanceof Response && $responses['preprocess']->successful(),
+            'inference' => $responses['inference'] instanceof Response && $responses['inference']->successful(),
+        ];
     }
 
     /**
      * Whether $url's host is a loopback address — i.e. it can only ever
      * reach a service running inside the same container/host, never an
      * external one. Used to detect the PYTHON_PREPROCESS_URL /
-     * PYTHON_INFERENCE_URL misconfiguration described in pingToWake().
+     * PYTHON_INFERENCE_URL misconfiguration described in wakeAttempt().
      */
     private function isLoopback(string $url): bool
     {
