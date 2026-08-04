@@ -222,9 +222,12 @@ class MlController extends Controller
         Cache::put('ml_last_batch_started', now(), now()->addDays(90));
         Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
 
-        // See drainQueueAfterResponse() — 60s covers a typical small/medium
-        // batch; anything left over is picked up by the next cron tick.
-        $this->drainQueueAfterResponse(60);
+        // See drainQueueAfterResponse() — widened from 60s so more chunks of
+        // a large batch finish inline instead of waiting on the next cron
+        // tick; batchStatus() below also tops this up while the progress
+        // page is being actively polled. Anything still left over is picked
+        // up by the next cron tick regardless.
+        $this->drainQueueAfterResponse(150);
 
         return response()->json([
             'queued' => true,
@@ -263,6 +266,18 @@ class MlController extends Controller
         if ($batch->finished()) {
             $failed = $batch->failedJobs;
             $processed = max($processed, $total - $failed);
+        } else {
+            // The progress view polls this every 3s while a batch runs, which
+            // is effectively free traffic to nudge the queue along instead of
+            // waiting on the next cron tick — but firing a full drain on every
+            // single poll would stack up overlapping queue:work processes on
+            // Render's thin free-tier instance. Cache::add() is atomic, so
+            // only the poll that wins the lock triggers a drain; the ~10s
+            // cooldown matches the drain's own budget, keeping at most one
+            // running at a time.
+            if (Cache::add("{$cacheKey}:draining", true, now()->addSeconds(10))) {
+                $this->drainQueueAfterResponse(10);
+            }
         }
 
         return response()->json([
