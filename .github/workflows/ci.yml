@@ -100,8 +100,13 @@ jobs:
 
       - name: Check for debug statements left in code
         run: |
-          ! grep -rn --include="*.php" \
-            -e "dd(" -e "dump(" -e "var_dump(" -e "print_r(" \
+          # -P + negative lookbehind so this only matches dd(/dump(/etc as a
+          # standalone call, not as the tail of a longer identifier — a plain
+          # substring match on "dd(" also matches inside e.g. Cache::add(.
+          # Combined into one -e pattern: some grep versions reject multiple
+          # -e patterns together with -P.
+          ! grep -rnP --include="*.php" \
+            -e "(?<![A-Za-z0-9_])(dd|dump|var_dump|print_r)\(" \
             app/ routes/ \
           && echo "No debug statements found." \
           || (echo "ERROR: Debug statements found â€” remove before merging." && exit 1)
