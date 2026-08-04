@@ -421,5 +421,6 @@
 @livewireScripts
 @stack('scripts')
 <x-toast />
+<x-ml-service-guard />
 </body>
 </html>

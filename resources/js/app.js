@@ -1,4 +1,5 @@
 import './bootstrap'
+import './ml-service-guard'
 import { loadCharts, loadMaps } from './loaders'
 
 // Alpine.js is managed by Livewire 3's bundled copy — do NOT import or start it
