@@ -6,6 +6,7 @@ use App\Http\Requests\BulkUploadRequest;
 use App\Jobs\ProcessMlBatch;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
+use App\Support\Concerns\DrainsMlQueue;
 use App\Support\DateParser;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Bus;
@@ -17,6 +18,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class BulkUploadController extends Controller
 {
+    use DrainsMlQueue;
+
     // ── CSV column spec (mirrors OscaCsvSeeder) ───────────────────────────
 
     private const REQUIRED_COLUMNS = [
@@ -484,6 +487,13 @@ class BulkUploadController extends Controller
                 Cache::put("{$cacheKey}:failed", 0, now()->addHours(2));
                 Cache::put('ml_last_batch_started', now(), now()->addDays(90));
                 Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
+
+                // Unlike a manual Batch Assessment run, nothing else was going to
+                // touch this queue until the next cron tick (up to ~10 min away)
+                // — see drainQueueAfterResponse(). A larger budget than
+                // MlController::batchRun()'s 60s since an import can seed many
+                // more chunks at once; leftovers still fall through to the tick.
+                $this->drainQueueAfterResponse(150);
             } catch (\Throwable $mlEx) {
                 // Dispatch failure does not block the import — seniors are saved.
                 // Surface a warning so staff knows to run batch analysis manually.
