@@ -1,6 +1,6 @@
 <div
     class="space-y-7"
-    wire:poll.300s
+    wire:poll.300s.visible
     x-data
     x-init="$nextTick(() => window.dispatchEvent(new CustomEvent('osca:dashboard-hydrated')))"
 >
