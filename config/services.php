@@ -77,6 +77,17 @@ return [
         // finish inside the bounded window. Set false to fall back to
         // cron-only draining if this ever needs to be ruled out.
         'immediate_queue_drain' => env('ML_IMMEDIATE_QUEUE_DRAIN', true),
+        // Seniors per ProcessMlBatch job (BulkUploadController::upload(),
+        // MlController::batchRun()). Was hard-coded to 100 in both places —
+        // centralized here and lowered per docs/SCALING_TO_10K.md's carried-
+        // over tuning note. A 100-senior /batch_infer call routinely ran long
+        // enough to trip the read-timeout retry in postWithColdStartRetry()
+        // (since fixed to not retry on timeout — see that method's docblock),
+        // and a single failed/stalled chunk drops 100 seniors at once under
+        // allowFailures(). 25 finishes well inside PYTHON_TIMEOUT, stays
+        // clear of the Flask 5MB request-body ceiling, and caps the blast
+        // radius of one bad chunk to a quarter as many seniors.
+        'batch_chunk_size' => env('ML_BATCH_CHUNK_SIZE', 25),
     ],
 
     'overpass' => [
