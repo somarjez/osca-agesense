@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GisApiController;
 use App\Http\Controllers\HelpController;
 use App\Services\MlService;
+use App\Support\SeniorDataVersion;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,17 @@ Route::middleware(['auth'])->group(function () {
     // All authenticated roles
     Route::middleware('role:admin,encoder,viewer')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+        // Cheap freshness check for the dashboard — a single Cache::get, no
+        // DB query. Polled every ~15-20s by main-dashboard.blade.php so it
+        // can trigger a real Livewire refresh the moment ML results actually
+        // change, instead of waiting on the much wider wire:poll.300s
+        // backstop (kept wide deliberately — see that poll's own comment —
+        // to avoid the 6 dashboard charts re-animating on every tick).
+        Route::get('/dashboard/version-check', fn () => response()->json([
+            'version' => SeniorDataVersion::current(),
+        ]))->name('dashboard.version-check');
+
         Route::get('/help', HelpController::class)->name('help');
 
         // Cached ML nav-health status for the topbar dot, fetched async after

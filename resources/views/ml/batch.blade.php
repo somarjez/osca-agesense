@@ -32,6 +32,16 @@
             cacheKey: '',
             batchId: '',
             init() {
+                // poll() below has no bound (unlike the senior-profile pollers,
+                // which cap at pollMax) — it runs until the batch finishes or is
+                // cancelled, which can be many minutes. Without this, navigating
+                // away mid-run left it running on a detached component, and its
+                // unconditional location.reload() fired on whatever page the
+                // user had since moved to, arbitrarily late.
+                document.addEventListener('livewire:navigating', () => {
+                    clearInterval(this.timer);
+                    clearInterval(this.pollTimer);
+                });
                 @if ($resumeBatch)
                 // A batch was already in flight when this page loaded — e.g.
                 // bulk upload just redirected here, or staff reopened/reloaded

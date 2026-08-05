@@ -33,6 +33,12 @@
                 document.addEventListener('visibilitychange', () => {
                     if (!document.hidden && this.waking) this.checkStatus();
                 });
+                // wire:navigate keeps this running on a detached component
+                // after the user leaves the page — without this, navigating
+                // away mid-wake (up to wakeMaxSeconds later) fired
+                // finishWake()'s unconditional location.reload() on whatever
+                // page the user had since moved to.
+                document.addEventListener('livewire:navigating', () => this.stopWake());
             },
             startWake() {
                 if (this.waking) return;
