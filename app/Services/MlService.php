@@ -6,7 +6,6 @@ use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -688,9 +687,19 @@ class MlService
 
     /**
      * When even local Python fails: PHP-heuristic fallback for every item.
+     * This produces prediction_source = 'fallback' rows — a crude non-ML
+     * approximation, not the trained model. Logged here (rather than left
+     * silent) so a degraded batch shows up in storage/logs instead of only
+     * being visible by noticing the fallback count on the batch page or
+     * querying ml_results directly. callBatchHttp()'s own catch already logs
+     * the HTTP error that got the pipeline here; this logs the consequence.
      */
     private function batchFallback(array $payloads): array
     {
+        Log::warning('ML batch pipeline exhausted HTTP and local Python; scoring with PHP heuristic fallback', [
+            'senior_count' => count($payloads),
+        ]);
+
         return array_map(function ($raw) {
             $preprocessed = $this->fallbackPreprocess($raw);
 
@@ -710,10 +719,18 @@ class MlService
      * inference boot observed on Render took ~122s end-to-end (artifact
      * load + waitress bind).
      *
-     * A genuine connection failure (refused, DNS, etc — not a "still
-     * starting" signal) is not retried here; it's rethrown so the caller's
-     * normal catch block degrades to the local/heuristic fallback
-     * immediately, same as before.
+     * Only 502/503/504 are retried — those are the "still starting" signal.
+     * A client-side *read* timeout (this method's own `timeout($this->timeout)`
+     * elapsing) means the opposite: the service is up and already mid-request.
+     * Retrying that re-sends the identical payload while the first attempt
+     * is still running server-side — Render/waitress does not cancel the
+     * in-flight handler just because the client gave up — so two copies of
+     * the same batch compete for the same CPU, doubling load and producing
+     * exactly the duplicated-chunk pattern seen in production logs (the same
+     * "Batch infer request: N items" line twice, ~2 min apart, with waitress
+     * queue depth climbing throughout). A genuine connection failure
+     * (refused, DNS, etc.) is rethrown so the caller's normal catch block
+     * degrades to the local/heuristic fallback immediately, same as before.
      */
     private function postWithColdStartRetry(string $url, array $payload): ?Response
     {
@@ -721,19 +738,13 @@ class MlService
         $response = null;
 
         while (true) {
-            try {
-                $response = Http::connectTimeout(5)
-                    ->timeout($this->timeout)
-                    ->withHeaders($this->authHeaders())
-                    ->post($url, $payload);
+            $response = Http::connectTimeout(5)
+                ->timeout($this->timeout)
+                ->withHeaders($this->authHeaders())
+                ->post($url, $payload);
 
-                if ($response->successful() || ! in_array($response->status(), [502, 503, 504], true)) {
-                    return $response;
-                }
-            } catch (ConnectionException $e) {
-                if (! str_contains(strtolower($e->getMessage()), 'timed out')) {
-                    throw $e;
-                }
+            if ($response->successful() || ! in_array($response->status(), [502, 503, 504], true)) {
+                return $response;
             }
 
             $remaining = $deadline - microtime(true);
@@ -746,7 +757,7 @@ class MlService
                 continue;
             }
 
-            $retryAfter = $response?->header('Retry-After');
+            $retryAfter = $response->header('Retry-After');
             $sleepSeconds = max(1, min((int) ($retryAfter ?: $this->coldStartPollInterval), (int) $remaining));
             usleep($sleepSeconds * 1_000_000);
         }

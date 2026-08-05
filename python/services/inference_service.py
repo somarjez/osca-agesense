@@ -2593,7 +2593,19 @@ def batch_infer_endpoint():
                     "message": f"Item at index {idx} is not an object",
                 })
                 continue
-            results.append(infer(item))
+            # Per-item guard (matches /batch_preprocess) — one malformed senior
+            # used to raise here and take the whole endpoint down with a 500,
+            # which the PHP side then treated as a total chunk failure and
+            # degraded every senior in it to the local/heuristic fallback.
+            # persistResults() on the PHP side already throws (and is already
+            # caught per-item in MlService::runBatchPipeline()) when a result
+            # is missing required keys, so an error dict here correctly marks
+            # only this one senior as failed instead of the whole chunk.
+            try:
+                results.append(infer(item))
+            except Exception as exc:
+                logger.exception("Batch infer error at index %d", idx)
+                results.append({"status": "error", "message": str(exc)})
 
         return jsonify({"status": "success", "count": len(results), "results": results})
     except Exception as exc:

@@ -15,6 +15,7 @@
             showConfirm: false,
             errMsg: '',
             resultMsg: '',
+            fallbackMsg: '',
             elapsed: 0,
             timer: null,
             pollTimer: null,
@@ -49,7 +50,7 @@
                 if (this.running) return;   // guard against double-run (rapid confirm clicks)
                 this.showConfirm = false;
                 this.running = true; this.done = false;
-                this.errMsg = ''; this.resultMsg = '';
+                this.errMsg = ''; this.resultMsg = ''; this.fallbackMsg = '';
                 this.processed = 0; this.failed = 0; this.progress = 0;
                 this.fallbackCount = 0; this.coldStartLikely = false;
                 this.elapsed = 0;
@@ -100,9 +101,17 @@
                             this.running = false;
                             this.done    = true;
                             this.fallbackCount = d.fallback || 0;
-                            this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`
-                                + (this.fallbackCount > 0 ? ` Fallback: ${this.fallbackCount}.` : '');
+                            this.resultMsg = `Batch complete. Processed: ${d.processed}. Failed: ${d.failed}.`;
                             if (d.failed > 0) this.errMsg = `${d.failed} senior(s) failed. Check the queue failed_jobs table.`;
+                            // Fallback rows were scored by a crude PHP heuristic, not the
+                            // real model (ML services were unreachable for that chunk) —
+                            // surfaced separately from resultMsg/errMsg so it isn't lost
+                            // as a quiet suffix on an otherwise-green "complete" banner.
+                            if (this.fallbackCount > 0) {
+                                this.fallbackMsg = `${this.fallbackCount} senior(s) were scored using a fallback `
+                                    + `heuristic, not the ML model (services were unreachable). Re-run Batch `
+                                    + `Assessment once ML services are back up to replace these with real scores.`;
+                            }
                             setTimeout(() => location.reload(), 2000);
                         } else if (d.cancelled) {
                             clearInterval(this.pollTimer);
@@ -157,6 +166,12 @@
                    class="text-sm px-3 py-2 rounded-lg mb-2" x-cloak></p>
                 <p x-show="errMsg && !running" x-text="errMsg"
                    class="text-xs text-critical-700" x-cloak></p>
+
+                {{-- Fallback warning — separate from resultMsg/errMsg so it can't get
+                     lost as a quiet suffix on an otherwise-green "complete" banner when
+                     nothing technically "failed" (see ml.batch.status/prediction_source). --}}
+                <p x-show="fallbackMsg && !running" x-text="fallbackMsg" x-cloak
+                   class="text-sm px-3 py-2 rounded-lg mb-2 text-moderate-700 bg-moderate-50 border border-moderate-100"></p>
 
                 {{-- Progress bar while running --}}
                 <div x-show="running" class="space-y-1.5" x-cloak>
