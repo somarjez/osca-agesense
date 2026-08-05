@@ -16,7 +16,14 @@ class ProcessMlBatch implements ShouldQueue
 
     public int $timeout = 300;
 
-    public int $tries = 1;
+    // Was 1 — allowFailures() on the batch means a single failed attempt
+    // dropped every senior in the chunk permanently (see failed()'s
+    // ml_queued_at clear: nothing re-queues them). A second try gives a
+    // transient failure (e.g. the inference service still finishing its
+    // cold boot) a chance to succeed instead. Still bounded — queue.php's
+    // retry_after (600s) stays comfortably above $timeout regardless of
+    // try count, so a still-running attempt is never mistaken for stalled.
+    public int $tries = 2;
 
     /**
      * @param  array<int>  $seniorIds  IDs of seniors to process in this chunk

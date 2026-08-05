@@ -161,34 +161,54 @@ class MlServiceAuthTest extends TestCase
     }
 
     #[Test]
-    public function preprocess_retries_after_a_connection_timeout_and_still_carries_the_auth_header(): void
+    public function preprocess_does_not_retry_after_a_connection_timeout_and_degrades_to_fallback(): void
     {
+        // Force the local-Python fallback branch off too (runLocalPythonStage()
+        // fails fast against a nonexistent executable), so this test exercises
+        // exactly what changed — one attempt, no retry — without depending on
+        // whether this machine happens to have python/venv installed.
+        putenv('PYTHON_EXECUTABLE=nonexistent-python-for-tests');
+
         $calls = 0;
+        // Http::assertSent() only sees requests that produced a response —
+        // one whose fake handler throws isn't recorded — so the header is
+        // captured directly from the outgoing request instead.
+        $capturedRequest = null;
 
         Http::fake([
-            '*/preprocess' => function () use (&$calls) {
+            '*/preprocess' => function (HttpClientRequest $request) use (&$calls, &$capturedRequest) {
                 $calls++;
-                if ($calls === 1) {
-                    // First attempt "times out" — a ConnectionException whose
-                    // message contains "timed out" is what
-                    // postWithColdStartRetry() treats as a still-starting
-                    // signal worth polling through, same as a 502/503/504.
-                    throw new ConnectionException('Connection timed out after 5000ms');
-                }
-
-                return Http::response(['section_scores' => []], 200);
+                $capturedRequest = $request;
+                // A client-side read timeout used to be retried by
+                // postWithColdStartRetry() — treated the same as a "still
+                // starting" 502/503/504 signal. It no longer is (see that
+                // method's docblock): a sleeping Render service is up and
+                // answers instantly, so a timeout means the OPPOSITE — the
+                // service is genuinely busy — and retrying doubled load on
+                // an already-slow instance instead of helping. It's rethrown
+                // immediately so the caller degrades to fallback scoring.
+                throw new ConnectionException('Connection timed out after 5000ms');
             },
             '*/infer' => Http::response($this->fakeInferResponse(), 200),
         ]);
 
-        $service = app(MlService::class);
-        $result = $service->runPipeline($this->senior, $this->survey, force: true);
+        try {
+            $service = app(MlService::class);
+            $result = $service->runPipeline($this->senior, $this->survey, force: true);
 
-        $this->assertNotNull($result);
-        $this->assertSame(2, $calls, 'Expected the preprocess call to be retried once after a simulated timeout.');
+            $this->assertNotNull($result, 'Pipeline should still produce a (fallback) result, not fail outright.');
+            $this->assertSame(1, $calls, 'A client-side timeout must not be retried — exactly one preprocess attempt should be made.');
 
-        $this->assertHeaderSentTo('/preprocess');
-        $this->assertNoRequestSentTo('/health');
+            $this->assertNotNull($capturedRequest);
+            $this->assertSame(
+                self::TEST_TOKEN,
+                $capturedRequest->header('X-Internal-Api-Key')[0] ?? null,
+                'Expected X-Internal-Api-Key header on the preprocess attempt.'
+            );
+            $this->assertNoRequestSentTo('/health');
+        } finally {
+            putenv('PYTHON_EXECUTABLE');
+        }
     }
 
     #[Test]

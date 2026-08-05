@@ -473,7 +473,7 @@ class BulkUploadController extends Controller
                 SeniorCitizen::whereIn('id', $seniorIds)->update(['ml_queued_at' => now()]);
 
                 $cacheKey = 'ml_batch_'.now()->format('YmdHis');
-                $chunks = array_chunk($seniorIds, 100);
+                $chunks = array_chunk($seniorIds, (int) config('services.python.batch_chunk_size', 25));
                 $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
 
                 $batch = Bus::batch($jobs)

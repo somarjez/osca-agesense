@@ -208,10 +208,10 @@ class MlController extends Controller
         return [
             'cache_key' => $current['cache_key'],
             'batch_id' => $current['batch_id'],
-            // 100 matches batchRun()'s current chunk size — this is only an
+            // Matches batchRun()'s chunk size config — this is only an
             // estimate for the rare case where the ":total" key itself has
             // expired/is missing; the real total from that key wins otherwise.
-            'total' => (int) Cache::get("{$current['cache_key']}:total", $batch->totalJobs * 100),
+            'total' => (int) Cache::get("{$current['cache_key']}:total", $batch->totalJobs * (int) config('services.python.batch_chunk_size', 25)),
         ];
     }
 
@@ -240,7 +240,7 @@ class MlController extends Controller
         // one statement for the whole batch.
         SeniorCitizen::whereIn('id', $seniorIds)->update(['ml_queued_at' => now()]);
 
-        $chunks = array_chunk($seniorIds, 100);
+        $chunks = array_chunk($seniorIds, (int) config('services.python.batch_chunk_size', 25));
         $jobs = array_map(fn ($chunk) => new ProcessMlBatch($chunk, $cacheKey), $chunks);
 
         $batch = Bus::batch($jobs)
@@ -297,7 +297,7 @@ class MlController extends Controller
             return response()->json(['error' => 'Batch not found.'], 404);
         }
 
-        $total = (int) Cache::get("{$cacheKey}:total", $batch->totalJobs * 100);
+        $total = (int) Cache::get("{$cacheKey}:total", $batch->totalJobs * (int) config('services.python.batch_chunk_size', 25));
         $processed = (int) Cache::get("{$cacheKey}:processed", 0);
         $failed = (int) Cache::get("{$cacheKey}:failed", 0);
         $fallback = (int) Cache::get("{$cacheKey}:fallback", 0);
