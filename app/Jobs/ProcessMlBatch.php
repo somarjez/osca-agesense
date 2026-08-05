@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
+use App\Support\SeniorDataVersion;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -73,6 +74,13 @@ class ProcessMlBatch implements ShouldQueue
         // runBatchPipeline()'s reusable-result fast path updates an existing
         // MlResult directly without going through persistResults().
         $this->clearQueuedMarker();
+
+        // Dashboard/report caches are keyed on SeniorDataVersion — MlService
+        // never bumps it itself, so without this, risk/cluster numbers lag
+        // the ml.latest_result_ids cache's own 5-minute TTL on top of each
+        // widget's own TTL. Bumped once per chunk, not per senior, since this
+        // is a Cache::forever() file write.
+        SeniorDataVersion::bump();
     }
 
     /**
@@ -82,6 +90,7 @@ class ProcessMlBatch implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         $this->clearQueuedMarker();
+        SeniorDataVersion::bump();
     }
 
     private function clearQueuedMarker(): void

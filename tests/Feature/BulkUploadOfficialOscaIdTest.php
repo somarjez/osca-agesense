@@ -97,7 +97,7 @@ class BulkUploadOfficialOscaIdTest extends TestCase
     {
         $csv = self::HEADER."\n".$this->makeRow('BulkOsca', 'HasId', oscaId: '55-5555-555')."\n";
 
-        $this->uploadCsv($csv)->assertRedirect(route('seniors.index'));
+        $this->uploadCsv($csv)->assertRedirect(route('ml.batch'));
 
         $senior = SeniorCitizen::where('first_name', 'BulkOsca')->where('last_name', 'HasId')->firstOrFail();
         $this->assertSame('55-5555-555', $senior->official_osca_id);
@@ -108,7 +108,7 @@ class BulkUploadOfficialOscaIdTest extends TestCase
     {
         $csv = self::HEADER."\n".$this->makeRow('BulkOsca', 'NoId', oscaId: '')."\n";
 
-        $this->uploadCsv($csv)->assertRedirect(route('seniors.index'));
+        $this->uploadCsv($csv)->assertRedirect(route('ml.batch'));
 
         $senior = SeniorCitizen::where('first_name', 'BulkOsca')->where('last_name', 'NoId')->firstOrFail();
         $this->assertNull($senior->official_osca_id);
@@ -133,7 +133,7 @@ class BulkUploadOfficialOscaIdTest extends TestCase
         $csv = self::HEADER."\n".$this->makeRow('BulkOsca', 'Dupe', oscaId: '77-7777-777')."\n";
 
         $response = $this->uploadCsv($csv);
-        $response->assertRedirect(route('seniors.index'));
+        $response->assertRedirect(route('ml.batch'));
         $response->assertSessionHas('bulk_success');
         $this->assertStringContainsString('1 senior', session('bulk_success'));
 
@@ -165,7 +165,7 @@ class BulkUploadOfficialOscaIdTest extends TestCase
         $csv = self::HEADER."\n".$this->makeRow('BulkOsca', 'VsArchived', oscaId: '66-6666-666')."\n";
 
         $response = $this->uploadCsv($csv);
-        $response->assertRedirect(route('seniors.index'));
+        $response->assertRedirect(route('ml.batch'));
         $response->assertSessionHas('bulk_success');
         $this->assertStringContainsString('1 senior', session('bulk_success'));
 
@@ -185,7 +185,7 @@ class BulkUploadOfficialOscaIdTest extends TestCase
             .$this->makeRow('BulkOsca', 'Second', oscaId: '88-8888-888', dob: '02/20/1951')."\n";
 
         $response = $this->uploadCsv($csv);
-        $response->assertRedirect(route('seniors.index'));
+        $response->assertRedirect(route('ml.batch'));
 
         $first = SeniorCitizen::where('first_name', 'BulkOsca')->where('last_name', 'First')->firstOrFail();
         $second = SeniorCitizen::where('first_name', 'BulkOsca')->where('last_name', 'Second')->firstOrFail();

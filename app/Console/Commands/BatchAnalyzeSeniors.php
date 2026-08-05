@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\MlResult;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
+use App\Support\SeniorDataVersion;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -159,6 +160,11 @@ class BatchAnalyzeSeniors extends Command
 
         $bar->finish();
         $this->line("\n");
+
+        // Dashboard/report caches are keyed on SeniorDataVersion — MlService
+        // never bumps it itself (see ProcessMlBatch::handle()). Bumped once
+        // for the whole run, not per senior.
+        SeniorDataVersion::bump();
 
         $this->info('=== Batch Summary ===');
         $this->table(

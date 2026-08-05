@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Services\MlService;
+use App\Support\SeniorDataVersion;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -48,6 +49,11 @@ class ProcessMlSingle implements ShouldQueue
         }
 
         $ml->runPipeline($senior, $survey, force: true);
+
+        // See ProcessMlBatch::handle() for why this lives here rather than
+        // in MlService — dashboard/report caches are keyed on this stamp and
+        // MlService itself never bumps it.
+        SeniorDataVersion::bump();
     }
 
     /**

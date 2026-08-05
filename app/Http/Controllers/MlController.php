@@ -177,7 +177,42 @@ class MlController extends Controller
 
         return view('ml.batch', compact('pending', 'totalEligible', 'totalReady'))
             ->with('lastBatchRun', Cache::get('ml_last_batch_started'))
-            ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'));
+            ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'))
+            ->with('resumeBatch', $this->resumableBatch());
+    }
+
+    /**
+     * The batch page's progress panel only has state while its own tab is
+     * open — reload it (or open it fresh, e.g. after a bulk upload redirect)
+     * while a batch is still running and it used to fall back to the idle
+     * "Run Full Batch" button with no sign anything was in flight. Surfaces
+     * the in-progress batch's cache_key/batch_id/total so the view can
+     * re-seed its Alpine state and resume polling instead.
+     */
+    private function resumableBatch(): ?array
+    {
+        $current = Cache::get('ml_current_batch');
+        if (! $current) {
+            return null;
+        }
+
+        $batch = Bus::findBatch($current['batch_id']);
+        if (! $batch || $batch->finished()) {
+            // Stale entry batchStatus() hasn't cleared yet (e.g. the tab that
+            // was polling it was closed before the batch actually finished).
+            Cache::forget('ml_current_batch');
+
+            return null;
+        }
+
+        return [
+            'cache_key' => $current['cache_key'],
+            'batch_id' => $current['batch_id'],
+            // 100 matches batchRun()'s current chunk size — this is only an
+            // estimate for the rare case where the ":total" key itself has
+            // expired/is missing; the real total from that key wins otherwise.
+            'total' => (int) Cache::get("{$current['cache_key']}:total", $batch->totalJobs * 100),
+        ];
     }
 
     /**
@@ -223,6 +258,12 @@ class MlController extends Controller
         Cache::put('ml_last_batch_started', now(), now()->addDays(90));
         Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
 
+        // Lets batchIndex() re-seed the progress panel if this browser tab (or
+        // a different one) reloads/reopens the batch page before the batch
+        // finishes — see batchIndex() and batchStatus(), which clears this
+        // once Bus::findBatch()->finished() is true.
+        Cache::put('ml_current_batch', ['cache_key' => $cacheKey, 'batch_id' => $batch->id], now()->addHours(2));
+
         // See drainQueueAfterResponse() — widened from 60s so more chunks of
         // a large batch finish inline instead of waiting on the next cron
         // tick; batchStatus() below also tops this up while the progress
@@ -267,6 +308,14 @@ class MlController extends Controller
         if ($batch->finished()) {
             $failed = $batch->failedJobs;
             $processed = max($processed, $total - $failed);
+
+            // Batch is done — stop offering it as resumable on a fresh page
+            // load. Only clear if it's still this batch (a newer run may
+            // already have overwritten the key by the time this poll lands).
+            $current = Cache::get('ml_current_batch');
+            if (($current['batch_id'] ?? null) === $batchId) {
+                Cache::forget('ml_current_batch');
+            }
         } else {
             // The progress view polls this every 3s while a batch runs, which
             // is effectively free traffic to nudge the queue along instead of

@@ -135,7 +135,7 @@ class BulkUploadDuplicateTest extends TestCase
             dob: '07/20/1952',
         ));
 
-        $response->assertRedirect(route('seniors.index'));
+        $response->assertRedirect(route('ml.batch'));
         $response->assertSessionHas('bulk_success');
         $this->assertStringContainsString('1 senior', session('bulk_success'));
     }

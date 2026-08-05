@@ -488,6 +488,12 @@ class BulkUploadController extends Controller
                 Cache::put('ml_last_batch_started', now(), now()->addDays(90));
                 Cache::put('ml_last_batch_senior_count', count($seniorIds), now()->addDays(90));
 
+                // Same resumable-batch marker MlController::batchRun() writes —
+                // lets the Batch Assessment page pick this run up and resume
+                // polling it, since bulk upload now sends staff there instead
+                // of back to seniors.index (see below).
+                Cache::put('ml_current_batch', ['cache_key' => $cacheKey, 'batch_id' => $batch->id], now()->addHours(2));
+
                 // Unlike a manual Batch Assessment run, nothing else was going to
                 // touch this queue until the next cron tick (up to ~10 min away)
                 // — see drainQueueAfterResponse(). A larger budget than
@@ -506,12 +512,22 @@ class BulkUploadController extends Controller
         if ($skipped) {
             $msg .= " Skipped {$skipped} row(s) with missing required fields.";
         }
-        if ($pairs && ! $mlWarning) {
-            $msg .= ' Risk assessment is running in the background — check Batch Assessment for progress.';
-        }
 
         if ($mlWarning) {
             $errors[] = $mlWarning;
+        }
+
+        // When ML jobs were actually queued, send staff to the Batch
+        // Assessment page instead of back to the senior list: its 3s poll
+        // (MlController::batchStatus()) is what triggers the throttled
+        // top-up queue drains, and ml_current_batch (set above) lets the
+        // page pick this run up immediately rather than showing the idle
+        // "Run Full Batch" button while scoring is already in progress.
+        if ($pairs && ! $mlWarning) {
+            $msg .= ' Risk assessment is running in the background — see progress below.';
+
+            return redirect()->route('ml.batch')->with('bulk_success', $msg)
+                ->with('bulk_errors', $errors);
         }
 
         return redirect()->route('seniors.index')->with('bulk_success', $msg)

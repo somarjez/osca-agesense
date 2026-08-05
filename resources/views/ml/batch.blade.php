@@ -5,6 +5,9 @@
 @section('content')
 <div class="space-y-5">
 
+    {{-- Bulk upload redirects here when it queued ML jobs — see BulkUploadController::upload() --}}
+    <x-bulk-upload-flash />
+
     {{-- Run panel --}}
     <div x-data="{
             running: false,
@@ -27,6 +30,21 @@
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             cacheKey: '',
             batchId: '',
+            init() {
+                @if ($resumeBatch)
+                // A batch was already in flight when this page loaded — e.g.
+                // bulk upload just redirected here, or staff reopened/reloaded
+                // this tab mid-run. Resume the same 3s poll a fresh start()
+                // would have, rather than showing the idle "Run Full Batch"
+                // button while scoring is actually still happening.
+                this.cacheKey = @json($resumeBatch['cache_key']);
+                this.batchId  = @json($resumeBatch['batch_id']);
+                this.total    = @json($resumeBatch['total']);
+                this.running  = true;
+                this.timer = setInterval(() => this.elapsed++, 1000);
+                this.poll();
+                @endif
+            },
             start() {
                 if (this.running) return;   // guard against double-run (rapid confirm clicks)
                 this.showConfirm = false;
