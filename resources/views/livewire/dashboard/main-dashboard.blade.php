@@ -1,8 +1,42 @@
 <div
     class="space-y-7"
     wire:poll.300s.visible
-    x-data
-    x-init="$nextTick(() => window.dispatchEvent(new CustomEvent('osca:dashboard-hydrated')))"
+    x-data="{
+        // wire:poll.300s.visible above is kept wide deliberately (see its
+        // own history) — 6 charts re-animate on every Livewire re-render,
+        // a real cost on weak devices. This lightweight poller instead
+        // checks a near-zero-cost endpoint (a single Cache::get, no DB
+        // query) every ~15-20s, and only triggers the expensive real
+        // refresh — which naturally re-fires the chart boot() below via
+        // the livewire:updated listener — when data actually changed.
+        // wire:poll.300s.visible remains as the backstop in case this
+        // poller itself fails silently.
+        version: {{ \App\Support\SeniorDataVersion::current() }},
+        versionCheckTimer: null,
+        init() {
+            $nextTick(() => window.dispatchEvent(new CustomEvent('osca:dashboard-hydrated')));
+
+            this.versionCheckTimer = setInterval(() => {
+                if (document.hidden) return;
+                fetch('{{ route('dashboard.version-check') }}', { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.ok ? r.json() : Promise.reject())
+                    .then(d => {
+                        if (d.version !== this.version) {
+                            this.version = d.version;
+                            this.$wire.$refresh();
+                        }
+                    })
+                    .catch(() => {});
+            }, 18000);
+
+            // wire:navigate keeps the JS runtime alive across page
+            // transitions — without this, leaving the dashboard would
+            // leak this poller on a detached component forever.
+            document.addEventListener('livewire:navigating', () => {
+                clearInterval(this.versionCheckTimer);
+            });
+        },
+    }"
 >
 
     <x-page-header title="Dashboard" subtitle="OSCA senior citizen overview · Pagsanjan, Laguna" />

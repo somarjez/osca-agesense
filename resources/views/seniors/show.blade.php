@@ -45,6 +45,19 @@
                     pollTimer: null, pollCount: 0, pollMax: 60,
                     elapsed: 0, elapsedTimer: null, coldStartLikely: false,
                     baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
+                    init() {
+                        // wire:navigate keeps the JS runtime alive across page
+                        // transitions — without this, clicking Re-run then
+                        // navigating away left pollTimer/elapsedTimer running
+                        // on the OLD (detached) component, and their
+                        // unconditional location.reload() calls below fired
+                        // on whatever page the user had since moved to, up to
+                        // 3 minutes later with no warning.
+                        document.addEventListener('livewire:navigating', () => {
+                            clearInterval(this.pollTimer);
+                            clearInterval(this.elapsedTimer);
+                        });
+                    },
                     run() {
                         this.loading = true; this.err = ''; this.pollCount = 0;
                         this.done = false; this.fallbackUsed = false;
@@ -190,6 +203,12 @@
             pollTimer: null, pollCount: 0, pollMax: 60, timedOut: false,
             baseTs: {{ $ml ? $ml->processed_at->timestamp : 0 }},
             init() {
+                // See the Re-run Assessment button's init() above for why
+                // this is needed — wire:navigate keeps this running on a
+                // detached component after the user leaves the page.
+                document.addEventListener('livewire:navigating', () => {
+                    clearInterval(this.pollTimer);
+                });
                 this.pollTimer = setInterval(() => {
                     this.pollCount++;
                     if (this.pollCount >= this.pollMax) {
