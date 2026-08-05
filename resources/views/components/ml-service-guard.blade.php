@@ -13,7 +13,17 @@
     $canControlLocal = $ml->localServiceControlAvailable();
     $canStartLocal   = $canControlLocal && (auth()->user()?->hasAnyRole(['admin', 'encoder']) ?? false);
 @endphp
-<div x-data="mlServiceGuard(@js($mlGuardConfig))" x-init="init()">
+{{--
+    No x-init here — mlServiceGuard() is registered via Alpine.data() with its
+    own init() method (ml-service-guard.js), and Alpine already auto-invokes
+    that on mount. An explicit x-init="init()" here double-fired it: two
+    checkHealth() calls per mount, and since pollTimer/_onVisible/_onNavigating
+    are single properties, the second call's IDs silently overwrote the
+    first's — leaking one orphaned 45s poller and two orphaned event
+    listeners on every single wire:navigate transition, compounding for the
+    rest of the session.
+--}}
+<div x-data="mlServiceGuard(@js($mlGuardConfig))">
 
     {{-- Warning modal — shown once per tab session the moment services are detected down --}}
     <x-modal show="modalOpen" max-width="max-w-md" ariaLabel="Analysis services are turned off" :closeable="true">

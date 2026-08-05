@@ -271,21 +271,28 @@ class MlService
      */
     public function healthCheck(): array
     {
+        // Concurrent, not sequential — this is on the request path of
+        // /ml/nav-health on every cache miss (see routes/web.php), which
+        // page navigation and the global ml-service-guard component both
+        // hit. Sequentially checking two services at up to healthTimeout(3s)
+        // + healthConnectTimeout(2s) each meant a worst-case ~10s blocked
+        // PHP-FPM worker per miss; pooling (same pattern as wakeAttempt()
+        // below) bounds it to the slower of the two instead of the sum.
+        // /health does no model loading, so a live service answers in
+        // milliseconds even during a cold start elsewhere — this short
+        // budget only matters for the down/slow case, keeping the ≤2s
+        // health-check SLA.
+        $responses = Http::pool(fn ($pool) => [
+            $pool->as('preprocessor')->timeout($this->healthTimeout)->connectTimeout($this->healthConnectTimeout)->get($this->preprocessUrl.'/health'),
+            $pool->as('inference')->timeout($this->healthTimeout)->connectTimeout($this->healthConnectTimeout)->get($this->inferenceUrl.'/health'),
+        ]);
+
         $results = [];
-        foreach ([
-            'preprocessor' => $this->preprocessUrl.'/health',
-            'inference' => $this->inferenceUrl.'/health',
-        ] as $name => $url) {
-            try {
-                // /health does no model loading, so a live service answers in
-                // milliseconds even during a cold start elsewhere — this short
-                // budget only matters for the down/slow case, keeping the
-                // ≤2s health-check SLA.
-                $resp = Http::timeout($this->healthTimeout)->connectTimeout($this->healthConnectTimeout)->get($url);
-                $results[$name] = $resp->successful() ? 'ok' : 'error';
-            } catch (\Exception) {
-                $results[$name] = 'unreachable';
-            }
+        foreach (['preprocessor', 'inference'] as $name) {
+            $resp = $responses[$name] ?? null;
+            $results[$name] = $resp instanceof Response
+                ? ($resp->successful() ? 'ok' : 'error')
+                : 'unreachable';
         }
 
         $results['local_runner'] = $this->canUseLocalPython() ? 'available' : 'unavailable';

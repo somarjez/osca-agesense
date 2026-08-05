@@ -53,7 +53,7 @@
                     <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                     Bulk Upload
                 </button>
-                <a href="{{ route('seniors.create') }}" class="btn btn-primary">
+                <a href="{{ route('seniors.create') }}" wire:navigate class="btn btn-primary">
                     <x-heroicon-o-user-plus class="w-3.5 h-3.5" />
                     New Senior
                 </a>
@@ -100,7 +100,7 @@
                     Search
                 </button>
                 @if (request()->hasAny(['search','barangay','risk','cluster']))
-                    <a href="{{ route('seniors.index') }}" class="btn">
+                    <a href="{{ route('seniors.index') }}" wire:navigate class="btn">
                         <x-heroicon-o-x-mark class="w-3.5 h-3.5" />
                         Clear
                     </a>
@@ -168,7 +168,7 @@
                         </div>
                     </td>
                     <td class="td">
-                        <a href="{{ route('seniors.show', $senior) }}" class="flex items-center gap-3">
+                        <a href="{{ route('seniors.show', $senior) }}" wire:navigate class="flex items-center gap-3">
                             <div class="w-7 h-7 rounded-full bg-forest-100 grid place-items-center flex-shrink-0">
                                 <span class="text-[11px] font-semibold text-forest-800">{{ strtoupper(substr($senior->first_name,0,1).substr($senior->last_name,0,1)) }}</span>
                             </div>
@@ -232,16 +232,19 @@
                     <td class="td">
                         <div class="flex items-center justify-end gap-1">
                             <a href="{{ route('seniors.show', $senior) }}"
+                               wire:navigate
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="View profile">
                                 <x-heroicon-o-eye class="w-3.5 h-3.5" /> View
                             </a>
                             <a href="{{ route('seniors.edit', $senior) }}"
+                               wire:navigate
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="Edit profile">
                                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
                             </a>
                             <a href="{{ route('surveys.qol.create', $senior) }}"
+                               wire:navigate
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="New QoL survey">
                                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> QoL
@@ -259,7 +262,7 @@
                     <td colspan="9" class="px-4 py-16 text-center">
                         <p class="font-serif text-base text-ink-500">No senior citizens found.</p>
                         <p class="text-[12.5px] text-ink-400 mt-1">Try adjusting your filters or register a new senior.</p>
-                        <a href="{{ route('seniors.create') }}" class="btn btn-primary mt-4 inline-flex">
+                        <a href="{{ route('seniors.create') }}" wire:navigate class="btn btn-primary mt-4 inline-flex">
                             <x-heroicon-o-user-plus class="w-3.5 h-3.5" /> New Senior
                         </a>
                     </td>

@@ -28,13 +28,13 @@ $end   = min($last, $start + 9);
         @if ($paginator->onFirstPage())
             <span class="px-2.5 py-1.5 text-xs rounded-lg text-slate-300 border border-slate-200 select-none cursor-not-allowed">‹</span>
         @else
-            <a href="{{ $paginator->previousPageUrl() }}"
+            <a href="{{ $paginator->previousPageUrl() }}" wire:navigate
                class="px-2.5 py-1.5 text-xs rounded-lg text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors">‹</a>
         @endif
 
         {{-- First page anchor + leading ellipsis --}}
         @if ($start > 1)
-            <a href="{{ $paginator->url(1) }}"
+            <a href="{{ $paginator->url(1) }}" wire:navigate
                class="px-3 py-1.5 text-xs rounded-lg text-slate-600 border border-slate-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors">1</a>
             @if ($start > 2)
                 <span class="px-2 py-1.5 text-xs text-slate-400 select-none">…</span>
@@ -46,7 +46,7 @@ $end   = min($last, $start + 9);
             @if ($page == $current)
                 <span class="px-3 py-1.5 text-xs rounded-lg bg-teal-600 text-white font-semibold select-none shadow-sm">{{ $page }}</span>
             @else
-                <a href="{{ $paginator->url($page) }}"
+                <a href="{{ $paginator->url($page) }}" wire:navigate
                    class="px-3 py-1.5 text-xs rounded-lg text-slate-600 border border-slate-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors">{{ $page }}</a>
             @endif
         @endfor
@@ -56,13 +56,13 @@ $end   = min($last, $start + 9);
             @if ($end < $last - 1)
                 <span class="px-2 py-1.5 text-xs text-slate-400 select-none">…</span>
             @endif
-            <a href="{{ $paginator->url($last) }}"
+            <a href="{{ $paginator->url($last) }}" wire:navigate
                class="px-3 py-1.5 text-xs rounded-lg text-slate-600 border border-slate-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors">{{ $last }}</a>
         @endif
 
         {{-- Next --}}
         @if ($paginator->hasMorePages())
-            <a href="{{ $paginator->nextPageUrl() }}"
+            <a href="{{ $paginator->nextPageUrl() }}" wire:navigate
                class="px-2.5 py-1.5 text-xs rounded-lg text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors">›</a>
         @else
             <span class="px-2.5 py-1.5 text-xs rounded-lg text-slate-300 border border-slate-200 select-none cursor-not-allowed">›</span>
