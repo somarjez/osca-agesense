@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkUploadRequest;
 use App\Jobs\ProcessMlBatch;
+use App\Models\ActivityLog;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Support\Concerns\DrainsMlQueue;
 use App\Support\DateParser;
+use App\Support\SeniorDataVersion;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use League\Csv\Reader;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -348,89 +351,109 @@ class BulkUploadController extends Controller
                         $oscaId = $prefix.'-'.$importYear.'-'.str_pad((string) $seqCounters[$prefix], 4, '0', STR_PAD_LEFT);
                         $existingKeys[$dupKey] = true; // guard against duplicate rows within the same file
 
-                        $senior = SeniorCitizen::create([
-                            'osca_id' => $oscaId,
-                            'official_osca_id' => $officialOscaId,
-                            'first_name' => $firstName,
-                            'middle_name' => $this->strVal($row['middle_name'] ?? null),
-                            'last_name' => $lastName,
-                            'name_extension' => $this->strVal($row['name_ext'] ?? null),
-                            'barangay' => $barangay,
-                            'date_of_birth' => $dob,
-                            'contact_number' => $this->strVal($row['contact_number'] ?? null),
-                            'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
-                            'marital_status' => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
-                            'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
-                            'religion' => $this->strVal($row['religion'] ?? null),
-                            'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
-                            'blood_type' => $this->strVal($row['blood_type'] ?? null),
-                            'num_children' => $this->intVal($row['num_children'] ?? null),
-                            'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
-                            'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
-                            'spouse_working' => $this->enumOrNull($row['spouse_working'] ?? null, ['Yes', 'No', 'Deceased', 'N/A']),
-                            'household_size' => max(1, $this->intVal($row['household_size'] ?? null, 1)),
-                            'educational_attainment' => $this->strVal($row['education'] ?? null),
-                            'specialization' => $this->toList($row['specialization'] ?? null),
-                            'community_service' => $this->toList($row['community_service'] ?? null),
-                            'living_with' => $this->toList($row['living_with'] ?? null),
-                            'household_condition' => $this->toList($row['household_condition'] ?? null),
-                            'income_source' => $this->normalizeList($this->toList($row['income_source'] ?? null), self::INCOME_SOURCE_MAP),
-                            'real_assets' => $this->toList($row['real_assets'] ?? null),
-                            'movable_assets' => $this->toList($row['movable_assets'] ?? null),
-                            'monthly_income_range' => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
-                            'problems_needs' => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
-                            'medical_concern' => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
-                            'dental_concern' => $this->toList($row['dental_concern'] ?? null),
-                            'optical_concern' => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
-                            'hearing_concern' => $this->normalizeList($this->toList($row['hearing_concern'] ?? null), self::HEARING_CONCERN_MAP),
-                            'social_emotional_concern' => $this->normalizeList($this->toList($row['social_emotional_concern'] ?? null), self::SOCIAL_EMOTIONAL_CONCERN_MAP),
-                            'healthcare_difficulty' => $this->normalizeList($this->toList($row['healthcare_difficulty'] ?? null), self::HEALTHCARE_DIFFICULTY_MAP),
-                            'has_medical_checkup' => $this->boolVal($row['has_medical_checkup'] ?? null),
-                            'checkup_schedule' => $this->strVal($row['checkup_schedule'] ?? null),
-                            'status' => 'active',
-                            'encoded_by' => 'Bulk Upload',
-                        ]);
+                        // SeniorCitizen::create()/QolSurvey::create() below normally fan out
+                        // through ActivityLogObserver (2-3 writes/row), SeniorDataVersionObserver
+                        // (1 write/row — a Cache::forever() on the SAME cache row, 360x over),
+                        // and MlResultStalenessObserver (1-2 SELECTs/row, checking for ml_results
+                        // that can't exist yet on a brand-new senior/survey) — ~6 of the ~9 DB
+                        // round-trips per row this loop makes. Confirmed root cause of a 504 on
+                        // a 360-row import: at ~15-20ms/round-trip against remote Postgres, that's
+                        // 50-65s serialized, exceeding both nginx's and Cloudflare's timeouts.
+                        // Suppressed here; the two pieces of behavior this loses that actually
+                        // matter (uuid generation, cache-version bump) are restored explicitly
+                        // below/after the loop. Audit logging is replaced with one summary
+                        // ActivityLog entry after the whole import instead of 720+ per-row ones.
+                        [$senior, $survey] = SeniorCitizen::withoutEvents(fn () => QolSurvey::withoutEvents(function () use (
+                            $oscaId, $officialOscaId, $firstName, $lastName, $barangay, $dob, $row
+                        ) {
+                            $senior = SeniorCitizen::forceCreate([
+                                'uuid' => (string) Str::uuid(),
+                                'osca_id' => $oscaId,
+                                'official_osca_id' => $officialOscaId,
+                                'first_name' => $firstName,
+                                'middle_name' => $this->strVal($row['middle_name'] ?? null),
+                                'last_name' => $lastName,
+                                'name_extension' => $this->strVal($row['name_ext'] ?? null),
+                                'barangay' => $barangay,
+                                'date_of_birth' => $dob,
+                                'contact_number' => $this->strVal($row['contact_number'] ?? null),
+                                'place_of_birth' => $this->strVal($row['place_of_birth'] ?? null),
+                                'marital_status' => $this->enumOrNull($row['marital_status'] ?? null, ['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Annulled']),
+                                'gender' => $this->enumOrNull($row['gender'] ?? null, ['Male', 'Female', 'Prefer not to say']),
+                                'religion' => $this->strVal($row['religion'] ?? null),
+                                'ethnic_origin' => $this->strVal($row['ethnic_origin'] ?? null),
+                                'blood_type' => $this->strVal($row['blood_type'] ?? null),
+                                'num_children' => $this->intVal($row['num_children'] ?? null),
+                                'num_working_children' => $this->intVal($row['num_working_children'] ?? null),
+                                'child_financial_support' => $this->enumOrNull($row['child_financial_support'] ?? null, ['Yes', 'No', 'Occasional', 'N/A']),
+                                'spouse_working' => $this->enumOrNull($row['spouse_working'] ?? null, ['Yes', 'No', 'Deceased', 'N/A']),
+                                'household_size' => max(1, $this->intVal($row['household_size'] ?? null, 1)),
+                                'educational_attainment' => $this->strVal($row['education'] ?? null),
+                                'specialization' => $this->toList($row['specialization'] ?? null),
+                                'community_service' => $this->toList($row['community_service'] ?? null),
+                                'living_with' => $this->toList($row['living_with'] ?? null),
+                                'household_condition' => $this->toList($row['household_condition'] ?? null),
+                                'income_source' => $this->normalizeList($this->toList($row['income_source'] ?? null), self::INCOME_SOURCE_MAP),
+                                'real_assets' => $this->toList($row['real_assets'] ?? null),
+                                'movable_assets' => $this->toList($row['movable_assets'] ?? null),
+                                'monthly_income_range' => $this->normalizeIncomeRange($row['monthly_income_range'] ?? null),
+                                'problems_needs' => $this->normalizeList($this->normalizeList($this->toList($row['problems_needs'] ?? null), self::PROBLEMS_NEEDS_MAP), self::PROBLEMS_NEEDS_EXTRA_MAP),
+                                'medical_concern' => $this->normalizeList($this->toList($row['medical_concern'] ?? null), self::MEDICAL_CONCERN_MAP),
+                                'dental_concern' => $this->toList($row['dental_concern'] ?? null),
+                                'optical_concern' => $this->normalizeList($this->toList($row['optical_concern'] ?? null), self::OPTICAL_CONCERN_MAP),
+                                'hearing_concern' => $this->normalizeList($this->toList($row['hearing_concern'] ?? null), self::HEARING_CONCERN_MAP),
+                                'social_emotional_concern' => $this->normalizeList($this->toList($row['social_emotional_concern'] ?? null), self::SOCIAL_EMOTIONAL_CONCERN_MAP),
+                                'healthcare_difficulty' => $this->normalizeList($this->toList($row['healthcare_difficulty'] ?? null), self::HEALTHCARE_DIFFICULTY_MAP),
+                                'has_medical_checkup' => $this->boolVal($row['has_medical_checkup'] ?? null),
+                                'checkup_schedule' => $this->strVal($row['checkup_schedule'] ?? null),
+                                'status' => 'active',
+                                'encoded_by' => 'Bulk Upload',
+                            ]);
 
-                        $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
-                        $survey = QolSurvey::create([
-                            'senior_citizen_id' => $senior->id,
-                            'survey_version' => 'v1',
-                            'survey_date' => $surveyDate,
-                            'a1_enjoy_life' => $this->scoreVal($row['qol_enjoy_life'] ?? null),
-                            'a2_life_satisfaction' => $this->scoreVal($row['qol_life_satisfaction'] ?? null),
-                            'a3_future_outlook' => $this->scoreVal($row['qol_future_outlook'] ?? null),
-                            'a4_meaningfulness' => $this->scoreVal($row['qol_meaningfulness'] ?? null),
-                            'b1_physical_energy' => $this->scoreVal($row['phy_energy'] ?? null),
-                            'b2_pain_discomfort' => $this->scoreVal($row['phy_pain_r'] ?? null),
-                            'b3_health_self_care' => $this->scoreVal($row['phy_health_limit_r'] ?? null),
-                            'b4_health_outside' => $this->scoreVal($row['phy_mobility_outside'] ?? null),
-                            'b5_mobility' => $this->scoreVal($row['phy_mobility_indoor'] ?? null),
-                            'c1_happiness' => $this->scoreVal($row['psych_happiness'] ?? null),
-                            'c2_calm_peace' => $this->scoreVal($row['psych_peace'] ?? null),
-                            'c3_loneliness' => $this->scoreVal($row['psych_lonely_r'] ?? null),
-                            'c4_confidence' => $this->scoreVal($row['psych_confidence'] ?? null),
-                            'd1_independence' => $this->scoreVal($row['func_independence'] ?? null),
-                            'd2_time_control' => $this->scoreVal($row['func_autonomy'] ?? null),
-                            'd3_life_control' => $this->scoreVal($row['func_control'] ?? null),
-                            'd4_income_limits' => $this->scoreVal($row['env_income_limit_r'] ?? null),
-                            'e1_social_support' => $this->scoreVal($row['soc_social_support'] ?? null),
-                            'e2_close_person' => $this->scoreVal($row['soc_close_friend'] ?? null),
-                            'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
-                            'e4_participation' => $this->scoreVal($row['soc_opportunity'] ?? null),
-                            'e5_respect' => $this->scoreVal($row['soc_respect'] ?? null),
-                            'f1_home_safety' => $this->scoreVal($row['env_safe_home'] ?? null),
-                            'f2_neighborhood_safety' => $this->scoreVal($row['env_safe_neighborhood'] ?? null),
-                            'f3_service_access' => $this->scoreVal($row['env_service_access'] ?? null),
-                            'f4_home_comfort' => $this->scoreVal($row['env_home_comfort'] ?? null),
-                            'g1_household_expenses' => $this->scoreVal($row['env_fin_household'] ?? null),
-                            'g2_medical_afford' => $this->scoreVal($row['env_fin_medical'] ?? null),
-                            'g3_personal_wants' => $this->scoreVal($row['env_fin_personal'] ?? null),
-                            'h1_belief_comfort' => $this->scoreVal($row['spi_belief_comfort'] ?? null),
-                            'h2_belief_practice' => $this->scoreVal($row['spi_belief_practice'] ?? null),
-                            'status' => 'submitted',
-                        ]);
+                            $surveyDate = DateParser::parse($row['timestamp'] ?? null) ?? now()->format('Y-m-d');
+                            $survey = QolSurvey::create([
+                                'senior_citizen_id' => $senior->id,
+                                'survey_version' => 'v1',
+                                'survey_date' => $surveyDate,
+                                'a1_enjoy_life' => $this->scoreVal($row['qol_enjoy_life'] ?? null),
+                                'a2_life_satisfaction' => $this->scoreVal($row['qol_life_satisfaction'] ?? null),
+                                'a3_future_outlook' => $this->scoreVal($row['qol_future_outlook'] ?? null),
+                                'a4_meaningfulness' => $this->scoreVal($row['qol_meaningfulness'] ?? null),
+                                'b1_physical_energy' => $this->scoreVal($row['phy_energy'] ?? null),
+                                'b2_pain_discomfort' => $this->scoreVal($row['phy_pain_r'] ?? null),
+                                'b3_health_self_care' => $this->scoreVal($row['phy_health_limit_r'] ?? null),
+                                'b4_health_outside' => $this->scoreVal($row['phy_mobility_outside'] ?? null),
+                                'b5_mobility' => $this->scoreVal($row['phy_mobility_indoor'] ?? null),
+                                'c1_happiness' => $this->scoreVal($row['psych_happiness'] ?? null),
+                                'c2_calm_peace' => $this->scoreVal($row['psych_peace'] ?? null),
+                                'c3_loneliness' => $this->scoreVal($row['psych_lonely_r'] ?? null),
+                                'c4_confidence' => $this->scoreVal($row['psych_confidence'] ?? null),
+                                'd1_independence' => $this->scoreVal($row['func_independence'] ?? null),
+                                'd2_time_control' => $this->scoreVal($row['func_autonomy'] ?? null),
+                                'd3_life_control' => $this->scoreVal($row['func_control'] ?? null),
+                                'd4_income_limits' => $this->scoreVal($row['env_income_limit_r'] ?? null),
+                                'e1_social_support' => $this->scoreVal($row['soc_social_support'] ?? null),
+                                'e2_close_person' => $this->scoreVal($row['soc_close_friend'] ?? null),
+                                'e3_community_opportunities' => $this->scoreVal($row['soc_participation'] ?? null),
+                                'e4_participation' => $this->scoreVal($row['soc_opportunity'] ?? null),
+                                'e5_respect' => $this->scoreVal($row['soc_respect'] ?? null),
+                                'f1_home_safety' => $this->scoreVal($row['env_safe_home'] ?? null),
+                                'f2_neighborhood_safety' => $this->scoreVal($row['env_safe_neighborhood'] ?? null),
+                                'f3_service_access' => $this->scoreVal($row['env_service_access'] ?? null),
+                                'f4_home_comfort' => $this->scoreVal($row['env_home_comfort'] ?? null),
+                                'g1_household_expenses' => $this->scoreVal($row['env_fin_household'] ?? null),
+                                'g2_medical_afford' => $this->scoreVal($row['env_fin_medical'] ?? null),
+                                'g3_personal_wants' => $this->scoreVal($row['env_fin_personal'] ?? null),
+                                'h1_belief_comfort' => $this->scoreVal($row['spi_belief_comfort'] ?? null),
+                                'h2_belief_practice' => $this->scoreVal($row['spi_belief_practice'] ?? null),
+                                'status' => 'submitted',
+                            ]);
 
-                        $survey->computeScores();
+                            $survey->computeScores();
+
+                            return [$senior, $survey];
+                        }));
+
                         $chunkPairs[] = ['senior' => $senior, 'survey' => $survey];
                         $chunkInserted++;
                     }
@@ -449,6 +472,23 @@ class BulkUploadController extends Controller
                 $errors[] = 'A batch of rows failed to import and was rolled back: '.$e->getMessage();
                 Log::warning('Bulk upload chunk failed', ['error' => $e->getMessage()]);
             }
+        }
+
+        // Per-row events were suppressed above (see the withoutEvents() comment) to
+        // cut the 504-causing DB round-trip count — replace the two things that were
+        // actually load-bearing, once per import instead of once per row: the
+        // dashboard/report cache-version bump (SeniorDataVersionObserver), and one
+        // summary audit-log entry standing in for the 720+ per-row ones that used to
+        // fire (ActivityLogObserver). Only when something was actually inserted —
+        // an all-skipped/all-duplicate file has nothing new to reflect.
+        if ($inserted > 0) {
+            SeniorDataVersion::bump();
+            ActivityLog::record(
+                'bulk_uploaded',
+                auth()->user(),
+                "Bulk imported {$inserted} senior(s), skipped {$skipped}",
+                ['inserted' => $inserted, 'skipped' => $skipped]
+            );
         }
 
         // Queue ML analysis for the inserted seniors — mirrors
