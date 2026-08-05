@@ -115,7 +115,7 @@
                                 </form>
                                 <x-confirm-modal show="open"
                                                  title="Delete QoL Survey?"
-                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm="$refs.deleteForm.requestSubmit()"
                                                  confirm-label="Delete survey">
                                     <p>The survey from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $survey->survey_date?->format('M j, Y') }}</strong> and its decision-support output will be permanently deleted.</p>
                                     <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">

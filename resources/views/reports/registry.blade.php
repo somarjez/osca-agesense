@@ -90,7 +90,7 @@
                 <x-confirm-modal show="open"
                                  title="Create a database backup?"
                                  tone="primary"
-                                 confirm="$refs.backupForm.submit()"
+                                 confirm="$refs.backupForm.requestSubmit()"
                                  confirm-label="Create backup">
                     <p>This creates a full backup of the database. Only the latest {{ \App\Services\DatabaseBackupService::DEFAULT_KEEP }} app-created backups are kept — older ones are deleted automatically.</p>
                 </x-confirm-modal>
@@ -132,7 +132,7 @@
                                 </form>
                                 <x-confirm-modal show="open"
                                                  title="Delete this backup?"
-                                                 confirm="$refs.delForm.submit()"
+                                                 confirm="$refs.delForm.requestSubmit()"
                                                  confirm-label="Delete permanently">
                                     <p>The backup file <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $backup['name'] }}</strong> will be permanently removed.</p>
                                 </x-confirm-modal>

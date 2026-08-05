@@ -1,7 +1,7 @@
 @props([
     'show',                                  // REQUIRED: assignable Alpine expression (e.g. "deleteOpen")
     'title'        => 'Are you sure?',
-    'confirm'      => null,                   // Alpine expression run on confirm (e.g. "$refs.deleteForm.submit()")
+    'confirm'      => null,                   // Alpine expression run on confirm (e.g. "$refs.deleteForm.requestSubmit()")
     'confirmLabel' => 'Confirm',
     'cancelLabel'  => 'Cancel',
     'tone'         => 'danger',               // danger | primary
@@ -31,7 +31,22 @@
         @isset($action)
             {{ $action }}
         @elseif($confirm)
-            <button type="button" @click="{{ $confirm }}" class="btn {{ $btnClass }} flex-1 justify-center">{{ $confirmLabel }}</button>
+            {{-- busy guards against a double-click firing the action (e.g. a
+                 form .submit()) twice before the confirm dialog closes and/or
+                 the page navigates away. Resets if the dialog is reopened
+                 without the action having navigated away, so cancel-then-
+                 retry still works. --}}
+            <button type="button"
+                    x-data="{ busy: false }"
+                    x-effect="if (! ({{ $show }})) busy = false"
+                    :disabled="busy"
+                    :aria-busy="busy"
+                    @click="busy = true; {{ $confirm }}"
+                    :class="{ 'opacity-70 pointer-events-none': busy }"
+                    class="btn {{ $btnClass }} flex-1 justify-center">
+                <span x-show="busy" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                <span x-text="busy ? 'Please wait…' : @js($confirmLabel)"></span>
+            </button>
         @endisset
     </x-slot:footer>
 </x-modal>

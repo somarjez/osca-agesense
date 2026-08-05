@@ -135,7 +135,7 @@
                                 </form>
                                 <x-confirm-modal show="open"
                                                  title="Permanently delete this record?"
-                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm="$refs.deleteForm.requestSubmit()"
                                                  confirm-label="Delete forever">
                                     <p><strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, decision-support outputs, and recommendations — will be permanently erased.</p>
                                     <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">

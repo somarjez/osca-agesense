@@ -165,7 +165,7 @@
          the modal off-screen. confirmOpen + $refs live on the page-level x-data. --}}
     <x-confirm-modal show="confirmOpen"
                      title="Delete selected log entries?"
-                     confirm="$refs.bulkDeleteForm.submit()"
+                     confirm="$refs.bulkDeleteForm.requestSubmit()"
                      confirm-label="Delete permanently">
         <p>The selected activity log entries will be <strong class="text-ink-900 dark:text-[#e4e1d8]">permanently</strong> deleted. This cannot be undone.</p>
     </x-confirm-modal>

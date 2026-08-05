@@ -313,7 +313,7 @@
                         <x-confirm-modal show="open"
                                          title="Run bulk geocoding?"
                                          tone="primary"
-                                         confirm="$refs.geocodeForm.submit()"
+                                         confirm="$refs.geocodeForm.requestSubmit()"
                                          confirm-label="Run geocoding">
                             <p>This assigns approximate barangay-level coordinates to seniors without coordinates so they can be mapped for planning. It will <strong class="text-ink-900 dark:text-[#e4e1d8]">not</strong> overwrite verified manual or GPS-captured pins.</p>
                         </x-confirm-modal>
