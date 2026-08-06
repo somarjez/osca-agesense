@@ -52,9 +52,27 @@
                 // this tab mid-run. Resume the same 3s poll a fresh start()
                 // would have, rather than showing the idle Run Full Batch
                 // button while scoring is actually still happening.
-                this.cacheKey = @json($resumeBatch['cache_key']);
-                this.batchId  = @json($resumeBatch['batch_id']);
-                this.total    = @json($resumeBatch['total']);
+                //
+                // Use the Blade @@js directive here, NOT @@json: @@json compiles
+                // to json_encode() with JSON_HEX_QUOT, which escapes quotes
+                // inside the string but not the string's own delimiting
+                // double-quote characters — so it emits those delimiters raw,
+                // which terminates this double-quoted x-data attribute early
+                // and dumps the rest of this script as visible page text.
+                // Same bug class fixed twice before in this file (beda942
+                // #190, 01fb669 #213) via stray-quote-in-comment; this is the
+                // same symptom from a runtime-injected quote instead, which
+                // the source-scanning regression test can't catch — see
+                // BatchPageResumeRenderTest. @@js emits a single-quoted,
+                // fully-escaped JS literal instead and is safe here. (This
+                // comment writes both directive names with a doubled leading
+                // at-sign, Blade's own escape syntax for a literal at-sign,
+                // so Blade doesn't try to compile them as real directives —
+                // and deliberately contains no double-quote character at all,
+                // for the same reason.)
+                this.cacheKey = @js($resumeBatch['cache_key']);
+                this.batchId  = @js($resumeBatch['batch_id']);
+                this.total    = @js($resumeBatch['total']);
                 this.running  = true;
                 this.timer = setInterval(() => this.elapsed++, 1000);
                 this.poll();
