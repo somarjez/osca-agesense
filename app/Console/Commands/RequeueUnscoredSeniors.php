@@ -8,6 +8,7 @@ use App\Services\MlService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ml:requeue-unscored
@@ -24,10 +25,24 @@ use Illuminate\Support\Facades\Cache;
  * clearing ml_queued_at means a stranded chunk stays stranded forever.
  *
  * This command finds active seniors with a processed QoL survey but no
- * usable MlResult, excludes anything that looks genuinely in-flight, and
- * requeues the rest — same dispatch shape as MlController::batchRun(). Run
- * on a schedule (see routes/console.php) so a stalled import self-heals
- * within one keep-alive tick instead of requiring a manual re-run.
+ * usable MlResult and requeues them — same dispatch shape as
+ * MlController::batchRun(). Run on a schedule (see routes/console.php) so a
+ * stalled import self-heals within one keep-alive tick instead of requiring
+ * a manual re-run.
+ *
+ * Gated on there being no currently-active Bus::batch() (see the
+ * job_batches check below) rather than a fixed "how long is too long"
+ * window on ml_queued_at. A large import legitimately drains slowly — 1000
+ * seniors is 40 chunks at ~35-40s each, so ~60-70 minutes if only the
+ * 10-minute cron tick is draining it — and a fixed window short enough to
+ * catch a genuinely abandoned chunk would misfire on that import while it's
+ * still honestly in progress, re-dispatching duplicates of seniors whose
+ * original chunk simply hasn't been reached yet. Waiting for every active
+ * batch to finish (finished_at/cancelled_at both null = still running) before
+ * sweeping avoids that regardless of import size; a duplicate dispatch would
+ * be wasteful rather than harmful either way (findReusableResult() makes a
+ * second computation of an already-scored senior a no-op), but there's no
+ * reason to risk it.
  */
 class RequeueUnscoredSeniors extends Command
 {
@@ -42,19 +57,28 @@ class RequeueUnscoredSeniors extends Command
         $limit = max(1, (int) $this->option('limit'));
         $dryRun = (bool) $this->option('dry-run');
 
-        // Anything queued within the last 15 minutes is presumed to be a
-        // genuine in-flight chunk, not stranded — ProcessMlBatch clears
-        // ml_queued_at unconditionally in both handle() and failed(), so a
-        // marker that survives past a chunk's own $timeout (300s) plus a
-        // safety margin means the worker that owned it is gone (deploy,
-        // crash, OOM) and it is safe to requeue without racing a still-
-        // running attempt.
-        $cutoff = now()->subMinutes(15);
+        // Primary correctness gate: if any Bus::batch() is still running
+        // (bulk upload, a manual Batch Assessment run, or a previous sweep),
+        // every currently-unscored senior could simply be waiting their turn
+        // in it — leave them alone and let it finish, no matter how long
+        // that takes. Only once the queue is fully idle does "still
+        // unscored" reliably mean "actually stranded" (its batch already
+        // finished/was cancelled and this senior never got scored — e.g. a
+        // chunk that exhausted both of ProcessMlBatch's retries).
+        if (DB::table('job_batches')->whereNull('finished_at')->whereNull('cancelled_at')->exists()) {
+            $this->info('An ML batch is already in progress — skipping this sweep cycle.');
+
+            return self::SUCCESS;
+        }
 
         $candidates = SeniorCitizen::active()
             ->whereHas('latestQolSurvey', fn ($q) => $q->where('status', 'processed'))
-            ->where(function ($q) use ($cutoff) {
-                $q->whereNull('ml_queued_at')->orWhere('ml_queued_at', '<', $cutoff);
+            // Defensive-only: catches the narrow window between a dispatch
+            // setting ml_queued_at and its job_batches row becoming visible
+            // to the query above. The active-batch gate above is what
+            // actually makes this safe for a slow, large import.
+            ->where(function ($q) {
+                $q->whereNull('ml_queued_at')->orWhere('ml_queued_at', '<', now()->subMinutes(2));
             })
             ->with('latestQolSurvey')
             ->orderBy('id')
@@ -107,17 +131,10 @@ class RequeueUnscoredSeniors extends Command
         Cache::put("{$cacheKey}:failed", 0, now()->addHours(2));
         Cache::put("{$cacheKey}:fallback", 0, now()->addHours(2));
 
-        // Only claim the resumable-batch slot the Batch Assessment page reads
-        // if nothing else is already using it — a manual run or bulk upload
-        // already in progress should keep showing on that page rather than
-        // being silently swapped out by this background sweep.
-        $current = Cache::get('ml_current_batch');
-        $currentStillRunning = $current
-            && Bus::findBatch($current['batch_id'])?->finished() === false;
-
-        if (! $currentStillRunning) {
-            Cache::put('ml_current_batch', ['cache_key' => $cacheKey, 'batch_id' => $batch->id], now()->addHours(2));
-        }
+        // Safe to unconditionally claim the resumable-batch slot the Batch
+        // Assessment page reads — the active-batch gate above already
+        // confirmed nothing else is running.
+        Cache::put('ml_current_batch', ['cache_key' => $cacheKey, 'batch_id' => $batch->id], now()->addHours(2));
 
         $this->info("Dispatched batch {$batch->id} with ".count($chunks).' chunk(s).');
 
