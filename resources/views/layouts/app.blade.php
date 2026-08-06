@@ -7,6 +7,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'AgeSense')</title>
+    {{-- The sidebar/topbar are @persist'd (see below) so their DOM survives
+         wire:navigate untouched — but that means anything server-rendered
+         inside them (page title, active nav link) goes stale on navigation
+         unless synced from somewhere that DOES refresh. <head> is not
+         persisted and is merged fresh on every navigation (Livewire's
+         mergeNewHead), so this meta tag is that refresh source: app.js reads
+         it on livewire:navigated and copies its value into the persisted
+         <h1>. --}}
+    <meta name="page-title" content="@yield('page-title', 'Dashboard')">
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     {{-- Apply dark class immediately from localStorage to prevent flash --}}
     <script>
@@ -36,6 +45,14 @@
     <div class="flex flex-1 overflow-hidden min-h-0">
 
     {{-- ── Sidebar ── --}}
+    {{-- @persist'd: without this, wire:navigate destroys and recreates the
+         whole sidebar subtree (20 role-gated links) on every navigation, and
+         the Services link's x-init ml.nav-health fetch below re-fires every
+         time too. Persisting means this DOM is built once and just gets
+         moved between the old and new <body>; only its active-link state
+         needs a client-side refresh (via $navActive below) since it no
+         longer receives fresh server-rendered classes after the first load. --}}
+    @persist('sidebar')
     <aside :class="sidebarOpen ? 'w-64' : 'w-[68px]'"
            class="no-print flex-shrink-0 flex flex-col bg-white dark:bg-[#151c19] border-r border-paper-rule dark:border-[#2b3530] transition-[width] duration-200 overflow-hidden">
 
@@ -78,25 +95,25 @@
             <div x-show="!sidebarOpen" x-cloak class="h-1"></div>
 
             <a href="{{ route('dashboard') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('dashboard', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Dashboard'">
                 <x-heroicon-o-home class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Dashboard</span>
             </a>
             <a href="{{ route('seniors.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('seniors.index') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.index', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Senior Records'">
                 <x-heroicon-o-users class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Senior Records</span>
             </a>
             <a href="{{ route('seniors.deceased') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('seniors.deceased') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.deceased', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Deceased Seniors'">
                 <x-heroicon-o-user-minus class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Deceased Seniors</span>
@@ -104,25 +121,25 @@
 
             @hasanyrole('admin|encoder')
             <a href="{{ route('seniors.create') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('seniors.create') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.create', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'New Profile'">
                 <x-heroicon-o-user-plus class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">New Profile</span>
             </a>
             <a href="{{ route('seniors.drafts.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('seniors.drafts*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.drafts.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Drafts'">
                 <x-heroicon-o-pencil-square class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Drafts</span>
             </a>
             <a href="{{ route('surveys.qol.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('surveys.qol*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('surveys.qol.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'QoL Surveys'">
                 <x-heroicon-o-clipboard-document-list class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">QoL Surveys</span>
@@ -135,41 +152,41 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.cluster') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('reports.cluster') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.cluster', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Profile Groups'">
                 <x-heroicon-o-squares-2x2 class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Profile Groups</span>
             </a>
             <a href="{{ route('reports.gis') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('reports.gis') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.gis', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'GIS Analytics'">
                 <x-heroicon-o-map class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">GIS Analytics</span>
             </a>
             <a href="{{ route('reports.risk') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('reports.risk') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.risk', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Risk Reports'">
                 <x-heroicon-o-shield-check class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Risk Reports</span>
             </a>
             <a href="{{ route('reports.barangay.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('reports.barangay*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.barangay.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Barangay Report'">
                 <x-heroicon-o-map-pin class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Barangay Report</span>
             </a>
             <a href="{{ route('recommendations.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('recommendations*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('recommendations.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Recommendations'">
                 <x-heroicon-o-light-bulb class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Recommendations</span>
@@ -182,17 +199,17 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('ml.status') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('ml.status', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Service Status'">
                 <x-heroicon-o-bolt class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Service Status</span>
             </a>
             <a href="{{ route('ml.batch') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('ml.batch') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('ml.batch', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Batch Analysis'">
                 <x-heroicon-o-arrow-path class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Batch Analysis</span>
@@ -206,23 +223,23 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.validation') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('reports.validation') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.validation', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'System Validation'">
                 <x-heroicon-o-chart-bar-square class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">System Validation</span>
             </a>
             <a href="{{ route('activity-log.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('activity-log*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('activity-log.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Activity Log'">
                 <x-heroicon-o-clipboard-document-check class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
             <a href="{{ route('reports.registry') }}"
-               wire:navigate
+               wire:navigate.hover
                class="nav-link"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Registry and Backup'">
@@ -230,9 +247,9 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Registry and Backup</span>
             </a>
             <a href="{{ route('users.index') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('users*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('users.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'User Management'">
                 <x-heroicon-o-user-group class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">User Management</span>
@@ -244,9 +261,9 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('seniors.archives') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('seniors.archives*') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.archives', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Archives'">
                 <x-heroicon-o-archive-box class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Archives</span>
@@ -259,9 +276,9 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('help') }}"
-               wire:navigate
-               class="nav-link {{ request()->routeIs('help') ? 'nav-link-active' : '' }}"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               wire:navigate.hover
+               class="nav-link"
+               :class="{ 'nav-link-active': $navActive('{{ route('help', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Help Centre'">
                 <x-heroicon-o-question-mark-circle class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Help Centre</span>
@@ -269,16 +286,26 @@
         </nav>
 
     </aside>
+    @endpersist
 
     {{-- ── Main ── --}}
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
 
         {{-- Topbar --}}
+        {{-- @persist'd for the same reason as the sidebar above — additionally
+             stops the Services link's x-init (ml.nav-health fetch) from
+             re-firing on every navigation; it now runs once per full load.
+             Page title and search value are server-rendered but this DOM is
+             now frozen after the first render, so both are kept in sync from
+             app.js on livewire:navigated: title from the <meta name="page-title">
+             tag (head is not persisted, so it's always fresh), search value
+             read directly from location.search. --}}
+        @persist('topbar')
         <header class="no-print bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-14 shadow-[0_1px_0_rgba(20,30,25,0.05)]">
 
             {{-- Left: Page title (fixed width so search stays centered) --}}
             <div class="flex items-center gap-2.5 min-w-0 w-52 flex-shrink-0">
-                <h1 class="font-serif text-[18px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
+                <h1 id="topbar-page-title" class="font-serif text-[18px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
             </div>
 
             {{-- Center: Search bar — navigates to seniors.index with ?search= --}}
@@ -289,7 +316,8 @@
                   class="flex-1 hidden md:block max-w-sm mx-auto">
                 <div class="topbar-search">
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5 text-ink-300 dark:text-[#4a5550] flex-shrink-0" />
-                    <input x-ref="topbarSearch"
+                    <input id="topbar-search-input"
+                           x-ref="topbarSearch"
                            type="text"
                            name="search"
                            aria-label="Search seniors by name, OSCA ID or System ID"
@@ -308,12 +336,15 @@
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
 
                 {{-- ML Services status --}}
+                {{-- Complex logic (sessionStorage caching) lives in
+                     OSCA.checkNavHealth (app.js), not inline here — keeps
+                     this attribute a single short line, since a multi-line
+                     x-data/x-init with an embedded comment containing a
+                     stray quote has broken this exact kind of attribute
+                     twice before (see BladeAlpineAttributeIntegrityTest). --}}
                 <a href="{{ route('ml.status') }}" wire:navigate
                    x-data="{ dot: 'checking', title: 'Checking analysis services…' }"
-                   x-init="fetch('{{ route('ml.nav-health') }}', { headers: { 'Accept': 'application/json' } })
-                             .then(r => r.ok ? r.json() : Promise.reject())
-                             .then(d => { if (d) { dot = d.dot; title = d.title } })
-                             .catch(() => { dot = 'err'; title = 'Status unavailable' })"
+                   x-init="OSCA.checkNavHealth('{{ route('ml.nav-health') }}').then(d => { dot = d.dot; title = d.title })"
                    class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
                           hover:text-ink-900 dark:hover:text-[#e4e1d8] hover:bg-paper-2 dark:hover:bg-[#202a26]
                           px-2 py-1.5 rounded-lg transition-all duration-150"
@@ -343,8 +374,20 @@
                     $roleLabels = ['admin' => 'Administrator', 'encoder' => 'Encoder', 'viewer' => 'Viewer'];
                     $roleName   = auth()->user()?->getRoleNames()->first() ?? 'viewer';
                 @endphp
+                {{-- The topbar is @persist'd (see above), so this local profileOpen
+                     state now survives navigation too — previously a full body
+                     swap reset it for free. Close it explicitly on navigate so
+                     clicking a sidebar link while this is open doesn't leave it
+                     hanging open on the destination page. --}}
+                {{-- x-on:, not the @ shorthand: "@livewire:..." collides with
+                     Livewire's own @livewire(...) Blade directive and breaks
+                     view compilation (confirmed — ArgumentCountError from
+                     Illuminate\Filesystem\Filesystem, Blade parsing this as
+                     @livewire's directive arguments). x-on: isn't a Blade
+                     "@word" token, so it isn't intercepted. --}}
                 <div x-data="{ profileOpen: false }" class="relative"
-                     @keydown.escape.window="profileOpen = false">
+                     @keydown.escape.window="profileOpen = false"
+                     x-on:livewire:navigating.window="profileOpen = false">
                     <button type="button" @click="profileOpen = !profileOpen"
                             class="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-lg hover:bg-paper-2 dark:hover:bg-[#202a26] transition-colors duration-150"
                             aria-haspopup="menu" :aria-expanded="profileOpen ? 'true' : 'false'"
@@ -395,6 +438,7 @@
                 </div>
             </div>
         </header>
+        @endpersist
 
         {{-- Page content --}}
         <main id="main-content" class="flex-1 overflow-y-auto min-h-0 px-7 py-7 pb-10 bg-paper dark:bg-[#131917]">

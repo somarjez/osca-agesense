@@ -22,7 +22,20 @@
     first's — leaking one orphaned 45s poller and two orphaned event
     listeners on every single wire:navigate transition, compounding for the
     rest of the session.
+
+    @persist is placed HERE (inside the @auth/@unless guard above), not
+    around the <x-ml-service-guard /> call site in the layout — this whole
+    block is entirely absent on /ml/status. If the persist wrapper were
+    unconditional in the layout instead, leaving /ml/status would restore a
+    stale *empty* persisted node (since this file rendered nothing there)
+    over any later page's real one, permanently breaking the guard for the
+    rest of the session. Keeping the wrapper conditional here means the
+    persisted key simply doesn't exist while on /ml/status, which Livewire's
+    navigate plugin already handles cleanly (destroys the old instance,
+    starts fresh next time this renders) — see putPersistantElementsBack()
+    in Livewire's navigate/persist.js.
 --}}
+@persist('ml-service-guard')
 <div x-data="mlServiceGuard(@js($mlGuardConfig))">
 
     {{-- Warning modal — shown once per tab session the moment services are detected down --}}
@@ -115,5 +128,6 @@
         </button>
     </div>
 </div>
+@endpersist
 @endunless
 @endauth

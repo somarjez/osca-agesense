@@ -122,14 +122,17 @@
                                     + `heuristic, not the ML model (services were unreachable). Re-run Batch `
                                     + `Assessment once ML services are back up to replace these with real scores.`;
                             }
-                            setTimeout(() => location.reload(), 2000);
+                            // Soft SPA refresh instead of a hard reload — re-fetches this
+                            // same page's fresh "Last run" summary without throwing away
+                            // the persisted sidebar/topbar or forcing a full asset reload.
+                            setTimeout(() => Livewire.navigate(window.location.href), 2000);
                         } else if (d.cancelled) {
                             clearInterval(this.pollTimer);
                             clearInterval(this.timer);
                             this.running = false;
                             this.done    = true;
                             this.resultMsg = 'Batch was cancelled.';
-                            setTimeout(() => location.reload(), 2000);
+                            setTimeout(() => Livewire.navigate(window.location.href), 2000);
                         }
                     })
                     .catch(() => {});
@@ -348,7 +351,7 @@
                                         // badge (driven by ml_queued_at) takes over
                                         // instead of showing a false error here.
                                         clearInterval(this.pollTimer);
-                                        location.reload();
+                                        Livewire.navigate(window.location.href);
                                         return;
                                     }
                                     fetch(this.resultUrl, { headers: { 'Accept': 'application/json' } })

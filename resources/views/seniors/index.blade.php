@@ -359,8 +359,18 @@
     </div>
 
     {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
-    <div x-show="uploadOpen" x-cloak
-         role="dialog"
+    {{-- <template x-if>, not x-show — this panel (drop zone, drag-drop
+         handlers, the full column-reference table) is one of the heaviest
+         chunks of markup on this page and was previously always present in
+         the DOM (just display:none'd), costing every /seniors load a full
+         parse + Alpine bind for content almost nobody opens. x-if defers
+         creating it until uploadOpen actually flips true — including the
+         validation-error-reopens-the-modal case below, since x-if reacts to
+         the same initial value x-show did. No x-cloak needed either: an
+         x-if element simply doesn't exist pre-Alpine-init, so there's
+         nothing to flash. --}}
+    <template x-if="uploadOpen">
+    <div role="dialog"
          aria-modal="true"
          aria-labelledby="bulk-upload-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -530,6 +540,7 @@
             </div>
         </div>
     </div>
+    </template>
 
 </div>
 
