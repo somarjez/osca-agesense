@@ -178,7 +178,33 @@ class MlController extends Controller
         return view('ml.batch', compact('pending', 'totalEligible', 'totalReady'))
             ->with('lastBatchRun', Cache::get('ml_last_batch_started'))
             ->with('lastBatchCount', Cache::get('ml_last_batch_senior_count'))
-            ->with('resumeBatch', $this->resumableBatch());
+            ->with('resumeBatch', $this->resumableBatch())
+            ->with('unscoredCount', $this->unscoredCount());
+    }
+
+    /**
+     * Active seniors with a processed survey but no fresh MlResult — the
+     * count that used to silently stay wrong after a large bulk upload or
+     * batch run outlived every queue-drain time budget (see
+     * RequeueUnscoredSeniors). This is a display-only approximation of
+     * MlService::findReusableResult()'s "missing or stale" cases, not a
+     * full replica of it (it doesn't check model_version/fallback-upgrade
+     * — those are rarer and the sweeper itself is the authoritative check),
+     * cached briefly since it backs the 3s batch-status poll.
+     */
+    private function unscoredCount(): int
+    {
+        return Cache::remember('ml_unscored_count', 60, function () {
+            return SeniorCitizen::active()
+                ->whereHas('latestQolSurvey', function ($q) {
+                    $q->where('status', 'processed')
+                        ->where(function ($q2) {
+                            $q2->whereDoesntHave('mlResult')
+                                ->orWhereHas('mlResult', fn ($q3) => $q3->where('is_stale', true));
+                        });
+                })
+                ->count();
+        });
     }
 
     /**
@@ -319,15 +345,15 @@ class MlController extends Controller
         } else {
             // The progress view polls this every 3s while a batch runs, which
             // is effectively free traffic to nudge the queue along instead of
-            // waiting on the next cron tick — but firing a full drain on every
-            // single poll would stack up overlapping queue:work processes on
-            // Render's thin free-tier instance. Cache::add() is atomic, so
-            // only the poll that wins the lock triggers a drain; the ~10s
-            // cooldown matches the drain's own budget, keeping at most one
-            // running at a time.
-            if (Cache::add("{$cacheKey}:draining", true, now()->addSeconds(10))) {
-                $this->drainQueueAfterResponse(10);
-            }
+            // waiting on the next cron tick. drainQueueAfterResponse() now
+            // owns its own cross-request lock (see DrainsMlQueue), so an
+            // overlapping poll that arrives while a drain is still running
+            // simply no-ops instead of stacking a second queue:work process
+            // on top of it — no separate throttle needed here. 60s (up from
+            // 10s) gives a single Render free-tier chunk (~35-40s observed)
+            // room to actually finish inside one drain instead of being cut
+            // off mid-job and left reserved for the full retry_after window.
+            $this->drainQueueAfterResponse(60);
         }
 
         return response()->json([
@@ -339,6 +365,13 @@ class MlController extends Controller
             'fallback' => $fallback,
             'pending_jobs' => $batch->pendingJobs,
             'progress' => $total > 0 ? round($processed / $total * 100) : 0,
+            // Lets the view keep showing "N still awaiting risk assessment"
+            // as it falls while this batch runs, and confirm it reached 0
+            // once finished — rather than trusting this batch's own
+            // processed/total, which can't see seniors outside it (e.g. a
+            // second bulk upload started mid-run, or stragglers this batch
+            // itself doesn't cover).
+            'unscored' => $this->unscoredCount(),
         ]);
     }
 

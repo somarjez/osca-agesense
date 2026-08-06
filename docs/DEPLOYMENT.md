@@ -651,6 +651,32 @@ safety margin, not a substitute for keeping requests themselves fast — see
 `BulkUploadController::upload()`'s `withoutEvents()` comment for the case where
 the actual per-request work needed to get faster too.
 
+### 12b. Large bulk uploads / batch runs take several minutes to fully score — this is expected
+
+A 25-senior `ProcessMlBatch` chunk (`ML_BATCH_CHUNK_SIZE` in `.env.example`) costs roughly
+**35-40s end-to-end** on Render's free-tier 0.1-CPU Python services (`batch_preprocess` +
+`batch_infer` HTTP round-trips). A single opportunistic drain
+(`DrainsMlQueue::drainQueueAfterResponse()`, fired right after a bulk upload's or a manual
+Batch Assessment run's HTTP response) only has a bounded time budget, so it clears a handful
+of chunks and then stops — by design, so it can't tie up a PHP-FPM worker indefinitely.
+
+**What this looks like in practice:** a 360-row bulk upload queues 15 chunks. The immediate
+post-upload drain clears about 4 of them (~100 seniors) before its budget runs out; this was
+previously mistaken for a hard "100-record cap" on bulk upload — it wasn't, all 360 rows were
+imported correctly, only risk scoring lagged. The remaining chunks are picked up by:
+
+- the 10-minute keep-alive cron tick (§12 above), which drains for up to 240s (~6 chunks) per
+  tick, and
+- `php artisan ml:requeue-unscored` (`routes/console.php`, `everyTenMinutes()`), a
+  reconciliation sweeper that finds any active senior with a survey but no usable `MlResult` —
+  including one stranded by a chunk whose worker died mid-job — and requeues it. This is what
+  guarantees a large import eventually reaches 100% scored without anyone reopening the Batch
+  Assessment page or re-running it manually.
+
+So a 360-row import needs roughly **9-10 minutes of cumulative queue-worker time**, typically
+spread across 2-3 keep-alive ticks. The Batch Assessment page (`/ml/batch`) shows a live
+"N senior(s) still awaiting risk assessment" count while this catches up.
+
 ---
 
 ## Related Documents

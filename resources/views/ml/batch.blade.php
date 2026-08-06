@@ -25,6 +25,10 @@
             coldStartLikely: false,
             total: {{ $totalEligible }},
             progress: 0,
+            // Seeded from a live DB count (MlController::unscoredCount()) so
+            // it's accurate even on first load, then kept fresh by each
+            // poll() response while a batch runs.
+            unscored: {{ $unscoredCount }},
             csrfToken: '{{ csrf_token() }}',
             batchUrl: '{{ route('ml.batch.run') }}',
             statusUrl: '{{ route('ml.batch.status') }}',
@@ -104,6 +108,7 @@
                         this.processed = d.processed;
                         this.failed    = d.failed;
                         this.progress  = d.progress;
+                        this.unscored  = d.unscored;
 
                         if (d.finished) {
                             clearInterval(this.pollTimer);
@@ -123,7 +128,7 @@
                                     + `Assessment once ML services are back up to replace these with real scores.`;
                             }
                             // Soft SPA refresh instead of a hard reload — re-fetches this
-                            // same page's fresh "Last run" summary without throwing away
+                            // same page's fresh Last-run summary without throwing away
                             // the persisted sidebar/topbar or forcing a full asset reload.
                             setTimeout(() => Livewire.navigate(window.location.href), 2000);
                         } else if (d.cancelled) {
@@ -171,6 +176,16 @@
                     @else
                         <span class="text-ink-300">Never run on this machine</span>
                     @endif
+                </p>
+
+                {{-- Reflects seniors left unscored right now — including ones stranded by
+                     a previous run that outlived its queue-drain time budget (a large bulk
+                     upload can take several sweeper cycles to fully clear; see
+                     ml:requeue-unscored). Hidden at zero so a fully-caught-up system doesn't
+                     show a permanent "0 awaiting" line. --}}
+                <p x-show="unscored > 0" x-cloak
+                   class="text-xs text-moderate-700 bg-moderate-50 border border-moderate-100 dark:text-[#d4a830] dark:bg-moderate-50/10 dark:border-moderate-700/30 rounded-lg px-2.5 py-1.5 mb-3 inline-block">
+                    <span x-text="unscored"></span> senior(s) still awaiting risk assessment.
                 </p>
 
                 {{-- Result / error banners --}}
