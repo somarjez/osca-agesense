@@ -6359,6 +6359,38 @@
         }
     }
 
+    // Tears down a previous Leaflet instance on `el`, if any. Layers defined
+    // elsewhere in this file (heatmap canvas overlays, etc.) have hand-written
+    // onRemove() handlers — a throw from any of them used to abort map.remove()
+    // partway through and skip everything below it (resize observer, the
+    // window.__oscaMaps registry, clearing the container), leaving a dead map
+    // instance and its listeners running against a detached element. The
+    // try/catch isolates that failure to just the Leaflet-internal teardown;
+    // the app-level cleanup after it always runs regardless.
+    function destroyMap(el) {
+        if (!el?._leaflet_id) return;
+
+        const map = el._leaflet_map_instance;
+        if (map) {
+            try {
+                map.off();
+                map.remove();
+            } catch (error) {
+                console.warn('GIS map teardown threw (continuing cleanup):', error);
+            }
+            if (window.__oscaMaps) {
+                const idx = window.__oscaMaps.indexOf(map);
+                if (idx !== -1) window.__oscaMaps.splice(idx, 1);
+            }
+        }
+        if (el._gisResizeObserver) {
+            el._gisResizeObserver.disconnect();
+            el._gisResizeObserver = null;
+        }
+        el._leaflet_map_instance = null;
+        el.innerHTML = '';
+    }
+
     function renderMap() {
         const el = document.getElementById(MAP_ID);
         if (!el || !window.L) { setMapLoading(false); return; }
@@ -6374,17 +6406,7 @@
         setStatus('Loading GIS layers for Pagsanjan...', 'neutral');
         setMapLoading(true);
 
-        if (el._leaflet_id) {
-            if (el._leaflet_map_instance) {
-                el._leaflet_map_instance.off();
-                el._leaflet_map_instance.remove();
-            }
-            if (el._gisResizeObserver) {
-                el._gisResizeObserver.disconnect();
-                el._gisResizeObserver = null;
-            }
-            el.innerHTML = '';
-        }
+        destroyMap(el);
 
         const map = window.L.map(el, {
             minZoom: MIN_ZOOM,
@@ -6527,6 +6549,15 @@
         });
         document.addEventListener('DOMContentLoaded', bootMap);
         document.addEventListener('livewire:navigated', () => setTimeout(bootMap, 0));
+        // Without this, leaving GIS left the map instance, its resize
+        // observer, and the window resize/theme listeners below all still
+        // firing against a container that wire:navigate had already removed
+        // from the DOM — renderMap()'s own teardown only runs on the *next*
+        // visit to this page, not on navigate-away. destroyMap() no-ops
+        // harmlessly if the map element is already gone.
+        document.addEventListener('livewire:navigating', () => {
+            destroyMap(document.getElementById(MAP_ID));
+        });
         window.addEventListener('resize', () => {
             const map = document.getElementById(MAP_ID)?._leaflet_map_instance;
             syncMapSize(map);

@@ -8,6 +8,20 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
+// Reconciliation sweeper for stranded ML scoring (Phase E — see
+// .github/workflows/keep-alive.yml, which fires schedule:run every 10
+// minutes inside the 6am-8pm PHT business-hours window, same as everywhere
+// else in this file). A bulk upload or Batch Assessment run can outlive
+// every queue-drain time budget on a slow/free-tier ML service and leave
+// seniors permanently unscored with nothing left to re-queue them — see
+// RequeueUnscoredSeniors' own doc comment for the full failure mode.
+// withoutOverlapping guards against a slow sweep still running when the
+// next tick fires.
+Schedule::command('ml:requeue-unscored --limit=200')
+    ->everyTenMinutes()
+    ->withoutOverlapping(30)
+    ->appendOutputTo(storage_path('logs/ml-requeue.log'));
+
 // Daily cluster snapshot (records cluster composition for longitudinal tracking).
 // Was 23:55 — moved into the 6am-8pm PHT business-hours window (Phase E,
 // .github/workflows/keep-alive.yml) since nothing runs schedule:run outside
