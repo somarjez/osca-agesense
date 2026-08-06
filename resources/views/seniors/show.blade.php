@@ -94,7 +94,7 @@
                                 // ml_queued_at) instead of guessing here.
                                 clearInterval(this.pollTimer);
                                 clearInterval(this.elapsedTimer);
-                                location.reload();
+                                Livewire.navigate(window.location.href);
                                 return;
                             }
                             fetch('{{ route('ml.result.senior', $senior) }}', {
@@ -107,7 +107,7 @@
                                     clearInterval(this.elapsedTimer);
                                     this.done = true;
                                     this.fallbackUsed = d.prediction_source === 'fallback';
-                                    setTimeout(() => location.reload(), 800);
+                                    setTimeout(() => Livewire.navigate(window.location.href), 800);
                                 }
                             })
                             .catch(() => {});
@@ -221,7 +221,7 @@
                     .then(d => {
                         if (d.ready && d.processed_at && d.processed_at > this.baseTs) {
                             clearInterval(this.pollTimer);
-                            location.reload();
+                            Livewire.navigate(window.location.href);
                         }
                     })
                     .catch(() => {});

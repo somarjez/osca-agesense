@@ -1,6 +1,6 @@
 ---
 name: osca-performance
-description: Use when the AgeSense OSCA app feels slow, laggy, or janky — especially "fast on high-end machines but slow on devices without a GPU", slow dashboard/chart rendering, heavy page loads, or any frontend rendering performance work. Covers the global asset bundle, Chart.js pitfalls, CSS motion cost, and dashboard query caching. Consult this before adding libraries, animations, or "optimizing" rendering, even if the user doesn't say the word "performance".
+description: Use when the AgeSense OSCA app feels slow, laggy, or janky — especially "fast on high-end machines but slow on devices without a GPU", slow dashboard/chart rendering, heavy page loads, sluggish wire:navigate clicks, or any frontend rendering performance work. Covers the global asset bundle, Chart.js pitfalls, CSS motion cost, dashboard query caching, and the persisted sidebar/topbar + wire:navigate race fix. Consult this before adding libraries, animations, or "optimizing" rendering, even if the user doesn't say the word "performance".
 ---
 
 # OSCA Performance & Rendering
@@ -19,32 +19,38 @@ build` + hard refresh** after any Blade/CSS/JS change or nothing takes effect.
 
 ---
 
-## The global asset bundle (every page pays for it)
+## The global asset bundle
 
-`resources/js/app.js` statically imports **Chart.js (`chart.js/auto`), Leaflet,
-markercluster, leaflet.heat**, and their CSS into one bundle loaded on *every*
-page (~440 KB). It sets `window.Chart` and `window.L` for Blade scripts to use.
+`resources/js/app.js` no longer statically imports Chart.js or Leaflet — both are
+**code-split** via `resources/js/loaders.js`'s memoized `loadCharts()` /
+`loadMaps()`, each a dynamic `import()` fetched only the first time a page
+actually calls `OSCA.charts()` / `OSCA.maps()`. Both loaders set `window.Chart` /
+`window.L` for Blade scripts to use, matching the pre-split global contract, so
+call sites didn't need to change — they just need to `await` the loader before
+using the global. `app.js` itself (sidebar/topbar/navigation logic, `window.OSCA`
+utilities, the double-submit guard, etc.) is ~55 KB.
 
 - **Charts** are used on the dashboard, cluster analysis, risk report.
-- **Leaflet/maps** are used on **only** the GIS report (`reports/gis.blade.php`)
-  and the profile mini-map — yet ship everywhere. Code-splitting them off the
-  global bundle is the main remaining win, but it's **risky**: `gis.blade.php`'s
-  inline script depends on `window.L` existing before it runs, so any split must
-  guarantee load order. Verify the GIS page fully works before shipping such a
-  change.
+- **Leaflet/maps** are used on the GIS report (`reports/gis.blade.php`) and the
+  profile mini-map. `gis.blade.php`'s inline script must `await OSCA.maps()`
+  (or otherwise wait on the loader's promise) before touching `window.L` — it can
+  no longer assume Leaflet is already loaded by the time it runs, unlike before
+  the split. Verify the GIS page fully works before touching this loader.
 
 ### Chart.js double-load trap (do not reintroduce)
-Chart.js must be loaded **once**. It is already provided by the bundle
-(`window.Chart`). The layout (`resources/views/layouts/app.blade.php`) **must not**
-also add a `<script src="...cdn.../chart.js...">` tag — that was a second,
-render-blocking ~200 KB copy on every page. If you need Chart.js on a page, use the
-bundled `window.Chart`; don't add a CDN tag.
+Chart.js must be loaded **once**, via `OSCA.charts()` (which memoizes the
+dynamic import — repeat calls resolve the same cached promise, not a second
+fetch). The layout (`resources/views/layouts/app.blade.php`) **must not** add a
+`<script src="...cdn.../chart.js...">` tag, and no page should statically
+`import 'chart.js'` — either would be a second, render-blocking copy loaded on
+top of the lazy one.
 
 **Load-order note:** dashboard chart scripts live in `@push('scripts')` and only
-*register* listeners at parse time; the actual `new Chart()` runs on
-`livewire:navigated` / `livewire:updated` / `DOMContentLoaded`, all after the
-deferred `app.js` module sets `window.Chart`. So relying solely on the bundle is
-safe — but keep new chart code inside those events, not inline-at-parse.
+*register* listeners at parse time; the actual `new Chart()` must run after
+`OSCA.charts()`'s promise resolves (typically inside a `livewire:navigated` /
+`livewire:updated` / `DOMContentLoaded` handler that awaits it first) — `window.Chart`
+does not exist until that promise settles. Don't assume it's already set just
+because a previous page happened to load it first.
 
 ---
 
@@ -114,6 +120,66 @@ redo that work; profile to confirm a regression before adding new machinery.
 
 ---
 
+## Navigation architecture (wire:navigate)
+
+Every page shares the sidebar + topbar from `resources/views/layouts/app.blade.php`.
+Two things depend on each other here — read both before touching either.
+
+### The persisted shell
+`<aside>` (sidebar), `<header>` (topbar), and `<x-ml-service-guard />` are wrapped
+in Livewire `@persist(...)` blocks. This means their DOM is built **once** and
+reused across every `wire:navigate` — not destroyed/recreated per click — which is
+what stops the topbar's Services-status fetch and ~20 role-gated sidebar links from
+re-parsing and re-binding on every single navigation. `ml-service-guard.blade.php`
+persists its own root div *inside* its `@auth`/`@unless(routeIs('ml.status'))`
+guard, not around the `<x-ml-service-guard />` call site — the component renders
+nothing on `/ml/status`, and persisting an unconditional wrapper around it would
+let that page's empty state permanently overwrite the real one on the next
+navigation. Keep that nesting if you touch this file.
+
+The trade-off: anything server-rendered *inside* a persisted element goes stale
+after the first load, since it stops receiving fresh HTML on navigation. Three
+things that used to be `request()->routeIs(...)`/`@yield` server logic are now
+synced client-side instead (`resources/js/app.js`, inside the `alpine:init`
+listener):
+- **Active nav link** — an `Alpine.reactive({ path })` store plus a
+  `$navActive(path, prefix=false)` magic method, updated on every
+  `livewire:navigated`. This is Livewire's own documented pattern for exactly this
+  problem (see their `SupportNavigate` test fixture `navbar-sidebar.blade.php`).
+- **Page title** — `<head>` is *not* persisted and is always merged fresh
+  (Livewire's `mergeNewHead`), so a `<meta name="page-title">` tag carries the
+  current `@yield('page-title')` value; JS copies it into the persisted `<h1
+  id="topbar-page-title">` on navigation.
+- **Topbar search value** — derived straight from `location.pathname`/`search`,
+  no meta tag needed.
+
+If you add new server-rendered state inside the persisted sidebar/topbar (a badge,
+a count, anything not purely a function of the URL), it needs the same treatment —
+otherwise it'll silently freeze at whatever it was on first load.
+
+### The wire:navigate race (fixed, don't reintroduce)
+Livewire 3.8's `wire:navigate` has no `AbortController` and no "is this still the
+current destination" check (confirmed by reading
+`vendor/livewire/livewire/dist/livewire.esm.js`) — click Dashboard, then Senior
+Records before Dashboard's response lands, and whichever fetch resolves *second*
+wins, even if that's the page you already navigated away from.
+`resources/js/navigation.js` fixes this by tracking the most recent
+`alpine:navigate` intent and re-issuing `Alpine.navigate(...)` if a landing
+doesn't match it — but only when a mismatch has already been corrected once for
+that exact intent does it stop retrying, since a link that legitimately
+server-redirects would otherwise loop forever against this check. Don't "simplify"
+this by dropping that guard, and don't try to fix the race by aborting the
+in-flight `fetch()` instead — Livewire's `prefetchHtml()` registers its cache
+entry *before* the fetch starts and only clears it from the fetch's own
+`.then()`; an aborted fetch leaves that entry permanently unresolved, hanging
+that link until a hard reload.
+
+Sidebar and pagination links use `wire:navigate.hover` (prefetch after ~60ms of
+hover), not bare `wire:navigate` — keep that modifier on new nav links too, it's
+the cheapest win here.
+
+---
+
 ## Principles
 - **Measure first.** Reproduce with DevTools Performance + 6× CPU throttle; find
   the long task before touching code.
@@ -124,3 +190,6 @@ redo that work; profile to confirm a regression before adding new machinery.
 - **Verify:** `npm run build`, then exercise the page on a throttled profile;
   confirm charts/filters/map still behave. See the `run-osca-system` skill for the
   full build → migrate → test flow.
+- **Verify navigation changes specifically:** walk every sidebar link (correct
+  active state, title, dark mode, sidebar collapse state all survive), and click
+  two different links in rapid succession to confirm the second one wins.

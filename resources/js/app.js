@@ -1,5 +1,6 @@
 import './bootstrap'
 import './ml-service-guard'
+import './navigation'
 import { loadCharts, loadMaps } from './loaders'
 
 // Alpine.js is managed by Livewire 3's bundled copy — do NOT import or start it
@@ -31,6 +32,59 @@ document.addEventListener('alpine:init', () => {
         try {
             document.documentElement.classList.toggle('dark', localStorage.getItem('darkMode') === 'true')
         } catch (e) { /* localStorage unavailable */ }
+    })
+
+    // ── Active sidebar link, for the @persist'd sidebar ───────────────────────
+    // The sidebar and topbar are @persist'd in layouts/app.blade.php — their DOM
+    // survives wire:navigate untouched instead of being destroyed and rebuilt
+    // every click (the single biggest source of per-navigation cost: ~20
+    // role-gated links re-parsed/re-bound, plus the Services link's x-init
+    // firing its ml.nav-health fetch again every time). The trade-off: nothing
+    // inside a persisted element gets fresh server-rendered HTML again after
+    // the first load, so anything that used to depend on that (which link is
+    // "active") needs a client-side source of truth instead.
+    //
+    // This mirrors Livewire's own documented pattern for exactly this problem
+    // (see their SupportNavigate test fixture navbar-sidebar.blade.php): an
+    // Alpine.reactive() object holds the current path, updated once per
+    // navigation, and a magic method reads it reactively so :class bindings
+    // just re-evaluate on their own — no manual classList poking needed.
+    const navState = Alpine.reactive({ path: window.location.pathname })
+    document.addEventListener('livewire:navigated', () => {
+        navState.path = window.location.pathname
+    })
+    // exact: highlights only on an exact path match (e.g. Dashboard, GIS
+    // Analytics — pages with no nested sub-routes).
+    // prefix: highlights on the path itself or any deeper path under it (e.g.
+    // Drafts also matches /seniors/drafts/5, User Management also matches
+    // /users/create) — the client-side equivalent of the old
+    // request()->routeIs('name.*') wildcard checks.
+    Alpine.magic('navActive', () => (path, prefix = false) => {
+        if (!prefix) return navState.path === path
+        return navState.path === path || navState.path.startsWith(path + '/')
+    })
+
+    // ── Persisted topbar content sync ─────────────────────────────────────────
+    // Page title and the search box's current value are also server-rendered
+    // into the now-persisted topbar, so they'd otherwise freeze at whatever
+    // they were on the very first page load. <head> is NOT persisted — Livewire
+    // merges it fresh on every navigation — so the page-title <meta> tag
+    // (layouts/app.blade.php) is always current; copy it into the frozen <h1>.
+    // The search box's value is derivable straight from the URL, no meta tag
+    // needed: mirrors request()->routeIs('seniors.*') by checking the path
+    // prefix, since every seniors.* route's URI starts with /seniors.
+    document.addEventListener('livewire:navigated', () => {
+        const titleEl = document.getElementById('topbar-page-title')
+        const metaTitle = document.querySelector('meta[name="page-title"]')
+        if (titleEl && metaTitle) titleEl.textContent = metaTitle.content
+
+        const searchEl = document.getElementById('topbar-search-input')
+        if (searchEl) {
+            const onSeniorsPages = window.location.pathname.startsWith('/seniors')
+            searchEl.value = onSeniorsPages
+                ? (new URLSearchParams(window.location.search).get('search') ?? '')
+                : ''
+        }
     })
 
     // ── Hover tooltip ─────────────────────────────────────────────────────────
@@ -178,6 +232,38 @@ window.OSCA = {
     clusterColor(clusterId) {
         const map = { 1: '#2ecc71', 2: '#3498db', 3: '#f39c12', 4: '#e74c3c' }
         return map[clusterId] ?? '#94a3b8'
+    },
+
+    /**
+     * Fetch the topbar's ML service status (dot + title), cached in
+     * sessionStorage for 15s — the shorter of the server's own 15s(offline)/
+     * 30s(online) ml_nav_health cache TTL (routes/web.php), so this never
+     * shows a status staler than the server's own cache would allow. The
+     * @persist'd topbar (layouts/app.blade.php) already means this endpoint
+     * is hit at most once per SPA session; this cache is what keeps a hard
+     * page reload (which restarts that session) from re-hitting it too.
+     * Always resolves — network failure resolves to an 'err' status rather
+     * than rejecting, since the caller just wants something to render.
+     */
+    checkNavHealth(url) {
+        const cacheKey = 'osca_nav_health'
+        const ttlMs = 15000
+        try {
+            const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
+            if (cached && (Date.now() - cached.ts) < ttlMs) {
+                return Promise.resolve({ dot: cached.dot, title: cached.title })
+            }
+        } catch (e) { /* corrupt/unavailable sessionStorage — fall through to a fresh fetch */ }
+
+        return fetch(url, { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : Promise.reject()))
+            .then((d) => {
+                try {
+                    sessionStorage.setItem(cacheKey, JSON.stringify({ dot: d.dot, title: d.title, ts: Date.now() }))
+                } catch (e) { /* sessionStorage unavailable — status still renders, just uncached */ }
+                return d
+            })
+            .catch(() => ({ dot: 'err', title: 'Status unavailable' }))
     },
 
     /** Lazy-load Chart.js (memoized). Resolves after window.Chart is set. */

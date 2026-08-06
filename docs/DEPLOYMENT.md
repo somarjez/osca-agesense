@@ -615,6 +615,42 @@ Everything above this section covers local/office Windows deployment. This secti
 
 **To check it's working:** GitHub repo → Actions tab → "keep-alive" workflow → run history should show green ticks every 10 minutes during the window (or trigger one manually via "Run workflow" / `workflow_dispatch`). A 200 response body includes `schedule_output`/`queue_output` JSON fields showing what actually ran.
 
+### 12a. Production-tuned settings that must survive redeploys
+
+Two settings exist specifically because of production behavior that never showed
+up locally — worth knowing about before "cleaning up" either one.
+
+**`CACHE_STORE=file`, not `database`.** With the cache on Postgres, the
+permission cache, dashboard aggregate caches, ML status cache, and
+`SeniorDataVersion` each cost a remote DB round-trip (~25ms on Render↔Neon) on
+every request. `file` moves those onto local disk (~0.1ms). `SESSION_DRIVER` and
+`QUEUE_CONNECTION` stay on `database` — single-session enforcement reads the
+`sessions` table directly, and the queue needs a store the drain/cron-tick can
+coordinate through — only the cache itself had no such requirement.
+**Constraint: this is only correct for a single `osca-agesense` instance.** File
+cache isn't shared across containers; scaling to 2+ instances (not something this
+project currently does — see §12 above, it's one request-driven Render service)
+would need Redis, or reverting this one setting back to `database`, to keep the
+cache coherent across instances. Set via Render dashboard → `osca-agesense` →
+Environment → `CACHE_STORE=file` → redeploy (env var changes need a fresh deploy,
+same as `CRON_TRIGGER_TOKEN` above).
+
+**`fastcgi_read_timeout 90s` / `fastcgi_send_timeout 90s`** (`conf/nginx/nginx-site.conf`,
+inside the `location ~ \.php$` block). nginx's own default is 60s, which doesn't
+match the `no.time.limit` middleware used on admin/staff routes that deliberately
+disable PHP's execution limit because they can legitimately run long (bulk
+upload, batch ML runs, GIS geocode, registry backups/exports, cluster snapshots —
+see `routes/seniors.php`, `routes/ml.php`, `routes/reports.php`). Without a
+matching nginx-level timeout, nginx cut the connection out from under a request
+PHP was still happily processing — the confirmed root cause of a 504 on a
+routine 360-row bulk upload. 90s is deliberately kept under **Cloudflare's hard,
+non-configurable 100s proxy timeout** (Free/Pro/Business plans — only Enterprise
+can raise it) — raising nginx's own timeout past 100s would be pointless, since
+Cloudflare cuts the connection first regardless of what nginx allows. This is a
+safety margin, not a substitute for keeping requests themselves fast — see
+`BulkUploadController::upload()`'s `withoutEvents()` comment for the case where
+the actual per-request work needed to get faster too.
+
 ---
 
 ## Related Documents

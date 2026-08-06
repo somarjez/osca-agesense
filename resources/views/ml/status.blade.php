@@ -143,7 +143,10 @@
             finishWake() {
                 this.stopWake();
                 this.wakeDone = true;
-                setTimeout(() => location.reload(), 1200);
+                // Soft SPA refresh instead of a hard reload — re-fetches this same
+                // page's fresh status without throwing away the persisted
+                // sidebar/topbar or forcing a full asset reload.
+                setTimeout(() => Livewire.navigate(window.location.href), 1200);
             },
             stopWake() {
                 this.waking = false;
