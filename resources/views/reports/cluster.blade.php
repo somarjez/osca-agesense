@@ -270,7 +270,7 @@
                                     </form>
                                     <x-confirm-modal show="open"
                                                      title="Delete snapshot?"
-                                                     confirm="$refs.delForm.submit()"
+                                                     confirm="$refs.delForm.requestSubmit()"
                                                      confirm-label="Delete permanently">
                                         <p>The profile group snapshot from <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong> will be permanently removed.</p>
                                         <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">

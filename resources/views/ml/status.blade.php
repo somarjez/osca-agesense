@@ -261,7 +261,7 @@
 
         <x-confirm-modal show="stopOpen"
                          title="Stop ML services?"
-                         confirm="$refs.stopForm.submit()"
+                         confirm="$refs.stopForm.requestSubmit()"
                          confirm-label="Stop Services">
             <p>This will shut down the data preparation and risk assessment services. Any analysis in progress for other users will be interrupted, and the app will fall back to the backup local process or built-in rules until services are started again.</p>
         </x-confirm-modal>
@@ -269,7 +269,7 @@
         <x-confirm-modal show="restartOpen"
                          title="Restart ML services?"
                          tone="primary"
-                         confirm="$refs.restartForm.submit()"
+                         confirm="$refs.restartForm.requestSubmit()"
                          confirm-label="Restart Services">
             <p>This will briefly take the data preparation and risk assessment services offline while they restart. Any analysis in progress for other users will be interrupted.</p>
         </x-confirm-modal>

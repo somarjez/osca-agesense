@@ -77,7 +77,7 @@
                                 </form>
                                 <x-confirm-modal show="open"
                                                  title="Delete Draft?"
-                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm="$refs.deleteForm.requestSubmit()"
                                                  confirm-label="Delete draft">
                                     <p>The in-progress registration for <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $fullName !== '' ? $fullName : 'this unnamed draft' }}</strong> will be permanently deleted.</p>
                                     <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">

@@ -229,7 +229,7 @@
                                 {{-- Delete confirmation modal --}}
                                 <x-confirm-modal show="deleteOpen"
                                                  title="Delete account?"
-                                                 confirm="$refs.deleteForm.submit()"
+                                                 confirm="$refs.deleteForm.requestSubmit()"
                                                  confirm-label="Delete account">
                                     The account for <span class="font-semibold text-ink-900 dark:text-[#e4e1d8]">{{ $user->name }}</span> will be permanently deleted. This cannot be undone.
                                 </x-confirm-modal>
