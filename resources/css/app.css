@@ -326,6 +326,26 @@
     @apply opacity-60;
   }
 
+  /* @persist('sidebar') (layouts/app.blade.php) wraps <aside> in a plain
+     <div x-persist="sidebar"> with no class — Livewire's own markup, not
+     ours, so it can't be styled by editing the Blade attributes. That div's
+     default `display: block` breaks the flex chain between <aside> (flex
+     item expecting cross-axis stretch from its parent) and the row
+     container above it: instead of being stretched to the available height,
+     <aside> sizes to its own content and grows past the viewport. With
+     nothing constraining it, the inner nav's flex-1/overflow-y-auto never
+     gets a bounded height to scroll within, and the excess is silently
+     clipped by <aside>'s own overflow-hidden — the sidebar becomes
+     unscrollable and its lower items (Administration, Archives, Help for
+     admin) are unreachable. Restoring `display: flex` on the wrapper lets
+     <aside> stretch correctly again; min-height: 0 lets the wrapper itself
+     shrink instead of growing to content, matching the min-h-0 already on
+     <aside>'s own flex-1 nav. */
+  [x-persist="sidebar"] {
+    display: flex;
+    min-height: 0;
+  }
+
   /* Sidebar icon button — compact icon-only action (collapse, theme toggle, logout) */
   .sidebar-icon-btn {
     @apply w-7 h-7 flex items-center justify-center rounded-lg text-ink-500
