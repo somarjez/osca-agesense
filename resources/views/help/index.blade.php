@@ -156,7 +156,7 @@ function helpCentre() {
         // Batch Assessment
         { topic: 'batch', q: 'What is batch assessment?', a: 'Batch assessment runs the health assessment for all eligible seniors at once — those who have a QoL survey but have not yet been assessed, or whose results are stale. Instead of running them one by one, batch mode processes everyone in a single operation.' },
         { topic: 'batch', q: 'How do I run a batch assessment?', a: 'Go to Assessment Tools → Batch Analysis in the sidebar. Review the list of eligible seniors. Click Run Full Batch and confirm. Keep the tab open while it runs — a progress indicator shows the current status. The page refreshes automatically when complete.' },
-        { topic: 'batch', q: 'How long does a batch assessment take?', a: 'Typically 1–3 minutes depending on the number of seniors with pending assessments. A progress bar is shown throughout. Do not close the tab while it is running.' },
+        { topic: 'batch', q: 'How long does a batch assessment take?', a: 'Typically 1–3 minutes depending on the number of seniors with pending assessments, as long as the tab stays open — each progress check on that page nudges the assessment queue along. A progress bar is shown throughout. Closing the tab is safe and nothing is lost, but scoring then only advances in roughly 10-minute steps instead.' },
         { topic: 'batch', q: 'What if the analysis service is offline?', a: 'Go to Assessment Tools → Service Status. If the service shows as offline, click Start Services and wait about 60 seconds for the model to load. If it does not come online, ask your administrator to check the server.' },
 
         // General / FAQs

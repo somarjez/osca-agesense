@@ -507,7 +507,7 @@
                             <div class="text-[11.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed border-t border-paper-rule dark:border-[#2b3530] pt-3">
                                 <p><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">Date format:</span> <span class="font-mono">MM/DD/YYYY</span> or <span class="font-mono">YYYY-MM-DD</span></p>
                                 <p class="mt-1"><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">Barangay:</span> Must match one of the 16 registered barangays of Pagsanjan (e.g. <span class="font-mono">Pinagsanjan</span>, <span class="font-mono">Sabang</span>, <span class="font-mono">Barangay I (Poblacion)</span>).</p>
-                                <p class="mt-1"><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">After import:</span> ML risk assessment runs automatically on all imported seniors. Results appear in the table within a minute.</p>
+                                <p class="mt-1"><span class="font-semibold text-ink-700 dark:text-[#c8c4bc]">After import:</span> You&rsquo;ll be taken to Batch Assessment, where risk scoring runs automatically for everyone just imported. Keep that page open for the fastest results.</p>
                             </div>
                         </div>
                     </div>

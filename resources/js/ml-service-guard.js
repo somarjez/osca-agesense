@@ -1,13 +1,14 @@
 // Global "ML services are off" guard — mounted once in layouts/app.blade.php via
-// <x-ml-service-guard />. Polls the same cached ml.nav-health endpoint the topbar
-// status dot already uses, and surfaces a blocking warning modal (once per tab
-// session) plus live toasts on later state changes. Alpine is Livewire 3's bundled
-// copy — do NOT import Alpine here (mirrors resources/js/app.js).
+// <x-ml-service-guard />. Listens to the single shared poller in
+// resources/js/ml-health.js (the topbar dot listens to the same broadcast — see
+// that module's header comment for why this used to be two independent pollers
+// writing to two different Alpine scopes) and surfaces a blocking warning modal
+// (once per tab session) plus live toasts on later state changes. Alpine is
+// Livewire 3's bundled copy — do NOT import Alpine here (mirrors resources/js/app.js).
 document.addEventListener('alpine:init', () => {
     Alpine.data('mlServiceGuard', (cfg) => ({
         dot: null,
         modalOpen: false,
-        pollTimer: null,
         starting: false,
 
         toast: { show: false, type: 'warning', message: '', timer: null },
@@ -27,28 +28,22 @@ document.addEventListener('alpine:init', () => {
         wakeMaxSeconds: 420,
 
         init() {
-            this.checkHealth();
-            this.pollTimer = setInterval(() => this.checkHealth(), 45000);
+            // Seed from whatever the shared poller already knows (it starts
+            // polling at import time, so this may already be fresh) rather
+            // than waiting for the next broadcast.
+            this._applyHealth(window.OSCA.mlHealth.dot, window.OSCA.mlHealth.title);
 
-            document.addEventListener('visibilitychange', this._onVisible = () => {
-                if (!document.hidden) this.checkHealth();
+            document.addEventListener('osca:ml-health', this._onHealth = (e) => {
+                this._applyHealth(e.detail.dot, e.detail.title);
             });
             document.addEventListener('livewire:navigating', this._onNavigating = () => this.destroy());
         },
 
         destroy() {
-            clearInterval(this.pollTimer);
             this.stopWake();
             clearTimeout(this.toast.timer);
-            if (this._onVisible) document.removeEventListener('visibilitychange', this._onVisible);
+            if (this._onHealth) document.removeEventListener('osca:ml-health', this._onHealth);
             if (this._onNavigating) document.removeEventListener('livewire:navigating', this._onNavigating);
-        },
-
-        checkHealth() {
-            fetch(cfg.navHealthUrl, { headers: { Accept: 'application/json' } })
-                .then((r) => (r.ok ? r.json() : Promise.reject()))
-                .then((d) => this._applyHealth(d.dot, d.title))
-                .catch(() => this._applyHealth('err', 'Status unavailable'));
         },
 
         _applyHealth(newDot, title) {
@@ -174,13 +169,16 @@ document.addEventListener('alpine:init', () => {
 
         // Unlike the status page, we don't force a reload — the guard mounts on
         // every page and a reload here would interrupt whatever the user is
-        // doing. Just reflect the recovered state and let the next natural
-        // navigation refresh the topbar dot.
+        // doing. Set the local dot immediately for this modal, and also force
+        // the shared poller to refresh (bypassing its in-flight guard) so the
+        // topbar dot and every other listener flip green in the same beat
+        // instead of waiting for the next scheduled tick.
         finishWake() {
             this.stopWake();
             this.wakeDone = true;
             this.dot = 'ok';
             this.showToast('success', 'Analysis services are back online.');
+            window.OSCA.mlHealth.refresh({ force: true });
             setTimeout(() => { this.modalOpen = false; }, 900);
         },
 
