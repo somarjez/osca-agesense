@@ -336,15 +336,18 @@
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
 
                 {{-- ML Services status --}}
-                {{-- Complex logic (sessionStorage caching) lives in
-                     OSCA.checkNavHealth (app.js), not inline here — keeps
-                     this attribute a single short line, since a multi-line
-                     x-data/x-init with an embedded comment containing a
-                     stray quote has broken this exact kind of attribute
-                     twice before (see BladeAlpineAttributeIntegrityTest). --}}
+                {{-- Backed by the single shared poller in resources/js/ml-health.js
+                     (OSCA.mlHealth), not a one-shot fetch — this element sits inside
+                     @persist('topbar') so an x-init here would only ever run once per
+                     hard page load and could never reflect a later recovery. Seeded
+                     synchronously from OSCA.mlHealth's current value, then kept live
+                     via the osca:ml-health window event it dispatches on every poll.
+                     Keep this attribute a single short line — a multi-line x-data with
+                     an embedded comment containing a stray quote has broken this exact
+                     kind of attribute twice before (see BladeAlpineAttributeIntegrityTest). --}}
                 <a href="{{ route('ml.status') }}" wire:navigate
-                   x-data="{ dot: 'checking', title: 'Checking analysis services…' }"
-                   x-init="OSCA.checkNavHealth('{{ route('ml.nav-health') }}').then(d => { dot = d.dot; title = d.title })"
+                   x-data="{ dot: OSCA.mlHealth.dot, title: OSCA.mlHealth.title }"
+                   @osca:ml-health.window="dot = $event.detail.dot; title = $event.detail.title"
                    class="inline-flex items-center gap-1.5 text-[11.5px] text-ink-500 dark:text-[#6b7570]
                           hover:text-ink-900 dark:hover:text-[#e4e1d8] hover:bg-paper-2 dark:hover:bg-[#202a26]
                           px-2 py-1.5 rounded-lg transition-all duration-150"

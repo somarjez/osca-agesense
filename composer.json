@@ -9,6 +9,7 @@
         "blade-ui-kit/blade-heroicons": "^2.7",
         "guzzlehttp/guzzle": "^7.8",
         "laravel/framework": "^11.0",
+        "league/commonmark": "^2.9",
         "league/csv": "^9.0",
         "livewire/livewire": "^3.0",
         "livewire/volt": "^1.0",

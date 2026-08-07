@@ -198,14 +198,31 @@ class AuditLogExportTest extends TestCase
     {
         Bus::fake();
 
+        // Self-contained eligible senior — batchRun() requires at least one
+        // senior with a processed QoL survey. This used to lean on whatever
+        // real data happened to be in the shared dev database the test suite
+        // ran against (see .env.testing); now that tests run against their
+        // own isolated database, that data no longer exists by default, so
+        // the fixture has to come from the test itself.
+        $eligible = SeniorCitizen::create([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'first_name' => 'Batch',
+            'last_name' => 'Eligible',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1950-01-01',
+            'household_size' => 1,
+            'num_children' => 0,
+            'num_working_children' => 0,
+        ]);
+        QolSurvey::create([
+            'senior_citizen_id' => $eligible->id,
+            'survey_version' => 'v1',
+            'survey_date' => '2026-01-01',
+            'status' => 'processed',
+        ]);
+
         $response = $this->actingAs($this->admin)
             ->postJson(route('ml.batch.run'));
-
-        // The seeded DB is expected to have eligible seniors (processed QoL surveys).
-        // If not, skip rather than false-fail on environment data.
-        if ($response->status() === 422) {
-            $this->markTestSkipped('No eligible seniors in test DB — seed first.');
-        }
 
         $response->assertOk();
 

@@ -23,11 +23,20 @@ class MlController extends Controller
     /**
      * Fresh (uncached) health snapshot — polled every few seconds by the
      * "waking up" indicator on the status page, so it can't lag behind the
-     * 15-30s cache ml.nav-health uses for the topbar dot.
+     * 5-30s cache ml.nav-health uses for the topbar dot. Also forgets that
+     * cache once services are confirmed up, so the shared client-side
+     * poller's very next tick (resources/js/ml-health.js) sees a live result
+     * instead of a stale "unreachable" left over from before the wake.
      */
     public function wakeStatus()
     {
-        return response()->json($this->ml->healthCheck());
+        $health = $this->ml->healthCheck();
+
+        if ($health['mode'] === 'http') {
+            Cache::forget('ml_nav_health');
+        }
+
+        return response()->json($health);
     }
 
     /**
@@ -46,11 +55,19 @@ class MlController extends Controller
     public function wake()
     {
         $result = $this->ml->wakeAttempt();
+        $ready = ! in_array(false, $result, true);
+
+        // Same reasoning as wakeStatus() above — without this, a client that
+        // wakes successfully on its very first attempt could still see a
+        // stale "unreachable" ml_nav_health entry for up to its remaining TTL.
+        if ($ready) {
+            Cache::forget('ml_nav_health');
+        }
 
         return response()->json([
             'preprocess' => $result['preprocess'],
             'inference' => $result['inference'],
-            'ready' => ! in_array(false, $result, true),
+            'ready' => $ready,
         ]);
     }
 

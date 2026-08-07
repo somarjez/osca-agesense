@@ -29,9 +29,14 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/help', HelpController::class)->name('help');
 
-        // Cached ML nav-health status for the topbar dot, fetched async after
-        // paint. Reuses the same `ml_nav_health` cache key and 30s(online)/
-        // 15s(offline) TTL as the inline check in layouts/app.blade.php.
+        // Cached ML nav-health status polled by the shared client-side poller
+        // (resources/js/ml-health.js), which every status surface listens to.
+        // 30s TTL while online; 5s while down/degraded — kept short so the
+        // 10s client poll (ml-health.js's INTERVAL_DOWN_MS) isn't waiting on a
+        // stale server cache to notice a recovery. This used to be 15s, which
+        // combined with the client's own polling to leave services showing
+        // red for up to ~45-60s after actually coming back — see PR history
+        // for the original "stays red until refresh" bug this closes.
         Route::get('/ml/nav-health', function () {
             $health = Cache::get('ml_nav_health');
             if ($health === null) {
@@ -40,7 +45,7 @@ Route::middleware(['auth'])->group(function () {
                 } catch (Throwable) {
                     $health = ['preprocessor' => 'unreachable', 'inference' => 'unreachable', 'local_runner' => 'unavailable', 'mode' => 'php_fallback'];
                 }
-                $ttl = ($health['preprocessor'] === 'ok' && $health['inference'] === 'ok') ? 30 : 15;
+                $ttl = ($health['preprocessor'] === 'ok' && $health['inference'] === 'ok') ? 30 : 5;
                 Cache::put('ml_nav_health', $health, $ttl);
             }
             $dot = match (true) {

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\QolSurvey;
+use App\Models\SeniorCitizen;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -74,15 +76,32 @@ class BatchTimestampTest extends TestCase
 
         Bus::fake();
 
-        // The seeded database has seniors with processed QoL surveys.
-        // DatabaseTransactions wraps this test, so no records are modified.
+        // Self-contained eligible senior — batchRun() requires at least one
+        // senior with a processed QoL survey. This used to lean on whatever
+        // real data happened to be in the shared dev database the test suite
+        // ran against (see .env.testing); now that tests run against their
+        // own isolated database, that data no longer exists by default, so
+        // the fixture has to come from the test itself. DatabaseTransactions
+        // wraps this test, so nothing here persists beyond it.
+        $eligible = SeniorCitizen::create([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'first_name' => 'Batch',
+            'last_name' => 'Eligible',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1950-01-01',
+            'household_size' => 1,
+            'num_children' => 0,
+            'num_working_children' => 0,
+        ]);
+        QolSurvey::create([
+            'senior_citizen_id' => $eligible->id,
+            'survey_version' => 'v1',
+            'survey_date' => '2026-01-01',
+            'status' => 'processed',
+        ]);
+
         $response = $this->actingAs($this->admin)
             ->postJson(route('ml.batch.run'));
-
-        // If no eligible seniors exist the endpoint returns 422 — skip assertion.
-        if ($response->status() === 422) {
-            $this->markTestSkipped('No eligible seniors in test DB — seed first.');
-        }
 
         $response->assertOk();
         $this->assertNotNull(Cache::get('ml_last_batch_started'),

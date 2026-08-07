@@ -39,6 +39,28 @@
                 // finishWake()'s unconditional location.reload() on whatever
                 // page the user had since moved to.
                 document.addEventListener('livewire:navigating', () => this.stopWake());
+
+                // Recovery can also be reported by the shared poller
+                // (resources/js/ml-health.js) independent of the wake flow
+                // above — e.g. services come back on their own with nobody
+                // having clicked the Wake Services button on this page at
+                // all. This page has no polling of its own otherwise
+                // ($health below is a one-time server render), so without
+                // this it would sit showing Offline until manually reloaded.
+                // Soft-refresh via the same mechanism finishWake() uses, so
+                // the mode banner and per-service cards re-render from fresh
+                // server state. (This comment deliberately contains no
+                // double-quote character — see the file-header comment above
+                // for why that matters inside this double-quoted attribute.)
+                document.addEventListener('osca:ml-health', this._onHealth = (e) => {
+                    if (e.detail.dot === 'ok' && !this.waking && !this.wakeDone && @js($mode !== 'http')) {
+                        this.wakeDone = true;
+                        setTimeout(() => Livewire.navigate(window.location.href), 400);
+                    }
+                });
+                document.addEventListener('livewire:navigating', () => {
+                    if (this._onHealth) document.removeEventListener('osca:ml-health', this._onHealth);
+                });
             },
             startWake() {
                 if (this.waking) return;

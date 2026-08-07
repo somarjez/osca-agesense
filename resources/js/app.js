@@ -1,4 +1,5 @@
 import './bootstrap'
+import './ml-health'
 import './ml-service-guard'
 import './navigation'
 import { loadCharts, loadMaps } from './loaders'
@@ -215,7 +216,10 @@ document.addEventListener('DOMContentLoaded', runCountups)
 document.addEventListener('livewire:navigated', runCountups)
 
 // ── OSCA Helper utilities ─────────────────────────────────────────────────────
-window.OSCA = {
+// Merge onto window.OSCA rather than replacing it — ./ml-health (imported
+// above) already attached window.OSCA.mlHealth as a side effect, and a plain
+// reassignment here would silently drop it.
+window.OSCA = Object.assign(window.OSCA || {}, {
     /**
      * Format a 0-1 risk score as a percentage string with color class.
      */
@@ -232,38 +236,6 @@ window.OSCA = {
     clusterColor(clusterId) {
         const map = { 1: '#2ecc71', 2: '#3498db', 3: '#f39c12', 4: '#e74c3c' }
         return map[clusterId] ?? '#94a3b8'
-    },
-
-    /**
-     * Fetch the topbar's ML service status (dot + title), cached in
-     * sessionStorage for 15s — the shorter of the server's own 15s(offline)/
-     * 30s(online) ml_nav_health cache TTL (routes/web.php), so this never
-     * shows a status staler than the server's own cache would allow. The
-     * @persist'd topbar (layouts/app.blade.php) already means this endpoint
-     * is hit at most once per SPA session; this cache is what keeps a hard
-     * page reload (which restarts that session) from re-hitting it too.
-     * Always resolves — network failure resolves to an 'err' status rather
-     * than rejecting, since the caller just wants something to render.
-     */
-    checkNavHealth(url) {
-        const cacheKey = 'osca_nav_health'
-        const ttlMs = 15000
-        try {
-            const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
-            if (cached && (Date.now() - cached.ts) < ttlMs) {
-                return Promise.resolve({ dot: cached.dot, title: cached.title })
-            }
-        } catch (e) { /* corrupt/unavailable sessionStorage — fall through to a fresh fetch */ }
-
-        return fetch(url, { headers: { Accept: 'application/json' } })
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
-            .then((d) => {
-                try {
-                    sessionStorage.setItem(cacheKey, JSON.stringify({ dot: d.dot, title: d.title, ts: Date.now() }))
-                } catch (e) { /* sessionStorage unavailable — status still renders, just uncached */ }
-                return d
-            })
-            .catch(() => ({ dot: 'err', title: 'Status unavailable' }))
     },
 
     /** Lazy-load Chart.js (memoized). Resolves after window.Chart is set. */
@@ -327,7 +299,7 @@ window.OSCA = {
             },
         })
     },
-}
+})
 
 // ── Double-submit guard for plain (non-Livewire) form POSTs ───────────────────
 // Native form submits navigate away, so a slow server lets users double-click

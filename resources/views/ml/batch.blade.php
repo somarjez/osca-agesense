@@ -8,6 +8,51 @@
     {{-- Bulk upload redirects here when it queued ML jobs — see BulkUploadController::upload() --}}
     <x-bulk-upload-flash />
 
+    {{-- One-time "keep this page open" guidance right after a bulk upload lands
+         here with jobs still running. This isn't just a courtesy tip: this page's
+         3s status poll (batchStatus()) is what actually drives the queue drain
+         (see DrainsMlQueue) — while the tab stays open, drains run back-to-back;
+         closed, scoring falls back to a 10-minute cron tick. Own small x-data
+         wrapper, not folded into the big Alpine block below — that one is guarded
+         by BladeAlpineAttributeIntegrityTest/BatchPageResumeRenderTest after two
+         prior stray-quote regressions (#190, #213), so unrelated state stays out
+         of it. Shown at most once per batch via a sessionStorage flag scoped to
+         the batch id, so a mid-batch reload doesn't repeat it. --}}
+    @if (session('bulk_success') && $resumeBatch)
+    <div x-data="{
+            guideOpen: false,
+            init() {
+                const key = 'oscaBatchStayHint:{{ $resumeBatch['batch_id'] }}';
+                if (sessionStorage.getItem(key) === '1') return;
+                sessionStorage.setItem(key, '1');
+                this.guideOpen = true;
+            }
+         }">
+        <x-modal show="guideOpen" max-width="max-w-md" ariaLabel="Keep this page open while assessment runs" :closeable="true">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-12 h-12 rounded-2xl grid place-items-center bg-info-100 dark:bg-info-700/20 text-info-700 dark:text-info-100">
+                    <x-heroicon-o-bolt class="w-6 h-6" aria-hidden="true" />
+                </div>
+                <h2 class="card-title mt-3.5 mb-1.5">Keep this page open while assessment runs</h2>
+                <div class="w-full text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed space-y-2">
+                    <p>
+                        Risk assessment has started for the seniors you just imported. While this page stays
+                        open, it checks progress every few seconds, and each check nudges the queue along — so
+                        results finish much faster.
+                    </p>
+                    <p>
+                        Leaving is safe and nothing is lost, but without this page open, scoring only advances
+                        in roughly 10-minute steps.
+                    </p>
+                </div>
+            </div>
+            <x-slot:footer>
+                <button type="button" @click="guideOpen = false" class="btn btn-primary flex-1 justify-center">Got it — I&rsquo;ll stay</button>
+            </x-slot:footer>
+        </x-modal>
+    </div>
+    @endif
+
     {{-- Run panel --}}
     <div x-data="{
             running: false,
@@ -229,7 +274,7 @@
                         <div class="bar-fill transition-all duration-500 bg-forest-600"
                              :style="`width:${progress > 0 ? progress : 100}%`"></div>
                     </div>
-                    <p class="text-xs text-ink-400">Queued — worker is processing in the background. You can safely close this tab.</p>
+                    <p class="text-xs text-ink-400">Keep this page open for the fastest results — each progress check nudges the queue along. Leaving is safe, but scoring will slow to roughly 10-minute steps.</p>
                     <p x-show="coldStartLikely || elapsed >= 8" x-cloak class="text-xs text-info-700">
                         <span x-show="coldStartLikely">A service looks asleep — the first few results can take up to ~2 minutes while it wakes up.</span>
                         <span x-show="!coldStartLikely">If a service was asleep, the first few results can take up to ~2 minutes.</span>
@@ -274,7 +319,7 @@
                         <p>For seeded seniors, results are sourced from the validated notebook export when <code class="font-mono bg-moderate-100 dark:bg-moderate-700/20 px-0.5 rounded">ENABLE_NOTEBOOK_OVERRIDES=true</code> is set.</p>
                         <p>If notebook overrides are disabled, scores will be recomputed by the live model.</p>
                     </div>
-                    <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Jobs are queued and processed in the background. You can safely close this tab.</p>
+                    <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Jobs are queued and processed in the background. Keeping this page open makes them finish faster; leaving is safe but slower.</p>
                     <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">
                         <button @click="showConfirm = false" class="btn">Cancel</button>
                         <button @click="start()" class="btn btn-primary">
