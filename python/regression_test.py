@@ -16,11 +16,22 @@ BASELINE was locked on 2026-05-20 with model v1.1.0, threshold HIGH >= 0.45.
 To update the baseline after an intentional model retrain, run with --update:
     python\venv\\Scripts\\python.exe python\regression_test.py --update
 """
+import hashlib
 import json
 import os
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# regression_baseline.json is committed to a public repo, so keys must not be
+# cleartext senior names. Salted-hash scheme matches sync_models_k4.py /
+# validate_k4_sync.py / generate_xai_means.py — see their _key() comments.
+_BASELINE_KEY_SALT = "agesense-baseline-deid-v1"
+
+
+def _hash_key(first: str, last: str) -> str:
+    raw = f"{(first or '').strip().lower()}|{(last or '').strip().lower()}"
+    return hashlib.sha256((_BASELINE_KEY_SALT + raw).encode("utf-8")).hexdigest()[:24]
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 env = {}
@@ -65,12 +76,18 @@ with conn.cursor() as cur:
 conn.close()
 
 current = {
-    f"{r['first_name'].strip().lower()}|{r['last_name'].strip().lower()}": {
+    _hash_key(r["first_name"], r["last_name"]): {
         "risk_level":     (r["overall_risk_level"] or "").upper(),
         "cluster":        r["cluster_named_id"],
         "composite_risk": float(r["composite_risk"] or 0),
         "wellbeing":      float(r["wellbeing_score"] or 0),
     }
+    for r in rows
+}
+# Runtime-only hash -> display-name map for console output below. Never
+# written to disk — the persisted baseline file only ever stores the hash.
+_names_by_key = {
+    _hash_key(r["first_name"], r["last_name"]): f"{r['first_name']} {r['last_name']}"
     for r in rows
 }
 
@@ -129,7 +146,7 @@ for key, base in baseline.items():
             f"{cur_row['composite_risk']:.4f}  (drift={drift:.4f})"
         )
     if errs:
-        name = " ".join(p.capitalize() for p in key.replace("|", " ").split())
+        name = _names_by_key.get(key, key)  # falls back to the hash if not in current DB
         failures.append((name, errs))
 
 for key in current:

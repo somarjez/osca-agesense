@@ -1,11 +1,50 @@
 {
-  "accuracy": 0.8166666666666667,
-  "weighted_f1": 0.8233987383412671,
-  "high_recall": 0.8947368421052632,
-  "critical_recall": 0.0,
+  "schema_note": "The deployed system has 3 risk levels (LOW/MODERATE/HIGH); CRITICAL was retired pre-v1.1.0 and now surfaces as HIGH + an 'urgent' priority flag (composite >= 0.70). All headline figures below (accuracy, macro_f1, weighted_f1, high_recall) are computed on that 3-class deployed schema -- i.e. with the notebook's raw 4-class CRITICAL row/column folded into HIGH on both axes, exactly as inference_service.py folds them at inference time. The unfolded 4-class notebook sanity check (rule-based risk_level_rule vs GBR/RFR ensemble, informative but not the deployed schema) is kept below as classification_report_4class_notebook_raw for transparency. See docs/model-validation-defensible-statements.md Part 3 for why CRITICAL was retired.",
+  "accuracy": 0.8222222222222222,
+  "macro_f1": 0.7740843558465759,
+  "weighted_f1": 0.8258957403692741,
+  "high_recall": 1.0,
   "priority_capture_rate": 1.0,
   "false_escalation_rate": 0.0616,
-  "classification_report": {
+  "classification_report_3class": {
+    "LOW": {
+      "precision": 0.8214285714285714,
+      "recall": 0.9139072847682119,
+      "f1-score": 0.8652037617554859,
+      "support": 151
+    },
+    "MODERATE": {
+      "precision": 0.9144736842105263,
+      "recall": 0.7315789473684211,
+      "f1-score": 0.8128654970760234,
+      "support": 190
+    },
+    "HIGH": {
+      "precision": 0.475,
+      "recall": 1.0,
+      "f1-score": 0.6440677966101694,
+      "support": 19
+    },
+    "accuracy": 0.8222222222222222,
+    "macro avg": {
+      "precision": 0.7369674185463659,
+      "recall": 0.881828743812211,
+      "f1-score": 0.7740456781472263,
+      "support": 360
+    },
+    "weighted avg": {
+      "precision": 0.8523471071286737,
+      "recall": 0.8222222222222222,
+      "f1-score": 0.8258957403692741,
+      "support": 360
+    }
+  },
+  "confusion_matrix_3class": {
+    "Pred_LOW": { "True_LOW": 138, "True_MODERATE": 30, "True_HIGH": 0 },
+    "Pred_MODERATE": { "True_LOW": 13, "True_MODERATE": 139, "True_HIGH": 0 },
+    "Pred_HIGH": { "True_LOW": 0, "True_MODERATE": 21, "True_HIGH": 19 }
+  },
+  "classification_report_4class_notebook_raw": {
     "LOW": {
       "precision": 0.8214285714285714,
       "recall": 0.9139072847682119,
@@ -42,9 +81,10 @@
       "recall": 0.8166666666666667,
       "f1-score": 0.8233987383412671,
       "support": 360.0
-    }
+    },
+    "note": "Raw notebook cell-52 output before folding CRITICAL into HIGH. The macro avg here (0.5686) is depressed by a CRITICAL class with 0 support -- it is not a defensible headline number and should not be quoted as 'the' macro-F1. Use classification_report_3class.macro avg (0.7740) instead."
   },
-  "confusion_matrix": {
+  "confusion_matrix_4class_notebook_raw": {
     "Pred_LOW": {
       "True_LOW": 138,
       "True_MODERATE": 30,
@@ -71,5 +111,5 @@
     }
   },
   "selected_threshold_set": "balanced",
-  "decision_support_note": "Risk levels are decision-support indicators, not clinical diagnoses. CRITICAL (composite >= 0.70) triggers priority referral and immediate case management review. HIGH predicted as CRITICAL (or vice versa) counts as a successful priority flag in the priority_capture_rate metric."
+  "decision_support_note": "Risk levels are decision-support indicators, not clinical diagnoses. CRITICAL (composite >= 0.70) triggers priority referral and immediate case management review. HIGH predicted as CRITICAL (or vice versa) counts as a successful priority flag in the priority_capture_rate metric -- which is also why, once folded into the deployed 3-class schema, high_recall reaches 1.0 (19/19): every rule-flagged HIGH/CRITICAL senior is caught by the ensemble as HIGH or higher."
 }

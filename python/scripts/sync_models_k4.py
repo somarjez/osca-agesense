@@ -77,8 +77,19 @@ def _norm_name(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
 
+# Committed baseline files are public (public GitHub repo) and must never carry
+# identifying senior data. Keys are salted hashes of normalised name+barangay,
+# not the cleartext itself. The salt is not a security boundary — it only
+# keeps the tracked JSON from reading as a plain name list — so it is a fixed
+# literal, duplicated in every script that builds or looks up these keys
+# (sync_models_k4.py, validate_k4_sync.py, generate_xai_means.py,
+# regression_test.py). Change it in all four together if it ever changes.
+_BASELINE_KEY_SALT = "agesense-baseline-deid-v1"
+
+
 def _key(first: str, last: str, barangay: str) -> str:
-    return f"{_norm_name(first)}|{_norm_name(last)}|{_norm_name(barangay)}"
+    raw = f"{_norm_name(first)}|{_norm_name(last)}|{_norm_name(barangay)}"
+    return hashlib.sha256((_BASELINE_KEY_SALT + raw).encode("utf-8")).hexdigest()[:24]
 
 
 def _parse_json_col(val):
@@ -402,16 +413,19 @@ with open(manifest_path, "w", encoding="utf-8") as f:
 print(f"  model_manifest.json: SHA256 for {len(checksums)} pkl files, version={MODEL_VERSION} [OK]")
 
 
-# ── Step 6: Generate regression_baseline.json ─────────────────────────────────
-print("\nGenerating regression_baseline.json ...")
+# ── Step 6: Generate regression_baseline_k4.json ───────────────────────────────
+# NOTE: this file is committed to a public repo. It must carry only the hashed
+# "key" (see _BASELINE_KEY_SALT above) plus model outputs — never cleartext
+# first_name/last_name/barangay. Downstream readers (validate_k4_sync.py,
+# generate_xai_means.py) only ever consult nb["cluster_named_id"] /
+# nb["overall_risk_level"] / nb["composite_risk"], never nb["first_name"] etc.,
+# so dropping the cleartext fields here does not break anything downstream.
+print("\nGenerating regression_baseline_k4.json ...")
 
 baseline = []
 for row in rows_csv:
     baseline.append({
         "key":               _key(row["first_name"], row["last_name"], row["barangay"]),
-        "first_name":        row["first_name"].strip(),
-        "last_name":         row["last_name"].strip(),
-        "barangay":          row["barangay"].strip(),
         "cluster_named_id":  int(float(row["cluster_id"])),
         "overall_risk_level": row["risk_level"].strip().upper(),
         "ic_risk":           float(row["ic_risk"]),

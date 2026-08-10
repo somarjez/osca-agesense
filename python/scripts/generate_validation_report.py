@@ -22,14 +22,19 @@ BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 # ── Notebook-validated constants ──────────────────────────────────────────────
-# These three values are locked from the validated comparison run (v1.1.1,
-# 2026-05-28).  Re-generate by running:
-#   python\scripts\compare_notebook_vs_live.py   (requires senior_predictions.csv)
-_NB_CLUSTER_MATCH_N   = 272
-_NB_CLUSTER_MATCH_TOT = 283
-_NB_RISK_MATCH_N      = 282
-_NB_RISK_MATCH_TOT    = 283
-_NB_MAX_DELTA         = 0.0061
+# Locked from the K=4 authoritative harness run (validate_system.py, 360
+# seniors). compare_notebook_vs_live.py (the script these were previously
+# attributed to) predates the K=4 migration -- it targets a 3-cluster/283-
+# senior schema and a senior_predictions.csv path that no longer exists, so it
+# is not a valid source anymore. Re-generate after any retrain by running:
+#   python\venv\Scripts\python.exe python\scripts\validate_system.py
+# and copying the "[3] RISK-LEVEL DISTRIBUTION" / "[4] CLUSTERING" /
+# "[2] RISK FIDELITY -> Composite risk max_delta" lines into the constants below.
+_NB_CLUSTER_MATCH_N   = 352
+_NB_CLUSTER_MATCH_TOT = 360
+_NB_RISK_MATCH_N      = 358
+_NB_RISK_MATCH_TOT    = 360
+_NB_MAX_DELTA         = 0.0186
 _URGENT_THRESHOLD     = 0.70
 
 
@@ -95,7 +100,7 @@ def query_live_distribution(conn) -> dict:
 
     Returns dict:
         risk (dict: "HIGH"|"MODERATE"|"LOW" -> int count)
-        cluster (dict: "1"|"2"|"3" -> int count)
+        cluster (dict: "1"|"2"|"3"|"4" -> int count)
         urgent_count (int)   seniors with composite_risk >= 0.70 AND risk = HIGH
         total (int)          total seniors with any ML result
         regression_failures (int)  always 0 — regression_test.py is run separately
@@ -177,6 +182,7 @@ def render_evidence_table(metrics: dict, distribution: dict) -> str:
     c1_n   = clust.get("1", 0)
     c2_n   = clust.get("2", 0)
     c3_n   = clust.get("3", 0)
+    c4_n   = clust.get("4", 0)
 
     high_pct = 100 * high_n / total if total else 0
     mod_pct  = 100 * mod_n  / total if total else 0
@@ -187,11 +193,11 @@ def render_evidence_table(metrics: dict, distribution: dict) -> str:
         "|---|---|---|",
         f"| Training population | {_NB_CLUSTER_MATCH_TOT} seniors (Pagsanjan OSCA dataset) | `osca5.ipynb` |",
         f"| Cluster match: live system vs notebook | "
-        f"**{_NB_CLUSTER_MATCH_N} / {_NB_CLUSTER_MATCH_TOT} = {cluster_pct:.1f}%** | `compare_notebook_vs_live.py` |",
+        f"**{_NB_CLUSTER_MATCH_N} / {_NB_CLUSTER_MATCH_TOT} = {cluster_pct:.1f}%** | `validate_system.py` |",
         f"| Risk-level match: live system vs notebook | "
-        f"**{_NB_RISK_MATCH_N} / {_NB_RISK_MATCH_TOT} = {risk_pct:.1f}%** | `compare_notebook_vs_live.py` |",
+        f"**{_NB_RISK_MATCH_N} / {_NB_RISK_MATCH_TOT} = {risk_pct:.1f}%** | `validate_system.py` |",
         f"| Max composite risk delta (live vs notebook) | "
-        f"**{_NB_MAX_DELTA}** | `compare_notebook_vs_live.py` |",
+        f"**{_NB_MAX_DELTA}** | `validate_system.py` |",
         f"| Regression baseline failures (post v1.1.1) | "
         f"**{reg_f} failures** (tolerance ±0.005 per senior) | `regression_test.py` |",
         "| **Risk distribution (live model)** | | |",
@@ -200,10 +206,11 @@ def render_evidence_table(metrics: dict, distribution: dict) -> str:
         f"| — HIGH risk | {high_n} seniors ({high_pct:.1f}%) | `validate_clusters.py` |",
         f"| — HIGH risk, urgent flag (composite >= {_URGENT_THRESHOLD}) | "
         f"**{urgent} seniors** | `final_comparison_report.py` |",
-        "| **Cluster distribution (live model)** | | |",
-        f"| — C1 High Functioning | {c1_n} seniors | `validate_clusters.py` |",
-        f"| — C2 Moderate / Mixed Needs | {c2_n} seniors | `validate_clusters.py` |",
-        f"| — C3 Low Functioning / Multi-domain Risk | {c3_n} seniors | `validate_clusters.py` |",
+        "| **Cluster distribution (live model, K=4)** | | |",
+        f"| — C1 High Functioning / Well-Supported | {c1_n} seniors | `validate_clusters.py` |",
+        f"| — C2 Stable Ageing / Moderate Support Needs | {c2_n} seniors | `validate_clusters.py` |",
+        f"| — C3 Environmentally & Financially Vulnerable | {c3_n} seniors | `validate_clusters.py` |",
+        f"| — C4 Low Functioning / Multi-Domain Priority | {c4_n} seniors | `validate_clusters.py` |",
         f"| Silhouette score (cluster quality) | "
         f"**{metrics['silhouette']}** | `cluster_eval_metrics.json` |",
         f"| Davies-Bouldin index (cluster separation) | "

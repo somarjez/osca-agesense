@@ -1,8 +1,16 @@
 # AgeSense OSCA — Reproducibility & Cross-Device Consistency
 
 **System version:** v2.0.0 (K=4)
-**Last validated:** 2026-06-29 (360 seniors — 290 original + 70 Magdapio/Barangay II batch)
+**Last validated:** 2026-08-10 (360 seniors — 290 original + 70 Magdapio/Barangay II batch, commit `d95233d`)
 **Audience:** developers, deployers, thesis panel
+
+> **v1.3.0 correction (2026-08-10):** the 86.9% (313/360) cluster-match figure below was
+> measured before the trained KNN k=5 classifier (`cluster_assignment_knn_k5.pkl`) replaced
+> nearest-centroid as the primary live cluster-assignment method. With the KNN classifier active
+> — the current deployed default — the figure is **97.8% (352/360)**. See Section 5. This doc's
+> other guarantees (deterministic algorithms, frozen age, version lock) are unaffected and remain
+> accurate. Kept for historical record; do not quote the 86.9% figure going forward — use
+> `docs/model-validation-defensible-statements.md`, which already reflected the correct number.
 
 > **Goal of this document:** explain *why* the live AgeSense system produces the
 > **same result for the same data on any device, at any time**, and *how* to set
@@ -76,7 +84,7 @@ As of 2026-06-29 all 15 `.pkl` files match the manifest (model version 2.0.0, re
 
 ---
 
-## 4. Why clustering is ~87% vs the notebook — and why that is correct
+## 4. Why clustering is ~98% vs the notebook — and why that is correct
 
 The notebook clusters with **UMAP (10-dim) → KMeans**. UMAP's `transform()` on a
 *single new record* is an approximation that varies across CPU families and
@@ -89,32 +97,34 @@ on every device (CV accuracy 0.9333, Silhouette 0.5577, Davies-Bouldin 0.6492).
 A nearest-centroid fallback (`cluster_centroids_scaled.json`, 30-D scaled space) is available
 when the KNN artifact is absent. UMAP and KMeans are **not called** at inference time.
 
-The KNN's agreement with the notebook UMAP+KMeans labels is **86.9%** (313/360 seniors). The 13.1%
-(47 seniors) that differ are **boundary-ambiguous seniors** — proven, not assumed: their distance
-gap between the nearest and second-nearest cluster averages **0.1002**, versus **0.3327** for
-agreeing seniors (3.3× tighter). For these borderline seniors, the **risk score
+The KNN's agreement with the notebook UMAP+KMeans labels is **97.8%** (352/360 seniors). The 2.2%
+(8 seniors) that differ are **boundary-ambiguous seniors** — proven, not assumed: their distance
+gap between the nearest and second-nearest cluster averages **0.2048**, versus **0.3543** for
+agreeing seniors (1.7× tighter). For these borderline seniors, the **risk score
 and recommendations are identical** regardless of which cluster label they get.
 
-The slight decrease from the earlier 290-senior baseline (which showed ~88–91% depending on run)
-reflects the larger, denser 360-senior dataset — this is expected, not degradation.
+*(An earlier measurement of this figure — 86.9%, 313/360 — was taken before the KNN classifier
+became the primary live method, when nearest-centroid alone was active; see the v1.3.0 correction
+banner at the top of this document.)*
+
 100% cluster agreement is mathematically impossible to reach deterministically,
 because the target method (UMAP+KMeans) is itself non-reproducible per record.
 
 ---
 
-## 5. Validation results (2026-06-29, `validate_system.py`, 360 seniors)
+## 5. Validation results (2026-08-10, `validate_system.py`, 360 seniors, commit `d95233d`)
 
 Run with `ENABLE_NOTEBOOK_OVERRIDES=false` (live model only). Dataset expanded from 290 to 360 seniors (290 original + 70 Magdapio/Barangay II batch); model retrained June 2026.
 
 | Category | Result | Verdict |
 |---|---|---|
-| Feature-engineering fidelity (WHO + section scores) | 99.4–100% within tolerance, mean Δ ~0.0006 | PASS |
-| Risk-score fidelity (IC/Env/Func/Composite) | 99.7–100% within 0.02, mean Δ ~0.0003 | PASS |
+| Feature-engineering fidelity (WHO + section scores) | 99.2–100% within tolerance, mean Δ ~0.0006 | PASS |
+| Risk-score fidelity (IC/Env/Func/Composite) | 99.7–100% within 0.02, mean Δ ~0.0006 | PASS |
 | Risk-level match (LOW/MODERATE/HIGH) | 358/360 = **99.4%** | PASS |
-| Cluster match vs notebook | 313/360 = **86.9%** | deterministic ceiling |
-| Cluster coherence (risk rises with cluster id) | 0.288 → 0.386 → 0.401 → 0.544 | PASS (monotonic) |
+| Cluster match vs notebook | 352/360 = **97.8%** | deterministic ceiling |
+| Cluster coherence (risk rises with cluster id) | 0.285 → 0.423 → 0.389 → 0.535 | **not monotonic — by design**, see `model-validation-defensible-statements.md` §1 "cluster coherence note": C3 (Environmentally & Financially Vulnerable) has lower mean risk than C2 (Stable Ageing) despite the higher cluster ID, because the two clusters capture qualitatively different vulnerability profiles, not a strict risk ranking |
 | XAI coverage | 360/360 = 100% | PASS |
-| Recommendation coverage | 360/360 = 100% (mean 16.9/senior) | PASS |
+| Recommendation coverage | 360/360 = 100% (mean 15.3/senior) | PASS |
 | Determinism (same payload × 3 runs) | identical every time | PASS |
 
 Re-run any time to re-confirm the whole system in one command:
@@ -188,4 +198,4 @@ match Section 5 above.
 - `docs/DATABASE_SHARING_AND_TEAM_SETUP.md` — sharing data across devices
 - `docs/UPDATING_THE_MODEL.md` — what to do when the model is retrained
 
-*Document version 1.2.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | 2026-06-29*
+*Document version 1.3.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | 2026-08-10 | v1.3.0 change: corrected cluster-match figure 86.9%→97.8% (see banner), fixed the non-monotonic cluster-coherence row, recommendation mean 16.9→15.3/senior*

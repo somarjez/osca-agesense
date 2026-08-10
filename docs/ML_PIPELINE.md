@@ -181,22 +181,22 @@ The notebook assigned each senior to one of 4 clusters in 2D UMAP space using `K
 - KNN on the original 30D MinMaxScaler-scaled space is bit-for-bit identical on any device
 - 5-fold stratified CV accuracy 0.9333 confirms high fidelity to the notebook cluster labels
 
-**Accuracy of KNN vs notebook (v2.0.0 / K=4, N=360)** — from `validate_system.py` run 2026-07-01 with `ENABLE_NOTEBOOK_OVERRIDES=false`:
+**Accuracy of KNN vs notebook (v2.0.0 / K=4, N=360)** — from `validate_system.py` run 2026-08-10 (commit `d95233d`) with `ENABLE_NOTEBOOK_OVERRIDES=false`. *(An earlier snapshot of this table, dated 2026-07-01, quoted 313/360 (86.9%) and a stale 50/233/77 risk distribution — those numbers predated the KNN classifier becoming the primary live cluster-assignment path and are superseded below.)*
 
 | Metric | Result (v2.0.0 / K=4 / N=360) |
 |---|---|
 | KNN CV accuracy (5-fold stratified) | **0.9333** |
-| Per-senior cluster match vs notebook | **313 / 360 (86.9%)** |
+| Per-senior cluster match vs notebook | **352 / 360 (97.8%)** |
 | Risk level match vs notebook | **358 / 360 (99.4%)** |
-| Max composite risk delta | **0.0107** |
-| Risk distribution (live) | HIGH=77 (2 urgent), MODERATE=233, LOW=50 |
+| Max composite risk delta | **0.0186** |
+| Risk distribution (live) | LOW=168 (46.7%), MODERATE=152 (42.2%), HIGH=40 (11.1%, 2 urgent) |
 | Cluster quality — Silhouette | **0.5577** |
 | Cluster quality — Davies-Bouldin | **0.6492** |
 | Cluster quality — Calinski-Harabász | **6048.7** |
 
 See [model-validation-defensible-statements.md](model-validation-defensible-statements.md) for the full evidence table and panel Q&A.
 
-The 47 borderline-case differences occur because the notebook ran KMeans in UMAP space while the live system uses the KNN classifier in 30-D scaled space — different geometric spaces produce marginally different boundaries for seniors who sit equidistantly between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
+The 8 borderline-case differences (2.2%) occur because the notebook ran KMeans in UMAP space while the live system uses the KNN classifier in 30-D scaled space — different geometric spaces produce marginally different boundaries for seniors who sit equidistantly between two clusters. These seniors have nearly identical distance to two centroids and their practical care plan is identical regardless of cluster assignment.
 
 **Generating centroids:**
 
@@ -440,12 +440,12 @@ Controls which prediction path is used for seeded seniors.
 
 | Value | Mode | Behaviour |
 |---|---|---|
-| `false` | **Live-model mode (deployed default)** | Every senior is processed through the live inference pipeline: preprocess → KNN k=5 cluster classifier (→ nearest-centroid fallback) → GBR/RFR risk ensemble. KNN cluster agreement with notebook: ~87%; risk-level match: ~99.4%. Deterministic across devices. `prediction_source='live_model'`. |
+| `false` | **Live-model mode (deployed default)** | Every senior is processed through the live inference pipeline: preprocess → KNN k=5 cluster classifier (→ nearest-centroid fallback) → GBR/RFR risk ensemble. KNN cluster agreement with notebook: ~98%; risk-level match: ~99.4%. Deterministic across devices. `prediction_source='live_model'`. |
 | `true` | **Notebook-exact mode (optional, demo/defense)** | The 360 seeded seniors are served from the `notebook_cache` — clusters/risk/composite come directly from the notebook-validated rows (100% cluster match). New or unmatched seniors always use the live model regardless of this setting. |
 
-**This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false`** (live-model default) — the KNN cluster classifier and GBR/RFR models score every senior, consistent with `model-validation-defensible-statements.md`. Live distribution (360): HIGH=77 (2 urgent), MODERATE=233, LOW=50.
+**This deployment runs `ENABLE_NOTEBOOK_OVERRIDES=false`** (live-model default) — the KNN cluster classifier and GBR/RFR models score every senior, consistent with `model-validation-defensible-statements.md`. Live distribution (360): LOW=168 (46.7%), MODERATE=152 (42.2%), HIGH=40 (11.1%, 2 urgent).
 
-**Set `ENABLE_NOTEBOOK_OVERRIDES=true`** only if you need the dashboard to reproduce the notebook distribution exactly (HIGH=75 + CRITICAL=2→shown as HIGH+urgent, MODERATE=233, LOW=50). After switching: restart Flask services (`python/start_services.ps1`), then run `php artisan ml:batch-analyze --force`. See [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) for details.
+**Set `ENABLE_NOTEBOOK_OVERRIDES=true`** only if you need the dashboard to reproduce the notebook distribution exactly (LOW=168, MODERATE=152, HIGH=38 + CRITICAL=2 → shown as HIGH+urgent=40). After switching: restart Flask services (`python/start_services.ps1`), then run `php artisan ml:batch-analyze --force`. See [ML_DEPLOYMENT.md](ML_DEPLOYMENT.md) for details.
 
 ---
 
@@ -473,7 +473,7 @@ Because every device loads the same committed `cluster_assignment_knn_k5.pkl`, t
 
 ### Validated cross-device accuracy
 
-> **Note:** The table below records the original **v1.1.1 / K=3** migration validation (three clusters, 75/132/76). The current production build is **v2.0.0 / K=4 / 30-feature MinMaxScaler** — distribution (360 seniors, live 3-level): HIGH=77 (2 with priority_flag='urgent'), MODERATE=233, LOW=50; C1=69, C2=94, C3=91, C4=106 (notebook labels). Official clustering metrics: Silhouette **0.5577**, Davies-Bouldin **0.6492**, Calinski-Harabász **6048.7**; KNN CV accuracy **0.9333**. See [model-validation-defensible-statements.md](model-validation-defensible-statements.md) and `cluster_assignment_metadata.json`. The cross-device determinism mechanism (KNN classifier on committed MinMaxScaler·30-feature space) supersedes the v1.1.1 nearest-centroid approach.
+> **Note:** The table below records the original **v1.1.1 / K=3** migration validation (three clusters, 75/132/76). The current production build is **v2.0.0 / K=4 / 30-feature MinMaxScaler** — distribution (360 seniors, live 3-level): LOW=168 (46.7%), MODERATE=152 (42.2%), HIGH=40 (11.1%, 2 with priority_flag='urgent'); clusters C1=50, C2=84, C3=154, C4=72 (live KNN labels). Official clustering metrics: Silhouette **0.5577**, Davies-Bouldin **0.6492**, Calinski-Harabász **6048.7**; KNN CV accuracy **0.9333**. See [model-validation-defensible-statements.md](model-validation-defensible-statements.md) and `cluster_assignment_metadata.json`. The cross-device determinism mechanism (KNN classifier on committed MinMaxScaler·30-feature space) supersedes the v1.1.1 nearest-centroid approach.
 
 K=3 migration validation (historical):
 

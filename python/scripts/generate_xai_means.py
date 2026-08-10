@@ -8,6 +8,7 @@ Writes python/models/cluster_feature_means.json.
 Run from repo root:
     python\\venv\\Scripts\\python.exe python\\scripts\\generate_xai_means.py
 """
+import hashlib
 import json
 import os
 import pickle
@@ -85,7 +86,16 @@ def _norm(s):
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", "", s.lower())
-def _key(f, last, b): return f"{_norm(f)}|{_norm(last)}|{_norm(b)}"
+# Must match the hashing in sync_models_k4.py's _key() exactly — that script
+# generates the committed regression_baseline_k4.json this file looks up
+# against, keyed by salted hash rather than cleartext name+barangay (the repo
+# is public; committed baselines must not carry identifying senior data).
+_BASELINE_KEY_SALT = "agesense-baseline-deid-v1"
+
+
+def _key(f, last, b):
+    raw = f"{_norm(f)}|{_norm(last)}|{_norm(b)}"
+    return hashlib.sha256((_BASELINE_KEY_SALT + raw).encode("utf-8")).hexdigest()[:24]
 
 conn = pymysql.connect(
     host=_read_dotenv("DB_HOST") or "127.0.0.1",
