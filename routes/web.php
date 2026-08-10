@@ -9,7 +9,10 @@ use App\Support\SeniorDataVersion;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+// Guests skip the /dashboard bounce and land straight on the sign-in screen —
+// one 302 instead of two, which matters on cold starts.
+Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'))
+    ->name('home');
 
 Route::middleware(['auth'])->group(function () {
 

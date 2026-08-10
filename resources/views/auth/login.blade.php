@@ -4,7 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AgeSense</title>
+    <title>Sign in · AgeSense</title>
+    <meta name="description" content="Staff portal for the Office of Senior Citizens Affairs, Pagsanjan, Laguna.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta property="og:title" content="AgeSense · OSCA Pagsanjan">
+    <meta property="og:description" content="Senior citizen profiling and analytics for the Office of Senior Citizens Affairs, Pagsanjan, Laguna.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="AgeSense">
+    <meta name="theme-color" content="#0f1729">
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +40,10 @@
             opacity: 0.9;
             box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10);
         }
+
+        /* Suppress the default <details> disclosure triangle in Safari;
+           list-none in the class list covers Chrome/Firefox. */
+        summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="min-h-screen bg-paper text-ink-900 flex flex-col">
@@ -151,8 +162,14 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label for="password" class="eyebrow">Password</label>
-                        <span class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors cursor-help"
-                              title="Ask your OSCA administrator to reset it.">Forgot password?</span>
+                        <details class="group relative">
+                            <summary class="text-[11px] text-ink-400 hover:text-ink-600 transition-colors cursor-pointer list-none rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/40">
+                                Forgot password?
+                            </summary>
+                            <div class="absolute right-0 z-10 mt-1.5 w-56 rounded-lg border border-paper-rule bg-white p-3 text-[11.5px] leading-relaxed text-ink-600 shadow-md">
+                                Ask your OSCA administrator to reset it for you.
+                            </div>
+                        </details>
                     </div>
                     <div class="relative">
                         <input id="password" name="password" type="password" required autocomplete="current-password"
