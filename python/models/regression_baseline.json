@@ -1,2160 +1,2160 @@
 {
   "seniors": {
-    "medilla|abanes": {
+    "22c7b11c5125334eb529201c": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4596,
       "wellbeing": 0.6348
     },
-    "alberto|abarquez": {
+    "ec2f50a2ce6a588dff4a07ce": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.1982,
       "wellbeing": 0.7912
     },
-    "edna|abarquez": {
+    "53fc7d2646fbc552816de2f9": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3639,
       "wellbeing": 0.6405
     },
-    "isabel|abarquez": {
+    "c7a6759f8f0ea1365888aa5a": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4453,
       "wellbeing": 0.6432
     },
-    "meraida|abarquez": {
+    "f284ac795a7545a603cd85fc": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2637,
       "wellbeing": 0.7766
     },
-    "nimfa|abaya": {
+    "ec8ad5ac93a3339b22f25091": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.298,
       "wellbeing": 0.7929
     },
-    "crisanta|abayam": {
+    "4a01b3e05aa216e52b90883a": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2274,
       "wellbeing": 0.8223
     },
-    "dilberto|abayam": {
+    "fb362a9bf16d2a4ede28896a": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.274,
       "wellbeing": 0.7856
     },
-    "erna|ablasa": {
+    "1e871331984a2e054cc8710a": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5188,
       "wellbeing": 0.5096
     },
-    "luciana|ablir": {
+    "9bb8591a4c16e8a97fde6bfb": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3157,
       "wellbeing": 0.6591
     },
-    "jessie|akala": {
+    "a5eae963995cbdb95d2ab2de": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.337,
       "wellbeing": 0.6973
     },
-    "florida|alam": {
+    "21e7ef2a4c3b38a0838f0569": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3002,
       "wellbeing": 0.7787
     },
-    "helen|alera": {
+    "d9984d6363ecd885cd17b072": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5341,
       "wellbeing": 0.6576
     },
-    "solita|alias": {
+    "0c66757c703eebd6dc4aef47": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2195,
       "wellbeing": 0.7971
     },
-    "danilo|alibin": {
+    "1d2f71e3f5016d7d66af00d1": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3581,
       "wellbeing": 0.6826
     },
-    "fe|alibin": {
+    "14eb09e9ef5295bbe30816b0": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3118,
       "wellbeing": 0.7205
     },
-    "merlita|alipar": {
+    "4201137d7e7b848a3a42fefb": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3533,
       "wellbeing": 0.7153
     },
-    "linda|aliparo": {
+    "b668c729c231010482e29341": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3661,
       "wellbeing": 0.772
     },
-    "ulando|aliper": {
+    "b669ab36aad6da6f340d33cf": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5209,
       "wellbeing": 0.5542
     },
-    "leticia|almarez": {
+    "1b0af3a875d4bbcbd5e4cdc4": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2704,
       "wellbeing": 0.8442
     },
-    "annie|almonte": {
+    "91f8a367fa1d67941f89f026": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4166,
       "wellbeing": 0.6962
     },
-    "eupemia|almonte": {
+    "776493e7f38efc9fdc10200d": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4077,
       "wellbeing": 0.743
     },
-    "sonia|almonte": {
+    "3418cb4da6bef2b50c1cc60f": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4635,
       "wellbeing": 0.6405
     },
-    "carmen|almontero": {
+    "c8772316e994bdaa331e3ec8": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5223,
       "wellbeing": 0.6397
     },
-    "paulino|almontero": {
+    "566d040398ed0229b71b656b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3071,
       "wellbeing": 0.6506
     },
-    "mila|alparo": {
+    "b5abf1f4c86620a73f3bb903": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.5025,
       "wellbeing": 0.4783
     },
-    "veda|amalosa": {
+    "7ed5d2268c9dd9ad698b71a8": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.489,
       "wellbeing": 0.638
     },
-    "rosa|amante": {
+    "4c691aaeae04a69d4ec9bef4": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3695,
       "wellbeing": 0.6727
     },
-    "jeany|ambrocio": {
+    "9c1b1b38b66cdd95e6480de1": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.299,
       "wellbeing": 0.7753
     },
-    "romeo|amoloza": {
+    "582d803a9a2b9ad81575453c": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3764,
       "wellbeing": 0.719
     },
-    "ofelia|amonelo": {
+    "d9409a3bf2237491ae1464bb": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3753,
       "wellbeing": 0.665
     },
-    "albino|antolin": {
+    "cbb3bfa3127a325030dac2f0": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3706,
       "wellbeing": 0.7797
     },
-    "edita|antolin": {
+    "03b1884b719ed600c61a5eaf": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4201,
       "wellbeing": 0.7786
     },
-    "florelle|aquino": {
+    "032debaa4d383900d472a28d": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4254,
       "wellbeing": 0.6978
     },
-    "nescita|aquino": {
+    "8cd2038d26e4a9f540118b78": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2483,
       "wellbeing": 0.7309
     },
-    "edwin|arroyo": {
+    "c9a8a7b7cc01b415df8506b3": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4228,
       "wellbeing": 0.7444
     },
-    "dina|aycotso": {
+    "0ba6f51d397b350620dbbb70": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4728,
       "wellbeing": 0.6527
     },
-    "nilda|babaan": {
+    "4b1f9f4e2b609eab8361512b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3274,
       "wellbeing": 0.7326
     },
-    "marcial|baduria": {
+    "f90b70f3c0f7479a73d59365": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2697,
       "wellbeing": 0.7797
     },
-    "danilo|baraga": {
+    "581e2f6b83987662f2ea8228": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3526,
       "wellbeing": 0.6527
     },
-    "rosty|barcelona": {
+    "93c2a8df00019d68be00749b": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5314,
       "wellbeing": 0.572
     },
-    "nida|barquin": {
+    "4d932c766ebd89b55e7fa70a": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2731,
       "wellbeing": 0.7549
     },
-    "edna|barrera": {
+    "ba12ffd8d0ca94a61326e31f": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4607,
       "wellbeing": 0.6639
     },
-    "jose|barrera": {
+    "d93d6ccee786c695ba9ad03f": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.347,
       "wellbeing": 0.6552
     },
-    "aurora|basa": {
+    "b468890a4f317d77d3e92db9": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5439,
       "wellbeing": 0.5381
     },
-    "norlito|basa": {
+    "53762ac86ad0b49cb91f2280": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.7475,
       "wellbeing": 0.3851
     },
-    "juan|battaler": {
+    "529f2b51cac3fe985007b50e": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.613,
       "wellbeing": 0.4046
     },
-    "erma|beatriz": {
+    "d7521c653110e4d8116d5350": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3721,
       "wellbeing": 0.6626
     },
-    "violeta|beauriza": {
+    "d126c5ecd09bece76174d1fd": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3287,
       "wellbeing": 0.7229
     },
-    "resitasyon|beltran": {
+    "ab1d1e1311fad9c2f4afbdb4": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5955,
       "wellbeing": 0.3968
     },
-    "benito|bermudez": {
+    "51f62efc02a2c7239ffbc3c7": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3975,
       "wellbeing": 0.734
     },
-    "florencia|bermudez": {
+    "374e7afa9e2e398584e56405": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.329,
       "wellbeing": 0.7403
     },
-    "florina|bermudez": {
+    "36ecdb0424f7a6f3d38384be": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3034,
       "wellbeing": 0.7799
     },
-    "melba|bermudez": {
+    "cb421c7bfa73b1f85379782f": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2497,
       "wellbeing": 0.6716
     },
-    "leonora|bie": {
+    "25eb87c1b93838b0591bf594": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2421,
       "wellbeing": 0.7977
     },
-    "loida|bie": {
+    "f99dfe2d15bbdb0d8bd6691f": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.7653,
       "wellbeing": 0.2979
     },
-    "erlinda|blacer": {
+    "33e021198ce089d17eb7b317": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.359,
       "wellbeing": 0.6513
     },
-    "merlyn|bolante": {
+    "9caed9cb713cd2c151e04e48": {
       "risk_level": "LOW",
       "cluster": 4,
       "composite_risk": 0.3866,
       "wellbeing": 0.6869
     },
-    "celia|bombay": {
+    "cabddbe596158f0c0baed706": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6237,
       "wellbeing": 0.5244
     },
-    "elena|bombay": {
+    "7c3cac47d8673ddad22dbc4f": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3448,
       "wellbeing": 0.7064
     },
-    "florida|bombay": {
+    "6acbcc32587e188bf4bb8b2a": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4802,
       "wellbeing": 0.6816
     },
-    "manolo|bombay": {
+    "1b55e5b242660dfe41a0882d": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4387,
       "wellbeing": 0.623
     },
-    "roberto|bombay": {
+    "39e02445757a42e2908f7478": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4038,
       "wellbeing": 0.5784
     },
-    "adeilaida|bonde": {
+    "50cfefd45d70c905a0052e76": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6485,
       "wellbeing": 0.5033
     },
-    "irene|buenavista": {
+    "fca8fc4bd3cf6a79228994e4": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3782,
       "wellbeing": 0.7217
     },
-    "rosslina|buluran": {
+    "9430962d828511201d60faa8": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3789,
       "wellbeing": 0.6402
     },
-    "armando|bunsol": {
+    "66c2aaf45a9c601cd72d4d52": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2981,
       "wellbeing": 0.6643
     },
-    "hermigilda|buntigaw": {
+    "e82aeff25db12c0be4ee9307": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3641,
       "wellbeing": 0.7126
     },
-    "merle|caballes": {
+    "c26f943d6b811b869d967e79": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2315,
       "wellbeing": 0.7973
     },
-    "anicia|cabantog": {
+    "562065a520a7e6e2a8b9e325": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3698,
       "wellbeing": 0.6948
     },
-    "merly|cabantog": {
+    "a1b45738613b5ec59b830adf": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3353,
       "wellbeing": 0.733
     },
-    "prima|cabantog": {
+    "ac98f7fa6be065eb6b71e4f9": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3865,
       "wellbeing": 0.746
     },
-    "marina|cabarinas": {
+    "17569a7ee9f8ab39eca36ebe": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3292,
       "wellbeing": 0.7568
     },
-    "salvador|cabarrinas": {
+    "dd4f71c4e7c3ea67d222a39b": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5211,
       "wellbeing": 0.6761
     },
-    "edilina|cabela": {
+    "30e41a2790afb8be81c40c83": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2653,
       "wellbeing": 0.7074
     },
-    "emelda|cabela": {
+    "9e91ff0bab2a5f9e12e7d158": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3073,
       "wellbeing": 0.7602
     },
-    "luz|cabrega": {
+    "b4f7b2430eeca0b7a4310d53": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2872,
       "wellbeing": 0.7038
     },
-    "adora|cabreza": {
+    "12c28c1caae2b5b5bbb8ea94": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4063,
       "wellbeing": 0.689
     },
-    "mario|cabreza": {
+    "1b1c370e680c587198772b53": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4106,
       "wellbeing": 0.6912
     },
-    "teresita|cabreza": {
+    "7dfdd9da19e75ae047403ba7": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4619,
       "wellbeing": 0.6814
     },
-    "asuncio|calabit": {
+    "630843e12d2a423b7aec88bd": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4412,
       "wellbeing": 0.6341
     },
-    "asuncion|calabit": {
+    "3b6589dfc0b2aa90de2b9427": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4656,
       "wellbeing": 0.6983
     },
-    "bienivido|calabit": {
+    "2f554e15d89f4461b0b5a4fa": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3713,
       "wellbeing": 0.6813
     },
-    "irene|calabit": {
+    "22959c45c6e6d53cc1d9a3ca": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3562,
       "wellbeing": 0.7061
     },
-    "juanito|calinagan": {
+    "6bb3277c5f20f3572fa11f74": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5258,
       "wellbeing": 0.6352
     },
-    "pasencia|calinagan": {
+    "555786fd4a232796bd0fb284": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3781,
       "wellbeing": 0.717
     },
-    "merlinda|calma": {
+    "2ffd0c689cffeb685bbd145f": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3875,
       "wellbeing": 0.7447
     },
-    "analisa|campillo": {
+    "723aef1b547317cb6b9e17fb": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4071,
       "wellbeing": 0.5886
     },
-    "evangeline|capili": {
+    "0f9c201160c56d87df9ea7f1": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3624,
       "wellbeing": 0.7227
     },
-    "josie|capistrano": {
+    "4e9d590fb1362f177d04017e": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3212,
       "wellbeing": 0.7485
     },
-    "yolanda|catindig": {
+    "57e89097732bfc47d4a9c800": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4723,
       "wellbeing": 0.6807
     },
-    "amelia|catulay": {
+    "30b3c9e694eb97db43fbefa1": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4138,
       "wellbeing": 0.6942
     },
-    "charito|cawili": {
+    "ed28c17697f189f506e5bacd": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4921,
       "wellbeing": 0.6624
     },
-    "fabriola|cayanan": {
+    "de5904b20f242b17fbbf78ed": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3582,
       "wellbeing": 0.6562
     },
-    "dorotea|cejo": {
+    "fa852c634132b7800fd5ee23": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6604,
       "wellbeing": 0.5074
     },
-    "celestine|chabis": {
+    "0b27a69b8b89139aa86fb16a": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2237,
       "wellbeing": 0.733
     },
-    "norma|clemente": {
+    "4284be031d6ab3b21c13b2e8": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6096,
       "wellbeing": 0.5485
     },
-    "nida|conde": {
+    "7db32fa1bf55775c2097f7fd": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3055,
       "wellbeing": 0.7511
     },
-    "fainna|coronel": {
+    "dd1791a5e644545a2adfa9f0": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4428,
       "wellbeing": 0.6454
     },
-    "virginia|cristal": {
+    "6aec5cf4fac6cd46a04a0f73": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6499,
       "wellbeing": 0.4686
     },
-    "lusbiminda|cristobal": {
+    "96bac08acbc166308d22fd8c": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3199,
       "wellbeing": 0.7915
     },
-    "raquel|cristobal": {
+    "fd04acce5dd1a8dc3fe78cb4": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3348,
       "wellbeing": 0.7272
     },
-    "rodolfo|cristobal": {
+    "c9fd43a4ef78140e51fbf677": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.1774,
       "wellbeing": 0.7866
     },
-    "lusila|cruz": {
+    "13a9ede247e1caf3e4706bac": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.404,
       "wellbeing": 0.6905
     },
-    "victorina|custodio": {
+    "16960c43c96850f03d1eb935": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4047,
       "wellbeing": 0.7275
     },
-    "criselda|dacdac": {
+    "7c848dc34b3dc394cd69b45f": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3364,
       "wellbeing": 0.7724
     },
-    "celia|dalapen": {
+    "10704435cb8e24b6b8409504": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5051,
       "wellbeing": 0.6087
     },
-    "erlinda|dasmari\u00f1as": {
+    "e152bfe4f986d249e6b1bd24": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5016,
       "wellbeing": 0.6607
     },
-    "yolanda|dasmarinas": {
+    "3211c659d39034973925e88e": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3774,
       "wellbeing": 0.8019
     },
-    "leandra|dava": {
+    "a4f043a9d82582119693520f": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3316,
       "wellbeing": 0.6708
     },
-    "vergilio|dava": {
+    "6a8118c0d7368407fe9293ed": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4153,
       "wellbeing": 0.6877
     },
-    "june|davac": {
+    "c78608851002d981d9169efc": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5868,
       "wellbeing": 0.5051
     },
-    "lilian|davac": {
+    "23cb1a21b682071ebd10174a": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5292,
       "wellbeing": 0.6275
     },
-    "merle|davac": {
+    "74e556845c67d01b678e1326": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3124,
       "wellbeing": 0.7914
     },
-    "efren|dave": {
+    "6c99d6177712e61843053be8": {
       "risk_level": "LOW",
       "cluster": 4,
       "composite_risk": 0.3598,
       "wellbeing": 0.6662
     },
-    "teresita|david": {
+    "d2f9a53b454fd990d26a9123": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3439,
       "wellbeing": 0.7204
     },
-    "dany|de belen": {
+    "d6fb3b4539b66724c7c713c9": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3077,
       "wellbeing": 0.708
     },
-    "emilie|de belen": {
+    "086cbc6e6ccaae3038d463c0": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4477,
       "wellbeing": 0.657
     },
-    "jiralden|de belen": {
+    "12e1984cc1302a262a73e367": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6664,
       "wellbeing": 0.424
     },
-    "marilou|de belen": {
+    "da163c3626afa0f3861b7e52": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.445,
       "wellbeing": 0.6197
     },
-    "teresita|de guzman": {
+    "106ef6cba1c0b387553ffcbd": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3567,
       "wellbeing": 0.5488
     },
-    "guadalupe|de leon": {
+    "2cb33c6313c53ff8cc9a36f1": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4819,
       "wellbeing": 0.6356
     },
-    "maria|de leon": {
+    "c6c0d500f1a0e95a38afdc86": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.452,
       "wellbeing": 0.605
     },
-    "noxiano|de rama": {
+    "50d1911093bfdde28cb39e85": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.235,
       "wellbeing": 0.7587
     },
-    "celia|de roma": {
+    "838dcefe7c14b505c6440a70": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5056,
       "wellbeing": 0.5503
     },
-    "eufrencinia|dela cruz": {
+    "ae0b51bf604ec1b6061234bd": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.37,
       "wellbeing": 0.6736
     },
-    "eulogio|dela cruz": {
+    "fbdc206df56f517f81b4c86d": {
       "risk_level": "LOW",
       "cluster": 4,
       "composite_risk": 0.3844,
       "wellbeing": 0.6221
     },
-    "rodolfo|dela cruz": {
+    "8c20a671e26380849a7e4afd": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2964,
       "wellbeing": 0.7746
     },
-    "teresita|dela cruz": {
+    "f2c513f7f945aba27eed1604": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6473,
       "wellbeing": 0.5002
     },
-    "rodolfo|dela pe\u00f1a": {
+    "f688ce23ee8f4d6e40e64b97": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2246,
       "wellbeing": 0.7439
     },
-    "eliza|delos reyes": {
+    "5011508c39ad855da8cd22c4": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.5772,
       "wellbeing": 0.592
     },
-    "eunissa|delos reyes": {
+    "5a8bc327c26d8b596b44ee31": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.398,
       "wellbeing": 0.7283
     },
-    "norma|delos reyes": {
+    "7af946c0be55347034a8cfc3": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4788,
       "wellbeing": 0.6844
     },
-    "rosario|delos reyes": {
+    "c0197e6d7e29e6afabc2d907": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.5037,
       "wellbeing": 0.6509
     },
-    "marites|denido": {
+    "90095fa6fa95bb6080ebb20b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2852,
       "wellbeing": 0.7804
     },
-    "norma|dizom": {
+    "7fe9d39f168a6a072d3db8f9": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6228,
       "wellbeing": 0.5857
     },
-    "susana|duenias": {
+    "02ab618fc681c71554de2bb2": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3806,
       "wellbeing": 0.7467
     },
-    "leada|eleazar": {
+    "de74c3cd98425cdba22651c6": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3234,
       "wellbeing": 0.7622
     },
-    "salvador|eleazar": {
+    "e0d620ab0383cdacdec566ac": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.517,
       "wellbeing": 0.6875
     },
-    "joel|eliab": {
+    "006e849e8e080543ec19ff7e": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4485,
       "wellbeing": 0.651
     },
-    "necita|enriquez": {
+    "35979a6c09d476c6cae89028": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2218,
       "wellbeing": 0.84
     },
-    "fe|escote": {
+    "10d27312c081ff73e98db046": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3297,
       "wellbeing": 0.7425
     },
-    "raquel|esguera": {
+    "34b2be4a91a6304f5154c8f8": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.26,
       "wellbeing": 0.7706
     },
-    "doris|evio": {
+    "4267c453afedfac1c6af4e6a": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2625,
       "wellbeing": 0.7632
     },
-    "lamberto|fabricio": {
+    "5288ad282a4e430b169c028c": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4461,
       "wellbeing": 0.7011
     },
-    "marieta|felisco": {
+    "0183740bc8661f3cfa98beee": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3128,
       "wellbeing": 0.8039
     },
-    "dalmacio|fernandez": {
+    "6f43ed6ea8a6232d8dde2fa7": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.5561,
       "wellbeing": 0.6441
     },
-    "rowena|fernandez": {
+    "547b6af6afc8bf07c2dd734f": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4618,
       "wellbeing": 0.6617
     },
-    "amie|flores": {
+    "d218dc27e37594a9a2dd2b94": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4255,
       "wellbeing": 0.6987
     },
-    "anita|flores": {
+    "2e00fca7601ab8228905009f": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5296,
       "wellbeing": 0.6536
     },
-    "carmelita|flores": {
+    "e4606c53e4d4091287b3bb65": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5182,
       "wellbeing": 0.6512
     },
-    "conardo|flores": {
+    "cf6c91893ed0b0a3975cf9c0": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4449,
       "wellbeing": 0.659
     },
-    "dario|flores": {
+    "166dedd27a4b3aa74d8fe611": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3561,
       "wellbeing": 0.7072
     },
-    "galleo|flores": {
+    "15c5bb77cf570d19cf271426": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4907,
       "wellbeing": 0.5823
     },
-    "lilia|flores": {
+    "387a7af7afbd808b896fd243": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3035,
       "wellbeing": 0.7674
     },
-    "rogelio|flores": {
+    "a3a10a5b7003a443def59204": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3765,
       "wellbeing": 0.7326
     },
-    "susan|flores": {
+    "fb5bd0d6366a34b87d5000a9": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5434,
       "wellbeing": 0.5581
     },
-    "elvira|forvis": {
+    "d502d13687400308282e0870": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6235,
       "wellbeing": 0.4523
     },
-    "rolito|francia": {
+    "e390b67512eefe1f448202a4": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4631,
       "wellbeing": 0.7061
     },
-    "teodora|francia": {
+    "56342296722f1792759aa977": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4485,
       "wellbeing": 0.6628
     },
-    "ligaya|furio": {
+    "ca5cef39d811d17ac515c88c": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4281,
       "wellbeing": 0.723
     },
-    "betty|gabating": {
+    "4ea1c93aafc7c93813c73c76": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3416,
       "wellbeing": 0.7774
     },
-    "amelita|gaceta": {
+    "41c92b9ce15c742e5cb9e794": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5082,
       "wellbeing": 0.5629
     },
-    "aida|galicio": {
+    "08bb247e72e1c89adad41ea9": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.355,
       "wellbeing": 0.583
     },
-    "felisa|gallardo": {
+    "63fda5cd1ed2e060186679d8": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3449,
       "wellbeing": 0.8109
     },
-    "pladio|gallardo": {
+    "74469d13dfca727aee1e279e": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5323,
       "wellbeing": 0.7315
     },
-    "cenon|gancioco": {
+    "d56dc35f1d4996aacdf03616": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3771,
       "wellbeing": 0.7327
     },
-    "aufania|ganzon": {
+    "255f881c8ed35dc757a1cdfb": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5158,
       "wellbeing": 0.5922
     },
-    "herminia|garcia": {
+    "c9bcab76e4cb7a7569606a8d": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3106,
       "wellbeing": 0.7389
     },
-    "marlon|garcia": {
+    "112aa1c53ab0f81c96223424": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4262,
       "wellbeing": 0.6223
     },
-    "merlinda|garcia": {
+    "81fa8c716bf542bde66545d5": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4159,
       "wellbeing": 0.626
     },
-    "pacencia|garcia": {
+    "5cd9244b809f2f88ba9fe492": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4842,
       "wellbeing": 0.7474
     },
-    "romeo|garcia": {
+    "d3ba3c75704a81f42b397e80": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4868,
       "wellbeing": 0.704
     },
-    "evelyn|geronimo": {
+    "c6515b9308e849ea78efafc8": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4776,
       "wellbeing": 0.7066
     },
-    "analyn|gervialde": {
+    "a0c42c1784139b587eaccc5c": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5308,
       "wellbeing": 0.5625
     },
-    "ela\u00f1or|gimena": {
+    "7e988f6b44af040c07677ee0": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3109,
       "wellbeing": 0.6404
     },
-    "emma|goma": {
+    "c0cc5377dafe380523110f44": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6552,
       "wellbeing": 0.5476
     },
-    "erlinda|gomez": {
+    "42415671f5c1ba0f7dc5c834": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4817,
       "wellbeing": 0.5048
     },
-    "cepriana|gregorio": {
+    "e0dcbba4006adc7282a4b649": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.694,
       "wellbeing": 0.4231
     },
-    "amor|guab": {
+    "fc533083114917890729e026": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4231,
       "wellbeing": 0.676
     },
-    "dolores|guav": {
+    "b8a5a41723af6c192b464e54": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5999,
       "wellbeing": 0.4444
     },
-    "elma|hari\u00f1o": {
+    "60e954f6f32c0517e72e9a69": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4176,
       "wellbeing": 0.698
     },
-    "gloria|hermano": {
+    "54ecd51a56e0b522242c01c2": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3411,
       "wellbeing": 0.7124
     },
-    "yunita|hilario": {
+    "51978e592eff73278482094f": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3685,
       "wellbeing": 0.7088
     },
-    "aurora|javerina": {
+    "9e269ad4f5403592587e09cd": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4107,
       "wellbeing": 0.7578
     },
-    "carmen|javier": {
+    "343f54cb7856a0fdc4329b93": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4567,
       "wellbeing": 0.6957
     },
-    "diana|javier": {
+    "42a91068ea8ede85d6e8be33": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3876,
       "wellbeing": 0.6933
     },
-    "teresita|javier": {
+    "e0860ef77a87d374ffe91af3": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3927,
       "wellbeing": 0.7519
     },
-    "vilma|javier": {
+    "87e22e808587290a3d2c20ed": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.454,
       "wellbeing": 0.7385
     },
-    "norma|javilinar": {
+    "b243309c8c8d7c8276038274": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5713,
       "wellbeing": 0.5661
     },
-    "nimpe|javillanar": {
+    "d72df75914fadb409b95e414": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4493,
       "wellbeing": 0.7039
     },
-    "conchita|javiniar": {
+    "7cde1eb444b22e1d5e73f51b": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2859,
       "wellbeing": 0.8042
     },
-    "amelia|kuyugan": {
+    "fe28a4458aba60f78177dbd9": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4685,
       "wellbeing": 0.6145
     },
-    "danilo|labiaga": {
+    "1fef52eba2512d1383c709ef": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4051,
       "wellbeing": 0.6679
     },
-    "mario|lacostales": {
+    "4308d92d9fa2ab2dbb9c3b2e": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.5031,
       "wellbeing": 0.5899
     },
-    "nelly|lamboson": {
+    "ba637a0fba9af0ed9538bd17": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3339,
       "wellbeing": 0.7128
     },
-    "guadalupe|largueza": {
+    "21ae6647696e0c60304de32f": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.5692,
       "wellbeing": 0.6171
     },
-    "victoria|lavandero": {
+    "79725f3d473a54b8152ef72a": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2111,
       "wellbeing": 0.7697
     },
-    "carmencita|lavi\u00f1a": {
+    "bfd0688f9b8995dbe4b44602": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3997,
       "wellbeing": 0.6872
     },
-    "rosario|leysa": {
+    "086705609642a695de52f188": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4526,
       "wellbeing": 0.607
     },
-    "angelita|liwag": {
+    "bac2374d50767fb2c06a6dab": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4197,
       "wellbeing": 0.7248
     },
-    "arceo|liwag": {
+    "1db1a8ed84671a1a5408dff6": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4238,
       "wellbeing": 0.4976
     },
-    "crsitina|liwag": {
+    "87436014a0c68a54621b0726": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2888,
       "wellbeing": 0.6891
     },
-    "josefina|liwag": {
+    "9f428538cf325045392749c1": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.291,
       "wellbeing": 0.7541
     },
-    "elizabeth|locaba": {
+    "32a7a7c805001cf1490c1113": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4023,
       "wellbeing": 0.7427
     },
-    "normita|lopez": {
+    "f898725fd867ff45d396df0f": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.22,
       "wellbeing": 0.7821
     },
-    "belenett|lorena": {
+    "dee69b355cd81a304180ce11": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4218,
       "wellbeing": 0.6983
     },
-    "rodelio|lorenzo": {
+    "47410902c9e8c0101559f110": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2432,
       "wellbeing": 0.7814
     },
-    "ben|lubugin": {
+    "08b754e8373c9f99fa00d547": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4163,
       "wellbeing": 0.6903
     },
-    "leny|lubugin": {
+    "be5c0c57171465b433bd89d8": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3322,
       "wellbeing": 0.8006
     },
-    "shielah|luciano": {
+    "707f85594d9334f3bdf0682d": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2041,
       "wellbeing": 0.8659
     },
-    "milinda|luminaryo": {
+    "29734e852f679eff274ea65b": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.323,
       "wellbeing": 0.6718
     },
-    "salvador|luminaryo": {
+    "7bd368e3ec1f8dc629c8788e": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.356,
       "wellbeing": 0.6995
     },
-    "marites|macalagay": {
+    "fa2e983b44956d801c53d662": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3441,
       "wellbeing": 0.6252
     },
-    "amor|macaroyi": {
+    "b84267e260af6756147a6fcd": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2965,
       "wellbeing": 0.7626
     },
-    "diosdada|macinas": {
+    "67aac56147151de9cffd5d66": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3969,
       "wellbeing": 0.683
     },
-    "domingo|macinas": {
+    "ca9e6201e5e93c7865a13c87": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4446,
       "wellbeing": 0.6589
     },
-    "josefino|madraso": {
+    "60a07d752fb402b37d23759b": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4486,
       "wellbeing": 0.5672
     },
-    "edgar|madriaga": {
+    "b229cf422c574d7d74e97655": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2958,
       "wellbeing": 0.7975
     },
-    "helen|madriaga": {
+    "9194aa8e6fc3bd3fd674af0c": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3013,
       "wellbeing": 0.8578
     },
-    "pedro|maghan": {
+    "e05336ec4508c0398b95e891": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3354,
       "wellbeing": 0.7387
     },
-    "zaldy|malonzo": {
+    "573c3ffdd5850d108b7ec6cc": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5748,
       "wellbeing": 0.5528
     },
-    "arecenio|malunso": {
+    "843693f9315299edbc6d5005": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.53,
       "wellbeing": 0.6251
     },
-    "estelita|martillan": {
+    "8d35c85e12499a8c1c2b76a7": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4137,
       "wellbeing": 0.6294
     },
-    "maria alma|martinez": {
+    "1d78d6c8f5f1892c323180b4": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3679,
       "wellbeing": 0.6522
     },
-    "jeni|mata": {
+    "d264375d26c3487918fd6ffd": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3864,
       "wellbeing": 0.6156
     },
-    "mercelina|maurin": {
+    "75d315db078ad40312f6bbfb": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2898,
       "wellbeing": 0.7311
     },
-    "hernando|mayani": {
+    "b32ee0e2be348a4c1b06ccea": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4447,
       "wellbeing": 0.7762
     },
-    "rufina|mayani": {
+    "57cf69998abf1e34be290757": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4171,
       "wellbeing": 0.6415
     },
-    "erlinda|mejilla": {
+    "5639b84c712b2f740b7111a3": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5923,
       "wellbeing": 0.4773
     },
-    "salume|mendoza": {
+    "db9ac469494d7d850def8225": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3529,
       "wellbeing": 0.7358
     },
-    "yollie|merambel": {
+    "ed883fda24ffc08d88bf26f1": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4029,
       "wellbeing": 0.7149
     },
-    "mirla|merginio": {
+    "5424a6fb25ff98b626cd349d": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4795,
       "wellbeing": 0.6193
     },
-    "vicente|merginio": {
+    "2c8a333f43a018ee723b5919": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5169,
       "wellbeing": 0.5525
     },
-    "arvina|minaya": {
+    "0af09fb644c75435ad9a60df": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4184,
       "wellbeing": 0.7071
     },
-    "antonia|mondez": {
+    "fb808b2aa461cb94dea00ddd": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5873,
       "wellbeing": 0.4042
     },
-    "anita|monponbanua": {
+    "c2710a90025cf9f44d6ae98a": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2193,
       "wellbeing": 0.764
     },
-    "leonilo|monponbanua": {
+    "48b34e05cdbef27a0bb6695a": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3995,
       "wellbeing": 0.7358
     },
-    "aurelia|monreal": {
+    "5dcf1ce47b4ca1a5267c3dfa": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3808,
       "wellbeing": 0.6684
     },
-    "lilia|monta\u00f1ez": {
+    "42ab38129a780fa0f28d002d": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3875,
       "wellbeing": 0.5896
     },
-    "flora|montejo": {
+    "b6105acac334dd915b82da5b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3766,
       "wellbeing": 0.7218
     },
-    "jessy|montellano": {
+    "0b466279aad9b47138efffba": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4418,
       "wellbeing": 0.6754
     },
-    "susana|morillo": {
+    "bcc7771090c1c8fd87ff979a": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3407,
       "wellbeing": 0.7658
     },
-    "rodolfo|mujer": {
+    "4cbf86cc4a4cefe747acea7f": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3766,
       "wellbeing": 0.6294
     },
-    "fayna|murata": {
+    "6162e7b7c56665c889c2d362": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4448,
       "wellbeing": 0.687
     },
-    "teresita|nabata": {
+    "faa4d9b42aff48424bb9164c": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4127,
       "wellbeing": 0.6641
     },
-    "argifina|nadera": {
+    "7ffc4c2737c4efc8d9a54fdd": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4244,
       "wellbeing": 0.6733
     },
-    "criselda|nadera": {
+    "74c8ebfee65952be5fd9121b": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5034,
       "wellbeing": 0.6072
     },
-    "fe|napod": {
+    "8efb6a3c5be897700f84a62d": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3656,
       "wellbeing": 0.6632
     },
-    "maria teresa|navarro": {
+    "d17489147241d13abd5895bd": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4224,
       "wellbeing": 0.6895
     },
-    "celia|nilo": {
+    "72815507f32ec403e97b037b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3787,
       "wellbeing": 0.7125
     },
-    "fe|obial": {
+    "b22bd438a41ce6a0657039bf": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.34,
       "wellbeing": 0.6285
     },
-    "myrna|obial": {
+    "d10faf4424f3b8b9580ef40a": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3341,
       "wellbeing": 0.7026
     },
-    "florencio|obina": {
+    "11bfaf842c136e74b34f6edc": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2921,
       "wellbeing": 0.7423
     },
-    "estellita|oliveros": {
+    "8a1710da8e118ae337c865ae": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4139,
       "wellbeing": 0.7207
     },
-    "teresita|oliveros": {
+    "627b9d6c8ec52081930b7f39": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5217,
       "wellbeing": 0.6184
     },
-    "alejandro|ope\u00f1a": {
+    "ab907fce4cc2c54bd18bda03": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4481,
       "wellbeing": 0.6414
     },
-    "victoria|openia": {
+    "1ba144d8d9be9c3e7d6d6eee": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4929,
       "wellbeing": 0.6965
     },
-    "alicia|oquendo": {
+    "35afa37d149cee313a82dc7a": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2833,
       "wellbeing": 0.8311
     },
-    "roberto|oracoy": {
+    "6bd84c1324a598d23cd36aab": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4289,
       "wellbeing": 0.5851
     },
-    "lorna|oralfo": {
+    "6c0f6049f5e5ff24e0b7037f": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4717,
       "wellbeing": 0.6471
     },
-    "melchor|orolfo": {
+    "28dc511c8debb7ae79396f0f": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6573,
       "wellbeing": 0.5072
     },
-    "romulo|pabricio": {
+    "f0c02cd611e8a8cec6220366": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5215,
       "wellbeing": 0.6158
     },
-    "edgardo|pabroada": {
+    "c3e5caed61e031ea5aff9758": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4105,
       "wellbeing": 0.5792
     },
-    "edgard|pacana": {
+    "0a0ba90d58f5c44be3db8b63": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4619,
       "wellbeing": 0.6369
     },
-    "romeo|pacana": {
+    "8149f51f055e59a6d6b556ab": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3548,
       "wellbeing": 0.7592
     },
-    "elmer|pacheko": {
+    "bb462e11171fc799fab0c734": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6996,
       "wellbeing": 0.4755
     },
-    "emer|pagtananan": {
+    "50d797d972f66e35ceaad36c": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5435,
       "wellbeing": 0.6131
     },
-    "fe|pagtananan": {
+    "14d62f89d0bcee7231be9b8b": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3187,
       "wellbeing": 0.7085
     },
-    "marilou|pagtananan": {
+    "2c4f2b0cc7f37508328c59a6": {
       "risk_level": "HIGH",
       "cluster": 3,
       "composite_risk": 0.543,
       "wellbeing": 0.5881
     },
-    "teresita|pantoja": {
+    "21a05e2a6f97da73f3aae3c8": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4626,
       "wellbeing": 0.7356
     },
-    "buena fe|pasahol": {
+    "4bec276232c2a2fbc899df42": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.307,
       "wellbeing": 0.7149
     },
-    "candida|pasahol": {
+    "78d7650b7065fa1ca0d19a3d": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4853,
       "wellbeing": 0.6203
     },
-    "perfecto|pasahol": {
+    "1901dbc94c5d6246b7265f6e": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5078,
       "wellbeing": 0.6857
     },
-    "concita|pasion": {
+    "4feef39c53f5da8bc05a93eb": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3694,
       "wellbeing": 0.7791
     },
-    "ruben|pasion": {
+    "a6a4959c741c8273dace939b": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4984,
       "wellbeing": 0.5148
     },
-    "aurora|penido": {
+    "81d74291b66bbd59d44e6379": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.3913,
       "wellbeing": 0.6876
     },
-    "caros|penisto": {
+    "68eddcbc2372740c65dd7dd6": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3959,
       "wellbeing": 0.8064
     },
-    "negacia|pere\u00f1a": {
+    "ac1d7a7e15016345a73e50c3": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.331,
       "wellbeing": 0.666
     },
-    "lindinia|perez": {
+    "6392795201f8a3fefefe8087": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3235,
       "wellbeing": 0.8548
     },
-    "miguel|perez": {
+    "a83b70a3cf16d59bb18b3bb8": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2083,
       "wellbeing": 0.777
     },
-    "soledad|periabras": {
+    "8af50010a468a2ac03ce6896": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3866,
       "wellbeing": 0.6048
     },
-    "conchita|pingol": {
+    "c3b183159c234225d9c90cfb": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.335,
       "wellbeing": 0.7247
     },
-    "josie|pingol": {
+    "5bf343d202d55c152cd62a26": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3251,
       "wellbeing": 0.6659
     },
-    "juanita|ponce": {
+    "ba70b4bf0209ca82903e4bb3": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.497,
       "wellbeing": 0.588
     },
-    "loreta|ponce": {
+    "f83eba0c7293f754a2ce94d6": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.5321,
       "wellbeing": 0.5443
     },
-    "magdalena|ponce": {
+    "db296f7ba43dd5671068bb0f": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4275,
       "wellbeing": 0.668
     },
-    "manuel|ponce": {
+    "e5eef9f418b926f660aab928": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2938,
       "wellbeing": 0.724
     },
-    "romeo|ponce": {
+    "54c77c4976727192e3067775": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4259,
       "wellbeing": 0.6919
     },
-    "conrado|pulgo": {
+    "a27ff09f351a68e845565952": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.265,
       "wellbeing": 0.6863
     },
-    "teresita|quesmundo": {
+    "39d583906c6d8ee798daa301": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3865,
       "wellbeing": 0.6199
     },
-    "aida|rama": {
+    "6a66a216711d3277f894f7d2": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5243,
       "wellbeing": 0.6519
     },
-    "emilio|ramirez": {
+    "a1db45858d5507594b959bf9": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4605,
       "wellbeing": 0.5309
     },
-    "gloria|ramirez": {
+    "eaa3a0f59f7bf74706049fdb": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4324,
       "wellbeing": 0.6777
     },
-    "luzvominda|ramos": {
+    "17e44b1ce943909e9214a1da": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3381,
       "wellbeing": 0.6192
     },
-    "lyn|ramos": {
+    "097405aeec6be468d7fa0504": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5981,
       "wellbeing": 0.5617
     },
-    "maria corazon|ramos": {
+    "68cd02bb52c7e4f52cf04522": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2296,
       "wellbeing": 0.728
     },
-    "sherlita|ramos": {
+    "28f8dc834068ddb007eecc1e": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3572,
       "wellbeing": 0.525
     },
-    "ronel|raudeza": {
+    "58162ad978ac02ae88fc0cfc": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6694,
       "wellbeing": 0.5143
     },
-    "evelyn|reamon": {
+    "9700bca0972b39c97f3d6c6c": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4405,
       "wellbeing": 0.6188
     },
-    "melda|rectin": {
+    "97f150b64590516b8620da36": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3331,
       "wellbeing": 0.8338
     },
-    "loreta|reluya": {
+    "73c4bc7e3fcd8045286b92db": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3246,
       "wellbeing": 0.6202
     },
-    "lydia|rempillo": {
+    "c1a1dc4db9539849df2793fd": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4357,
       "wellbeing": 0.7017
     },
-    "caridad|rivera": {
+    "1d14f50afc173193d670e103": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5319,
       "wellbeing": 0.7103
     },
-    "noemi|rivera": {
+    "aee3c1a139227650a255c7d2": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5969,
       "wellbeing": 0.5574
     },
-    "cherry|rocha": {
+    "19148b8621098402beb6bee2": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3637,
       "wellbeing": 0.7355
     },
-    "rofina|rodelias": {
+    "613200de9d169c268d1427e3": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.5311,
       "wellbeing": 0.6384
     },
-    "mario|rodillas": {
+    "3b7db1282aca9d91c14f6529": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.251,
       "wellbeing": 0.7842
     },
-    "rolando|rodriguez": {
+    "55c89059f627192bb652f6cc": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4444,
       "wellbeing": 0.586
     },
-    "raul|roldan": {
+    "2da1feb035e838ef9ff8c39e": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6753,
       "wellbeing": 0.4946
     },
-    "rodolfo|romansanta": {
+    "6d47ea4c0538c0b2a02a68c5": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.402,
       "wellbeing": 0.6781
     },
-    "milagros|rosales": {
+    "b4c8e2088b15ac0fee8ee686": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3498,
       "wellbeing": 0.773
     },
-    "florida|rosas": {
+    "ed7b09cfaab9e799487304ac": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3805,
       "wellbeing": 0.6565
     },
-    "melinda|rosende": {
+    "2ba6042c47adb8d320b47bc2": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4044,
       "wellbeing": 0.6355
     },
-    "necita|sacluti": {
+    "f171294b18a8ef1852cd7761": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.393,
       "wellbeing": 0.7432
     },
-    "miguel|sacopla": {
+    "9cf655c423ace7777322ddac": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3683,
       "wellbeing": 0.6728
     },
-    "cristina|salazar": {
+    "95e10147cc482d3a4266e830": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5964,
       "wellbeing": 0.5191
     },
-    "gloria|salazar": {
+    "910b7b373e1a31f7d060b0ba": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.5299,
       "wellbeing": 0.5908
     },
-    "amor|samonte": {
+    "80875282861089a6af642242": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3184,
       "wellbeing": 0.6713
     },
-    "nancy|samonte": {
+    "425ca07a640caa8f4c1b7411": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.2293,
       "wellbeing": 0.8625
     },
-    "maria teresa|samson": {
+    "47c8c50d0b9a8ad0dae3b5a6": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3142,
       "wellbeing": 0.697
     },
-    "anita|san gaspar": {
+    "2d564c5a6bc470f9c8d06b79": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4812,
       "wellbeing": 0.6081
     },
-    "jesusa|sandoval": {
+    "02bbdc7584d5eae44e3dfb2f": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4227,
       "wellbeing": 0.7268
     },
-    "eroa|soledad": {
+    "665782fe4c6bf86d113065ae": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4112,
       "wellbeing": 0.6246
     },
-    "rosa|sorro": {
+    "8df9a9e43e18c217f0741502": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.523,
       "wellbeing": 0.5168
     },
-    "erlinda|suberdo": {
+    "fcb82f3dc6f4a419e3767fe8": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4983,
       "wellbeing": 0.5748
     },
-    "mercy|suiza": {
+    "b159ca1c09eedc7e50ff7fab": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3883,
       "wellbeing": 0.6948
     },
-    "corazon|tai\u00f1o": {
+    "0905dacd16a969c37abed09b": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4658,
       "wellbeing": 0.6623
     },
-    "elena|tai\u00f1o": {
+    "c4860fe1ce7caff7ed089710": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4823,
       "wellbeing": 0.6376
     },
-    "francisco|tai\u00f1o": {
+    "7dc3422520648fe91eef5bd1": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.503,
       "wellbeing": 0.6137
     },
-    "vergie|tanghian": {
+    "6f4b6c27be092dd5b25c29db": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4353,
       "wellbeing": 0.7309
     },
-    "adel|tawan": {
+    "d4d8cfa37c19f3743e17f206": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4622,
       "wellbeing": 0.6489
     },
-    "delmait|tiongson": {
+    "dc92bae1ce380e9081bc706a": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3215,
       "wellbeing": 0.7629
     },
-    "teresita|tolentino": {
+    "4ee164992a61fa16bd9d0cbc": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.5427,
       "wellbeing": 0.5961
     },
-    "josephine|toriano": {
+    "10ae7e4aca168d081609df72": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2839,
       "wellbeing": 0.7491
     },
-    "paz|torres": {
+    "153068b2be218bb71d15c543": {
       "risk_level": "HIGH",
       "cluster": 2,
       "composite_risk": 0.6436,
       "wellbeing": 0.5937
     },
-    "epifania|trinidad": {
+    "3318ee353e7b43828b37f18b": {
       "risk_level": "MODERATE",
       "cluster": 3,
       "composite_risk": 0.4271,
       "wellbeing": 0.7257
     },
-    "charles|tuico": {
+    "0373168a52fc9f04c97a93c2": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.5891,
       "wellbeing": 0.5971
     },
-    "rina|untivero": {
+    "8eefd7c40e90e517626680ea": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.4766,
       "wellbeing": 0.5482
     },
-    "gloria|valverde": {
+    "1e67ab146c8f74287742f7dc": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.2689,
       "wellbeing": 0.7418
     },
-    "delia|velasco": {
+    "624d16d24eb5fc3004d09124": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.1972,
       "wellbeing": 0.7582
     },
-    "emiliana|velo": {
+    "561465eeaa1d79b83283ebf8": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6208,
       "wellbeing": 0.5279
     },
-    "olivia|victoria": {
+    "d1e9c05798dd87ee4ab88a10": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3864,
       "wellbeing": 0.7097
     },
-    "erberto|villamer": {
+    "3a953c942009498a4d0dda92": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3155,
       "wellbeing": 0.8134
     },
-    "dominador|villamor": {
+    "5cafb484e7706defc8a6cd40": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.4792,
       "wellbeing": 0.5647
     },
-    "benjamin|villanueva": {
+    "5d2de91184387135a520e5de": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3546,
       "wellbeing": 0.7932
     },
-    "emelita|villanueva": {
+    "ae03404abbcaf4d0e32446fa": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2298,
       "wellbeing": 0.8582
     },
-    "eleda|villar": {
+    "2d7f41b72132821be5ba8fc6": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.2536,
       "wellbeing": 0.7999
     },
-    "madilene|villarino": {
+    "ba66854485cc8125aba06d55": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3233,
       "wellbeing": 0.7934
     },
-    "romeo|villarino": {
+    "6ada525488684b1dcae235d6": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3115,
       "wellbeing": 0.6883
     },
-    "marilou|villaseran": {
+    "e09942ba8da01a8ca8435300": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3047,
       "wellbeing": 0.6944
     },
-    "carlito|vinuya": {
+    "f347ebef45f7293a6ccdd1e8": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5007,
       "wellbeing": 0.6364
     },
-    "violeta|vinuya": {
+    "31fa6cc531fa9b18a07f5ac3": {
       "risk_level": "LOW",
       "cluster": 3,
       "composite_risk": 0.3273,
       "wellbeing": 0.6698
     },
-    "angelina|vito": {
+    "99370ce1a296b075e555f079": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5027,
       "wellbeing": 0.5546
     },
-    "oscar|vito": {
+    "a8876d3f0468bd3db990c7e9": {
       "risk_level": "HIGH",
       "cluster": 4,
       "composite_risk": 0.6326,
       "wellbeing": 0.4728
     },
-    "aida|waferina": {
+    "caa6704e614dbfb3f58f2206": {
       "risk_level": "MODERATE",
       "cluster": 4,
       "composite_risk": 0.5052,
       "wellbeing": 0.5819
     },
-    "edna|waperi\u00f1a": {
+    "cca5fe40bc1ffbbed8aa218e": {
       "risk_level": "LOW",
       "cluster": 1,
       "composite_risk": 0.3394,
       "wellbeing": 0.7463
     },
-    "fe|waperina": {
+    "744a6dd72564639e4568a44e": {
       "risk_level": "MODERATE",
       "cluster": 2,
       "composite_risk": 0.3972,
       "wellbeing": 0.7772
     },
-    "nancy|yaneza": {
+    "9137af0bf211823235334234": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3817,
       "wellbeing": 0.7164
     },
-    "nadie|zaguirre": {
+    "85a97abf7e8d4c6480e619ff": {
       "risk_level": "LOW",
       "cluster": 2,
       "composite_risk": 0.3831,

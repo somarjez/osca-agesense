@@ -15,6 +15,7 @@ Run from repo root:
 Exit code 0 = PASS, exit code 1 = FAIL.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -57,8 +58,16 @@ def _norm_name(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
 
+# Must match the hashing in sync_models_k4.py's _key() exactly — that script
+# generates the committed regression_baseline_k4.json this file looks up
+# against, keyed by salted hash rather than cleartext name+barangay (the repo
+# is public; committed baselines must not carry identifying senior data).
+_BASELINE_KEY_SALT = "agesense-baseline-deid-v1"
+
+
 def _key(first: str, last: str, barangay: str) -> str:
-    return f"{_norm_name(first)}|{_norm_name(last)}|{_norm_name(barangay)}"
+    raw = f"{_norm_name(first)}|{_norm_name(last)}|{_norm_name(barangay)}"
+    return hashlib.sha256((_BASELINE_KEY_SALT + raw).encode("utf-8")).hexdigest()[:24]
 
 
 def _read_dotenv(name: str) -> str:
@@ -129,7 +138,7 @@ if not os.path.exists(baseline_path):
 with open(baseline_path, encoding="utf-8") as f:
     baseline_list = json.load(f)
 
-# Keyed by normalised "first|last|barangay"
+# Keyed by salted hash of normalised "first|last|barangay" (see _key() above)
 baseline: dict = {row["key"]: row for row in baseline_list}
 print(f"Loaded {len(baseline)} ground-truth entries from regression_baseline.json")
 

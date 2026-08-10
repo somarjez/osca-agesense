@@ -2,7 +2,7 @@
 
 **System version:** v2.0.0 (K=4)
 **Dataset:** 360 Pagsanjan OSCA seniors (290 original + 70 Magdapio/Barangay II batch, Pagsanjan, Laguna)
-**Validation date:** 2026-07-01 (live harness re-run; evidence table updated to current system state)
+**Validation date:** 2026-08-10 (live harness re-run, commit `d95233d`; evidence table updated to current system state; reconciled against `REPRODUCIBILITY_AND_CONSISTENCY.md`, `VALIDATION_SUMMARY_LGU.md`, and `ML_PIPELINE.md`, which previously quoted a stale pre-KNN-classifier cluster-match figure — see those docs' changelogs)
 **Prediction mode:** `ENABLE_NOTEBOOK_OVERRIDES=false` — live model (KNN cluster + GBR/RFR risk) is the deployed default
 **Audience:** Thesis/capstone panel (technical) and LGU/OSCA stakeholders (plain language)
 
@@ -41,7 +41,7 @@ All values are reproduced from `validate_system.py`, verified against the live d
 | Davies-Bouldin index (K=4 separation) | **0.6492** | `cluster_assignment_metadata.json` |
 | Calinski-Harabasz index (K=4 density) | **6048.7** | `cluster_assignment_metadata.json` |
 | XAI coverage | **360/360 = 100%** | `validate_system.py` |
-| Recommendation coverage | **360/360 = 100%** (mean 17.0/senior) | `validate_system.py` |
+| Recommendation coverage | **360/360 = 100%** (mean 15.3/senior) | `validate_system.py` |
 | Model version | **v2.0.0** | `model_manifest.json` |
 
 **Note on the HIGH-risk urgent sub-tier:** Within the HIGH-risk seniors, those with composite risk ≥ 0.70 receive an `urgent` priority flag (the most critical tier, previously labelled CRITICAL in pre-v1.1.0 versions). These seniors require immediate coordinated care. Seniors with composite 0.54–0.69 are flagged `priority_action`. (The notebook emits `CRITICAL` for 2 seniors with the most extreme scores; the live 3-level system represents these as HIGH + urgent flag — accounting for the 2 risk-level differences, live HIGH=40 vs notebook HIGH=38 + CRITICAL=2 = 40.)
@@ -69,7 +69,7 @@ The live AgeSense inference system (v2.0.0) was validated against the notebook g
 
 **Plain-language version (LGU/OSCA brief):**
 
-The AgeSense system was tested by comparing its results to the research study it was built from, stage by stage. The way it calculates each senior's underlying scores matches the study almost exactly (over 99%). For risk level (Low / Moderate / High), the system agreed with the study 358 out of 360 times (99.4%). For the health group, it agreed 313 out of 360 times (87%) — and the few that differ are "on the fence" seniors whose care plan is the same either way. The system also passes automated stability checks: the same senior always gets the same result on any computer, every time.
+The AgeSense system was tested by comparing its results to the research study it was built from, stage by stage. The way it calculates each senior's underlying scores matches the study almost exactly (over 99%). For risk level (Low / Moderate / High), the system agreed with the study 358 out of 360 times (99.4%). For the health group, it agreed 352 out of 360 times (97.8%) — and the few that differ are "on the fence" seniors whose care plan is the same either way. The system also passes automated stability checks: the same senior always gets the same result on any computer, every time.
 
 ---
 
@@ -80,7 +80,7 @@ The AgeSense system was tested by comparing its results to the research study it
 The 2 seniors (0.6%) whose risk level differs and the 8 seniors (2.2%) whose cluster assignment differs are explained by two well-understood, intentional design differences:
 
 **1. In-sample vs out-of-sample prediction.**
-The notebook's GBR and RFR models were trained on the 290-senior dataset and then evaluated on that *same* dataset, which slightly inflates scores for borderline cases (in-sample overfitting). The live system scores each senior *out-of-sample* — the statistically honest method. A small number of seniors near the 0.30/0.50 risk thresholds therefore receive marginally different live scores. The maximum composite deviation is 0.0107, well within practical tolerance, and produces a single risk-level shift.
+The notebook's GBR and RFR models were trained on the 360-senior dataset and then evaluated on that *same* dataset, which slightly inflates scores for borderline cases (in-sample overfitting). The live system scores each senior *out-of-sample* — the statistically honest method. A small number of seniors near the 0.30/0.50 risk thresholds therefore receive marginally different live scores. The maximum composite deviation is 0.0186, well within practical tolerance, and produces 2 risk-level shifts out of 360.
 
 **2. Deterministic clustering replaces non-reproducible UMAP+KMeans.**
 The notebook clusters with KMeans in a UMAP embedding. UMAP's `.transform()` is an approximation for new individual records that varies across CPU families and library versions — it is not reproducible per record (enabling it live produced a 2.1% match, i.e. broken). The live system instead uses a **trained KNN classifier (k=5, euclidean, MinMaxScaler·30-feature)** (`cluster_assignment_knn_k5.pkl`) as the primary cluster assignment method. The KNN predicts named cluster IDs 1–4 directly and is bit-for-bit identical on every device (5-fold CV accuracy 0.9333, Silhouette 0.5577, Davies-Bouldin 0.6492, Calinski-Harabasz 6048.7). A nearest-centroid fallback in 30-D scaled space is available when the KNN artifact is absent.
@@ -168,7 +168,7 @@ These define the appropriate scope: AgeSense is a decision-support tool for the 
 *Plain:* "Health group and risk score measure different things. A senior can be generally active (Group 1) yet have a serious medical condition that raises their risk."
 
 **Q8. "How does this help OSCA workers?"**
-*Technical:* For each senior the system produces prioritized, domain-organized prescriptive recommendations (mean 17.0/senior, 100% coverage) plus a transparent XAI breakdown of why their risk is what it is. `urgent`-flagged seniors surface first in the dashboard. This reduces from hours to seconds the time to produce a prioritized, evidence-based, explainable care list.
+*Technical:* For each senior the system produces prioritized, domain-organized prescriptive recommendations (mean 15.3/senior, 100% coverage) plus a transparent XAI breakdown of why their risk is what it is. `urgent`-flagged seniors surface first in the dashboard. This reduces from hours to seconds the time to produce a prioritized, evidence-based, explainable care list.
 *Plain:* "For each senior the system shows a specific action list and explains its reasoning, so workers know who needs help first and why."
 
 **Q9. "What happens to a newly enrolled senior the model has never seen?"**
@@ -176,9 +176,9 @@ These define the appropriate scope: AgeSense is a decision-support tool for the 
 *Plain:* "New seniors are scored with the same process as the validated 360 — the system applies what it learned to any new case automatically."
 
 **Q10. "What are the known limitations?"**
-*Technical:* Single-site N=360 training population; no prospective outcome validation; ~13.1% cluster-boundary uncertainty (risk level unaffected); rule-based component weights reflect domain knowledge rather than outcome optimization. AgeSense is a decision-support tool, not a diagnostic instrument.
+*Technical:* Single-site N=360 training population; no prospective outcome validation; ~2.2% cluster-boundary uncertainty (risk level unaffected); rule-based component weights reflect domain knowledge rather than outcome optimization. AgeSense is a decision-support tool, not a diagnostic instrument.
 *Plain:* "Built for one city's seniors; not tested over time; a few borderline group labels are guides; part of the score uses expert rules. It supports OSCA workers — it does not replace medical judgment."
 
 ---
 
-*Document version: 2.2.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | Updated: 2026-07-01 (live harness re-run) | Prediction mode: ENABLE_NOTEBOOK_OVERRIDES=false (live model default) | Risk thresholds: MODERATE ≥ 0.39, HIGH ≥ 0.54 (balanced calibration, inference_service.py RISK_THRESHOLDS)*
+*Document version: 2.3.0 | System: AgeSense OSCA v2.0.0 (K=4, N=360) | Updated: 2026-08-10 (live harness re-run, commit d95233d) | Prediction mode: ENABLE_NOTEBOOK_OVERRIDES=false (live model default) | Risk thresholds: MODERATE ≥ 0.39, HIGH ≥ 0.54 (balanced calibration, inference_service.py RISK_THRESHOLDS) | v2.3.0 change: reconciled the 97.8% cluster-match figure across all four validation docs (previously 86.9%/313 in REPRODUCIBILITY_AND_CONSISTENCY.md, VALIDATION_SUMMARY_LGU.md, ML_PIPELINE.md predated the KNN classifier rollout); fixed this doc's own internal 313/87%/13.1%/0.0107 inconsistencies; recommendation mean corrected 17.0 → 15.3/senior*
