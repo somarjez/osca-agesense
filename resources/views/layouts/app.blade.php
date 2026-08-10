@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'AgeSense')</title>
+    <meta name="robots" content="noindex, nofollow">
     {{-- The sidebar/topbar are @persist'd (see below) so their DOM survives
          wire:navigate untouched — but that means anything server-rendered
          inside them (page title, active nav link) goes stale on navigation
