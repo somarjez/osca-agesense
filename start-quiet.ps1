@@ -46,13 +46,27 @@ function Fail($title, $msg) {
     throw $msg
 }
 
-function Test-PortOpen($port) {
+function Test-PortOpen($port, $timeoutMs = 400) {
+    # NOTE: TcpClient's synchronous Connect() has no timeout parameter and, on
+    # some machines/network stacks, does NOT fail fast when nothing is
+    # listening (observed: ~5-6s per attempt instead of an instant refusal) -
+    # so a caller looping on this with its own short per-attempt budget can
+    # end up waiting far longer in total than intended. Use the async
+    # BeginConnect/WaitOne pattern instead, which bounds the wait to
+    # $timeoutMs no matter how the OS/network handles an unanswered attempt.
+    $t = New-Object Net.Sockets.TcpClient
     try {
-        $t = New-Object Net.Sockets.TcpClient
-        $t.Connect('127.0.0.1', $port)
-        $t.Close()
+        $async = $t.BeginConnect('127.0.0.1', $port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne($timeoutMs)) {
+            return $false
+        }
+        $t.EndConnect($async)
         return $true
-    } catch { return $false }
+    } catch {
+        return $false
+    } finally {
+        $t.Close()
+    }
 }
 
 try { New-Item -ItemType Directory -Path "$PROJECT\storage\logs" -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
@@ -223,8 +237,12 @@ try {
     }
 
     # ── We're committed to starting now — show the loading page immediately ──────
-    # Everything above this point can Fail() with a specific error message; nothing
-    # below it does, so it's safe to put the "starting..." UI up now.
+    # Everything above this point can Fail() with a specific error message.
+    # Below this point, only the web-server readiness check further down (see
+    # the nginx/php-cgi section) still calls Fail() — a dead web server is
+    # worse than any prerequisite check above, so it gets the same clear
+    # MessageBox treatment rather than silently exiting 0. Nothing else below
+    # this line fails.
     Log "Opening loading page..."
     Start-Process $LOADING_PAGE
 
@@ -335,6 +353,33 @@ try {
     # nginx: master + 1 worker, listening on the same 127.0.0.1:8000 the
     # loading page below polls — no change needed to $APP_URL or the poll logic.
     Start-Process -FilePath $NGINX -ArgumentList "-p", "`"$PROJECT`"", "-c", "`"$PROJECT\conf\nginx\local\nginx.conf`"" -WindowStyle Hidden
+
+    # ── Readiness check: verify nginx/php-cgi actually bound port 8000 ───────────
+    # The loading page's own JS polls $APP_URL for up to ~60s and shows a
+    # "failed" state if it never responds, so staff aren't left staring at a
+    # blank tab forever — but that client-side timeout gives no *reason*, and
+    # this script would otherwise Log "complete" / exit 0 regardless of
+    # whether the server ever came up. Give nginx + the php-cgi pool a short
+    # budget to bind the port before declaring success.
+    Log "Verifying web server is responding on port 8000..."
+    $webUp = $false
+    # Use a Stopwatch for the overall budget rather than incrementing a counter
+    # by an assumed per-iteration cost - Test-PortOpen is now bounded per call,
+    # but measuring real elapsed time (instead of guessing 400ms/iteration) is
+    # what actually keeps this loop honest to the ~8s budget.
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $webUp -and $sw.Elapsed.TotalSeconds -lt 8) {
+        $webUp = Test-PortOpen 8000 400
+        if (-not $webUp) { Start-Sleep -Milliseconds 400 }
+    }
+    $sw.Stop()
+    Log "Readiness check finished after $([math]::Round($sw.Elapsed.TotalSeconds, 1))s (up=$webUp)."
+
+    if ($webUp) {
+        Log "Web server responding on port 8000."
+    } else {
+        Fail "Web server did not start" "nginx/php-cgi did not start listening on port 8000.`n`nCheck storage\logs\nginx-error.log and storage\logs\php-cgi-900x.log for the reason (e.g. a config error or the port already in use), then try again."
+    }
 
     # ── [4/4] Done — the loading page's own JS polls $APP_URL and redirects ───────
     Log "[4/4] All services launched. Loading page will redirect to $APP_URL once it responds."

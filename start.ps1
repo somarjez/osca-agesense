@@ -282,9 +282,66 @@ for ($i = 0; $i -lt 4; $i++) {
 # always used — shortcuts/launch-osca.vbs/bookmarks need no changes.
 Start-Process -FilePath $NGINX -ArgumentList "-p", "`"$PROJECT`"", "-c", "`"$PROJECT\conf\nginx\local\nginx.conf`"" -WindowStyle Hidden
 
-Write-Host "       (Browser opening in 5 seconds)"
-Start-Sleep -Seconds 5
-Start-Process "http://127.0.0.1:8000"
+# ── Readiness check: verify nginx/php-cgi actually bound port 8000 before ──────
+# opening the browser. Without this, a bad nginx.conf, a php-cgi worker that
+# failed to bind, or port 8000 already held by something else would go
+# completely undetected here — the browser would open regardless, land on a
+# bare connection-refused page, and the console (which the user IS watching in
+# this script, unlike start-quiet.ps1) would print nothing wrong. Poll the
+# actual port the browser is about to hit.
+#
+# NOTE: TcpClient's synchronous Connect() has no timeout parameter and, on
+# some machines/network stacks, does NOT fail fast when nothing is listening
+# (observed: several seconds per attempt instead of an instant refusal) - so
+# looping on it with a short per-attempt budget assumption can run far longer
+# in total than intended. Use the async BeginConnect/WaitOne pattern instead,
+# which bounds each attempt to $timeoutMs regardless of how the OS/network
+# handles an unanswered connect.
+function Test-PortOpen($port, $timeoutMs = 400) {
+    $t = New-Object Net.Sockets.TcpClient
+    try {
+        $async = $t.BeginConnect('127.0.0.1', $port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne($timeoutMs)) {
+            return $false
+        }
+        $t.EndConnect($async)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $t.Close()
+    }
+}
+
+Write-Host " Waiting for the web server to become ready..."
+$webUp = $false
+# Stopwatch tracks the real elapsed budget rather than an assumed
+# per-iteration cost, so the ~8s cap is honored regardless of how long each
+# connect attempt actually takes.
+$sw = [System.Diagnostics.Stopwatch]::StartNew()
+while (-not $webUp -and $sw.Elapsed.TotalSeconds -lt 8) {
+    $webUp = Test-PortOpen 8000 400
+    if (-not $webUp) { Start-Sleep -Milliseconds 400 }
+}
+$sw.Stop()
+
+if ($webUp) {
+    Write-Host " [ OK ] Web server is responding on port 8000."
+    Write-Host "       (Browser opening in 5 seconds)"
+    Start-Sleep -Seconds 5
+    Start-Process "http://127.0.0.1:8000"
+} else {
+    Write-Host ""
+    Write-Host " [!] nginx/php-cgi did not start listening on port 8000 (waited $([math]::Round($sw.Elapsed.TotalSeconds, 1))s)."
+    Write-Host "     The browser was NOT opened automatically - it would only show a"
+    Write-Host "     connection-refused page."
+    Write-Host "     Check these logs for the reason:"
+    Write-Host "       storage\logs\nginx-error.log"
+    Write-Host "       storage\logs\php-cgi-900x.log"
+    Write-Host "     Common causes: nginx.conf syntax error, port 8000/9000-9003"
+    Write-Host "     already in use, or php-cgi failing to launch. Run stop.ps1, fix"
+    Write-Host "     the issue, then run start.ps1 again."
+}
 
 Write-Host ""
 Write-Host " -----------------------------------------------"
