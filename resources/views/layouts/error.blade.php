@@ -29,10 +29,14 @@
                 @yield('message')
             </x-alert>
         </div>
-        <a href="{{ route('dashboard') }}"
-           class="btn btn-primary inline-flex mt-8 px-5 py-2.5 text-[13.5px]">
-            Back to Dashboard
-        </a>
+        @hasSection('cta')
+            @yield('cta')
+        @else
+            <a href="{{ route('dashboard') }}"
+               class="btn btn-primary inline-flex mt-8 px-5 py-2.5 text-[13.5px]">
+                Back to Dashboard
+            </a>
+        @endif
     </div>
 </main>
 </body>

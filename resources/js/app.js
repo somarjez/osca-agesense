@@ -1,6 +1,7 @@
 import './bootstrap'
 import './ml-health'
 import './ml-service-guard'
+import './idle-logout'
 import './navigation'
 import { loadCharts, loadMaps } from './loaders'
 
