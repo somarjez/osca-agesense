@@ -117,25 +117,23 @@
                     <td class="td">
                         <div class="flex items-center justify-end gap-1.5">
                             {{-- Restore --}}
-                            <form method="POST" action="{{ route('seniors.restore', $senior->id) }}">
-                                @csrf
-                                <button type="submit"
-                                        class="btn btn-ghost text-[11.5px] px-2 py-1 text-forest-700 hover:text-forest-900 hover:bg-forest-50">
-                                    Restore
-                                </button>
-                            </form>
+                            <button type="button"
+                                    @click="restoreSenior({{ $senior->id }})"
+                                    :disabled="restoringId === {{ $senior->id }}"
+                                    :class="restoringId === {{ $senior->id }} ? 'opacity-70 pointer-events-none' : ''"
+                                    class="btn btn-ghost text-[11.5px] px-2 py-1 text-forest-700 hover:text-forest-900 hover:bg-forest-50">
+                                <span x-show="restoringId === {{ $senior->id }}" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                                <span x-text="restoringId === {{ $senior->id }} ? 'Restoring…' : 'Restore'"></span>
+                            </button>
                             {{-- Permanent delete --}}
                             <div x-data="{ open: false }">
                                 <button @click="open = true"
                                         class="btn btn-ghost text-[11.5px] px-2 py-1 text-critical-700 hover:text-critical-700 hover:bg-critical-50">
                                     Delete Forever
                                 </button>
-                                <form x-ref="deleteForm" method="POST" action="{{ route('seniors.force-delete', $senior->id) }}" class="hidden">
-                                    @csrf @method('DELETE')
-                                </form>
                                 <x-confirm-modal show="open"
                                                  title="Permanently delete this record?"
-                                                 confirm="$refs.deleteForm.requestSubmit()"
+                                                 confirm="forceDeleteSenior({{ $senior->id }}).then(() => open = false)"
                                                  confirm-label="Delete forever">
                                     <p><strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, decision-support outputs, and recommendations — will be permanently erased.</p>
                                     <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
@@ -261,18 +259,15 @@
                 <p class="text-[13px] text-ink-700">
                     <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved back to Active Records. Their QoL surveys will also be restored.
                 </p>
-                <form id="bulk-restore-form" method="POST" action="{{ route('seniors.bulk-restore') }}">
-                    @csrf
-                    <template x-for="id in selected" :key="id">
-                        <input type="hidden" name="ids[]" :value="id">
-                    </template>
-                </form>
                 <div class="flex gap-2 justify-end mt-5">
-                    <button @click="bulkRestoreOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('bulk-restore-form').submit()"
+                    <button @click="bulkRestoreOpen = false" :disabled="bulkRestoring" class="btn">Cancel</button>
+                    <button @click="confirmBulkRestore()"
+                            :disabled="bulkRestoring"
+                            :class="bulkRestoring ? 'opacity-70 pointer-events-none' : ''"
                             class="btn btn-primary">
-                        <x-heroicon-o-arrow-uturn-left class="w-3.5 h-3.5" />
-                        Restore Selected
+                        <span x-show="bulkRestoring" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-arrow-uturn-left class="w-3.5 h-3.5" x-show="!bulkRestoring" />
+                        <span x-text="bulkRestoring ? 'Restoring…' : 'Restore Selected'"></span>
                     </button>
                 </div>
             </div>
@@ -303,16 +298,15 @@
                 <p class="text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
                     This action cannot be undone.
                 </p>
-                <form id="bulk-delete-form" method="POST" action="{{ route('seniors.bulk-delete') }}">
-                    @csrf
-                    <template x-for="id in selected" :key="id">
-                        <input type="hidden" name="ids[]" :value="id">
-                    </template>
-                </form>
                 <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">
-                    <button @click="bulkDeleteOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('bulk-delete-form').submit()" class="btn btn-danger">
-                        <x-heroicon-o-trash class="w-3.5 h-3.5" /> Delete Forever
+                    <button @click="bulkDeleteOpen = false" :disabled="bulkDeleting" class="btn">Cancel</button>
+                    <button @click="confirmBulkDelete()"
+                            :disabled="bulkDeleting"
+                            :class="bulkDeleting ? 'opacity-70 pointer-events-none' : ''"
+                            class="btn btn-danger">
+                        <span x-show="bulkDeleting" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-trash class="w-3.5 h-3.5" x-show="!bulkDeleting" />
+                        <span x-text="bulkDeleting ? 'Deleting…' : 'Delete Forever'"></span>
                     </button>
                 </div>
             </div>
@@ -328,7 +322,78 @@ function archiveIndex() {
         selected: [],
         bulkRestoreOpen: false,
         bulkDeleteOpen: false,
+        bulkRestoring: false,
+        bulkDeleting: false,
+        restoringId: null,
         pageIds: @json($seniors->pluck('id')),
+
+        // ── Restore/delete actions — fetch() + Livewire.navigate() ────────
+        // Same contract as seniors/index.blade.php's seniorIndex().postAction():
+        // the controller (SeniorCitizenController::stateRedirect()) replies
+        // with { redirect } instead of a 302 when Accept: application/json is
+        // sent, and Livewire.navigate() completes the trip so the persisted
+        // sidebar/topbar shell survives instead of a full document reload. Nothing
+        // here (selection, row state) is treated as changed until the fetch
+        // actually resolves.
+        csrfToken: '{{ csrf_token() }}',
+        async postAction(url, { method = 'POST', body = null } = {}) {
+            const headers = { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' };
+            if (method !== 'POST') headers['X-HTTP-METHOD-OVERRIDE'] = method;
+            if (body) headers['Content-Type'] = 'application/json';
+
+            let ok = false;
+            let target = window.location.href;
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    credentials: 'same-origin',
+                    body: body ? JSON.stringify(body) : null,
+                });
+                const data = await res.json().catch(() => null);
+                ok = res.ok && !!(data && data.success);
+                if (data && data.redirect) target = data.redirect;
+            } catch (e) {
+                console.error('Archive action request failed', e);
+            }
+            Livewire.navigate(target);
+            return ok;
+        },
+
+        async restoreSenior(id) {
+            if (this.restoringId) return;
+            this.restoringId = id;
+            await this.postAction(`/seniors/${id}/restore`, { method: 'POST' });
+            this.restoringId = null;
+        },
+
+        async forceDeleteSenior(id) {
+            return this.postAction(`/seniors/${id}/force-delete`, { method: 'DELETE' });
+        },
+
+        async confirmBulkRestore() {
+            if (this.bulkRestoring || this.selected.length === 0) return;
+            this.bulkRestoring = true;
+            const ok = await this.postAction('{{ route('seniors.bulk-restore') }}', {
+                method: 'POST',
+                body: { ids: this.selected },
+            });
+            this.bulkRestoring = false;
+            this.bulkRestoreOpen = false;
+            if (ok) this.selected = [];
+        },
+
+        async confirmBulkDelete() {
+            if (this.bulkDeleting || this.selected.length === 0) return;
+            this.bulkDeleting = true;
+            const ok = await this.postAction('{{ route('seniors.bulk-delete') }}', {
+                method: 'POST',
+                body: { ids: this.selected },
+            });
+            this.bulkDeleting = false;
+            this.bulkDeleteOpen = false;
+            if (ok) this.selected = [];
+        },
 
         toggleRow(id, checked) {
             if (checked) {

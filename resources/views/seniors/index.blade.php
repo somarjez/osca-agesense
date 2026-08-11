@@ -301,18 +301,15 @@
                 <p class="text-[13px] text-ink-700">
                     <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved to Archives. Their data is preserved and can be restored at any time.
                 </p>
-                <form id="bulk-archive-form" method="POST" action="{{ route('seniors.bulk-archive') }}">
-                    @csrf
-                    <template x-for="id in selected" :key="id">
-                        <input type="hidden" name="ids[]" :value="id">
-                    </template>
-                </form>
                 <div class="flex gap-2 justify-end mt-5">
-                    <button @click="bulkArchiveOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('bulk-archive-form').submit()"
+                    <button @click="bulkArchiveOpen = false" :disabled="bulkArchiving" class="btn">Cancel</button>
+                    <button @click="confirmBulkArchive()"
+                            :disabled="bulkArchiving"
+                            :class="bulkArchiving ? 'opacity-70 pointer-events-none' : ''"
                             class="btn btn-danger">
-                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
-                        Archive Selected
+                        <span x-show="bulkArchiving" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" x-show="!bulkArchiving" />
+                        <span x-text="bulkArchiving ? 'Archiving…' : 'Archive Selected'"></span>
                     </button>
                 </div>
             </div>
@@ -342,16 +339,15 @@
                 <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
                     <span class="font-semibold" x-text="singleArchiveName"></span> will be moved to Archives. Their data is preserved and can be restored at any time.
                 </p>
-                <form id="single-archive-form" method="POST" :action="`/seniors/${singleArchiveId}`">
-                    @csrf
-                    @method('DELETE')
-                </form>
                 <div class="flex gap-2 justify-end pt-1">
-                    <button @click="singleArchiveOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('single-archive-form').submit()"
+                    <button @click="singleArchiveOpen = false" :disabled="singleArchiving" class="btn">Cancel</button>
+                    <button @click="confirmSingleArchive()"
+                            :disabled="singleArchiving"
+                            :class="singleArchiving ? 'opacity-70 pointer-events-none' : ''"
                             class="btn btn-danger">
-                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
-                        Archive Record
+                        <span x-show="singleArchiving" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" x-show="!singleArchiving" />
+                        <span x-text="singleArchiving ? 'Archiving…' : 'Archive Record'"></span>
                     </button>
                 </div>
             </div>
@@ -551,16 +547,74 @@ function seniorIndex() {
         // Multi-select state
         selected: [],
         bulkArchiveOpen: false,
+        bulkArchiving: false,
         pageIds: @json($seniors->pluck('id')),
 
         // Single-senior archive state
         singleArchiveOpen: false,
         singleArchiveName: '',
         singleArchiveId: null,
+        singleArchiving: false,
         openArchive(id, name) {
             this.singleArchiveId   = id;
             this.singleArchiveName = name;
             this.singleArchiveOpen = true;
+        },
+
+        // ── Archive actions — fetch() + Livewire.navigate() ───────────────
+        // Both the single-row and bulk archive confirmations POST here
+        // instead of doing a normal <form> submit (full browser navigation).
+        // The controller (SeniorCitizenController::stateRedirect()) responds
+        // with { redirect } — the same URL a plain redirect()->back() would
+        // have sent the browser to, filters/search/page/sort intact — and
+        // Livewire.navigate() finishes the trip through the SPA layer, so
+        // the persisted sidebar/topbar shell never gets torn down. Never treated
+        // as done until the server actually replies: on a network error we
+        // still fall back to a real navigate (to resync from the server)
+        // rather than silently leaving the list in a possibly-stale state.
+        csrfToken: '{{ csrf_token() }}',
+        async postAction(url, { method = 'POST', body = null } = {}) {
+            const headers = { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' };
+            if (method !== 'POST') headers['X-HTTP-METHOD-OVERRIDE'] = method;
+            if (body) headers['Content-Type'] = 'application/json';
+
+            let ok = false;
+            let target = window.location.href;
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    credentials: 'same-origin',
+                    body: body ? JSON.stringify(body) : null,
+                });
+                const data = await res.json().catch(() => null);
+                ok = res.ok && !!(data && data.success);
+                if (data && data.redirect) target = data.redirect;
+            } catch (e) {
+                console.error('Archive action request failed', e);
+            }
+            Livewire.navigate(target);
+            return ok;
+        },
+
+        async confirmSingleArchive() {
+            if (this.singleArchiving || !this.singleArchiveId) return;
+            this.singleArchiving = true;
+            await this.postAction(`/seniors/${this.singleArchiveId}`, { method: 'DELETE' });
+            this.singleArchiving = false;
+            this.singleArchiveOpen = false;
+        },
+
+        async confirmBulkArchive() {
+            if (this.bulkArchiving || this.selected.length === 0) return;
+            this.bulkArchiving = true;
+            const ok = await this.postAction('{{ route('seniors.bulk-archive') }}', {
+                method: 'POST',
+                body: { ids: this.selected },
+            });
+            this.bulkArchiving = false;
+            this.bulkArchiveOpen = false;
+            if (ok) this.selected = [];
         },
 
         toggleRow(id, checked) {
