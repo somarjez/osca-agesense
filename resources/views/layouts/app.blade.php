@@ -470,5 +470,6 @@
 @stack('scripts')
 <x-toast />
 <x-ml-service-guard />
+<x-idle-warning />
 </body>
 </html>

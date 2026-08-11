@@ -50,10 +50,19 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', function (Request $request) {
+    $reason = $request->input('reason');
+
     Auth::logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
-    return redirect('/login');
+    // Flash AFTER invalidate() so it lands in the fresh session, not the
+    // destroyed one. "inactivity" is sent by the idle-logout timer
+    // (resources/js/idle-logout.js) via the hidden form in
+    // components/idle-warning.blade.php; a normal profile-menu sign-out
+    // sends no reason and stays silent.
+    return $reason === 'inactivity'
+        ? redirect('/login')->with('status', 'You were signed out due to inactivity.')
+        : redirect('/login');
 })->name('logout')->middleware('auth');

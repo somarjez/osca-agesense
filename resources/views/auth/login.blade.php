@@ -139,6 +139,15 @@
             <h1 class="font-serif text-[34px] font-semibold tracking-snug mt-2 text-balance leading-[1.1]">Welcome back.</h1>
             <p class="text-ink-500 text-[13.5px] mt-2 leading-relaxed">Access the OSCA analytics workspace for Pagsanjan.</p>
 
+            @if (session('status'))
+                <div class="mt-6 flex items-start gap-2.5 rounded-xl border border-info-100 bg-info-100 px-3.5 py-3 text-[13px] text-info-700" role="status">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ session('status') }}</span>
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mt-6 flex items-start gap-2.5 rounded-xl border border-critical-200 bg-critical-50 px-3.5 py-3 text-[13px] text-critical-700" role="alert">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">

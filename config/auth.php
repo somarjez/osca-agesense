@@ -129,4 +129,22 @@ return [
 
     'single_session_idle_minutes' => env('SINGLE_SESSION_IDLE_MINUTES', 20),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Idle Auto-Logout
+    |--------------------------------------------------------------------------
+    |
+    | A client-side timer (resources/js/idle-logout.js) watches for real user
+    | input — mouse, keyboard, scroll, touch — and signs the user out after
+    | this many minutes of inactivity, warning them first for this many
+    | seconds. This is NOT single_session_idle_minutes above: that setting
+    | decides whether a NEW login elsewhere may reclaim the account; this one
+    | signs out the person already sitting at the keyboard. Matters on shared
+    | barangay/OSCA office PCs holding senior-citizen PII.
+    |
+    */
+
+    'idle_logout_minutes' => env('IDLE_LOGOUT_MINUTES', 15),
+    'idle_warning_seconds' => env('IDLE_WARNING_SECONDS', 60),
+
 ];
