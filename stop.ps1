@@ -19,7 +19,64 @@ Remove-Item -Path "$PROJECT\storage\logs\.osca-start.lock" -Force -ErrorAction S
 
 $killed = 0
 
-# ── Kill PHP processes tied to this project (artisan serve, queue:work, scheduler) ──
+# ── Stop nginx (graceful) ────────────────────────────────────────────────────────
+# `-s quit` asks the master process to finish in-flight requests and exit
+# cleanly, rather than killing it out from under an active connection.
+$nginxRunning = Get-WmiObject Win32_Process -Filter "Name='nginx.exe'" |
+    Where-Object { $_.CommandLine -like "*$PROJECT*" }
+if ($nginxRunning) {
+    $NGINX = $null
+    foreach ($base in @("$env:USERPROFILE\laragon\bin\nginx", "C:\laragon\bin\nginx")) {
+        if (-not $NGINX -and (Test-Path $base)) {
+            $found = Get-ChildItem "$base\nginx-*" -Directory -ErrorAction SilentlyContinue |
+                     Where-Object { Test-Path "$($_.FullName)\nginx.exe" } |
+                     Sort-Object Name -Descending | Select-Object -First 1
+            if ($found) { $NGINX = "$($found.FullName)\nginx.exe" }
+            elseif (Test-Path "$base\nginx.exe") { $NGINX = "$base\nginx.exe" }
+        }
+    }
+    if (-not $NGINX) {
+        $nginxOnPath = Get-Command nginx -ErrorAction SilentlyContinue
+        if ($nginxOnPath) { $NGINX = $nginxOnPath.Source }
+    }
+
+    if ($NGINX) {
+        Write-Host "  Stopping nginx (graceful quit)..."
+        # -p/-c must match what start.ps1/start-quiet.ps1 used to start it —
+        # nginx's `pid` directive (in conf/nginx/local/nginx.conf) is what
+        # tells `-s quit` which process to signal, and that directive is only
+        # read from this same config file.
+        & $NGINX -p "$PROJECT" -c "$PROJECT\conf\nginx\local\nginx.conf" -s quit 2>&1 | Out-Null
+        Start-Sleep -Seconds 1
+        $killed += $nginxRunning.Count
+    } else {
+        Write-Host "  [WARN] nginx.exe found running for this project but the binary could not be re-resolved for a graceful quit - force-killing instead."
+        foreach ($proc in $nginxRunning) {
+            $proc.Terminate() | Out-Null
+            $killed++
+        }
+    }
+
+    # Belt-and-suspenders: `-s quit` can leave the process listed for a beat
+    # while it finishes shutting down, or (rarely) not fully stop a wedged
+    # worker. Anything still there for this project after the grace period
+    # above gets force-terminated so stop.ps1 always leaves a clean slate.
+    Get-WmiObject Win32_Process -Filter "Name='nginx.exe'" |
+        Where-Object { $_.CommandLine -like "*$PROJECT*" } |
+        ForEach-Object { $_.Terminate() | Out-Null }
+}
+
+# ── Kill php-cgi FastCGI worker pool tied to this project ───────────────────────
+$phpCgiProcs = Get-WmiObject Win32_Process -Filter "Name='php-cgi.exe'" |
+    Where-Object { $_.CommandLine -like "*$PROJECT*" }
+
+foreach ($proc in $phpCgiProcs) {
+    Write-Host "  Stopping php-cgi worker (PID $($proc.ProcessId))..."
+    $proc.Terminate() | Out-Null
+    $killed++
+}
+
+# ── Kill PHP processes tied to this project (queue:work, scheduler, any leftover artisan serve) ──
 $phpProcs = Get-WmiObject Win32_Process -Filter "Name='php.exe'" |
     Where-Object { $_.CommandLine -like "*$PROJECT*" }
 
@@ -60,12 +117,12 @@ if ($killed -gt 0) {
     Write-Host " [ -- ] No running AgeSense processes found."
 }
 
-# ── Confirm ports 5001 and 5002 are free ────────────────────────────────────
+# ── Confirm ports 5001, 5002, 8000, and 9000-9003 are free ──────────────────────
 Write-Host ""
 Write-Host " Verifying ports are released..."
 Start-Sleep -Seconds 1
 $portsStillBound = 0
-foreach ($port in @(5001, 5002)) {
+foreach ($port in @(5001, 5002, 8000, 9000, 9001, 9002, 9003)) {
     $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($conn) {
         Write-Host " [WARN] Port $port still in use by PID $($conn.OwningProcess)."
@@ -78,7 +135,7 @@ foreach ($port in @(5001, 5002)) {
 
 Write-Host ""
 if ($portsStillBound -eq 0) {
-    Write-Host " All AgeSense services are offline. Ports 5001 and 5002 are free."
+    Write-Host " All AgeSense services are offline. Ports 5001, 5002, 8000, and 9000-9003 are free."
 } else {
     Write-Host " WARNING: $portsStillBound port(s) still bound. Check the processes listed above."
 }
