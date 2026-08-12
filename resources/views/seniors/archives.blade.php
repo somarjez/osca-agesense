@@ -133,7 +133,7 @@
                                 </button>
                                 <x-confirm-modal show="open"
                                                  title="Permanently delete this record?"
-                                                 confirm="forceDeleteSenior({{ $senior->id }}).then(() => open = false)"
+                                                 confirm="forceDeleteSenior({{ $senior->id }}).then((ok) => { if (ok) open = false })"
                                                  confirm-label="Delete forever">
                                     <p><strong class="text-ink-900 dark:text-[#e4e1d8]">{{ $senior->full_name }}</strong> and all associated data — QoL surveys, decision-support outputs, and recommendations — will be permanently erased.</p>
                                     <p class="mt-2 text-[12px] font-semibold px-3 py-2 rounded-xl text-critical-700 dark:text-[#e08070] bg-critical-50 dark:bg-critical-50/10 border border-critical-100 dark:border-critical-700/30">
@@ -328,36 +328,19 @@ function archiveIndex() {
         pageIds: @json($seniors->pluck('id')),
 
         // ── Restore/delete actions — fetch() + Livewire.navigate() ────────
-        // Same contract as seniors/index.blade.php's seniorIndex().postAction():
-        // the controller (SeniorCitizenController::stateRedirect()) replies
-        // with { redirect } instead of a 302 when Accept: application/json is
-        // sent, and Livewire.navigate() completes the trip so the persisted
+        // The actual fetch/CSRF/method-override/error-handling logic lives in
+        // the shared window.OSCA.postAction() helper (resources/js/app.js) —
+        // identical contract to seniors/index.blade.php's seniorIndex(), so
+        // it's defined once, not copy-pasted per view. The controller
+        // (SeniorCitizenController::stateRedirect()) replies with { redirect }
+        // instead of a 302 when Accept: application/json is sent, and
+        // Livewire.navigate() completes the trip so the persisted
         // sidebar/topbar shell survives instead of a full document reload. Nothing
         // here (selection, row state) is treated as changed until the fetch
         // actually resolves.
         csrfToken: '{{ csrf_token() }}',
-        async postAction(url, { method = 'POST', body = null } = {}) {
-            const headers = { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' };
-            if (method !== 'POST') headers['X-HTTP-METHOD-OVERRIDE'] = method;
-            if (body) headers['Content-Type'] = 'application/json';
-
-            let ok = false;
-            let target = window.location.href;
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers,
-                    credentials: 'same-origin',
-                    body: body ? JSON.stringify(body) : null,
-                });
-                const data = await res.json().catch(() => null);
-                ok = res.ok && !!(data && data.success);
-                if (data && data.redirect) target = data.redirect;
-            } catch (e) {
-                console.error('Archive action request failed', e);
-            }
-            Livewire.navigate(target);
-            return ok;
+        postAction(url, options) {
+            return window.OSCA.postAction(url, this.csrfToken, options);
         },
 
         async restoreSenior(id) {
@@ -367,10 +350,23 @@ function archiveIndex() {
             this.restoringId = null;
         },
 
+        // Returns the resolved `ok` to its caller (the force-delete row's
+        // confirm-modal component's "confirm" expression) so that component
+        // can gate its own `open = false` on success too — see the comment there.
         async forceDeleteSenior(id) {
             return this.postAction(`/seniors/${id}/force-delete`, { method: 'DELETE' });
         },
 
+        // Modal-close (and selection-clear) below is gated on the resolved
+        // `ok` — never assumed. On success we close explicitly. On failure
+        // we leave the modal's open flag untouched: postAction() above has
+        // already called Livewire.navigate() regardless of outcome, which
+        // resyncs this page from the server and tears down/rebuilds this
+        // Alpine component (closing the modal as a side effect of the
+        // resync, not as an assumed "it worked") — while the flashed error
+        // toast (set server-side even on the failure path) renders on the
+        // resynced page. This avoids ever showing a success-shaped UI
+        // transition before the server has confirmed.
         async confirmBulkRestore() {
             if (this.bulkRestoring || this.selected.length === 0) return;
             this.bulkRestoring = true;
@@ -379,8 +375,10 @@ function archiveIndex() {
                 body: { ids: this.selected },
             });
             this.bulkRestoring = false;
-            this.bulkRestoreOpen = false;
-            if (ok) this.selected = [];
+            if (ok) {
+                this.bulkRestoreOpen = false;
+                this.selected = [];
+            }
         },
 
         async confirmBulkDelete() {
@@ -391,8 +389,10 @@ function archiveIndex() {
                 body: { ids: this.selected },
             });
             this.bulkDeleting = false;
-            this.bulkDeleteOpen = false;
-            if (ok) this.selected = [];
+            if (ok) {
+                this.bulkDeleteOpen = false;
+                this.selected = [];
+            }
         },
 
         toggleRow(id, checked) {
