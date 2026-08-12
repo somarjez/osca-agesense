@@ -78,6 +78,39 @@ if (-not $PHP) {
 
 Write-Host " Using PHP: $PHP"
 
+# ── Resolve php-cgi.exe (same directory as $PHP; do not hardcode) ──────────────
+$PHPCGI = Join-Path (Split-Path -Parent $PHP) "php-cgi.exe"
+if (-not (Test-Path $PHPCGI)) {
+    Write-Host " [!] php-cgi.exe not found next to php.exe ($PHP)."
+    Write-Host "     Install/enable the php-cgi component alongside your PHP install."
+    Read-Host " Press Enter to exit"; exit 1
+}
+Write-Host " Using php-cgi: $PHPCGI"
+
+# ── Resolve nginx.exe ────────────────────────────────────────────────────────────
+# Same defensive resolution style as PHP/MySQL above: try common Laragon
+# locations, then PATH, and fail with a clear message rather than assuming
+# Laragon is the only possible install.
+$NGINX = $null
+foreach ($base in @("$env:USERPROFILE\laragon\bin\nginx", "C:\laragon\bin\nginx")) {
+    if (-not $NGINX -and (Test-Path $base)) {
+        $found = Get-ChildItem "$base\nginx-*" -Directory -ErrorAction SilentlyContinue |
+                 Where-Object { Test-Path "$($_.FullName)\nginx.exe" } |
+                 Sort-Object Name -Descending | Select-Object -First 1
+        if ($found) { $NGINX = "$($found.FullName)\nginx.exe" }
+        elseif (Test-Path "$base\nginx.exe") { $NGINX = "$base\nginx.exe" }
+    }
+}
+if (-not $NGINX) {
+    $nginxOnPath = Get-Command nginx -ErrorAction SilentlyContinue
+    if ($nginxOnPath) { $NGINX = $nginxOnPath.Source }
+}
+if (-not $NGINX) {
+    Write-Host " [!] nginx.exe not found. Install Laragon (with nginx) or add nginx to PATH."
+    Read-Host " Press Enter to exit"; exit 1
+}
+Write-Host " Using nginx: $NGINX"
+
 # ── Auto-start MySQL if needed ──────────────────────────────────────────────────
 $envContent = Get-Content "$PROJECT\.env"
 $dbConn = ($envContent | Where-Object { $_ -match '^DB_CONNECTION=' }) -replace '^DB_CONNECTION=', '' | ForEach-Object { $_.Trim() }
@@ -166,8 +199,14 @@ $queuePsi.Arguments       = "-d max_execution_time=0 `"$PROJECT\artisan`" queue:
 $queuePsi.WorkingDirectory = $PROJECT
 $queuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $queuePsi.UseShellExecute = $false
-$queuePsi.RedirectStandardOutput = $true
-$queuePsi.RedirectStandardError  = $true
+# Deliberately NOT redirected: PHP's queue:work logs every processed job to
+# stderr. RedirectStandardOutput/Error=$true with no reader attached fills
+# the OS's ~4KB pipe buffer and the child blocks forever on its next write —
+# an intermittent full hang. -WindowStyle Hidden already means no console
+# appears either way, so output going nowhere is strictly better than that
+# deadlock.
+$queuePsi.RedirectStandardOutput = $false
+$queuePsi.RedirectStandardError  = $false
 [System.Diagnostics.Process]::Start($queuePsi) | Out-Null
 
 # Dedicated worker for the `ml` queue (ProcessMlSingle, RunMlPipeline) so a
@@ -181,34 +220,157 @@ $mlQueuePsi.Arguments       = "-d max_execution_time=0 `"$PROJECT\artisan`" queu
 $mlQueuePsi.WorkingDirectory = $PROJECT
 $mlQueuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $mlQueuePsi.UseShellExecute = $false
-$mlQueuePsi.RedirectStandardOutput = $true
-$mlQueuePsi.RedirectStandardError  = $true
+# See the `default`-queue worker above for why these are $false, not $true.
+$mlQueuePsi.RedirectStandardOutput = $false
+$mlQueuePsi.RedirectStandardError  = $false
 [System.Diagnostics.Process]::Start($mlQueuePsi) | Out-Null
 
 # ── [2b] Task scheduler ─────────────────────────────────────────────────────────
 Write-Host " [2b]  Starting Laravel task scheduler in background..."
 Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","`"$PROJECT\scheduler_loop.ps1`"","-PhpExe","`"$PHP`"","-ProjectDir","`"$PROJECT`"" -WindowStyle Hidden
 
-# ── [3/3] Laravel server ────────────────────────────────────────────────────────
-Write-Host " [3/3] Starting Laravel development server..."
-Write-Host "       (Browser opening in 5 seconds)"
-Start-Sleep -Seconds 5
-Start-Process "http://127.0.0.1:8000"
+# ── [3/3] nginx + php-cgi worker pool ───────────────────────────────────────────
+# Replaces `php artisan serve` (PHP's built-in dev server), which is strictly
+# single-request on Windows (PHP_CLI_SERVER_WORKERS needs pcntl_fork(), which
+# doesn't exist on PHP_OS_FAMILY=Windows) — a second sidebar click could not
+# be served until the first response finished. nginx now fronts a pool of 4
+# persistent php-cgi FastCGI workers, giving real concurrency.
+Write-Host " [3/3] Starting nginx + php-cgi worker pool..."
+
+# Kill any stale nginx/php-cgi from a previous session before starting new
+# ones, so a crashed prior run never blocks this one (e.g. a lingering nginx
+# still holding port 8000). Matched by command line containing this project's
+# path, same pattern as the queue-worker cleanup above, so an unrelated
+# nginx/php-cgi elsewhere on the machine is never touched. php-cgi doesn't
+# take a project-path argument by default, so each worker below is started
+# with a -d error_log override that embeds the project path for this
+# matching to key off.
+Get-WmiObject Win32_Process -Filter "Name='nginx.exe'" |
+    Where-Object { $_.CommandLine -like "*$PROJECT*" } |
+    ForEach-Object { $_.Terminate() | Out-Null }
+Get-WmiObject Win32_Process -Filter "Name='php-cgi.exe'" |
+    Where-Object { $_.CommandLine -like "*$PROJECT*" } |
+    ForEach-Object { $_.Terminate() | Out-Null }
+Start-Sleep -Seconds 1   # let Windows release ports 8000/9000-9003 before rebinding
+
+# nginx.conf's client_body_temp_path etc. point here; create once (harmless
+# if already present) since nginx refuses to start if these don't exist.
+foreach ($d in @('client_body', 'fastcgi', 'proxy', 'uwsgi', 'scgi')) {
+    New-Item -ItemType Directory -Force -Path "$PROJECT\storage\logs\nginx-temp\$d" | Out-Null
+}
+
+# 4 persistent FastCGI workers on 127.0.0.1:9000-9003 (nginx's osca_php_pool
+# upstream). PHP_FCGI_MAX_REQUESTS=0 is required: without it, php-cgi exits
+# after its default request count and the pool silently shrinks over time.
+# Not redirected, for the same pipe-buffer-deadlock reason as the queue
+# workers above.
+for ($i = 0; $i -lt 4; $i++) {
+    $port = 9000 + $i
+    $cgiPsi = New-Object System.Diagnostics.ProcessStartInfo
+    $cgiPsi.FileName          = $PHPCGI
+    $cgiPsi.Arguments         = "-b 127.0.0.1:$port -d error_log=`"$PROJECT\storage\logs\php-cgi-$port.log`""
+    $cgiPsi.WorkingDirectory  = $PROJECT
+    $cgiPsi.WindowStyle       = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    $cgiPsi.UseShellExecute   = $false
+    $cgiPsi.RedirectStandardOutput = $false
+    $cgiPsi.RedirectStandardError  = $false
+    $cgiPsi.EnvironmentVariables["PHP_FCGI_MAX_REQUESTS"] = "0"
+    [System.Diagnostics.Process]::Start($cgiPsi) | Out-Null
+}
+
+# nginx: master + 1 worker, listening on the same 127.0.0.1:8000 the app has
+# always used — shortcuts/launch-osca.vbs/bookmarks need no changes.
+Start-Process -FilePath $NGINX -ArgumentList "-p", "`"$PROJECT`"", "-c", "`"$PROJECT\conf\nginx\local\nginx.conf`"" -WindowStyle Hidden
+
+# ── Readiness check: verify nginx/php-cgi actually bound port 8000 before ──────
+# opening the browser. Without this, a bad nginx.conf, a php-cgi worker that
+# failed to bind, or port 8000 already held by something else would go
+# completely undetected here — the browser would open regardless, land on a
+# bare connection-refused page, and the console (which the user IS watching in
+# this script, unlike start-quiet.ps1) would print nothing wrong. Poll the
+# actual port the browser is about to hit.
+#
+# NOTE: TcpClient's synchronous Connect() has no timeout parameter and, on
+# some machines/network stacks, does NOT fail fast when nothing is listening
+# (observed: several seconds per attempt instead of an instant refusal) - so
+# looping on it with a short per-attempt budget assumption can run far longer
+# in total than intended. Use the async BeginConnect/WaitOne pattern instead,
+# which bounds each attempt to $timeoutMs regardless of how the OS/network
+# handles an unanswered connect.
+function Test-PortOpen($port, $timeoutMs = 400) {
+    $t = New-Object Net.Sockets.TcpClient
+    try {
+        $async = $t.BeginConnect('127.0.0.1', $port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne($timeoutMs)) {
+            return $false
+        }
+        $t.EndConnect($async)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $t.Close()
+    }
+}
+
+Write-Host " Waiting for the web server to become ready..."
+$webUp = $false
+# Stopwatch tracks the real elapsed budget rather than an assumed
+# per-iteration cost, so the ~8s cap is honored regardless of how long each
+# connect attempt actually takes.
+$sw = [System.Diagnostics.Stopwatch]::StartNew()
+while (-not $webUp -and $sw.Elapsed.TotalSeconds -lt 8) {
+    $webUp = Test-PortOpen 8000 400
+    if (-not $webUp) { Start-Sleep -Milliseconds 400 }
+}
+$sw.Stop()
+
+if ($webUp) {
+    Write-Host " [ OK ] Web server is responding on port 8000."
+    Write-Host "       (Browser opening in 5 seconds)"
+    Start-Sleep -Seconds 5
+    Start-Process "http://127.0.0.1:8000"
+} else {
+    Write-Host ""
+    Write-Host " [!] nginx/php-cgi did not start listening on port 8000 (waited $([math]::Round($sw.Elapsed.TotalSeconds, 1))s)."
+    Write-Host "     The browser was NOT opened automatically - it would only show a"
+    Write-Host "     connection-refused page."
+    Write-Host "     Check these logs for the reason:"
+    Write-Host "       storage\logs\nginx-error.log"
+    Write-Host "       storage\logs\php-cgi-900x.log"
+    Write-Host "     Common causes: nginx.conf syntax error, port 8000/9000-9003"
+    Write-Host "     already in use, or php-cgi failing to launch. Run stop.ps1, fix"
+    Write-Host "     the issue, then run start.ps1 again."
+}
 
 Write-Host ""
 Write-Host " -----------------------------------------------"
 Write-Host "  System URL : http://127.0.0.1:8000"
 Write-Host ""
 Write-Host "  Background processes started silently."
+Write-Host "  Web server : nginx + 4 php-cgi FastCGI workers (real concurrency -"
+Write-Host "               replaces the old single-request 'artisan serve')."
 Write-Host "  Logs: storage\logs\python-preprocess.log      (preprocess service)"
 Write-Host "        storage\logs\python-inference.log       (inference service)"
 Write-Host "        storage\logs\python-services-start.log  (ML startup output)"
-Write-Host "        storage\logs\queue.log                  (queue worker)"
 Write-Host "        storage\logs\scheduler.log              (task scheduler)"
+Write-Host "        storage\logs\nginx-error.log             (nginx error log)"
+Write-Host "        storage\logs\nginx-access.log            (nginx access log)"
+Write-Host "        storage\logs\php-cgi-900x.log            (per php-cgi worker PHP error log)"
 Write-Host ""
-Write-Host "  Press Ctrl+C to stop the server."
+Write-Host "  Queue worker output is not written to disk (avoids a Windows pipe-"
+Write-Host "  buffer deadlock on unread redirected output) - use Get-Process to"
+Write-Host "  confirm the workers are still running."
+Write-Host ""
+Write-Host "  All services now run in the background - this window can be closed."
+Write-Host "  Run stop.ps1 to stop nginx, php-cgi, the queue workers, and the scheduler."
 Write-Host " -----------------------------------------------"
 Write-Host ""
-
-Set-Location $PROJECT
-& $PHP "$PROJECT\artisan" serve
+Write-Host "  Optional local speed-up: bootstrap\cache\ currently has neither a"
+Write-Host "  config cache nor a route cache. Run 'php artisan config:cache &&"
+Write-Host "  php artisan route:cache' for a faster boot on every request (skips"
+Write-Host "  re-parsing config/*.php and routes/*.php). Not run automatically here"
+Write-Host "  since local dev usually wants config/route changes picked up without"
+Write-Host "  a manual cache:clear - run 'php artisan config:clear' first if you"
+Write-Host "  cache and then need to change either."
+Write-Host ""

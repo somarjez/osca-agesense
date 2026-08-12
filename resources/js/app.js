@@ -246,6 +246,53 @@ window.OSCA = Object.assign(window.OSCA || {}, {
     maps() { return loadMaps() },
 
     /**
+     * fetch() a same-origin POST endpoint (with an X-HTTP-METHOD-OVERRIDE
+     * header for DELETE-style actions Laravel routes as POST), read its
+     * `{ success, redirect }` JSON contract, then hand the trip off to
+     * Livewire.navigate() so the @persist'd sidebar/topbar shell survives
+     * instead of a full document reload.
+     *
+     * Shared by seniors/index.blade.php's seniorIndex() and
+     * seniors/archives.blade.php's archiveIndex() — both pages' archive /
+     * restore / delete actions hit the same response contract (see
+     * SeniorCitizenController::stateRedirect()), so this used to be a
+     * ~24-line block copy-pasted verbatim between the two Alpine
+     * components. Any caller MUST treat the returned boolean as the only
+     * source of truth for "did this succeed" — do not clear a selection,
+     * close a modal, or show a "done" state off of anything else, since
+     * Livewire.navigate() below always runs (success or failure) to resync
+     * the list from the server and surface the flashed toast either way.
+     *
+     * @param {string} url
+     * @param {string} csrfToken - `{{ csrf_token() }}`, read server-side per Blade view (kept out of this shared file on purpose).
+     * @param {{method?: string, body?: object|null}} [options]
+     * @returns {Promise<boolean>} true only if the server actually confirmed success.
+     */
+    async postAction(url, csrfToken, { method = 'POST', body = null } = {}) {
+        const headers = { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        if (method !== 'POST') headers['X-HTTP-METHOD-OVERRIDE'] = method
+        if (body) headers['Content-Type'] = 'application/json'
+
+        let ok = false
+        let target = window.location.href
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                credentials: 'same-origin',
+                body: body ? JSON.stringify(body) : null,
+            })
+            const data = await res.json().catch(() => null)
+            ok = res.ok && !!(data && data.success)
+            if (data && data.redirect) target = data.redirect
+        } catch (e) {
+            console.error('postAction request failed', e)
+        }
+        Livewire.navigate(target)
+        return ok
+    },
+
+    /**
      * Build a minimal doughnut chart with center-text.
      */
     buildDoughnut(canvasId, labels, data, colors) {

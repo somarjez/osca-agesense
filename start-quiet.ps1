@@ -46,13 +46,27 @@ function Fail($title, $msg) {
     throw $msg
 }
 
-function Test-PortOpen($port) {
+function Test-PortOpen($port, $timeoutMs = 400) {
+    # NOTE: TcpClient's synchronous Connect() has no timeout parameter and, on
+    # some machines/network stacks, does NOT fail fast when nothing is
+    # listening (observed: ~5-6s per attempt instead of an instant refusal) -
+    # so a caller looping on this with its own short per-attempt budget can
+    # end up waiting far longer in total than intended. Use the async
+    # BeginConnect/WaitOne pattern instead, which bounds the wait to
+    # $timeoutMs no matter how the OS/network handles an unanswered attempt.
+    $t = New-Object Net.Sockets.TcpClient
     try {
-        $t = New-Object Net.Sockets.TcpClient
-        $t.Connect('127.0.0.1', $port)
-        $t.Close()
+        $async = $t.BeginConnect('127.0.0.1', $port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne($timeoutMs)) {
+            return $false
+        }
+        $t.EndConnect($async)
         return $true
-    } catch { return $false }
+    } catch {
+        return $false
+    } finally {
+        $t.Close()
+    }
 }
 
 try { New-Item -ItemType Directory -Path "$PROJECT\storage\logs" -Force -ErrorAction SilentlyContinue | Out-Null } catch {}
@@ -145,6 +159,36 @@ try {
 
     Log "Using PHP: $PHP"
 
+    # ── Resolve php-cgi.exe (same directory as $PHP; do not hardcode) ────────────
+    $PHPCGI = Join-Path (Split-Path -Parent $PHP) "php-cgi.exe"
+    if (-not (Test-Path $PHPCGI)) {
+        Fail "php-cgi not found" "php-cgi.exe was not found next to php.exe ($PHP).`n`nInstall/enable the php-cgi component alongside your PHP install, then try again."
+    }
+    Log "Using php-cgi: $PHPCGI"
+
+    # ── Resolve nginx.exe ──────────────────────────────────────────────────────────
+    # Same defensive resolution style as PHP/MySQL above: try common Laragon
+    # locations, then PATH, and fail with a clear message rather than assuming
+    # Laragon is the only possible install.
+    $NGINX = $null
+    foreach ($base in @("$env:USERPROFILE\laragon\bin\nginx", "C:\laragon\bin\nginx")) {
+        if (-not $NGINX -and (Test-Path $base)) {
+            $found = Get-ChildItem "$base\nginx-*" -Directory -ErrorAction SilentlyContinue |
+                     Where-Object { Test-Path "$($_.FullName)\nginx.exe" } |
+                     Sort-Object Name -Descending | Select-Object -First 1
+            if ($found) { $NGINX = "$($found.FullName)\nginx.exe" }
+            elseif (Test-Path "$base\nginx.exe") { $NGINX = "$base\nginx.exe" }
+        }
+    }
+    if (-not $NGINX) {
+        $nginxOnPath = Get-Command nginx -ErrorAction SilentlyContinue
+        if ($nginxOnPath) { $NGINX = $nginxOnPath.Source }
+    }
+    if (-not $NGINX) {
+        Fail "nginx not found" "nginx.exe could not be found on this computer.`n`nInstall Laragon (with nginx) or add nginx to your system PATH, then try again."
+    }
+    Log "Using nginx: $NGINX"
+
     # ── Auto-start MySQL if needed ────────────────────────────────────────────────
     $envContent = Get-Content "$PROJECT\.env"
     $dbConn = ($envContent | Where-Object { $_ -match '^DB_CONNECTION=' }) -replace '^DB_CONNECTION=', '' | ForEach-Object { $_.Trim() }
@@ -193,8 +237,12 @@ try {
     }
 
     # ── We're committed to starting now — show the loading page immediately ──────
-    # Everything above this point can Fail() with a specific error message; nothing
-    # below it does, so it's safe to put the "starting..." UI up now.
+    # Everything above this point can Fail() with a specific error message.
+    # Below this point, only the web-server readiness check further down (see
+    # the nginx/php-cgi section) still calls Fail() — a dead web server is
+    # worse than any prerequisite check above, so it gets the same clear
+    # MessageBox treatment rather than silently exiting 0. Nothing else below
+    # this line fails.
     Log "Opening loading page..."
     Start-Process $LOADING_PAGE
 
@@ -221,8 +269,14 @@ try {
     $queuePsi.WorkingDirectory = $PROJECT
     $queuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
     $queuePsi.UseShellExecute = $false
-    $queuePsi.RedirectStandardOutput = $true
-    $queuePsi.RedirectStandardError  = $true
+    # Deliberately NOT redirected: PHP's queue:work logs every processed job
+    # to stderr. RedirectStandardOutput/Error=$true with no reader attached
+    # fills the OS's ~4KB pipe buffer and the child blocks forever on its
+    # next write - an intermittent full hang. -WindowStyle Hidden already
+    # means no console appears either way, so output going nowhere is
+    # strictly better than that deadlock.
+    $queuePsi.RedirectStandardOutput = $false
+    $queuePsi.RedirectStandardError  = $false
     [System.Diagnostics.Process]::Start($queuePsi) | Out-Null
 
     $mlQueuePsi = New-Object System.Diagnostics.ProcessStartInfo
@@ -231,37 +285,105 @@ try {
     $mlQueuePsi.WorkingDirectory = $PROJECT
     $mlQueuePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
     $mlQueuePsi.UseShellExecute = $false
-    $mlQueuePsi.RedirectStandardOutput = $true
-    $mlQueuePsi.RedirectStandardError  = $true
+    # See the `default`-queue worker above for why these are $false, not $true.
+    $mlQueuePsi.RedirectStandardOutput = $false
+    $mlQueuePsi.RedirectStandardError  = $false
     [System.Diagnostics.Process]::Start($mlQueuePsi) | Out-Null
 
     # ── [2b] Task scheduler ───────────────────────────────────────────────────────
     Log "[2b] Starting Laravel task scheduler in background..."
     Start-Process powershell.exe -ArgumentList "-NoProfile","-NonInteractive","-WindowStyle","Hidden","-File","`"$PROJECT\scheduler_loop.ps1`"","-PhpExe","`"$PHP`"","-ProjectDir","`"$PROJECT`"" -WindowStyle Hidden
 
-    # ── [3/4] Laravel server — BACKGROUND, not foreground ─────────────────────────
-    # Kill any stale `artisan serve` left over from a previous quiet-launch so a
-    # re-click of "Start OSCA System" doesn't collide on port 8000. (Harmless here
-    # even though the top-of-script port-8000 check normally prevents reaching this
-    # point while a server is already accepting connections — it only guards against
-    # a half-dead process still holding the port without answering.)
+    # ── [3/4] nginx + php-cgi worker pool — BACKGROUND, not foreground ────────────
+    # Replaces `php artisan serve` (PHP's built-in dev server), which is
+    # strictly single-request on Windows (PHP_CLI_SERVER_WORKERS needs
+    # pcntl_fork(), which doesn't exist on PHP_OS_FAMILY=Windows) — a second
+    # sidebar click could not be served until the first response finished.
+    # nginx now fronts a pool of 4 persistent php-cgi FastCGI workers, giving
+    # real concurrency.
+    #
+    # Kill any stale nginx/php-cgi (or a leftover `artisan serve` from before
+    # this change) left over from a previous quiet-launch so a re-click of
+    # "Start OSCA System" doesn't collide on port 8000. (Harmless here even
+    # though the top-of-script port-8000 check normally prevents reaching
+    # this point while a server is already accepting connections — it only
+    # guards against a half-dead process still holding the port without
+    # answering.) Matched by command line containing this project's path, so
+    # an unrelated nginx/php-cgi elsewhere on the machine is never touched;
+    # php-cgi is given a -d error_log override below that embeds the project
+    # path for exactly this matching to key off.
     Get-WmiObject Win32_Process -Filter "Name='php.exe'" |
         Where-Object { $_.CommandLine -like "*$PROJECT*artisan*serve*" } |
         ForEach-Object { $_.Terminate() | Out-Null }
+    Get-WmiObject Win32_Process -Filter "Name='nginx.exe'" |
+        Where-Object { $_.CommandLine -like "*$PROJECT*" } |
+        ForEach-Object { $_.Terminate() | Out-Null }
+    Get-WmiObject Win32_Process -Filter "Name='php-cgi.exe'" |
+        Where-Object { $_.CommandLine -like "*$PROJECT*" } |
+        ForEach-Object { $_.Terminate() | Out-Null }
+    Start-Sleep -Seconds 1   # let Windows release ports 8000/9000-9003 before rebinding
 
-    Log "[3/4] Starting Laravel server in background..."
-    $servePsi = New-Object System.Diagnostics.ProcessStartInfo
-    $servePsi.FileName        = $PHP
-    $servePsi.Arguments       = "`"$PROJECT\artisan`" serve"
-    $servePsi.WorkingDirectory = $PROJECT
-    $servePsi.WindowStyle     = [System.Diagnostics.ProcessWindowStyle]::Hidden
-    $servePsi.UseShellExecute = $false
-    $servePsi.RedirectStandardOutput = $true
-    $servePsi.RedirectStandardError  = $true
-    [System.Diagnostics.Process]::Start($servePsi) | Out-Null
+    # nginx.conf's client_body_temp_path etc. point here; create once
+    # (harmless if already present) since nginx refuses to start otherwise.
+    foreach ($d in @('client_body', 'fastcgi', 'proxy', 'uwsgi', 'scgi')) {
+        New-Item -ItemType Directory -Force -Path "$PROJECT\storage\logs\nginx-temp\$d" | Out-Null
+    }
+
+    Log "[3/4] Starting php-cgi worker pool (4 workers) + nginx in background..."
+
+    # 4 persistent FastCGI workers on 127.0.0.1:9000-9003 (nginx's
+    # osca_php_pool upstream). PHP_FCGI_MAX_REQUESTS=0 is required: without
+    # it, php-cgi exits after its default request count and the pool
+    # silently shrinks over time. Not redirected, for the same
+    # pipe-buffer-deadlock reason as the queue workers above.
+    for ($i = 0; $i -lt 4; $i++) {
+        $port = 9000 + $i
+        $cgiPsi = New-Object System.Diagnostics.ProcessStartInfo
+        $cgiPsi.FileName          = $PHPCGI
+        $cgiPsi.Arguments         = "-b 127.0.0.1:$port -d error_log=`"$PROJECT\storage\logs\php-cgi-$port.log`""
+        $cgiPsi.WorkingDirectory  = $PROJECT
+        $cgiPsi.WindowStyle       = [System.Diagnostics.ProcessWindowStyle]::Hidden
+        $cgiPsi.UseShellExecute   = $false
+        $cgiPsi.RedirectStandardOutput = $false
+        $cgiPsi.RedirectStandardError  = $false
+        $cgiPsi.EnvironmentVariables["PHP_FCGI_MAX_REQUESTS"] = "0"
+        [System.Diagnostics.Process]::Start($cgiPsi) | Out-Null
+    }
+
+    # nginx: master + 1 worker, listening on the same 127.0.0.1:8000 the
+    # loading page below polls — no change needed to $APP_URL or the poll logic.
+    Start-Process -FilePath $NGINX -ArgumentList "-p", "`"$PROJECT`"", "-c", "`"$PROJECT\conf\nginx\local\nginx.conf`"" -WindowStyle Hidden
+
+    # ── Readiness check: verify nginx/php-cgi actually bound port 8000 ───────────
+    # The loading page's own JS polls $APP_URL for up to ~60s and shows a
+    # "failed" state if it never responds, so staff aren't left staring at a
+    # blank tab forever — but that client-side timeout gives no *reason*, and
+    # this script would otherwise Log "complete" / exit 0 regardless of
+    # whether the server ever came up. Give nginx + the php-cgi pool a short
+    # budget to bind the port before declaring success.
+    Log "Verifying web server is responding on port 8000..."
+    $webUp = $false
+    # Use a Stopwatch for the overall budget rather than incrementing a counter
+    # by an assumed per-iteration cost - Test-PortOpen is now bounded per call,
+    # but measuring real elapsed time (instead of guessing 400ms/iteration) is
+    # what actually keeps this loop honest to the ~8s budget.
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $webUp -and $sw.Elapsed.TotalSeconds -lt 8) {
+        $webUp = Test-PortOpen 8000 400
+        if (-not $webUp) { Start-Sleep -Milliseconds 400 }
+    }
+    $sw.Stop()
+    Log "Readiness check finished after $([math]::Round($sw.Elapsed.TotalSeconds, 1))s (up=$webUp)."
+
+    if ($webUp) {
+        Log "Web server responding on port 8000."
+    } else {
+        Fail "Web server did not start" "nginx/php-cgi did not start listening on port 8000.`n`nCheck storage\logs\nginx-error.log and storage\logs\php-cgi-900x.log for the reason (e.g. a config error or the port already in use), then try again."
+    }
 
     # ── [4/4] Done — the loading page's own JS polls $APP_URL and redirects ───────
     Log "[4/4] All services launched. Loading page will redirect to $APP_URL once it responds."
+    Log "Optional local speed-up: bootstrap\cache\ has no config/route cache yet. Run 'php artisan config:cache && php artisan route:cache' manually for a faster boot (not run automatically here, so local config/route edits keep taking effect without a manual cache:clear)."
     Log "System start sequence complete."
     exit 0
 } catch {

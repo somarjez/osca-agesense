@@ -281,6 +281,42 @@
     {{-- ── Bulk Upload Success / Error Flash ─────────────────────────────── --}}
     <x-bulk-upload-flash />
 
+    {{-- ── Bulk Import In-Progress / Failed Indicator ──────────────────────
+         Surfaces BulkUploadController's persisted status marker
+         (bulk-import-status:{user}, see status()/processUpload()) so the
+         insert phase — unlike the ML phase, which already has
+         ml/batch.blade.php's resumable poller — survives navigating away
+         and back. importStatus is seeded server-side (fresh page load /
+         "came back mid-import") and kept live by a 3s poll while
+         processing; a much smaller version of ml/batch.blade.php's pattern
+         since there's no cancel/elapsed-timer/resume-a-batch-id affordance
+         to rebuild here, just a status to display. Also shows 'failed' (the
+         parse/missing-column early-return paths now write this instead of
+         leaving a stale 'processing'/'done' from a prior successful run) —
+         same border-l-4 card as 'processing' but in the app's existing
+         high-* danger palette (see the file-error alert above) rather than
+         info-blue, so the two states read as visually distinct at a glance. --}}
+    <div x-show="importStatus && (importStatus.status === 'processing' || importStatus.status === 'failed')" x-cloak
+         :class="importStatus && importStatus.status === 'failed' ? 'border-high-500' : 'border-info-500'"
+         class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 flex items-start gap-3 px-4 py-3">
+        <svg x-show="importStatus && importStatus.status === 'processing'" class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <x-heroicon-o-exclamation-triangle x-show="importStatus && importStatus.status === 'failed'" x-cloak class="w-5 h-5 text-high-600 flex-shrink-0 mt-0.5" />
+        <div class="flex-1 min-w-0">
+            <p class="text-[13px] font-semibold text-ink-900" x-text="importStatus && importStatus.status === 'failed' ? 'Import failed' : 'Import in progress'"></p>
+            <p class="text-[12px] text-ink-600 mt-0.5" x-show="importStatus && importStatus.status === 'processing'">
+                <span x-text="importStatus ? importStatus.processed : 0"></span> of
+                <span x-text="importStatus ? importStatus.total : 0"></span> row(s) processed&hellip;
+            </p>
+            <p class="text-[12px] text-high-700 mt-0.5" x-show="importStatus && importStatus.status === 'failed'" x-text="importStatus ? importStatus.message : ''"></p>
+        </div>
+        <button @click="importStatus = null" class="text-ink-300 hover:text-ink-600 flex-shrink-0">
+            <x-heroicon-o-x-mark class="w-4 h-4" />
+        </button>
+    </div>
+
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
     <div x-show="bulkArchiveOpen" x-cloak
          role="dialog"
@@ -301,18 +337,15 @@
                 <p class="text-[13px] text-ink-700">
                     <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved to Archives. Their data is preserved and can be restored at any time.
                 </p>
-                <form id="bulk-archive-form" method="POST" action="{{ route('seniors.bulk-archive') }}">
-                    @csrf
-                    <template x-for="id in selected" :key="id">
-                        <input type="hidden" name="ids[]" :value="id">
-                    </template>
-                </form>
                 <div class="flex gap-2 justify-end mt-5">
-                    <button @click="bulkArchiveOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('bulk-archive-form').submit()"
+                    <button @click="bulkArchiveOpen = false" :disabled="bulkArchiving" class="btn">Cancel</button>
+                    <button @click="confirmBulkArchive()"
+                            :disabled="bulkArchiving"
+                            :class="bulkArchiving ? 'opacity-70 pointer-events-none' : ''"
                             class="btn btn-danger">
-                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
-                        Archive Selected
+                        <span x-show="bulkArchiving" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" x-show="!bulkArchiving" />
+                        <span x-text="bulkArchiving ? 'Archiving…' : 'Archive Selected'"></span>
                     </button>
                 </div>
             </div>
@@ -342,16 +375,15 @@
                 <p class="text-[13px] text-ink-700 dark:text-[#c8c4bc]">
                     <span class="font-semibold" x-text="singleArchiveName"></span> will be moved to Archives. Their data is preserved and can be restored at any time.
                 </p>
-                <form id="single-archive-form" method="POST" :action="`/seniors/${singleArchiveId}`">
-                    @csrf
-                    @method('DELETE')
-                </form>
                 <div class="flex gap-2 justify-end pt-1">
-                    <button @click="singleArchiveOpen = false" class="btn">Cancel</button>
-                    <button @click="document.getElementById('single-archive-form').submit()"
+                    <button @click="singleArchiveOpen = false" :disabled="singleArchiving" class="btn">Cancel</button>
+                    <button @click="confirmSingleArchive()"
+                            :disabled="singleArchiving"
+                            :class="singleArchiving ? 'opacity-70 pointer-events-none' : ''"
                             class="btn btn-danger">
-                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
-                        Archive Record
+                        <span x-show="singleArchiving" x-cloak class="btn-spinner" aria-hidden="true"></span>
+                        <x-heroicon-o-archive-box class="w-3.5 h-3.5" x-show="!singleArchiving" />
+                        <span x-text="singleArchiving ? 'Archiving…' : 'Archive Record'"></span>
                     </button>
                 </div>
             </div>
@@ -548,19 +580,121 @@
 <script>
 function seniorIndex() {
     return {
+        // Bulk import status poller — seeded from the server (a status key
+        // already 'processing' means staff navigated away mid-import and
+        // came back, or reloaded); kept live by a 3s poll while processing.
+        // Deliberately not tied to the modal's local `uploading` flag: that
+        // one only reflects THIS tab's own in-flight submit() and dies on
+        // navigation, which is exactly the gap this fills.
+        importStatus: @json($bulkImportStatus ?? null),
+        importPollTimer: null,
+        importStatusUrl: '{{ route('seniors.bulk-upload.status') }}',
+        pollImportStatus() {
+            // Guard against a pre-existing interval — pollImportStatus() can
+            // be called more than once per page lifetime (e.g. re-triggered
+            // after init() already started one), and without this an earlier
+            // timer keeps running orphaned, doubling up fetches.
+            clearInterval(this.importPollTimer);
+            this.importPollTimer = setInterval(() => {
+                fetch(this.importStatusUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(d => {
+                        this.importStatus = d;
+                        if (d.status !== 'processing') {
+                            clearInterval(this.importPollTimer);
+                        }
+                    })
+                    .catch(err => console.debug('bulk-import status poll failed', err));
+            }, 3000);
+        },
+
+        init() {
+            // Same navigate-away teardown as ml/batch.blade.php's poller —
+            // without it, an unbounded setInterval from a torn-down
+            // component keeps firing against a detached Alpine instance.
+            // { once: true }: Phase 3 made returning to this page routine
+            // (every bulk action ends in Livewire.navigate() back here), and
+            // init() re-runs on each visit — without `once`, each visit
+            // registered another permanent document-level listener that
+            // outlives its own Alpine instance, an unbounded leak over a
+            // long-lived SPA session. `once` lets each visit's listener
+            // clean itself up after the next navigation fires it, same as
+            // the fresh one this init() call is about to register.
+            document.addEventListener('livewire:navigating', () => {
+                clearInterval(this.importPollTimer);
+            }, { once: true });
+            if (this.importStatus && this.importStatus.status === 'processing') {
+                this.pollImportStatus();
+            }
+        },
+
         // Multi-select state
         selected: [],
         bulkArchiveOpen: false,
+        bulkArchiving: false,
         pageIds: @json($seniors->pluck('id')),
 
         // Single-senior archive state
         singleArchiveOpen: false,
         singleArchiveName: '',
         singleArchiveId: null,
+        singleArchiving: false,
         openArchive(id, name) {
             this.singleArchiveId   = id;
             this.singleArchiveName = name;
             this.singleArchiveOpen = true;
+        },
+
+        // ── Archive actions — fetch() + Livewire.navigate() ───────────────
+        // Both the single-row and bulk archive confirmations POST here
+        // instead of doing a normal <form> submit (full browser navigation).
+        // The actual fetch/CSRF/method-override/error-handling logic lives
+        // in the shared window.OSCA.postAction() helper (resources/js/app.js)
+        // — identical to what seniors/archives.blade.php's archiveIndex()
+        // calls, so it's defined once, not copy-pasted per view. The
+        // controller (SeniorCitizenController::stateRedirect()) responds
+        // with { redirect } — the same URL a plain redirect()->back() would
+        // have sent the browser to, filters/search/page/sort intact — and
+        // Livewire.navigate() finishes the trip through the SPA layer, so
+        // the persisted sidebar/topbar shell never gets torn down. Never treated
+        // as done until the server actually replies: on a network error we
+        // still fall back to a real navigate (to resync from the server)
+        // rather than silently leaving the list in a possibly-stale state.
+        csrfToken: '{{ csrf_token() }}',
+        postAction(url, options) {
+            return window.OSCA.postAction(url, this.csrfToken, options);
+        },
+
+        // Modal-close (and, for bulk, selection-clear) below is gated on the
+        // resolved `ok` — never assumed. On success we close explicitly. On
+        // failure we leave the modal's open flag untouched: postAction()
+        // above has already called Livewire.navigate() regardless of
+        // outcome, which resyncs this page from the server and tears down /
+        // rebuilds this Alpine component (closing the modal as a side
+        // effect of the resync, not as an assumed "it worked") — while the
+        // flashed error toast (set server-side even on the failure path)
+        // renders on the resynced page. This avoids ever showing a
+        // success-shaped UI transition before the server has confirmed.
+        async confirmSingleArchive() {
+            if (this.singleArchiving || !this.singleArchiveId) return;
+            this.singleArchiving = true;
+            const ok = await this.postAction(`/seniors/${this.singleArchiveId}`, { method: 'DELETE' });
+            this.singleArchiving = false;
+            if (ok) this.singleArchiveOpen = false;
+        },
+
+        async confirmBulkArchive() {
+            if (this.bulkArchiving || this.selected.length === 0) return;
+            this.bulkArchiving = true;
+            const ok = await this.postAction('{{ route('seniors.bulk-archive') }}', {
+                method: 'POST',
+                body: { ids: this.selected },
+            });
+            this.bulkArchiving = false;
+            if (ok) {
+                this.bulkArchiveOpen = false;
+                this.selected = [];
+            }
         },
 
         toggleRow(id, checked) {

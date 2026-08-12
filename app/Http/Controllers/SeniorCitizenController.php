@@ -14,6 +14,7 @@ use App\Support\CoordinatePrivacy;
 use App\Support\DbHelper;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SeniorCitizenController extends Controller
@@ -57,7 +58,13 @@ class SeniorCitizenController extends Controller
                 ->count(),
         ];
 
-        return view('seniors.index', compact('seniors', 'barangays', 'stats'));
+        // Insert-phase status set by BulkUploadController::processUpload() —
+        // lets the bulk-upload modal show "Import in progress" on a fresh
+        // page load (staff navigated away mid-import and came back), same
+        // spirit as MlController::resumableBatch() for the ML half.
+        $bulkImportStatus = Cache::get('bulk-import-status:'.auth()->id());
+
+        return view('seniors.index', compact('seniors', 'barangays', 'stats', 'bulkImportStatus'));
     }
 
     /**
@@ -398,7 +405,7 @@ class SeniorCitizenController extends Controller
         return view('seniors.edit', compact('senior'));
     }
 
-    public function destroy(SeniorCitizen $senior)
+    public function destroy(SeniorCitizen $senior, Request $request)
     {
         $this->authorize('delete', $senior);
 
@@ -408,14 +415,14 @@ class SeniorCitizenController extends Controller
         $senior->qolSurveys()->each(fn ($s) => $s->delete());
         $senior->delete();
 
-        return redirect()->route('seniors.index')->with('success', 'Senior record archived.');
+        return $this->stateRedirect($request, 'seniors.index', 'success', 'Senior record archived.');
     }
 
     public function bulkDestroy(Request $request)
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         if (empty($ids)) {
-            return back()->with('error', 'No records selected.');
+            return $this->stateRedirect($request, 'seniors.index', 'error', 'No records selected.');
         }
         $seniors = SeniorCitizen::whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
@@ -426,14 +433,14 @@ class SeniorCitizenController extends Controller
         }
         $count = $seniors->count();
 
-        return redirect()->route('seniors.index')->with('success', "{$count} senior record(s) archived.");
+        return $this->stateRedirect($request, 'seniors.index', 'success', "{$count} senior record(s) archived.");
     }
 
     public function bulkRestore(Request $request)
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         if (empty($ids)) {
-            return back()->with('error', 'No records selected.');
+            return $this->stateRedirect($request, 'seniors.archives', 'error', 'No records selected.');
         }
         $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
@@ -444,14 +451,14 @@ class SeniorCitizenController extends Controller
         }
         $count = $seniors->count();
 
-        return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) restored.");
+        return $this->stateRedirect($request, 'seniors.archives', 'success', "{$count} senior record(s) restored.");
     }
 
     public function bulkForceDestroy(Request $request)
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         if (empty($ids)) {
-            return back()->with('error', 'No records selected.');
+            return $this->stateRedirect($request, 'seniors.archives', 'error', 'No records selected.');
         }
         $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
@@ -467,7 +474,7 @@ class SeniorCitizenController extends Controller
         }
         $count = $seniors->count();
 
-        return redirect()->route('seniors.archives')->with('success', "{$count} senior record(s) permanently deleted.");
+        return $this->stateRedirect($request, 'seniors.archives', 'success', "{$count} senior record(s) permanently deleted.");
     }
 
     public function archives(Request $request)
@@ -497,7 +504,7 @@ class SeniorCitizenController extends Controller
         return view('seniors.archives', compact('seniors', 'archivedSurveys', 'barangays'));
     }
 
-    public function restore(int $id)
+    public function restore(int $id, Request $request)
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
         // Restore all data that was soft-deleted when this senior was archived
@@ -508,10 +515,10 @@ class SeniorCitizenController extends Controller
             ->each(fn ($s) => $s->restore());
         $senior->restore();
 
-        return redirect()->route('seniors.archives')->with('success', 'Senior record restored to active.');
+        return $this->stateRedirect($request, 'seniors.archives', 'success', 'Senior record restored to active.');
     }
 
-    public function forceDestroy(int $id)
+    public function forceDestroy(int $id, Request $request)
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
 
@@ -523,7 +530,48 @@ class SeniorCitizenController extends Controller
         $senior->qolSurveys()->withTrashed()->each(fn ($s) => $s->forceDelete());
         $senior->forceDelete();
 
-        return redirect()->route('seniors.archives')->with('success', 'Senior record and all related data permanently deleted.');
+        return $this->stateRedirect($request, 'seniors.archives', 'success', 'Senior record and all related data permanently deleted.');
+    }
+
+    /**
+     * Redirect back to wherever the archive/delete/restore action was
+     * submitted from, preserving that page's full query string (filters,
+     * search, page, sort) instead of the bare named-route redirect this
+     * replaced (root cause of the "list state gets wiped on archive"
+     * report). back() resolves against the Referer header, which browsers
+     * send by default both for a same-origin <form> POST and for the
+     * fetch() calls seniors/index.blade.php and seniors/archives.blade.php
+     * now issue for these same actions — one code path covers both
+     * transports without the view needing to thread query params through
+     * hidden fields. $fallbackRoute only kicks in when there's no usable
+     * Referer (e.g. a bare API call with no browser context), matching this
+     * app's previous bare-redirect behavior for that edge case — and is
+     * exactly what the existing ArchiveCascadeTest/PolicyAuthorizationTest
+     * assertions exercise, since PHPUnit's test client sends no Referer.
+     *
+     * When the request wants JSON (the fetch() submissions above send
+     * Accept: application/json), the flash message and resolved redirect
+     * target are handed back as a JSON body instead of a 302, so the
+     * client's fetch() doesn't just silently follow the redirect to a
+     * response the page never renders — it reads `redirect` and finishes
+     * the navigation itself via Livewire.navigate(), reusing the @persist'd
+     * sidebar/topbar instead of a full document reload. Mirrors the
+     * $request->expectsJson() branch RecommendationController::updateStatus()
+     * already uses for the same non-Livewire-POST-wants-JSON shape.
+     */
+    private function stateRedirect(Request $request, string $fallbackRoute, string $flashKey, string $message)
+    {
+        $redirect = redirect()->back(fallback: route($fallbackRoute))->with($flashKey, $message);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => $flashKey !== 'error',
+                'message' => $message,
+                'redirect' => $redirect->getTargetUrl(),
+            ]);
+        }
+
+        return $redirect;
     }
 
     public function export(SeniorCitizen $senior)
