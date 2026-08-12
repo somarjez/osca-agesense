@@ -10,6 +10,9 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
         Route::get('/create', [SeniorCitizenController::class, 'create'])->name('create');
         Route::post('/', [SeniorCitizenController::class, 'store'])->name('store');
         Route::get('/bulk-upload/sample', [BulkUploadController::class, 'sample'])->name('bulk-upload.sample');
+        // Polled by seniors/index.blade.php to show insert-phase progress
+        // after a page reload/return — see BulkUploadController::status().
+        Route::get('/bulk-upload/status', [BulkUploadController::class, 'status'])->name('bulk-upload.status');
     });
 
     Route::middleware(['role:admin,encoder', 'no.time.limit'])->group(function () {

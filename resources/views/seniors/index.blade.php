@@ -281,6 +281,31 @@
     {{-- ── Bulk Upload Success / Error Flash ─────────────────────────────── --}}
     <x-bulk-upload-flash />
 
+    {{-- ── Bulk Import In-Progress Indicator ───────────────────────────────
+         Surfaces BulkUploadController's persisted status marker
+         (bulk-import-status:{user}, see status()/processUpload()) so the
+         insert phase — unlike the ML phase, which already has
+         ml/batch.blade.php's resumable poller — survives navigating away
+         and back. importStatus is seeded server-side (fresh page load /
+         "came back mid-import") and kept live by a 3s poll while
+         processing; a much smaller version of ml/batch.blade.php's pattern
+         since there's no cancel/elapsed-timer/resume-a-batch-id affordance
+         to rebuild here, just a status to display. --}}
+    <div x-show="importStatus && importStatus.status === 'processing'" x-cloak
+         class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 border-info-500 flex items-start gap-3 px-4 py-3">
+        <svg class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <div class="flex-1 min-w-0">
+            <p class="text-[13px] font-semibold text-ink-900">Import in progress</p>
+            <p class="text-[12px] text-ink-600 mt-0.5">
+                <span x-text="importStatus ? importStatus.processed : 0"></span> of
+                <span x-text="importStatus ? importStatus.total : 0"></span> row(s) processed&hellip;
+            </p>
+        </div>
+    </div>
+
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
     <div x-show="bulkArchiveOpen" x-cloak
          role="dialog"
@@ -544,6 +569,41 @@
 <script>
 function seniorIndex() {
     return {
+        // Bulk import status poller — seeded from the server (a status key
+        // already 'processing' means staff navigated away mid-import and
+        // came back, or reloaded); kept live by a 3s poll while processing.
+        // Deliberately not tied to the modal's local `uploading` flag: that
+        // one only reflects THIS tab's own in-flight submit() and dies on
+        // navigation, which is exactly the gap this fills.
+        importStatus: @json($bulkImportStatus ?? null),
+        importPollTimer: null,
+        importStatusUrl: '{{ route('seniors.bulk-upload.status') }}',
+        pollImportStatus() {
+            this.importPollTimer = setInterval(() => {
+                fetch(this.importStatusUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(d => {
+                        this.importStatus = d;
+                        if (d.status !== 'processing') {
+                            clearInterval(this.importPollTimer);
+                        }
+                    })
+                    .catch(() => {});
+            }, 3000);
+        },
+
+        init() {
+            // Same navigate-away teardown as ml/batch.blade.php's poller —
+            // without it, an unbounded setInterval from a torn-down
+            // component keeps firing against a detached Alpine instance.
+            document.addEventListener('livewire:navigating', () => {
+                clearInterval(this.importPollTimer);
+            });
+            if (this.importStatus && this.importStatus.status === 'processing') {
+                this.pollImportStatus();
+            }
+        },
+
         // Multi-select state
         selected: [],
         bulkArchiveOpen: false,

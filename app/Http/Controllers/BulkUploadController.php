@@ -186,8 +186,71 @@ class BulkUploadController extends Controller
 
     // ── Upload + import ───────────────────────────────────────────────────
 
+    /**
+     * Server-side double-submit guard — the only prior protection was a
+     * client-side `:disabled="uploading"` binding (seniors/index.blade.php),
+     * which does nothing against a resubmitted POST (double-click that beats
+     * the JS, browser back+resubmit). Row-level composite-key dedup already
+     * prevents duplicate SENIOR RECORDS on a second pass, but a second
+     * concurrent request still burns a full parse+chunked-insert pass and
+     * dispatches a second Bus::batch() for ML scoring, racing the first.
+     *
+     * Scoped per-user (not global) so two different staff can import
+     * different files at the same time — only a second import from the SAME
+     * user is rejected.
+     *
+     * TTL: nginx's fastcgi_read_timeout (conf/nginx/nginx-site.conf) is 90s
+     * and Cloudflare's own hard proxy ceiling is a non-configurable 100s (see
+     * CronTickController's comment for the full production-incident
+     * writeup) — a legitimately large import already gets its response
+     * killed by one of those before 120s, so 120s always outlives the
+     * request as the browser/proxy sees it. The margin above 90s covers PHP
+     * continuing past that point server-side (no.time.limit's
+     * set_time_limit(0) plus a proxy that doesn't necessarily abort the
+     * upstream fastcgi worker just because it stopped waiting) — the lock
+     * needs to outlive that tail, not just the visible request.
+     *
+     * Released in a finally so a mid-import exception (chunk failure,
+     * unexpected throw) can't leave a user permanently locked out.
+     */
     public function upload(BulkUploadRequest $request)
     {
+        $userId = auth()->id();
+        $lock = Cache::lock("bulk-import:{$userId}", 120);
+
+        if (! $lock->get()) {
+            return back()->withErrors([
+                'file' => 'Another import is already in progress for your account. Please wait for it to finish before starting a new one.',
+            ]);
+        }
+
+        try {
+            return $this->processUpload($request, $userId);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Persisted insert-phase status, polled from seniors/index.blade.php.
+     * The ML half already has this (job_batches + ml_current_batch cache key
+     * + ml_queued_at — see MlController::resumableBatch()); the insert phase
+     * had nothing equivalent, so "Importing…" (purely local Alpine state)
+     * died the instant the browser navigated away with no way to tell
+     * "still running" from "finished" without reloading the senior list and
+     * eyeballing the count. Written/updated by processUpload() below.
+     */
+    public function status()
+    {
+        $status = Cache::get('bulk-import-status:'.auth()->id());
+
+        return response()->json($status ?? ['status' => 'idle']);
+    }
+
+    private function processUpload(BulkUploadRequest $request, $userId)
+    {
+        $statusKey = "bulk-import-status:{$userId}";
+
         $file = $request->file('file');
         $ext = strtolower($file->getClientOriginalExtension());
 
@@ -274,6 +337,24 @@ class BulkUploadController extends Controller
         // (typically a handful) instead of one per row.
         $seqCounters = SeniorCitizen::oscaIdMaxSequences($candidateBarangays);
         $importYear = now()->format('Y');
+
+        // Status marker goes live here — before the chunked loop starts, per
+        // the class doc comment above status(). Updated after every chunk
+        // below and finalized once the whole import completes. 15min TTL:
+        // generously longer than any realistic import, but self-expiring
+        // rather than lingering forever if a request dies before the final
+        // write (e.g. a fatal error outside the per-chunk/per-ML try/catch).
+        $totalRows = count($dataRows);
+        $startedAt = now();
+        $processedRows = 0;
+        Cache::put($statusKey, [
+            'status' => 'processing',
+            'total' => $totalRows,
+            'processed' => 0,
+            'inserted' => 0,
+            'skipped' => 0,
+            'started_at' => $startedAt->toIso8601String(),
+        ], now()->addMinutes(15));
 
         $pairs = [];
         $usedOscaIds = [];
@@ -472,6 +553,20 @@ class BulkUploadController extends Controller
                 $errors[] = 'A batch of rows failed to import and was rolled back: '.$e->getMessage();
                 Log::warning('Bulk upload chunk failed', ['error' => $e->getMessage()]);
             }
+
+            // Updated after every chunk regardless of outcome — a rolled-back
+            // chunk still counts toward "processed" (rows attempted this
+            // pass), same spirit as ProcessMlBatch's per-chunk
+            // Cache::increment() on the ML side.
+            $processedRows += count($chunk);
+            Cache::put($statusKey, [
+                'status' => 'processing',
+                'total' => $totalRows,
+                'processed' => $processedRows,
+                'inserted' => $inserted,
+                'skipped' => $skipped,
+                'started_at' => $startedAt->toIso8601String(),
+            ], now()->addMinutes(15));
         }
 
         // Per-row events were suppressed above (see the withoutEvents() comment) to
@@ -556,6 +651,21 @@ class BulkUploadController extends Controller
         if ($mlWarning) {
             $errors[] = $mlWarning;
         }
+
+        // Final write — 'done' with the same summary the flash message
+        // shows, so a client that navigated away mid-import and polls
+        // status() after the fact sees the outcome rather than a status
+        // key stuck at 'processing' until its TTL expires.
+        Cache::put($statusKey, [
+            'status' => 'done',
+            'total' => $totalRows,
+            'processed' => $processedRows,
+            'inserted' => $inserted,
+            'skipped' => $skipped,
+            'started_at' => $startedAt->toIso8601String(),
+            'finished_at' => now()->toIso8601String(),
+            'message' => $msg,
+        ], now()->addMinutes(15));
 
         // When ML jobs were actually queued, send staff to the Batch
         // Assessment page instead of back to the senior list: its 3s poll

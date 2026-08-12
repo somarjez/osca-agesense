@@ -14,6 +14,7 @@ use App\Support\CoordinatePrivacy;
 use App\Support\DbHelper;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SeniorCitizenController extends Controller
@@ -57,7 +58,13 @@ class SeniorCitizenController extends Controller
                 ->count(),
         ];
 
-        return view('seniors.index', compact('seniors', 'barangays', 'stats'));
+        // Insert-phase status set by BulkUploadController::processUpload() —
+        // lets the bulk-upload modal show "Import in progress" on a fresh
+        // page load (staff navigated away mid-import and came back), same
+        // spirit as MlController::resumableBatch() for the ML half.
+        $bulkImportStatus = Cache::get('bulk-import-status:'.auth()->id());
+
+        return view('seniors.index', compact('seniors', 'barangays', 'stats', 'bulkImportStatus'));
     }
 
     /**
