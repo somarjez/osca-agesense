@@ -4,6 +4,7 @@ namespace App\Livewire\Surveys;
 
 use App\Models\ProfileDraft;
 use App\Models\SeniorCitizen;
+use App\Support\NameRules;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule as ValidationRule;
 use Livewire\Attributes\Rule;
@@ -283,6 +284,26 @@ class ProfileSurvey extends Component
         };
     }
 
+    /**
+     * Seeds the client-side nameGuard() Alpine component (resources/js/app.js)
+     * with the exact same pattern/message strings the server enforces in
+     * step1Rules()/step1Messages() (via NameRules — single source of truth)
+     * plus the current field values, so an Edit form carrying a legacy
+     * invalid name shows its error immediately on load rather than only at
+     * submit time.
+     */
+    public function nameGuardConfig(): array
+    {
+        return array_merge(NameRules::jsConfig(), [
+            'values' => [
+                'firstName' => $this->firstName,
+                'middleName' => $this->middleName,
+                'lastName' => $this->lastName,
+                'nameExtension' => $this->nameExtension,
+            ],
+        ]);
+    }
+
     public function save(): void
     {
         // Livewire network calls bypass HTTP route middleware, so enforce policy here
@@ -460,8 +481,10 @@ class ProfileSurvey extends Component
     private function step1Rules(): array
     {
         return [
-            'firstName' => 'required|string|max:100',
-            'lastName' => 'required|string|max:100',
+            'firstName' => ['required', 'string', 'max:100', NameRules::person()],
+            'middleName' => ['nullable', 'string', 'max:100', NameRules::person()],
+            'lastName' => ['required', 'string', 'max:100', NameRules::person()],
+            'nameExtension' => ['nullable', 'string', 'max:20', NameRules::suffix()],
             'barangay' => 'required|string|in:'.implode(',', SeniorCitizen::barangayList()),
             'officialOscaId' => [
                 'nullable', 'string', 'max:50',
@@ -479,6 +502,10 @@ class ProfileSurvey extends Component
     private function step1Messages(): array
     {
         return [
+            'firstName.regex' => NameRules::PERSON_MESSAGE,
+            'middleName.regex' => NameRules::PERSON_MESSAGE,
+            'lastName.regex' => NameRules::PERSON_MESSAGE,
+            'nameExtension.regex' => NameRules::SUFFIX_MESSAGE,
             'dateOfBirth.after_or_equal' => 'Date of birth must be in the year 1900 or later.',
             'dateOfBirth.before' => 'Date of birth must be in the past.',
             'registrationDate.after_or_equal' => 'Registration date must be in the year 1900 or later.',

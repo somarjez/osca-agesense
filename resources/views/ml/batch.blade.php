@@ -123,17 +123,30 @@
                 this.poll();
                 @endif
             },
-            start() {
+            async start() {
                 if (this.running) return;   // guard against double-run (rapid confirm clicks)
                 this.showConfirm = false;
-                this.running = true; this.done = false;
+                this.running = true;        // set BEFORE the pre-flight await so a second click while it's pending is also blocked
+                this.done = false;
                 this.errMsg = ''; this.resultMsg = ''; this.fallbackMsg = '';
                 this.processed = 0; this.failed = 0; this.progress = 0;
                 this.fallbackCount = 0; this.coldStartLikely = false;
+
+                // Fresh pre-flight check — opens the shared Wake Up Services
+                // modal (ml-service-guard.js) if the ML services are down,
+                // and waits for either a verified wake or Dismiss. Unlike
+                // the wakeStatusUrl fetch below (kept only for the
+                // in-progress still-working hint text), this ACTUALLY
+                // stops the batch from starting against a dead service.
+                const ready = await window.OSCA.requireMl();
+                if (!ready) { this.running = false; return; } // user dismissed — batch does not run
+
                 this.elapsed = 0;
                 this.timer = setInterval(() => this.elapsed++, 1000);
-                // Best-effort, doesn't block start() — a more confident
-                // signal than only guessing from elapsed time below.
+                // Best-effort, doesn't block start() — coldStartLikely only
+                // feeds the this-can-take-a-while hint text below while the
+                // batch runs; requireMl() above already confirmed current
+                // health, so this will almost always resolve false.
                 fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
                     .then(r => r.json())
                     .then(d => { if (d.mode !== 'http') this.coldStartLikely = true; })
@@ -405,8 +418,14 @@
                             pollTimer: null, pollCount: 0, pollMax: 60,
                             baseTs: {{ $ml?->processed_at?->timestamp ?? 0 }},
                             resultUrl: '{{ route('ml.result.senior', $senior) }}',
-                            run() {
+                            async run() {
+                                if (this.loading) return;
                                 this.loading = true; this.err = ''; this.pollCount = 0;
+                                // Fresh pre-flight check before this row's Run
+                                // request goes out — see window.OSCA.requireMl()
+                                // (app.js) and the shared modal in ml-service-guard.js.
+                                const ready = await window.OSCA.requireMl();
+                                if (!ready) { this.loading = false; return; }
                                 fetch('{{ route('ml.run.single', $senior) }}', {
                                     method: 'POST',
                                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }

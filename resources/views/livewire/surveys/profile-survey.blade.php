@@ -20,7 +20,7 @@
         'OSCA ID will be generated as "Unassigned"',
     ];
 @endphp
-<div class="max-w-6xl mx-auto" x-data="{}">
+<div class="max-w-6xl mx-auto" x-data="nameGuard(@js($this->nameGuardConfig()))">
 
     {{-- ── Header ── --}}
     <div class="flex items-start justify-between gap-4 mb-5">
@@ -148,24 +148,38 @@
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">First Name <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="text" wire:model="firstName" placeholder="Juan"
+                               @input="check('firstName', $event.target.value)"
+                               :aria-invalid="!!errors.firstName"
                                class="form-input">
-                        @error('firstName') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
+                        <p x-show="errors.firstName" x-cloak x-text="errors.firstName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1"></p>
+                        @error('firstName') <p x-show="!errors.firstName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Middle Name</label>
                         <input type="text" wire:model="middleName" placeholder="Santos"
+                               @input="check('middleName', $event.target.value)"
+                               :aria-invalid="!!errors.middleName"
                                class="form-input">
+                        <p x-show="errors.middleName" x-cloak x-text="errors.middleName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1"></p>
+                        @error('middleName') <p x-show="!errors.middleName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Last Name <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="text" wire:model="lastName" placeholder="Dela Cruz"
+                               @input="check('lastName', $event.target.value)"
+                               :aria-invalid="!!errors.lastName"
                                class="form-input">
-                        @error('lastName') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
+                        <p x-show="errors.lastName" x-cloak x-text="errors.lastName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1"></p>
+                        @error('lastName') <p x-show="!errors.lastName" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Name Extension</label>
                         <input type="text" wire:model="nameExtension" placeholder="Jr., Sr., II"
+                               @input="check('nameExtension', $event.target.value)"
+                               :aria-invalid="!!errors.nameExtension"
                                class="form-input">
+                        <p x-show="errors.nameExtension" x-cloak x-text="errors.nameExtension" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1"></p>
+                        @error('nameExtension') <p x-show="!errors.nameExtension" class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -621,6 +635,7 @@
                     <button type="button" wire:click="nextStep"
                             wire:loading.attr="disabled"
                             wire:target="nextStep"
+                            :disabled="hasNameError"
                             class="btn btn-primary">
                         <span wire:loading.remove wire:target="nextStep" class="inline-flex items-center gap-1.5">
                             Next
@@ -638,6 +653,7 @@
                     <button wire:click="save"
                             wire:loading.attr="disabled"
                             wire:target="save"
+                            :disabled="hasNameError"
                             class="btn btn-primary">
                         <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
                             <x-heroicon-o-check class="w-4 h-4" />

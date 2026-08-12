@@ -269,4 +269,179 @@ class ProfileSurveyValidationTest extends TestCase
             ->call('nextStep')
             ->assertHasErrors(['communityService.0']);
     }
+
+    // ── Name validation (App\Support\NameRules) ─────────────────────────────
+    // Reported by the IT Expert: numeric/alphanumeric names were accepted on
+    // New Profile, and invalid characters survived an Edit. These assert the
+    // server-side rule directly via Livewire::test() — i.e. exactly a
+    // "manually constructed request", bypassing the nameGuard() JS entirely —
+    // so a client that skips the JS validation is still rejected.
+
+    public static function invalidNames(): array
+    {
+        return [
+            'trailing digits' => ['Juan123'],
+            'leading digits' => ['123Juan'],
+            'digit in middle' => ['J0hn'],
+            'letters then digits' => ['Maria2026'],
+            'digits only' => ['12345'],
+            'trailing single digit' => ['Jezreel1'],
+            'leetspeak digit' => ['R4mos'],
+            'at symbol' => ['Juan@'],
+            'hash symbol' => ['Maria#'],
+            'dollar symbol' => ['Pedro$'],
+            'underscore' => ['Test_User'],
+            'percent symbol' => ['Ana%'],
+            'asterisk' => ['John*'],
+            'angle brackets' => ['Juan<>'],
+            'script tag' => ['<script>'],
+        ];
+    }
+
+    public static function validNames(): array
+    {
+        return [
+            'simple' => ['Juan'],
+            'multi word' => ['Juan Dela Cruz'],
+            'hyphenated' => ['Anne-Marie'],
+            'apostrophe' => ["O'Connor"],
+            'abbreviation with period' => ['Ma. Teresa'],
+            'accented letter' => ['José'],
+            'combining tilde' => ['Dela Peña'],
+        ];
+    }
+
+    #[Test]
+    public function create_profile_rejects_invalid_first_and_last_names(): void
+    {
+        foreach (self::invalidNames() as $label => [$name]) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('firstName', $name)
+                ->call('nextStep')
+                ->assertHasErrors(['firstName'], "firstName should reject [{$label}]: {$name}");
+
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('lastName', $name)
+                ->call('nextStep')
+                ->assertHasErrors(['lastName'], "lastName should reject [{$label}]: {$name}");
+        }
+
+        $this->assertDatabaseMissing('senior_citizens', ['last_name' => 'Santos', 'first_name' => 'Juan123']);
+    }
+
+    #[Test]
+    public function create_profile_accepts_legitimate_names(): void
+    {
+        foreach (self::validNames() as [$name]) {
+            Livewire::test(ProfileSurvey::class)
+                ->set('firstName', $name)
+                ->set('lastName', 'Santos')
+                ->set('barangay', 'Anibong')
+                ->set('dateOfBirth', '1948-05-02')
+                ->call('save')
+                ->assertHasNoErrors(['firstName'])
+                ->assertSet('saved', true);
+
+            $this->assertDatabaseHas('senior_citizens', ['first_name' => $name, 'last_name' => 'Santos']);
+
+            SeniorCitizen::where('first_name', $name)->where('last_name', 'Santos')->delete();
+        }
+    }
+
+    #[Test]
+    public function middle_name_and_name_extension_follow_the_same_character_rule(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('middleName', 'Santos123')
+            ->call('nextStep')
+            ->assertHasErrors(['middleName']);
+
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('nameExtension', 'Jr#')
+            ->call('nextStep')
+            ->assertHasErrors(['nameExtension']);
+    }
+
+    #[Test]
+    public function name_extension_accepts_common_suffixes(): void
+    {
+        foreach (['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'] as $suffix) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('nameExtension', $suffix)
+                ->call('nextStep')
+                ->assertHasNoErrors(['nameExtension']);
+        }
+    }
+
+    #[Test]
+    public function middle_name_and_name_extension_remain_optional(): void
+    {
+        // nullable — an empty middleName/nameExtension must not trip the
+        // character-format rule (that's a different concern from
+        // required-ness, which neither field has).
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('middleName', '')
+            ->set('nameExtension', '')
+            ->call('save')
+            ->assertHasNoErrors(['middleName', 'nameExtension'])
+            ->assertSet('saved', true);
+    }
+
+    #[Test]
+    public function edit_profile_rejects_invalid_name_characters_same_as_create(): void
+    {
+        // The IT Expert's second report: "pag nag-edit ako ng name may chars
+        // na naretain" — Edit must reject exactly like Create. Both forms
+        // are the same ProfileSurvey component/step1Rules(), so this is the
+        // regression guard for that shared path staying shared.
+        $senior = $this->makeSenior();
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('firstName', 'Maria123')
+            ->call('nextStep')
+            ->assertHasErrors(['firstName']);
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('lastName', 'Maria123')
+            ->call('save')
+            ->assertHasErrors(['lastName']);
+
+        $senior->refresh();
+        $this->assertSame('Juan', $senior->first_name);
+        $this->assertSame('Dela Cruz', $senior->last_name);
+    }
+
+    #[Test]
+    public function edit_profile_accepts_a_legitimate_name_change(): void
+    {
+        $senior = $this->makeSenior();
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('firstName', 'Maria')
+            ->set('lastName', 'Maria Clara')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $senior->refresh();
+        $this->assertSame('Maria', $senior->first_name);
+        $this->assertSame('Maria Clara', $senior->last_name);
+    }
+
+    #[Test]
+    public function edit_profile_does_not_silently_retain_stale_invalid_name_after_a_rejected_save(): void
+    {
+        // Guards the exact "characters retained" failure mode: a rejected
+        // save() must leave the STORED record untouched, not partially
+        // apply the attempted (invalid) value.
+        $senior = $this->makeSenior();
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('firstName', 'Juan99')
+            ->call('save')
+            ->assertHasErrors(['firstName']);
+
+        $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'first_name' => 'Juan']);
+        $this->assertDatabaseMissing('senior_citizens', ['id' => $senior->id, 'first_name' => 'Juan99']);
+    }
 }

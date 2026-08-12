@@ -38,42 +38,71 @@
 @persist('ml-service-guard')
 <div x-data="mlServiceGuard(@js($mlGuardConfig))">
 
-    {{-- Warning modal — shown once per tab session the moment services are detected down --}}
-    <x-modal show="modalOpen" max-width="max-w-md" ariaLabel="Analysis services are turned off" :closeable="true">
+    {{--
+        Warning / wake-progress modal. Reflects CURRENT service status, not
+        whether it has already been shown before this tab session — it opens
+        every time the shared health poller (ml-health.js) detects a NEW
+        outage (see mlServiceGuard._applyHealth()'s isDown/wasKnownDown
+        check), and again whenever a pending ML-dependent operation calls
+        window.OSCA.mlGate.require() while services are still down, even if
+        an earlier background warning for the SAME outage was dismissed.
+        `phase` (ml-service-guard.js) drives every branch below: checking |
+        inactive | waking | active | error.
+    --}}
+    <x-modal show="modalOpen" max-width="max-w-md" ariaLabel="Analysis services status" :closeable="true">
         <div class="flex flex-col items-center text-center">
-            <div class="w-12 h-12 rounded-2xl grid place-items-center bg-moderate-50 dark:bg-moderate-900/30 text-moderate-700 dark:text-moderate-300">
-                <x-heroicon-o-exclamation-triangle class="w-6 h-6" aria-hidden="true" />
+            <div class="w-12 h-12 rounded-2xl grid place-items-center"
+                 :class="phase === 'active'
+                    ? 'bg-low-50 dark:bg-low-900/30 text-low-700 dark:text-low-300'
+                    : (phase === 'error'
+                        ? 'bg-critical-50 dark:bg-critical-900/30 text-critical-700 dark:text-critical-300'
+                        : 'bg-moderate-50 dark:bg-moderate-900/30 text-moderate-700 dark:text-moderate-300')">
+                <x-heroicon-o-check-circle class="w-6 h-6" aria-hidden="true" x-show="phase === 'active'" x-cloak />
+                <x-heroicon-o-exclamation-triangle class="w-6 h-6" aria-hidden="true" x-show="phase !== 'active'" x-cloak />
             </div>
-            <h2 class="card-title mt-3.5 mb-1.5">Warning! Services are turned off</h2>
-            <div class="w-full text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed space-y-2">
-                <p>
-                    The analysis services aren't reachable right now. The system is still usable, but
-                    assessments will run on a lower-quality fallback until the services are back.
-                </p>
 
-                <template x-if="waking">
+            <h2 class="card-title mt-3.5 mb-1.5">
+                <template x-if="phase === 'waking'"><span>Starting Analysis Services…</span></template>
+                <template x-if="phase === 'active'"><span>Analysis Services Ready</span></template>
+                <template x-if="phase === 'error'"><span>Unable to Start Analysis Services</span></template>
+                <template x-if="phase !== 'waking' && phase !== 'active' && phase !== 'error'"><span>Analysis Services Inactive</span></template>
+            </h2>
+
+            <div class="w-full text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed space-y-2">
+                <template x-if="phase === 'inactive' || phase === 'checking'">
+                    <p>
+                        It has been a while since the analysis services were active. They may have gone to
+                        sleep due to inactivity. The system is still usable, but assessments will run on a
+                        lower-quality fallback until the services are back. Wake up the services to continue
+                        using analysis features?
+                    </p>
+                </template>
+
+                <template x-if="phase === 'waking'">
                     <p class="flex items-center justify-center gap-2 text-ink-500 dark:text-[#8a9a92] font-medium">
                         <span class="btn-spinner" aria-hidden="true"></span>
-                        <span>Waking services… <span x-text="fmt(wakeElapsed)"></span></span>
+                        <span>Please wait while the required services become available… <span x-text="fmt(wakeElapsed)"></span></span>
                     </p>
                 </template>
 
-                <template x-if="wakeDone">
-                    <p class="text-accent-700 dark:text-accent-300 font-medium">Services are back online.</p>
+                <template x-if="phase === 'active'">
+                    <p class="text-low-700 dark:text-low-300 font-medium">Analysis services are ready.</p>
                 </template>
 
-                <template x-if="wakeGaveUp">
-                    <p class="text-high-700 dark:text-high-300">
-                        Still waking up after several minutes. You can try again, or check back shortly.
-                    </p>
-                </template>
-
-                <template x-if="wakeError">
-                    <p class="text-high-700 dark:text-high-300" x-text="wakeError"></p>
+                <template x-if="phase === 'error'">
+                    <div class="space-y-1.5">
+                        <p class="text-critical-700 dark:text-[#e08070] font-medium">
+                            Unable to start the analysis services. Please try again.
+                        </p>
+                        <p class="text-ink-500 dark:text-[#8a9a92]" x-show="wakeGaveUp" x-cloak>
+                            Still waking up after several minutes. You can retry, or check back shortly.
+                        </p>
+                        <p class="text-ink-500 dark:text-[#8a9a92]" x-show="wakeError" x-cloak x-text="wakeError"></p>
+                    </div>
                 </template>
 
                 @if($canControlLocal && ! $canStartLocal)
-                    <p class="text-ink-500 dark:text-[#8a9a92]">Ask an admin or encoder to start the services locally.</p>
+                    <p class="text-ink-500 dark:text-[#8a9a92]" x-show="phase === 'inactive' || phase === 'checking' || phase === 'error'" x-cloak>Ask an admin or encoder to start the services locally.</p>
                 @endif
             </div>
         </div>
@@ -88,11 +117,11 @@
                     <span x-show="!starting" x-cloak>Start Services</span>
                 </button>
             @elseif(! $canControlLocal)
-                <button type="button" @click="startWake()" :disabled="waking"
+                <button type="button" @click="startWake()" :disabled="waking || phase === 'active'"
                         class="btn btn-primary flex-1 justify-center">
                     <span x-show="waking" x-cloak>Waking…</span>
-                    <span x-show="!waking && wakeGaveUp" x-cloak>Try Again</span>
-                    <span x-show="!waking && !wakeGaveUp" x-cloak>Wake Services</span>
+                    <span x-show="!waking && phase === 'error'" x-cloak>Retry</span>
+                    <span x-show="!waking && phase !== 'error'" x-cloak>Wake Up Services</span>
                 </button>
             @endif
         </x-slot:footer>
@@ -104,7 +133,8 @@
         </form>
     @endif
 
-    {{-- Live status toast — fires on every state change after the initial modal --}}
+    {{-- Live status toast — background outage recovery, and any tick that
+         doesn't warrant reopening the modal (see mlServiceGuard.js). --}}
     <div x-show="toast.show"
          x-cloak
          x-transition:enter="transition ease-out duration-300"
