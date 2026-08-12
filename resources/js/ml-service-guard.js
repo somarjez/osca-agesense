@@ -42,6 +42,14 @@ document.addEventListener('alpine:init', () => {
         _requirePromise: null,
         _requireResolve: null,
 
+        // Last RAW health reading seen (regardless of whether it was trusted
+        // enough to update `dot`/close the modal) — see _applyHealth()'s
+        // recovery-confirmation check below.
+        _rawDot: null,
+
+        // Explicit wake flow's confirmation counterpart — see _noteWakeSignal().
+        _lastWakeSignalPositive: false,
+
         init() {
             // Seed from whatever the shared poller already knows (it starts
             // polling at import time, so this may already be fresh) rather
@@ -87,17 +95,34 @@ document.addEventListener('alpine:init', () => {
         },
 
         _applyHealth(newDot, title) {
-            const previous = this.dot;
-            this.dot = newDot;
+            const wasKnownDown = this.dot === 'err' || this.dot === 'warn';
+            const previousRaw = this._rawDot;
+            this._rawDot = newDot;
 
-            const wasKnownDown = previous === 'err' || previous === 'warn';
             const isOk = newDot === 'ok';
             const isDown = newDot === 'err' || newDot === 'warn';
 
             if (isOk) {
+                // A single successful reading right after a known outage can
+                // be a Render cold-start false positive — the container's
+                // port is bound and it answers /health once, but the model
+                // isn't actually loaded yet, or it re-sleeps moments later.
+                // Trusting that one reading used to flash the modal straight
+                // to "services are ready" (closing it) only for the very
+                // next check, seconds later, to say the opposite — reported
+                // as "it shows Services are Enabled but it's not". Require
+                // the PREVIOUS raw reading to have ALSO been ok before
+                // treating a post-outage recovery as real; a fresh page load
+                // (previousRaw === null) or a recovery when nothing was ever
+                // confirmed down needs no such corroboration.
+                if (wasKnownDown && previousRaw !== 'ok') {
+                    return; // wait for the next tick to corroborate — dot/modal stay exactly as they were
+                }
+
                 if (wasKnownDown) {
                     this.showToast('success', 'Analysis services are back online.');
                 }
+                this.dot = newDot;
                 if (this.modalOpen || this.waking) {
                     this.modalOpen = false;
                     this.stopWake();
@@ -105,6 +130,8 @@ document.addEventListener('alpine:init', () => {
                 this._settleRequire(true);
                 return;
             }
+
+            this.dot = newDot;
 
             // (Re)open the modal only on a GENUINE transition into a down
             // state — previous confirmed reading was ok, or this is the
@@ -191,6 +218,7 @@ document.addEventListener('alpine:init', () => {
             this.wakeStartedAt = Date.now();
             this.wakeElapsed = 0;
             this.wakeFailCount = 0;
+            this._lastWakeSignalPositive = false;
 
             // Bonus fast path only — see status.blade.php's startWake() for why
             // this isn't depended on (client network may block *.onrender.com).
@@ -229,7 +257,7 @@ document.addEventListener('alpine:init', () => {
                 })
                 .then((d) => {
                     this.wakeRequestInFlight = false;
-                    if (d.ready && this.waking) this.finishWake();
+                    if (this.waking) this._noteWakeSignal(!!d.ready);
                 })
                 .catch((err) => {
                     this.wakeRequestInFlight = false;
@@ -248,7 +276,7 @@ document.addEventListener('alpine:init', () => {
                 })
                 .then((d) => {
                     this.wakeFailCount = 0;
-                    if (d.mode === 'http') this.finishWake();
+                    this._noteWakeSignal(d.mode === 'http');
                 })
                 .catch(() => {
                     this.wakeFailCount++;
@@ -257,6 +285,23 @@ document.addEventListener('alpine:init', () => {
                         this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
                     }
                 });
+        },
+
+        // Requires TWO consecutive positive readings (each from the existing
+        // ~3s wake-poll cadence — see pollWake()) before declaring the
+        // services actually ready. A single positive from either the POST
+        // /ml/wake response or the GET /ml/wake-status check can be a
+        // Render cold-start false positive (container port bound, model not
+        // loaded yet, or it re-sleeps moments later); trusting it
+        // immediately used to close the modal on a wake that wasn't
+        // actually done. A negative reading resets the streak, so it takes
+        // two IN A ROW, not just two total.
+        _noteWakeSignal(positive) {
+            if (positive && this._lastWakeSignalPositive) {
+                this.finishWake();
+            } else {
+                this._lastWakeSignalPositive = positive;
+            }
         },
 
         // Unlike the status page, we don't force a reload — the guard mounts on
