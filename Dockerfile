@@ -14,6 +14,13 @@ FROM richarvey/nginx-php-fpm:3.1.6
 COPY . .
 COPY --from=assets /app/public/build /var/www/html/public/build
 
+# OPcache is already on by default in this base image (php.ini-development's
+# stock settings, sed-uncommented — see conf/php/opcache-production.ini for
+# the full verification writeup), but not tuned for production. conf.d files
+# load AFTER php.ini, so this overrides the base image's opcache.* values
+# without touching php.ini directly.
+COPY conf/php/opcache-production.ini /usr/local/etc/php/conf.d/opcache-production.ini
+
 # Image config
 ENV SKIP_COMPOSER=1
 ENV PHP_ERRORS_STDERR=1
