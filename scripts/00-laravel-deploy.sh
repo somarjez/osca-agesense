@@ -14,6 +14,9 @@ chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache || echo "WARNIN
 echo "Running composer"
 composer install --no-dev --optimize-autoloader --working-dir=/var/www/html
 
+echo "OPcache config:"
+php -i | grep -E 'opcache\.(enable|memory_consumption|validate_timestamps|max_accelerated_files)'
+
 echo "Linking storage..."
 php artisan storage:link || true
 

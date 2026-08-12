@@ -199,16 +199,22 @@ class BulkUploadController extends Controller
      * different files at the same time — only a second import from the SAME
      * user is rejected.
      *
-     * TTL: nginx's fastcgi_read_timeout (conf/nginx/nginx-site.conf) is 90s
-     * and Cloudflare's own hard proxy ceiling is a non-configurable 100s (see
-     * CronTickController's comment for the full production-incident
-     * writeup) — a legitimately large import already gets its response
-     * killed by one of those before 120s, so 120s always outlives the
-     * request as the browser/proxy sees it. The margin above 90s covers PHP
-     * continuing past that point server-side (no.time.limit's
-     * set_time_limit(0) plus a proxy that doesn't necessarily abort the
-     * upstream fastcgi worker just because it stopped waiting) — the lock
-     * needs to outlive that tail, not just the visible request.
+     * TTL: matches the bulk-import-status cache TTL (15min / 900s, see
+     * processUpload()'s putImportStatus() calls) rather than the
+     * request-timeout envelope this used to be sized against. That older
+     * model (nginx's 90s fastcgi_read_timeout / Cloudflare's 100s ceiling,
+     * plus a margin for no.time.limit's set_time_limit(0) letting PHP keep
+     * running after the browser/proxy gives up) picked 120s as "outlives the
+     * visible request" — but a genuinely long import can still exceed that,
+     * and no.time.limit means PHP keeps working server-side while the lock
+     * expires underneath it. A natural retry after a timeout (same user,
+     * same "it's taking a while" instinct) would then race a second
+     * concurrent import + Bus::batch() against the first — exactly what this
+     * lock exists to prevent. Tying the lock TTL to the same 15-minute
+     * window the status cache already uses means both now agree on one
+     * model of "how long can an import run" — a timeout-triggered retry
+     * finds the lock still held for as long as the run could still be
+     * legitimately in flight, instead of two mismatched assumptions.
      *
      * Released in a finally so a mid-import exception (chunk failure,
      * unexpected throw) can't leave a user permanently locked out.
@@ -216,7 +222,7 @@ class BulkUploadController extends Controller
     public function upload(BulkUploadRequest $request)
     {
         $userId = auth()->id();
-        $lock = Cache::lock("bulk-import:{$userId}", 120);
+        $lock = Cache::lock("bulk-import:{$userId}", 900);
 
         if (! $lock->get()) {
             return back()->withErrors([
@@ -247,10 +253,25 @@ class BulkUploadController extends Controller
         return response()->json($status ?? ['status' => 'idle']);
     }
 
+    /**
+     * Single write path for the bulk-import-status:{user} cache key —
+     * previously three near-identical Cache::put() literals (initial
+     * "processing", per-chunk progress, final "done"), which made it easy
+     * for one call site to drift from the others (key format, TTL) and made
+     * it awkward to add the 'failed' writes below on the parse/validation
+     * early-return paths, which used to skip the status cache entirely.
+     */
+    private function putImportStatus(int $userId, string $status, array $extra = []): void
+    {
+        Cache::put(
+            "bulk-import-status:{$userId}",
+            array_merge(['status' => $status], $extra),
+            now()->addMinutes(15)
+        );
+    }
+
     private function processUpload(BulkUploadRequest $request, $userId)
     {
-        $statusKey = "bulk-import-status:{$userId}";
-
         $file = $request->file('file');
         $ext = strtolower($file->getClientOriginalExtension());
 
@@ -262,7 +283,10 @@ class BulkUploadController extends Controller
                 $rows = $this->parseCsv($file->getRealPath());
             }
         } catch (\Throwable $e) {
-            return back()->withErrors(['file' => 'Could not parse file: '.$e->getMessage()]);
+            $message = 'Could not parse file: '.$e->getMessage();
+            $this->putImportStatus($userId, 'failed', ['message' => $message]);
+
+            return back()->withErrors(['file' => $message]);
         }
 
         if (count($rows) < 2) {
@@ -278,9 +302,10 @@ class BulkUploadController extends Controller
 
         $missing = array_diff(self::REQUIRED_COLUMNS, $header);
         if ($missing) {
-            return back()->withErrors([
-                'file' => 'Missing required columns: '.implode(', ', $missing).'. Download the sample template to see the expected format.',
-            ]);
+            $message = 'Missing required columns: '.implode(', ', $missing).'. Download the sample template to see the expected format.';
+            $this->putImportStatus($userId, 'failed', ['message' => $message]);
+
+            return back()->withErrors(['file' => $message]);
         }
 
         $dataRows = array_slice($rows, 1, null, true);
@@ -347,14 +372,13 @@ class BulkUploadController extends Controller
         $totalRows = count($dataRows);
         $startedAt = now();
         $processedRows = 0;
-        Cache::put($statusKey, [
-            'status' => 'processing',
+        $this->putImportStatus($userId, 'processing', [
             'total' => $totalRows,
             'processed' => 0,
             'inserted' => 0,
             'skipped' => 0,
             'started_at' => $startedAt->toIso8601String(),
-        ], now()->addMinutes(15));
+        ]);
 
         $pairs = [];
         $usedOscaIds = [];
@@ -559,14 +583,13 @@ class BulkUploadController extends Controller
             // pass), same spirit as ProcessMlBatch's per-chunk
             // Cache::increment() on the ML side.
             $processedRows += count($chunk);
-            Cache::put($statusKey, [
-                'status' => 'processing',
+            $this->putImportStatus($userId, 'processing', [
                 'total' => $totalRows,
                 'processed' => $processedRows,
                 'inserted' => $inserted,
                 'skipped' => $skipped,
                 'started_at' => $startedAt->toIso8601String(),
-            ], now()->addMinutes(15));
+            ]);
         }
 
         // Per-row events were suppressed above (see the withoutEvents() comment) to
@@ -656,8 +679,7 @@ class BulkUploadController extends Controller
         // shows, so a client that navigated away mid-import and polls
         // status() after the fact sees the outcome rather than a status
         // key stuck at 'processing' until its TTL expires.
-        Cache::put($statusKey, [
-            'status' => 'done',
+        $this->putImportStatus($userId, 'done', [
             'total' => $totalRows,
             'processed' => $processedRows,
             'inserted' => $inserted,
@@ -665,7 +687,7 @@ class BulkUploadController extends Controller
             'started_at' => $startedAt->toIso8601String(),
             'finished_at' => now()->toIso8601String(),
             'message' => $msg,
-        ], now()->addMinutes(15));
+        ]);
 
         // When ML jobs were actually queued, send staff to the Batch
         // Assessment page instead of back to the senior list: its 3s poll

@@ -281,7 +281,7 @@
     {{-- ── Bulk Upload Success / Error Flash ─────────────────────────────── --}}
     <x-bulk-upload-flash />
 
-    {{-- ── Bulk Import In-Progress Indicator ───────────────────────────────
+    {{-- ── Bulk Import In-Progress / Failed Indicator ──────────────────────
          Surfaces BulkUploadController's persisted status marker
          (bulk-import-status:{user}, see status()/processUpload()) so the
          insert phase — unlike the ML phase, which already has
@@ -290,20 +290,31 @@
          "came back mid-import") and kept live by a 3s poll while
          processing; a much smaller version of ml/batch.blade.php's pattern
          since there's no cancel/elapsed-timer/resume-a-batch-id affordance
-         to rebuild here, just a status to display. --}}
-    <div x-show="importStatus && importStatus.status === 'processing'" x-cloak
-         class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 border-info-500 flex items-start gap-3 px-4 py-3">
-        <svg class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+         to rebuild here, just a status to display. Also shows 'failed' (the
+         parse/missing-column early-return paths now write this instead of
+         leaving a stale 'processing'/'done' from a prior successful run) —
+         same border-l-4 card as 'processing' but in the app's existing
+         high-* danger palette (see the file-error alert above) rather than
+         info-blue, so the two states read as visually distinct at a glance. --}}
+    <div x-show="importStatus && (importStatus.status === 'processing' || importStatus.status === 'failed')" x-cloak
+         :class="importStatus && importStatus.status === 'failed' ? 'border-high-500' : 'border-info-500'"
+         class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 flex items-start gap-3 px-4 py-3">
+        <svg x-show="importStatus && importStatus.status === 'processing'" class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
+        <x-heroicon-o-exclamation-triangle x-show="importStatus && importStatus.status === 'failed'" x-cloak class="w-5 h-5 text-high-600 flex-shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-            <p class="text-[13px] font-semibold text-ink-900">Import in progress</p>
-            <p class="text-[12px] text-ink-600 mt-0.5">
+            <p class="text-[13px] font-semibold text-ink-900" x-text="importStatus && importStatus.status === 'failed' ? 'Import failed' : 'Import in progress'"></p>
+            <p class="text-[12px] text-ink-600 mt-0.5" x-show="importStatus && importStatus.status === 'processing'">
                 <span x-text="importStatus ? importStatus.processed : 0"></span> of
                 <span x-text="importStatus ? importStatus.total : 0"></span> row(s) processed&hellip;
             </p>
+            <p class="text-[12px] text-high-700 mt-0.5" x-show="importStatus && importStatus.status === 'failed'" x-text="importStatus ? importStatus.message : ''"></p>
         </div>
+        <button @click="importStatus = null" class="text-ink-300 hover:text-ink-600 flex-shrink-0">
+            <x-heroicon-o-x-mark class="w-4 h-4" />
+        </button>
     </div>
 
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
@@ -579,6 +590,11 @@ function seniorIndex() {
         importPollTimer: null,
         importStatusUrl: '{{ route('seniors.bulk-upload.status') }}',
         pollImportStatus() {
+            // Guard against a pre-existing interval — pollImportStatus() can
+            // be called more than once per page lifetime (e.g. re-triggered
+            // after init() already started one), and without this an earlier
+            // timer keeps running orphaned, doubling up fetches.
+            clearInterval(this.importPollTimer);
             this.importPollTimer = setInterval(() => {
                 fetch(this.importStatusUrl, { headers: { 'Accept': 'application/json' } })
                     .then(r => r.json())
@@ -588,7 +604,7 @@ function seniorIndex() {
                             clearInterval(this.importPollTimer);
                         }
                     })
-                    .catch(() => {});
+                    .catch(err => console.debug('bulk-import status poll failed', err));
             }, 3000);
         },
 
@@ -596,9 +612,17 @@ function seniorIndex() {
             // Same navigate-away teardown as ml/batch.blade.php's poller —
             // without it, an unbounded setInterval from a torn-down
             // component keeps firing against a detached Alpine instance.
+            // { once: true }: Phase 3 made returning to this page routine
+            // (every bulk action ends in Livewire.navigate() back here), and
+            // init() re-runs on each visit — without `once`, each visit
+            // registered another permanent document-level listener that
+            // outlives its own Alpine instance, an unbounded leak over a
+            // long-lived SPA session. `once` lets each visit's listener
+            // clean itself up after the next navigation fires it, same as
+            // the fresh one this init() call is about to register.
             document.addEventListener('livewire:navigating', () => {
                 clearInterval(this.importPollTimer);
-            });
+            }, { once: true });
             if (this.importStatus && this.importStatus.status === 'processing') {
                 this.pollImportStatus();
             }

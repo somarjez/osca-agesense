@@ -383,6 +383,7 @@ try {
 
     # ── [4/4] Done — the loading page's own JS polls $APP_URL and redirects ───────
     Log "[4/4] All services launched. Loading page will redirect to $APP_URL once it responds."
+    Log "Optional local speed-up: bootstrap\cache\ has no config/route cache yet. Run 'php artisan config:cache && php artisan route:cache' manually for a faster boot (not run automatically here, so local config/route edits keep taking effect without a manual cache:clear)."
     Log "System start sequence complete."
     exit 0
 } catch {
