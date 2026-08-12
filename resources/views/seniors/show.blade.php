@@ -58,14 +58,25 @@
                             clearInterval(this.elapsedTimer);
                         });
                     },
-                    run() {
+                    async run() {
+                        if (this.loading || this.done) return;
                         this.loading = true; this.err = ''; this.pollCount = 0;
                         this.done = false; this.fallbackUsed = false;
-                        this.elapsed = 0; this.coldStartLikely = false;
+                        this.coldStartLikely = false;
+
+                        // Fresh pre-flight check before the run request goes
+                        // out — see window.OSCA.requireMl() (app.js) and the
+                        // shared modal in ml-service-guard.js. Runs before
+                        // elapsedTimer starts, so a dismissed check leaves no
+                        // stray timer behind.
+                        const ready = await window.OSCA.requireMl();
+                        if (!ready) { this.loading = false; return; }
+
+                        this.elapsed = 0;
                         this.elapsedTimer = setInterval(() => this.elapsed++, 1000);
-                        // Best-effort, doesn't block run() — just lets us show a
-                        // more confident a-service-is-asleep message right away
-                        // instead of only guessing from elapsed time below.
+                        // Best-effort, doesn't block run() — requireMl() above
+                        // already confirmed current health; this only feeds
+                        // the still-working hint text below while polling.
                         fetch('{{ route('ml.wake-status') }}', { headers: { 'Accept': 'application/json' } })
                             .then(r => r.json())
                             .then(d => { if (d.mode !== 'http') this.coldStartLikely = true; })

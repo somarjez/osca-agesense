@@ -101,6 +101,15 @@
            transition-colors placeholder:text-ink-300;
   }
 
+  /* Real-time client-side field error state (e.g. nameGuard()) — same
+     critical tokens the existing @error() text already uses, so an invalid
+     field reads consistently whether the error came from Alpine or Livewire.
+     critical-500/700 are the only shades this palette defines (see
+     tailwind.config.js) — @apply fails the build on any other shade. */
+  .form-input[aria-invalid="true"] {
+    @apply border-critical-500 focus:ring-critical-500/20 focus:border-critical-500;
+  }
+
   /* Buttons */
   .btn {
     @apply inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium border

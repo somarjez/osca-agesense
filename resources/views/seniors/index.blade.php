@@ -763,9 +763,18 @@ function seniorIndex() {
             inp.value = '';
         },
 
-        submit() {
-            if (!this.fileName) return;
+        async submit() {
+            if (!this.fileName || this.uploading) return;
             this.uploading = true;
+            // Fresh pre-flight check — parsing/validation/DB import don't
+            // need the ML services, only the risk-scoring stage queued at
+            // the end of the same request does. So unlike Batch/Individual
+            // Analysis and Re-run Assessment, the import still proceeds on
+            // Dismiss: seniors get saved and scoring queues (or falls back)
+            // as usual — this only offers a wake first so scoring can run
+            // against the real model instead. See window.OSCA.requireMl()
+            // (app.js) and the shared modal in ml-service-guard.js.
+            await window.OSCA.requireMl();
             document.getElementById('bulk-upload-form').submit();
         },
     };

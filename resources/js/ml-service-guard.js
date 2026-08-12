@@ -3,13 +3,24 @@
 // resources/js/ml-health.js (the topbar dot listens to the same broadcast — see
 // that module's header comment for why this used to be two independent pollers
 // writing to two different Alpine scopes) and surfaces a blocking warning modal
-// (once per tab session) plus live toasts on later state changes. Alpine is
-// Livewire 3's bundled copy — do NOT import Alpine here (mirrors resources/js/app.js).
+// plus live toasts on later state changes. Alpine is Livewire 3's bundled copy —
+// do NOT import Alpine here (mirrors resources/js/app.js).
+//
+// Also exposes window.OSCA.mlGate — the single shared pre-flight gate every
+// ML-dependent operation (Batch/Individual Analysis, Re-run Assessment, Bulk
+// Upload's ML stage) awaits before it starts. See require() below and
+// window.OSCA.requireMl() in app.js.
 document.addEventListener('alpine:init', () => {
     Alpine.data('mlServiceGuard', (cfg) => ({
         dot: null,
         modalOpen: false,
         starting: false,
+        // True while the currently-open modal exists because a pending
+        // ML-dependent operation explicitly required it (require(), below),
+        // as opposed to the background health monitor noticing an outage on
+        // its own. Both look the same to the user (same modal, same copy) —
+        // this only affects what happens on Dismiss (see require()).
+        requiredMode: false,
 
         toast: { show: false, type: 'warning', message: '', timer: null },
 
@@ -27,6 +38,10 @@ document.addEventListener('alpine:init', () => {
         wakeStartedAt: null,
         wakeMaxSeconds: 420,
 
+        // Pending require() promise plumbing — see require()/_settleRequire().
+        _requirePromise: null,
+        _requireResolve: null,
+
         init() {
             // Seed from whatever the shared poller already knows (it starts
             // polling at import time, so this may already be fresh) rather
@@ -37,6 +52,31 @@ document.addEventListener('alpine:init', () => {
                 this._applyHealth(e.detail.dot, e.detail.title);
             });
             document.addEventListener('livewire:navigating', this._onNavigating = () => this.destroy());
+
+            // Every way the modal can close — the Dismiss button, ESC
+            // (x-modal's own @keydown.escape.window="modalOpen = false"),
+            // and a backdrop click (x-modal's own @click="modalOpen =
+            // false") — funnels through here, so a pending require()
+            // promise always gets settled no matter which the user used.
+            // A native Alpine $watch, not a manual document listener — it
+            // needs no explicit teardown (unlike _onHealth/_onNavigating
+            // above), since Alpine owns its own effect lifecycle.
+            this.$watch('modalOpen', (open) => {
+                if (!open) this._settleRequire(false);
+            });
+
+            // Deliberately assigned only here, never removed in destroy():
+            // window.OSCA.requireMl() (app.js) treats a MISSING mlGate as
+            // "nothing to check, proceed" — so deleting this on every
+            // Livewire navigation (destroy() runs on every one, persisted
+            // element or not) would silently turn every pre-flight check
+            // into a no-op for the rest of the session. This component's
+            // reactive `this` is the same persisted instance across
+            // navigations (Livewire's persist plugin keeps the original DOM
+            // node + its bound Alpine scope, never re-running init()), so
+            // the closure below stays valid regardless of how many times
+            // destroy() has run.
+            window.OSCA.mlGate = { require: () => this.require() };
         },
 
         destroy() {
@@ -50,29 +90,34 @@ document.addEventListener('alpine:init', () => {
             const previous = this.dot;
             this.dot = newDot;
 
-            const wasOk = previous === 'ok';
+            const wasKnownDown = previous === 'err' || previous === 'warn';
             const isOk = newDot === 'ok';
+            const isDown = newDot === 'err' || newDot === 'warn';
 
             if (isOk) {
-                if (previous !== null && !wasOk) {
+                if (wasKnownDown) {
                     this.showToast('success', 'Analysis services are back online.');
                 }
                 if (this.modalOpen || this.waking) {
                     this.modalOpen = false;
                     this.stopWake();
                 }
+                this._settleRequire(true);
                 return;
             }
 
-            // Down (or still down). First-ever check (previous === null) and any
-            // ok → not-ok transition both count as "just went down".
-            if (previous === null || wasOk) {
-                if (sessionStorage.getItem('mlGuardModalShown') === '1') {
-                    this.showToast('warning', title || 'Analysis services are unavailable.');
-                } else {
-                    sessionStorage.setItem('mlGuardModalShown', '1');
-                    this.modalOpen = true;
-                }
+            // (Re)open the modal only on a GENUINE transition into a down
+            // state — previous confirmed reading was ok, or this is the
+            // first confirmed reading of the session ('checking'/null don't
+            // count as "known down", so a page load that resolves straight
+            // to down still opens the modal once). Ticks that arrive while
+            // ALREADY down (wasKnownDown === true) intentionally do
+            // nothing — that's what keeps a dismissed warning from being
+            // reopened every 10s by the background poller for the rest of
+            // this SAME outage, without needing any "shown once" flag that
+            // would (as before) survive into the NEXT outage too.
+            if (isDown && !wasKnownDown) {
+                this.modalOpen = true;
             }
         },
 
@@ -87,6 +132,53 @@ document.addEventListener('alpine:init', () => {
         startLocal() {
             this.starting = true;
             this.$refs.startForm?.submit();
+        },
+
+        // ── Pre-flight gate ───────────────────────────────────────────────
+        // Awaited by window.OSCA.requireMl() (app.js) before Batch/
+        // Individual Analysis, Re-run Assessment, and Bulk Upload's ML
+        // stage. Resolves true only once a FRESH (uncached) health check
+        // confirms the services are actually up — never on an assumed wake
+        // success, and never on a stale earlier reading.
+        //
+        // A call that lands while one is already pending returns the SAME
+        // promise instead of starting a second check/modal — this is what
+        // guarantees only one shared modal even if several operations (or
+        // the background monitor) all notice an outage at once.
+        require() {
+            if (this._requirePromise) return this._requirePromise;
+
+            this._requirePromise = new Promise((resolve) => {
+                this._requireResolve = resolve;
+            }).finally(() => {
+                this._requirePromise = null;
+                this.requiredMode = false;
+            });
+
+            window.OSCA.mlHealth.checkNow().then((active) => {
+                if (active) {
+                    this._settleRequire(true);
+                    return;
+                }
+                // Still down: (re)open the modal even if it's already open
+                // from background detection, and even if the user already
+                // dismissed an earlier background warning during this same
+                // outage — a REQUESTED operation that needs the service
+                // must never be silently allowed to proceed against a dead
+                // one just because an informational warning was dismissed
+                // earlier.
+                this.requiredMode = true;
+                this.modalOpen = true;
+            });
+
+            return this._requirePromise;
+        },
+
+        _settleRequire(result) {
+            if (!this._requireResolve) return;
+            const resolve = this._requireResolve;
+            this._requireResolve = null; // guards against a second, later settle attempt
+            resolve(result);
         },
 
         // ── Wake flow (hosted / Render) — ported from ml/status.blade.php ────────
@@ -179,6 +271,7 @@ document.addEventListener('alpine:init', () => {
             this.dot = 'ok';
             this.showToast('success', 'Analysis services are back online.');
             window.OSCA.mlHealth.refresh({ force: true });
+            this._settleRequire(true);
             setTimeout(() => { this.modalOpen = false; }, 900);
         },
 
@@ -186,6 +279,20 @@ document.addEventListener('alpine:init', () => {
             this.waking = false;
             clearInterval(this.wakeTicker);
             clearInterval(this.wakePoller);
+        },
+
+        // Single state machine driving the modal's copy/buttons — see
+        // components/ml-service-guard.blade.php. Collapses the various flags
+        // above into the four states the task spec calls for (plus
+        // 'checking', shown as nothing/idle) instead of the view branching
+        // on raw flags directly, so there is exactly one place that decides
+        // "what is the guard currently doing".
+        get phase() {
+            if (this.waking) return 'waking';
+            if (this.dot === 'ok') return 'active';
+            if (this.wakeGaveUp || this.wakeError) return 'error';
+            if (this.dot === null || this.dot === 'checking') return 'checking';
+            return 'inactive';
         },
 
         fmt(s) {

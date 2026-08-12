@@ -145,6 +145,64 @@ document.addEventListener('alpine:init', () => {
             }
         },
     }))
+
+    // ── Real-time name field validation (ProfileSurvey: New Profile / Edit) ──
+    // Client-side mirror of App\Support\NameRules — the ONE source of truth
+    // for the pattern strings, seeded in via @js($this->nameGuardConfig()).
+    // Purely for instant inline feedback; ProfileSurvey::step1Rules() (server)
+    // independently enforces the exact same pattern and is the actual
+    // authority — a request that skips this JS entirely is still rejected.
+    // wire:model on these four fields stays deferred (no `.live`): Alpine
+    // already gives immediate feedback without a network round trip, so
+    // there is no need to pay for one on every keystroke.
+    Alpine.data('nameGuard', (cfg) => ({
+        errors: {},
+        // property => which compiled pattern applies. Suffix (Jr., Sr., II,
+        // III, IV, V) intentionally has no apostrophe allowance, unlike the
+        // three real name fields — see NameRules' docblock.
+        fieldKind: {
+            firstName: 'person',
+            middleName: 'person',
+            lastName: 'person',
+            nameExtension: 'suffix',
+        },
+        re: null,
+
+        init() {
+            // Compiled once per form load, not per keystroke.
+            this.re = {
+                person: new RegExp(cfg.personPattern, 'u'),
+                suffix: new RegExp(cfg.suffixPattern, 'u'),
+            }
+            // Validate whatever the server seeded (Edit loads an existing
+            // senior's values) immediately, so a legacy invalid name already
+            // in the database surfaces its error on page load rather than
+            // only after the user touches the field.
+            Object.entries(cfg.values || {}).forEach(([field, value]) => this.check(field, value))
+        },
+
+        check(field, value) {
+            const kind = this.fieldKind[field]
+            if (!kind) return
+            const v = (value ?? '').trim()
+            // Emptiness is a `required`/`nullable` concern, already handled
+            // server-side at Next/Save — don't show a character-format error
+            // on a blank optional field (middleName, nameExtension).
+            if (v === '') {
+                delete this.errors[field]
+                return
+            }
+            if (this.re[kind].test(v)) {
+                delete this.errors[field]
+            } else {
+                this.errors[field] = kind === 'suffix' ? cfg.suffixMessage : cfg.personMessage
+            }
+        },
+
+        get hasNameError() {
+            return Object.keys(this.errors).length > 0
+        },
+    }))
 })
 
 
@@ -315,6 +373,24 @@ window.OSCA = Object.assign(window.OSCA || {}, {
                 },
             },
         })
+    },
+
+    /**
+     * Pre-flight gate for every ML-dependent operation (Batch/Individual
+     * Analysis, Re-run Assessment, Bulk Upload's ML stage): resolves true
+     * only once a FRESH health check confirms the analysis services are up,
+     * showing the shared wake-up modal (ml-service-guard.js) and waiting on
+     * it if they're not. Resolves false if the user dismisses that modal —
+     * callers MUST treat false as "do not start the operation".
+     *
+     * window.OSCA.mlGate is set up by <x-ml-service-guard /> in
+     * layouts/app.blade.php, which is deliberately absent on /ml/status
+     * (see that component's own docblock) — a missing gate there means
+     * there is nothing to check, so this resolves true rather than wedging
+     * navigation on the one page that IS the services diagnostic itself.
+     */
+    async requireMl() {
+        return window.OSCA.mlGate ? window.OSCA.mlGate.require() : true
     },
 
     /**
