@@ -549,6 +549,9 @@
             {{-- Modal footer --}}
             <div class="px-5 py-4 border-t border-paper-rule flex items-center justify-between gap-3 flex-shrink-0">
                 <p class="text-[11.5px] text-ink-400">
+                    <template x-if="fileName && mlDot !== 'ok'">
+                        <span class="text-moderate-700 dark:text-moderate-300 font-medium">Analysis services are offline — risk scoring will use the fallback model. </span>
+                    </template>
                     Rows with missing required fields are skipped. Existing records are <em>not</em> overwritten.
                 </p>
                 <div class="flex gap-2">
@@ -589,6 +592,16 @@ function seniorIndex() {
         importStatus: @json($bulkImportStatus ?? null),
         importPollTimer: null,
         importStatusUrl: '{{ route('seniors.bulk-upload.status') }}',
+
+        // Live ML-service dot for the Import-button hint below — a plain JS
+        // read of the shared singleton (window.OSCA.mlHealth, ml-health.js)
+        // seeded once, then kept reactive via the same osca:ml-health
+        // broadcast every other status surface listens to. This component
+        // (seniorIndex()) and the global mlServiceGuard() component are
+        // separate Alpine scopes with no parent/child relationship, so this
+        // can't just read the guard's reactive state directly.
+        mlDot: window.OSCA.mlHealth ? window.OSCA.mlHealth.dot : 'checking',
+        _onMlHealth: null,
         pollImportStatus() {
             // Guard against a pre-existing interval — pollImportStatus() can
             // be called more than once per page lifetime (e.g. re-triggered
@@ -622,10 +635,20 @@ function seniorIndex() {
             // the fresh one this init() call is about to register.
             document.addEventListener('livewire:navigating', () => {
                 clearInterval(this.importPollTimer);
+                if (this._onMlHealth) document.removeEventListener('osca:ml-health', this._onMlHealth);
             }, { once: true });
             if (this.importStatus && this.importStatus.status === 'processing') {
                 this.pollImportStatus();
             }
+
+            // Keep mlDot live for the Import-button hint — same broadcast
+            // every other status surface listens to (ml-health.js). Removed
+            // on navigate-away above, same reasoning as importPollTimer:
+            // init() re-runs on every visit to this page (not Livewire-persisted),
+            // so an un-removed listener would accumulate one per visit.
+            document.addEventListener('osca:ml-health', this._onMlHealth = (e) => {
+                this.mlDot = e.detail.dot;
+            });
         },
 
         // Multi-select state
@@ -749,6 +772,21 @@ function seniorIndex() {
             }
             document.getElementById('bulk-file-input').files = this.makeFileList(file);
             this.fileName = file.name;
+
+            // Pre-flight check fires HERE — the moment a file is attached —
+            // not on the Import click. Reported: "in the Bulk Upload, the
+            // Modal should appear if the services are not on before
+            // clicking Import... it would be better after uploading the
+            // file". Fire-and-forget: this doesn't block attaching the
+            // file, it only starts the same fresh check submit() used to
+            // wait on, so by the time the user reaches Import the modal (if
+            // services are down) has already had a chance to appear — see
+            // window.OSCA.requireMl() (app.js) and the shared modal in
+            // ml-service-guard.js. Parsing/DB import genuinely doesn't need
+            // ML (only the risk-scoring stage queued at the end does), so
+            // this is advisory, not a gate — Import still proceeds on
+            // Dismiss.
+            window.OSCA.requireMl();
         },
 
         makeFileList(file) {

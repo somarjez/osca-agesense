@@ -404,11 +404,7 @@ class ReportController extends Controller
         $roster = SeniorCitizen::active()
             ->where('barangay', $brgy)
             ->with('latestMlResult')
-            ->when($request->roster_search, fn ($q, $term) => $q->where(function ($w) use ($term) {
-                $w->where('osca_id', 'like', "%{$term}%")
-                    ->orWhere('official_osca_id', 'like', "%{$term}%")
-                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
-            }))
+            ->when($request->roster_search, fn ($q, $term) => $q->searchTerm($term))
             ->orderBy('last_name')
             ->paginate(25)
             ->withQueryString();
@@ -764,11 +760,7 @@ class ReportController extends Controller
             ->when($request->risk, fn ($q, $risk) => $q->where('ml_results.overall_risk_level', strtoupper($risk)))
             ->when($request->barangay, fn ($q, $b) => $q->where('senior_citizens.barangay', $b))
             ->when($request->cluster, fn ($q, $c) => $q->where('ml_results.cluster_named_id', $c))
-            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
-                $w->where('senior_citizens.osca_id', 'like', "%{$term}%")
-                    ->orWhere('senior_citizens.official_osca_id', 'like', "%{$term}%")
-                    ->orWhereRaw("LOWER(CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name)) LIKE ?", ['%'.strtolower($term).'%']);
-            }))
+            ->when($request->search, fn ($q, $term) => $q->searchTerm($term))
             ->select(
                 'senior_citizens.osca_id',
                 DB::raw("CONCAT(senior_citizens.first_name,' ',senior_citizens.last_name) as name"),

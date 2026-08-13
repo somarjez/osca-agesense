@@ -80,13 +80,22 @@ class PolicyAuthorizationTest extends TestCase
     // ── SeniorCitizenController ─────────────────────────────────────────────
 
     #[Test]
-    public function senior_index_show_export_allowed_for_all_three_roles(): void
+    public function senior_index_and_show_allowed_for_all_three_roles(): void
     {
         foreach ([$this->admin, $this->encoder, $this->viewer] as $user) {
             $this->actingAs($user)->get(route('seniors.index'))->assertOk();
             $this->actingAs($user)->get(route('seniors.show', $this->senior))->assertOk();
-            $this->actingAs($user)->get(route('seniors.export', $this->senior))->assertOk();
         }
+    }
+
+    #[Test]
+    public function senior_export_allowed_for_admin_and_encoder_forbidden_for_viewer(): void
+    {
+        // TC-SEC-07: narrowed from all-three-roles — see
+        // SeniorCitizenPolicy::export()'s docblock.
+        $this->actingAs($this->admin)->get(route('seniors.export', $this->senior))->assertOk();
+        $this->actingAs($this->encoder)->get(route('seniors.export', $this->senior))->assertOk();
+        $this->actingAs($this->viewer)->get(route('seniors.export', $this->senior))->assertForbidden();
     }
 
     #[Test]

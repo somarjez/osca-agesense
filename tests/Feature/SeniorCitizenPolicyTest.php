@@ -102,10 +102,16 @@ class SeniorCitizenPolicyTest extends TestCase
     }
 
     #[Test]
-    public function export_is_allowed_for_all_three_roles(): void
+    public function export_is_allowed_for_admin_and_encoder_only(): void
     {
-        foreach ([$this->admin, $this->encoder, $this->viewer] as $user) {
-            $this->assertTrue($user->can('export', $this->senior));
-        }
+        // TC-SEC-07 (audit finding, product decision): viewer-role PDF
+        // export used to be allowed — inconsistent with the app's own
+        // privacy posture elsewhere (CoordinatePrivacy generalizes viewer
+        // GPS coordinates on the GIS map), since the exported PDF contains
+        // the full, unredacted profile/ML/QoL data. Narrowed to match every
+        // other write-adjacent/high-sensitivity ability in this policy.
+        $this->assertTrue($this->admin->can('export', $this->senior));
+        $this->assertTrue($this->encoder->can('export', $this->senior));
+        $this->assertFalse($this->viewer->can('export', $this->senior));
     }
 }

@@ -267,6 +267,33 @@ class SeniorCitizen extends Model
         );
     }
 
+    /**
+     * Case-insensitive search across name and both OSCA-ID columns — the
+     * single source of truth every "search seniors" query should use.
+     * Reusable both directly (`SeniorCitizen::searchTerm($term)`) and inside
+     * a whereHas('seniorCitizen', ...) closure from another model.
+     *
+     * Plain `->where('col', 'like', "%{$term}%")` (used everywhere this scope
+     * replaces) is case-INSENSITIVE on local MySQL's default collation, which
+     * hid this defect through the entire audit — but the deployed production
+     * database is Postgres (Neon; see .env), where LIKE is case-sensitive by
+     * default. Staff searching "juan" for a senior stored as "Juan" got zero
+     * results there. whereRaw('LOWER(...) LIKE ?', ...) is the one pattern
+     * that behaves identically on both engines.
+     */
+    public function scopeSearchTerm($query, string $term)
+    {
+        $needle = '%'.strtolower($term).'%';
+
+        return $query->where(function ($q) use ($needle) {
+            $q->whereRaw('LOWER(first_name) LIKE ?', [$needle])
+                ->orWhereRaw('LOWER(last_name) LIKE ?', [$needle])
+                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", [$needle])
+                ->orWhereRaw('LOWER(osca_id) LIKE ?', [$needle])
+                ->orWhereRaw('LOWER(official_osca_id) LIKE ?', [$needle]);
+        });
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     public static function generateOscaId(string $barangay): string

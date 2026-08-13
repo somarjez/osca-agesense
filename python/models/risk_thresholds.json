@@ -1,0 +1,6 @@
+{
+  "_comment": "Single source of truth for risk-band boundaries, read by both python/services/inference_service.py (_load_risk_thresholds()) and PHP's App\\Support\\RiskThresholds (app/Services/MlService.php's fallback path). Do not edit either language's copy of these numbers independently — edit this file. Tuning history: high raised 0.50->0.54 (F1 55%->62%, false_esc 17%->6%); moderate raised 0.30->0.39 (calibration offset +0.09, F1 62%->82%).",
+  "critical": 0.70,
+  "high": 0.54,
+  "moderate": 0.39
+}

@@ -57,6 +57,23 @@ class QolSurvey extends Model
     }
 
     /**
+     * Restrict to the latest PROCESSED survey per senior (TC-DASH-01). Mirrors
+     * Recommendation::scopeCurrent()'s correlated-subquery pattern. Without
+     * this, a senior with multiple processed surveys (re-assessed over time)
+     * contributes to an aggregate like MainDashboard::getDomainScores() once
+     * per survey instead of once — a senior with 3 surveys weighed 3x as
+     * heavily as everyone else's 1.
+     */
+    public function scopeLatestProcessedPerSenior($query)
+    {
+        return $query->where('status', 'processed')->whereRaw(
+            'qol_surveys.id = (select max(qs2.id) from qol_surveys as qs2 '.
+            'where qs2.senior_citizen_id = qol_surveys.senior_citizen_id '.
+            "and qs2.status = 'processed' and qs2.deleted_at is null)"
+        );
+    }
+
+    /**
      * Compute and store all domain scores.
      */
     public function computeScores(): void

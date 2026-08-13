@@ -1061,9 +1061,18 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ── Flask API ─────────────────────────────────────────────────────────────────
+_MODELS_READY = threading.Event()
+
+
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "service": "osca-preprocessor"})
+    # models_ready reflects whether _warm_up_models() has actually finished —
+    # the port binding (and this endpoint answering "ok") happens the instant
+    # the process starts, well before the ~30s artifact load completes. A
+    # caller that treats "status":"ok" alone as "safe to submit real work
+    # now" pays the cold-load cost itself on the first real request (TC-SVC:
+    # reported as "first analysis took over a minute, second run 2-3s").
+    return jsonify({"status": "ok", "service": "osca-preprocessor", "models_ready": _MODELS_READY.is_set()})
 
 
 @app.route("/batch_preprocess", methods=["POST"])
@@ -1123,6 +1132,12 @@ def _warm_up_models() -> None:
         logger.info("Model warm-up complete — caches primed for first request")
     except Exception:
         logger.exception("Model warm-up failed (non-fatal); artifacts will load lazily on first request")
+    finally:
+        # Set even on failure — a request arriving now will load lazily on
+        # demand exactly as it would have before this flag existed; the
+        # flag's only job is to stop /health claiming warm-up is DONE when
+        # it hasn't even finished trying.
+        _MODELS_READY.set()
 
 
 if __name__ == "__main__":

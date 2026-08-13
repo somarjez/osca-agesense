@@ -398,11 +398,41 @@ def _read_laravel_env() -> Dict[str, str]:
     return env
 
 
-RISK_THRESHOLDS = {
-    "critical": 0.70,  # urgent review flag — not a clinical diagnosis
-    "high": 0.54,  # tuned: raised 0.50->0.54 (F1 55%->62%, false_esc 17%->6%)
-    "moderate": 0.39,  # tuned: raised 0.30->0.39 (calibration offset +0.09, F1 62%->82%)
-}
+def _load_risk_thresholds() -> Dict[str, float]:
+    """Load risk-band boundaries from MODEL_DIR/risk_thresholds.json — the
+    single source of truth shared with PHP's App\\Support\\RiskThresholds
+    (see app/Services/MlService.php), which reads the same file so the
+    fallback-scoring path and the live model can never silently classify the
+    same composite_risk into different bands again (TC-ML-06). Deliberately
+    NOT using _load_json()/MODEL_DIR-dependent helpers defined later in this
+    module — this runs at plain module-load time, before those exist in the
+    module namespace, so it does its own minimal read. Falls back to these
+    same tuned values (kept identical to the JSON's own defaults on purpose)
+    if the file is missing/unreadable, so a deploy without the file still
+    classifies correctly rather than reverting to stale numbers.
+    """
+    defaults = {
+        "critical": 0.70,  # urgent review flag — not a clinical diagnosis
+        "high": 0.54,  # tuned: raised 0.50->0.54 (F1 55%->62%, false_esc 17%->6%)
+        "moderate": 0.39,  # tuned: raised 0.30->0.39 (calibration offset +0.09, F1 62%->82%)
+    }
+    path = os.path.join(MODEL_DIR, "risk_thresholds.json")
+    if os.path.exists(path):
+        try:
+            raw = open(path, "rb").read()
+            for enc in ("utf-8-sig", "utf-8"):
+                try:
+                    data = json.loads(raw.decode(enc))
+                    if isinstance(data, dict):
+                        return {**defaults, **{k: float(v) for k, v in data.items() if k in defaults}}
+                except (UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
+                    continue
+        except OSError:
+            pass
+    return defaults
+
+
+RISK_THRESHOLDS = _load_risk_thresholds()
 URGENT_PRIORITY_THRESHOLD = RISK_THRESHOLDS["critical"]
 
 CLUSTER_PROFILES = {
@@ -2553,12 +2583,21 @@ def model_insights():
 
 @app.route("/health", methods=["GET"])
 def health():
+    # models_ready reflects whether _warm_up_models() has actually finished —
+    # the port binding (and this endpoint answering "ok") happens the instant
+    # the process starts, well before the ~30s artifact load completes. A
+    # caller that treats "status":"ok" alone as "safe to submit real work
+    # now" pays the cold-load cost itself on the first real request instead
+    # (reported: "first analysis took over a minute, second run 2-3s" — the
+    # wake modal had already declared the service "Ready" before it actually
+    # was).
     return jsonify({
         "status": "ok",
         "service": "osca-inference",
         "model_dir": MODEL_DIR,
         "model_version": MODEL_VERSION,
         "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
+        "models_ready": _MODELS_READY.is_set(),
     })
 
 
@@ -2613,6 +2652,9 @@ def batch_infer_endpoint():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+_MODELS_READY = threading.Event()
+
+
 def _warm_up_models() -> None:
     """Pre-load model artifacts into their @lru_cache stores in a background
     thread so the FIRST real /infer request doesn't pay the ~30s cold-load
@@ -2620,6 +2662,8 @@ def _warm_up_models() -> None:
     path — /health responds immediately regardless of warm-up progress, and a
     request arriving mid-warm-up just loads on demand as it does today.
     Best-effort only: any failure here is logged and swallowed, never fatal.
+    Sets _MODELS_READY when done (success or failure) — see /health, which
+    reports this so callers can tell "port bound" apart from "actually warm".
     """
     try:
         _load_model("scaler.pkl")
@@ -2638,6 +2682,12 @@ def _warm_up_models() -> None:
         logger.info("Model warm-up complete — caches primed for first request")
     except Exception:
         logger.exception("Model warm-up failed (non-fatal); models will load lazily on first request")
+    finally:
+        # Set even on failure — a request arriving now will load lazily on
+        # demand exactly as it would have before this flag existed; the
+        # flag's only job is to stop /health claiming warm-up is DONE when
+        # it hasn't even finished trying.
+        _MODELS_READY.set()
 
 
 if __name__ == "__main__":

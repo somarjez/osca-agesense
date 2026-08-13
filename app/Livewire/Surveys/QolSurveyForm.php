@@ -132,7 +132,23 @@ class QolSurveyForm extends Component
             return;
         }
 
-        $required = match ($this->step) {
+        $rules = $this->requiredRulesForStep($this->step);
+        if ($rules) {
+            $this->validate($rules, array_fill_keys(
+                array_map(fn ($k) => "{$k}.required", array_keys($rules)),
+                'Please answer all questions in this section before continuing.'
+            ));
+        }
+    }
+
+    /**
+     * Same per-step "required" field set nextStep()/validateSection() enforces
+     * one step at a time, keyed here so it can also be validated ALL AT ONCE —
+     * see validateAllSections(), called by submitSurvey().
+     */
+    private function requiredFieldsForStep(int $step): array
+    {
+        return match ($step) {
             1 => ['a1' => $this->a1, 'a2' => $this->a2, 'a3' => $this->a3, 'a4' => $this->a4],
             2 => ['b1' => $this->b1, 'b2' => $this->b2, 'b3' => $this->b3, 'b4' => $this->b4, 'b5' => $this->b5],
             3 => ['c1' => $this->c1, 'c2' => $this->c2, 'c3' => $this->c3, 'c4' => $this->c4],
@@ -142,14 +158,47 @@ class QolSurveyForm extends Component
             7 => ['g1' => $this->g1, 'g2' => $this->g2, 'g3' => $this->g3],
             default => [],
         };
+    }
 
-        $rules = array_fill_keys(array_keys($required), 'required|integer|min:1|max:5');
-        if ($rules) {
-            $this->validate($rules, array_fill_keys(
-                array_map(fn ($k) => "{$k}.required", array_keys($rules)),
-                'Please answer all questions in this section before continuing.'
-            ));
+    private function requiredRulesForStep(int $step): array
+    {
+        return array_fill_keys(array_keys($this->requiredFieldsForStep($step)), 'required|integer|min:1|max:5');
+    }
+
+    /**
+     * Server-side gate before a survey is ever persisted or scored — closes
+     * the gap nextStep()/validateSection() left open. Two real ways to reach
+     * submitSurvey() with incomplete sections despite the per-step checks:
+     * (1) the stepper tabs call goToStep() directly with no validation, so a
+     * user can jump straight to step 8 and hit Submit without ever passing
+     * through 1-7; (2) submitSurvey() is a directly-callable Livewire action,
+     * so a stale/tampered/direct request bypasses the wizard entirely. Either
+     * way, without this gate an all-NULL survey could persist and the ML
+     * pipeline would score it with false confidence.
+     *
+     * On failure, jumps the user BACK to the first incomplete step (not just
+     * step 1) before throwing, so the per-field errors this reuses
+     * (validateSection()'s messaging) render against visible inputs instead
+     * of a step the wizard isn't currently showing. Section H stays optional
+     * throughout, matching completionPercent()'s 29-item (A-G only) contract.
+     */
+    private function validateAllSections(): void
+    {
+        for ($step = 1; $step <= 7; $step++) {
+            $incomplete = array_filter($this->requiredFieldsForStep($step), fn ($v) => $v === null);
+            if ($incomplete) {
+                $this->step = $step;
+                $this->validate($this->requiredRulesForStep($step), array_fill_keys(
+                    array_map(fn ($k) => "{$k}.required", array_keys($incomplete)),
+                    'Please answer all questions in this section before submitting.'
+                ));
+            }
         }
+
+        $this->validate([
+            'h1' => 'nullable|integer|min:1|max:5',
+            'h2' => 'nullable|integer|min:1|max:5',
+        ]);
     }
 
     public function prevStep(): void
@@ -176,6 +225,14 @@ class QolSurveyForm extends Component
         // Livewire network calls bypass HTTP route middleware, so enforce policy here
         // (single source of truth: SeniorCitizenPolicy, same role gate as before).
         $this->authorize('update', $this->senior);
+
+        // Full re-validation of every required section — see
+        // validateAllSections()'s docblock for why this can't be skipped
+        // even though nextStep() already validated each step on the way
+        // here. Throws a ValidationException (Livewire renders it as normal
+        // field errors and jumps back to the first incomplete step via the
+        // existing #[On('qol-step-changed')] wiring) instead of persisting.
+        $this->validateAllSections();
 
         $this->isProcessing = true;
 

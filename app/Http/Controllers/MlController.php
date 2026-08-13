@@ -184,11 +184,7 @@ class MlController extends Controller
         $pending = SeniorCitizen::active()
             ->whereHas('latestQolSurvey')
             ->with(['latestQolSurvey', 'latestMlResult'])
-            ->when($request->search, fn ($q, $term) => $q->where(function ($w) use ($term) {
-                $w->where('osca_id', 'like', "%{$term}%")
-                    ->orWhere('official_osca_id', 'like', "%{$term}%")
-                    ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($term).'%']);
-            }))
+            ->when($request->search, fn ($q, $term) => $q->searchTerm($term))
             ->paginate(25)
             ->withQueryString();
 

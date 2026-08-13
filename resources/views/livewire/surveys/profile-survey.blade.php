@@ -675,10 +675,21 @@
         </div>
 
         {{-- ── Right Rail: Registration Guide ── --}}
+        @php
+            // Only Step 1 (Identifying Information) has any required fields —
+            // every later step is optional by design. Naming "required
+            // fields" on a step that has none was misleading (and is why the
+            // ring below is now Progress through the wizard, not a
+            // required-fields ratio — see completionPercent()'s docblock).
+            $registrationIntro = $step === 1
+                ? 'Fill out all required fields in Step 1 to proceed.'
+                : 'This section is optional. Fill in what applies, or continue to the next step.';
+        @endphp
         <x-survey-guide
             title="Registration Guide"
-            :intro="'Fill out all required fields in Step ' . $step . ' to proceed.'"
+            :intro="$registrationIntro"
             :percent="$this->completionPercent()"
+            label="Progress"
             :stepCaption="'Step ' . $step . ' of ' . $totalSteps"
             :statusText="$this->stepStatusText()"
             :tips="$registrationTips"

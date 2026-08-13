@@ -27,11 +27,7 @@ class SeniorCitizenController extends Controller
 
         $query = SeniorCitizen::active()
             ->with(['latestMlResult'])
-            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
-                ->orWhere('last_name', 'like', "%{$request->search}%")
-                ->orWhere('osca_id', 'like', "%{$request->search}%")
-                ->orWhere('official_osca_id', 'like', "%{$request->search}%")
-            ))
+            ->when($request->search, fn ($q) => $q->searchTerm($request->search))
             ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
             ->when($request->risk, fn ($q) => $q->byRiskLevel($request->risk))
             ->when($request->cluster, fn ($q) => $q->whereHas('latestMlResult', fn ($m) => $m->where('cluster_named_id', (int) $request->cluster)
@@ -77,11 +73,7 @@ class SeniorCitizenController extends Controller
         $this->authorize('viewAny', SeniorCitizen::class);
 
         $query = SeniorCitizen::deceased()
-            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
-                ->orWhere('last_name', 'like', "%{$request->search}%")
-                ->orWhere('osca_id', 'like', "%{$request->search}%")
-                ->orWhere('official_osca_id', 'like', "%{$request->search}%")
-            ))
+            ->when($request->search, fn ($q) => $q->searchTerm($request->search))
             ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
             ->orderByDesc('date_of_death')
             ->orderByDesc('status_changed_at');
@@ -480,20 +472,14 @@ class SeniorCitizenController extends Controller
     public function archives(Request $request)
     {
         $seniors = SeniorCitizen::onlyTrashed()
-            ->when($request->search, fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
-                ->orWhere('last_name', 'like', "%{$request->search}%")
-                ->orWhere('osca_id', 'like', "%{$request->search}%")
-                ->orWhere('official_osca_id', 'like', "%{$request->search}%")
-            ))
+            ->when($request->search, fn ($q) => $q->searchTerm($request->search))
             ->when($request->barangay, fn ($q) => $q->where('barangay', $request->barangay))
             ->latest('deleted_at')
             ->paginate(20)->withQueryString();
 
         $archivedSurveys = QolSurvey::onlyTrashed()
             ->with(['seniorCitizen' => fn ($q) => $q->withTrashed()])
-            ->when($request->search, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->where(fn ($q) => $q->where('first_name', 'like', "%{$request->search}%")
-                ->orWhere('last_name', 'like', "%{$request->search}%")
-            )))
+            ->when($request->search, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->searchTerm($request->search)))
             ->when($request->barangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->where('barangay', $request->barangay))
             )
             ->latest('deleted_at')

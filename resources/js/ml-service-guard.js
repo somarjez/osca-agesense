@@ -85,6 +85,25 @@ document.addEventListener('alpine:init', () => {
             // the closure below stays valid regardless of how many times
             // destroy() has run.
             window.OSCA.mlGate = { require: () => this.require() };
+
+            // One-time FRESH check at session start (init() only runs once
+            // per tab — this element is @persist'd, so Livewire navigations
+            // don't re-run it). The seed above can come from
+            // sessionStorage (ml-health.js's readSeed()), which has NO
+            // staleness check — if the tab has been open a while and the
+            // services went idle since the last poll, the seed can report a
+            // stale "ok" and this modal would never appear even though the
+            // services are genuinely down right now. Reported as "the
+            // wake-up modal at the start of a session is gone" — it WAS
+            // still working later, when the QoL submit flow's requireMl()
+            // ran its own fresh check, which is what made this seed-only
+            // gap visible: same outage, but one path caught it and one
+            // didn't. checkNow() broadcasts osca:ml-health on completion
+            // exactly like a normal poll tick, so _onHealth above (wired
+            // just above this call) picks up the result and opens the
+            // modal the same way any other detected outage does — no
+            // special-case handling needed here beyond firing the check.
+            window.OSCA.mlHealth.checkNow();
         },
 
         destroy() {

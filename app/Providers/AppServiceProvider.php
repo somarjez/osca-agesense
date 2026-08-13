@@ -62,5 +62,19 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->input('email').'|'.$request->ip());
         });
+
+        // TC-DEP-06 — login/logout/failed-login audit trail
+        // (App\Listeners\LogAuthenticationActivity). Deliberately NOT
+        // registered here via Event::listen() — Laravel 11's event
+        // auto-discovery already finds every public method in
+        // app/Listeners/* that type-hints a single event parameter
+        // (handleLogin/handleLogout/handleFailed all qualify) and wires
+        // each one correctly on its own. An earlier version of this file
+        // ALSO registered them explicitly here, which didn't override
+        // auto-discovery — it stacked with it, so every login/logout/
+        // failed-login was logged twice (confirmed via `php artisan
+        // event:list` showing two listener entries per event, and two
+        // activity_logs rows per single request). Do not re-add explicit
+        // registration for this listener.
     }
 }

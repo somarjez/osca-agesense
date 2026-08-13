@@ -193,7 +193,10 @@ class MainDashboard extends Component
     private function getClusterDistribution(): array
     {
         return Cache::remember($this->cacheKey('cluster_dist'), now()->addSeconds(90), function () {
-            return $this->clusterAnalytics->clusterDistribution($this->selectedBarangay ?: null);
+            // TC-DASH-02: selectedRisk used to be silently dropped here — this
+            // chart stayed unfiltered while every other widget on the same
+            // screen correctly narrowed to the selected risk level.
+            return $this->clusterAnalytics->clusterDistribution($this->selectedBarangay ?: null, $this->selectedRisk ?: null);
         });
     }
 
@@ -252,7 +255,19 @@ class MainDashboard extends Component
             return Recommendation::with(['seniorCitizen'])
                 ->current()
                 ->pending()
-                ->whereHas('seniorCitizen')
+                ->whereHas('seniorCitizen', fn ($sq) => $sq
+                    ->when($this->selectedBarangay, fn ($q) => $q->where('barangay', $this->selectedBarangay))
+                )
+                // TC-DASH-02: this widget used to apply NEITHER filter chip at
+                // all — the Priority/Urgent panel always showed the same
+                // top-8 list regardless of the barangay/risk selection every
+                // other widget on the dashboard was honoring.
+                // recommendations.risk_level casing is inconsistent across
+                // write paths (MlService::fallbackInfer() writes lowercase,
+                // MlController::runSingle() writes $result->overall_risk_level
+                // verbatim, which is uppercase) — compare case-insensitively
+                // rather than assuming either.
+                ->when($this->selectedRisk, fn ($q) => $q->whereRaw('LOWER(risk_level) = ?', [strtolower($this->selectedRisk)]))
                 ->whereIn('urgency', ['urgent', 'immediate'])
                 ->orderBy('urgency')
                 ->orderBy('priority')
@@ -264,7 +279,10 @@ class MainDashboard extends Component
     private function getDomainScores(): array
     {
         return Cache::remember($this->cacheKey('domain'), now()->addSeconds(90), function () {
-            $avgs = QolSurvey::where('status', 'processed')
+            // TC-DASH-01: latestProcessedPerSenior() restricts this to ONE row
+            // per senior — without it, a senior with multiple processed
+            // surveys was averaged in once per survey instead of once.
+            $avgs = QolSurvey::latestProcessedPerSenior()
                 ->whereHas('seniorCitizen', fn ($sq) => $sq->active())
                 ->when($this->selectedBarangay, fn ($q) => $q->whereHas('seniorCitizen',
                     fn ($sq) => $sq->where('barangay', $this->selectedBarangay)

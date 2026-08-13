@@ -46,11 +46,7 @@ class RiskReport extends Component
             ->when($this->filterCluster, fn ($q) => $q->where('cluster_named_id', $this->filterCluster))
             ->when($this->filterBarangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq->active()->where('barangay', $this->filterBarangay))
             )
-            ->when($this->filterSearch, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq
-                ->where('osca_id', 'like', "%{$this->filterSearch}%")
-                ->orWhere('official_osca_id', 'like', "%{$this->filterSearch}%")
-                ->orWhereRaw("LOWER(CONCAT(first_name, ' ', last_name)) LIKE ?", ['%'.strtolower($this->filterSearch).'%'])
-            ))
+            ->when($this->filterSearch, fn ($q) => $q->whereHas('seniorCitizen', fn ($sq) => $sq->searchTerm($this->filterSearch)))
             ->orderBy($this->sortBy, $this->sortDir);
 
         $records = $query->paginate(25);

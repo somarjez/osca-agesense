@@ -6,6 +6,7 @@ use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
+use App\Support\RiskThresholds;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -18,12 +19,35 @@ class MlService
     // major for schema-breaking changes. Must match inference_service.py MODEL_VERSION.
     public const MODEL_VERSION = '2.0.0';
 
-    // Risk thresholds — must stay in sync with inference_service.py RISK_THRESHOLDS.
-    private const HIGH_THRESHOLD = 0.50;
+    // Risk thresholds now live in python/models/risk_thresholds.json —
+    // RiskThresholds::load() is the single source of truth shared with
+    // inference_service.py's _load_risk_thresholds() (TC-ML-06: these two
+    // used to be hardcoded independently, at 0.50/0.30 here vs. the live
+    // model's tuned 0.54/0.39, so the fallback path could classify a senior
+    // into a different risk band than the live model would). See
+    // highThreshold()/moderateThreshold()/urgentThreshold() below — never
+    // reintroduce a hardcoded literal at a call site.
+    private static ?array $thresholdsCache = null;
 
-    private const MODERATE_THRESHOLD = 0.30;
+    private static function thresholds(): array
+    {
+        return self::$thresholdsCache ??= RiskThresholds::load();
+    }
 
-    private const URGENT_THRESHOLD = 0.70;
+    private static function highThreshold(): float
+    {
+        return self::thresholds()['high'];
+    }
+
+    private static function moderateThreshold(): float
+    {
+        return self::thresholds()['moderate'];
+    }
+
+    private static function urgentThreshold(): float
+    {
+        return self::thresholds()['critical'];
+    }
 
     protected string $preprocessUrl;
 
@@ -291,7 +315,7 @@ class MlService
         foreach (['preprocessor', 'inference'] as $name) {
             $resp = $responses[$name] ?? null;
             $results[$name] = $resp instanceof Response
-                ? ($resp->successful() ? 'ok' : 'error')
+                ? ($resp->successful() ? ($this->isWarmedUp($resp) ? 'ok' : 'warming') : 'error')
                 : 'unreachable';
         }
 
@@ -301,6 +325,33 @@ class MlService
             : ($results['local_runner'] === 'available' ? 'local_python' : 'php_fallback');
 
         return $results;
+    }
+
+    /**
+     * A 200 from /health means the port is bound — it does NOT mean the
+     * service has finished loading its model artifacts. Both Python
+     * services' _warm_up_models() sets a models_ready flag once that ~30s
+     * (inference) / lighter (preprocess) load genuinely completes, and
+     * /health now reports it. Treating "responded" as "ready" let the wake
+     * modal declare success while a request landing immediately after still
+     * paid the full cold-load cost itself (reported: "first analysis took
+     * over a minute, second run 2-3 seconds" — the second run was fast
+     * because warm-up had finished by then, not because anything was fixed
+     * between runs).
+     *
+     * A response with no models_ready key at all (an older/unpatched
+     * service, or any future endpoint that doesn't have this concept) is
+     * treated as ready — this flag can only make readiness stricter, never
+     * block on a signal that isn't there.
+     */
+    private function isWarmedUp(Response $resp): bool
+    {
+        $body = $resp->json();
+        if (! is_array($body) || ! array_key_exists('models_ready', $body)) {
+            return true;
+        }
+
+        return (bool) $body['models_ready'];
     }
 
     /**
@@ -359,9 +410,15 @@ class MlService
             $pool->as('inference')->connectTimeout(5)->timeout($budgetSeconds)->get($this->inferenceUrl.'/health'),
         ]);
 
+        // isWarmedUp() here (not just ->successful()) is what actually closes
+        // the "wake modal says Ready but the first real request still takes
+        // over a minute" gap — a port-bound-but-still-loading response used
+        // to count as a full success, so PR #225's two-consecutive-readings
+        // heuristic could reach "ready" from two readings that were both
+        // just "port answered", never "warm-up actually finished".
         return [
-            'preprocess' => $responses['preprocess'] instanceof Response && $responses['preprocess']->successful(),
-            'inference' => $responses['inference'] instanceof Response && $responses['inference']->successful(),
+            'preprocess' => $responses['preprocess'] instanceof Response && $responses['preprocess']->successful() && $this->isWarmedUp($responses['preprocess']),
+            'inference' => $responses['inference'] instanceof Response && $responses['inference']->successful() && $this->isWarmedUp($responses['inference']),
         ];
     }
 
@@ -1147,7 +1204,7 @@ class MlService
 
         $compositeRisk = (float) ($scores['composite_risk'] ?? 0);
         $overallLevel = $levels['overall'] ?? null;
-        $criticalFlag = $compositeRisk >= self::URGENT_THRESHOLD && $overallLevel === 'HIGH';
+        $criticalFlag = $compositeRisk >= self::urgentThreshold() && $overallLevel === 'HIGH';
 
         /** @var MlResult $mlResult */
         $mlResult = MlResult::updateOrCreate(
@@ -1274,10 +1331,10 @@ class MlService
         $wellbeing = (float) ($ss['overall_wellbeing'] ?? 0.5);
         $composite = round(1 - $wellbeing, 4);
 
-        // 3-level classification: HIGH>=0.45, MODERATE>=0.30, LOW<0.30
-        // Scores >= 0.70 remain HIGH; urgency surfaced via priority_flag.
-        $level = $composite >= self::HIGH_THRESHOLD ? 'HIGH' : ($composite >= self::MODERATE_THRESHOLD ? 'MODERATE' : 'LOW');
-        $clusterId = $composite >= self::HIGH_THRESHOLD ? 3 : ($composite >= self::MODERATE_THRESHOLD ? 2 : 1);
+        // 3-level classification via the shared thresholds (see highThreshold()/
+        // moderateThreshold() above) — HIGH/MODERATE/LOW; urgency surfaced via priority_flag.
+        $level = $composite >= self::highThreshold() ? 'HIGH' : ($composite >= self::moderateThreshold() ? 'MODERATE' : 'LOW');
+        $clusterId = $composite >= self::highThreshold() ? 3 : ($composite >= self::moderateThreshold() ? 2 : 1);
 
         // Derive domain risks from available section scores (same logic as _compute_rule_based_risk)
         $ageRisk = (float) ($ss['sec1_age_risk'] ?? 0.5);
@@ -1347,13 +1404,13 @@ class MlService
 
     private function computePriorityFlag(float $composite): string
     {
-        if ($composite >= self::URGENT_THRESHOLD) {
+        if ($composite >= self::urgentThreshold()) {
             return 'urgent';
         }
-        if ($composite >= self::HIGH_THRESHOLD) {
+        if ($composite >= self::highThreshold()) {
             return 'priority_action';
         }
-        if ($composite >= self::MODERATE_THRESHOLD) {
+        if ($composite >= self::moderateThreshold()) {
             return 'planned_monitoring';
         }
 

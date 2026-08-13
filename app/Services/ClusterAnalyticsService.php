@@ -25,7 +25,7 @@ class ClusterAnalyticsService
         ));
     }
 
-    public function latestResultsQuery(?string $barangay = null): Builder
+    public function latestResultsQuery(?string $barangay = null, ?string $risk = null): Builder
     {
         return MlResult::with(['seniorCitizen'])
             ->whereIn('id', $this->latestResultIds())
@@ -34,12 +34,22 @@ class ClusterAnalyticsService
             ->when($barangay, fn ($query) => $query->whereHas(
                 'seniorCitizen',
                 fn ($seniorQuery) => $seniorQuery->active()->where('barangay', $barangay)
-            ));
+            ))
+            // Matches getRiskDistribution()'s own filter pattern in
+            // MainDashboard — overall_risk_level is stored uppercase.
+            ->when($risk, fn ($query) => $query->where('overall_risk_level', strtoupper($risk)));
     }
 
-    public function clusterDistribution(?string $barangay = null): array
+    /**
+     * @param  string|null  $risk  TC-DASH-02: this used to be missing entirely,
+     *                             so selecting "HIGH risk only" on the dashboard
+     *                             left the Cluster Distribution chart showing
+     *                             the unfiltered, whole-roster breakdown next to
+     *                             every other correctly-filtered widget.
+     */
+    public function clusterDistribution(?string $barangay = null, ?string $risk = null): array
     {
-        $rows = $this->latestResultsQuery($barangay)
+        $rows = $this->latestResultsQuery($barangay, $risk)
             ->without('seniorCitizen')
             ->select(
                 'cluster_named_id',
