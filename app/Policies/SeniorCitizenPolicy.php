@@ -54,10 +54,17 @@ class SeniorCitizenPolicy
     }
 
     /**
-     * PDF export — preserves current viewer behavior (viewers can export).
+     * PDF export — admin/encoder only (TC-SEC-07). Previously allowed the
+     * viewer role too; that was inconsistent with the rest of the app's own
+     * privacy posture toward viewers — CoordinatePrivacy deliberately
+     * generalizes/jitters GPS coordinates for the viewer role on the GIS
+     * map, but the exported PDF (seniors/pdf.blade.php) contains the full,
+     * unredacted profile, ML result, and QoL survey. Product decision:
+     * restrict to match every other write-adjacent/high-sensitivity
+     * capability in this policy, which is already admin/encoder-only.
      */
     public function export(User $user, SeniorCitizen $senior): bool
     {
-        return $user->hasAnyRole(['admin', 'encoder', 'viewer']);
+        return $user->hasAnyRole(['admin', 'encoder']);
     }
 }

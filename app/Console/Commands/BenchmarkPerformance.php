@@ -134,9 +134,7 @@ class BenchmarkPerformance extends Command
 
         $term = mb_substr($sample->last_name, 0, 3);
         [$elapsed, , $error] = $this->time(fn () => SeniorCitizen::active()
-            ->where(fn ($q) => $q->where('first_name', 'like', "%{$term}%")
-                ->orWhere('last_name', 'like', "%{$term}%")
-                ->orWhere('osca_id', 'like', "%{$term}%"))
+            ->searchTerm($term)
             ->paginate(20));
         $this->record(7, 'Record search', '≤2s', 2.0, $error ? null : $elapsed, $error ?? '');
     }

@@ -9,7 +9,9 @@ use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Support\Concerns\DrainsMlQueue;
 use App\Support\DateParser;
+use App\Support\NameRules;
 use App\Support\SeniorDataVersion;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -382,6 +384,10 @@ class BulkUploadController extends Controller
 
         $pairs = [];
         $usedOscaIds = [];
+        // Skip-reason categories (TC-IMP-05: a duplicate used to be
+        // misreported as "missing required fields" alongside genuinely
+        // incomplete rows — see the summary message built from this below).
+        $skipReasons = ['missing_field' => 0, 'invalid_name' => 0, 'invalid_date' => 0, 'duplicate' => 0];
 
         // Chunked commits: a 10k-row file used to sit in one open transaction
         // for the whole import (long lock hold, all-or-nothing on any single
@@ -397,6 +403,7 @@ class BulkUploadController extends Controller
                 ) {
                     $chunkInserted = 0;
                     $chunkSkipped = 0;
+                    $chunkSkipReasons = ['missing_field' => 0, 'invalid_name' => 0, 'invalid_date' => 0, 'duplicate' => 0];
                     $chunkPairs = [];
 
                     foreach ($chunk as $lineNum => $line) {
@@ -411,11 +418,59 @@ class BulkUploadController extends Controller
                         $firstName = $this->strVal($row['first_name'] ?? null);
                         $lastName = $this->strVal($row['last_name'] ?? null);
                         $barangay = $this->strVal($row['barangay'] ?? null);
-                        $dob = DateParser::parse($row['dob'] ?? null, dobMode: true);
+                        $rawDob = $this->strVal($row['dob'] ?? null);
+                        $dob = DateParser::parse($rawDob, dobMode: true);
 
-                        if (! $firstName || ! $lastName || ! $barangay || ! $dob) {
+                        if (! $firstName || ! $lastName || ! $barangay || ! $rawDob) {
                             $chunkSkipped++;
+                            $chunkSkipReasons['missing_field']++;
                             $errors[] = 'Row '.($lineNum + 2).': missing required field(s) — skipped.';
+
+                            continue;
+                        }
+
+                        // Name validation — the same App\Support\NameRules the
+                        // interactive create/edit form enforces
+                        // (ProfileSurvey::save()), applied here for the first
+                        // time (TC-REC-02/TC-IMP-03). Without this, a bad
+                        // imported name (e.g. literal "Pedro#") persisted
+                        // verbatim and could never be quietly corrected via
+                        // Edit — Edit enforces this exact same pattern and
+                        // would reject it, forcing a full retype instead.
+                        $namePattern = '/'.NameRules::PERSON_PATTERN.'/u';
+                        if (! preg_match($namePattern, $firstName) || ! preg_match($namePattern, $lastName)) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['invalid_name']++;
+                            $errors[] = 'Row '.($lineNum + 2).": \"{$firstName} {$lastName}\" has an invalid name (letters, spaces, hyphens, apostrophes, periods only) — skipped.";
+
+                            continue;
+                        }
+
+                        // DOB business-rule checks beyond calendar-validity
+                        // (DateParser::parse() already rejects e.g. "31/02/2020"
+                        // rather than silently rolling it forward to Mar 2 —
+                        // see that class). A DOB column that was PRESENT but
+                        // rejected here is reported as an invalid date, never
+                        // folded into "missing required field" (TC-IMP-05).
+                        if (! $dob) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['invalid_date']++;
+                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" is not a valid calendar date — skipped.";
+
+                            continue;
+                        }
+                        $dobCarbon = Carbon::parse($dob);
+                        if ($dobCarbon->isFuture()) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['invalid_date']++;
+                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" is in the future — skipped.";
+
+                            continue;
+                        }
+                        if ($dobCarbon->age > 130) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['invalid_date']++;
+                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" implies an implausible age (over 130) — skipped.";
 
                             continue;
                         }
@@ -425,6 +480,7 @@ class BulkUploadController extends Controller
                         $dupKey = strtolower("{$firstName}|{$lastName}|{$dob}|{$barangay}");
                         if (isset($existingKeys[$dupKey])) {
                             $chunkSkipped++;
+                            $chunkSkipReasons['duplicate']++;
                             $errors[] = 'Row '.($lineNum + 2).": {$firstName} {$lastName} ({$barangay}, {$dob}) already exists — skipped.";
 
                             continue;
@@ -563,8 +619,12 @@ class BulkUploadController extends Controller
                         $chunkInserted++;
                     }
 
-                    return ['inserted' => $chunkInserted, 'skipped' => $chunkSkipped, 'pairs' => $chunkPairs];
+                    return ['inserted' => $chunkInserted, 'skipped' => $chunkSkipped, 'skip_reasons' => $chunkSkipReasons, 'pairs' => $chunkPairs];
                 });
+
+                foreach ($chunkResult['skip_reasons'] as $reason => $count) {
+                    $skipReasons[$reason] += $count;
+                }
 
                 // Only merge into the running totals once the chunk's transaction
                 // has actually committed — mutating these inside the closure
@@ -668,7 +728,25 @@ class BulkUploadController extends Controller
 
         $msg = "Imported {$inserted} senior(s) successfully.";
         if ($skipped) {
-            $msg .= " Skipped {$skipped} row(s) with missing required fields.";
+            // TC-IMP-05: report skip reasons by category instead of blaming
+            // everything on "missing required fields" — a duplicate row (or
+            // an invalid name/date) was previously misreported that way even
+            // though it was correctly detected and skipped for its own,
+            // different reason.
+            $parts = [];
+            if ($skipReasons['missing_field']) {
+                $parts[] = "{$skipReasons['missing_field']} with missing required field(s)";
+            }
+            if ($skipReasons['invalid_name']) {
+                $parts[] = "{$skipReasons['invalid_name']} with an invalid name";
+            }
+            if ($skipReasons['invalid_date']) {
+                $parts[] = "{$skipReasons['invalid_date']} with an invalid date of birth";
+            }
+            if ($skipReasons['duplicate']) {
+                $parts[] = "{$skipReasons['duplicate']} duplicate(s) of an existing record";
+            }
+            $msg .= ' Skipped '.$skipped.' row(s): '.implode('; ', $parts).'.';
         }
 
         if ($mlWarning) {
@@ -804,13 +882,32 @@ class BulkUploadController extends Controller
         return array_values(array_filter($parts, fn ($x) => $x !== ''));
     }
 
+    /**
+     * Parse a QoL Likert-scale cell (valid range 1-5). Distinguishes a
+     * plausible near-miss from outright nonsense (TC-IMP-03): "0" or "6" are
+     * very likely a fencepost typo on a genuine 1-5 answer and get clamped,
+     * but non-numeric garbage ("abc") or a wildly out-of-range value ("9")
+     * is rejected to null rather than silently remapped to an arbitrary
+     * in-range number — a survey with a rejected cell still saves (this
+     * column is optional, same as every other QoL column), it just leaves
+     * that one answer blank instead of fabricating data.
+     */
     private function scoreVal($value): ?int
     {
         if ($value === null || $value === '' || strtolower((string) $value) === 'nan') {
             return null;
         }
 
-        return max(1, min(5, (int) round((float) $value)));
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $num = (int) round((float) $value);
+        if ($num < -1 || $num > 7) {
+            return null;
+        }
+
+        return max(1, min(5, $num));
     }
 
     private function normalizeList(array $items, array $map): array

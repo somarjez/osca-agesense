@@ -8,6 +8,11 @@
       title        string
       intro        string|null
       percent      int          0-100, caller-computed (see completionPercent())
+      label        string       eyebrow above the ring — default "Required Fields"
+                                 fits a caller whose percent genuinely tracks
+                                 required-field completion (QolSurveyForm); a
+                                 caller whose percent instead tracks wizard
+                                 position (ProfileSurvey) should pass "Progress"
       stepCaption  string|null  e.g. "Step 2 of 6"
       statusText   string|null  e.g. "In progress."
       tips         array<string>
@@ -16,6 +21,7 @@
     'title' => 'Guide',
     'intro' => null,
     'percent' => 0,
+    'label' => 'Required Fields',
     'stepCaption' => null,
     'statusText' => null,
     'tips' => [],
@@ -39,9 +45,9 @@
         </div>
 
         <div class="pt-4 border-t border-paper-rule dark:border-[#2b3530]">
-            <p class="eyebrow mb-3">Required Fields</p>
+            <p class="eyebrow mb-3">{{ $label }}</p>
             <div class="flex items-center gap-4">
-                <div class="relative w-16 h-16 flex-shrink-0" role="img" aria-label="{{ $pct }}% of required fields complete">
+                <div class="relative w-16 h-16 flex-shrink-0" role="img" aria-label="{{ $pct }}% — {{ $label }}">
                     <svg viewBox="0 0 60 60" class="w-16 h-16 -rotate-90">
                         <circle cx="30" cy="30" r="{{ $radius }}" fill="none" stroke-width="5"
                                 stroke="currentColor" class="text-paper-2 dark:text-[#202a26]" />

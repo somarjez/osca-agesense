@@ -8,7 +8,14 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICES_DIR="$SCRIPT_DIR/services"
-ML_MODELS_PATH="${ML_MODELS_PATH:-$SCRIPT_DIR/../storage/app/ml_models}"
+# TC-ML-02 / TC-DEP-03 (audit finding): this used to default to the STALE
+# storage/app/ml_models mirror — this script never reads .env (unlike
+# start_services.ps1, which does), so on any invocation where ML_MODELS_PATH
+# isn't already exported in the shell environment, the services silently
+# loaded from the wrong directory regardless of what .env said. python/models
+# is the canonical, live directory (matches .env's own ML_MODELS_PATH=python/models
+# and start_services.ps1's already-correct default).
+ML_MODELS_PATH="${ML_MODELS_PATH:-$SCRIPT_DIR/models}"
 
 export ML_MODELS_PATH
 

@@ -72,14 +72,18 @@ for level, pflag, expected in cases:
 print()
 
 print("=== _priority_flag thresholds ===")
+# Boundaries match RISK_THRESHOLDS (loaded from MODEL_DIR/risk_thresholds.json —
+# see _load_risk_thresholds()): critical/urgent=0.70, high=0.54, moderate=0.39.
+# These used to be hardcoded here at the OLD 0.50/0.30 boundaries, which no
+# longer matched the live model's tuned thresholds (TC-ML-06).
 thresholds = [
-    (0.80, "urgent"),
-    (0.70, "urgent"),
+    (0.80,  "urgent"),
+    (0.70,  "urgent"),
     (0.699, "priority_action"),
-    (0.50,  "priority_action"),
-    (0.499, "planned_monitoring"),
-    (0.30,  "planned_monitoring"),
-    (0.299, "maintenance"),
+    (0.54,  "priority_action"),
+    (0.539, "planned_monitoring"),
+    (0.39,  "planned_monitoring"),
+    (0.389, "maintenance"),
     (0.00,  "maintenance"),
 ]
 for score, expected in thresholds:

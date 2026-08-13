@@ -12,7 +12,10 @@ class ActivityLogController extends Controller
     {
         $logs = ActivityLog::with('user')
             ->when($request->action, fn ($q) => $q->where('action', $request->action))
-            ->when($request->search, fn ($q) => $q->where('description', 'like', '%'.$request->search.'%'))
+            // Case-insensitive (LIKE alone is case-sensitive on Postgres,
+            // production's DB engine — see .env — though not on local MySQL's
+            // default collation, which is why this went unnoticed until now).
+            ->when($request->search, fn ($q) => $q->whereRaw('LOWER(description) LIKE ?', ['%'.strtolower($request->search).'%']))
             ->latest()
             ->paginate(50)
             ->withQueryString();

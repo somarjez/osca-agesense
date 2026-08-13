@@ -132,4 +132,49 @@ class QolSurveyValidationTest extends TestCase
             ->call('nextStep')
             ->assertHasNoErrors();
     }
+
+    /**
+     * Regression coverage for the audit's Critical finding (TC-REC-07): a
+     * completely blank survey — reached by jumping the stepper straight to
+     * step 8 via goToStep() (no wire:model ever touched, so every a1..g3
+     * stays null) then calling submitSurvey() directly — used to persist
+     * with status='processed' and get scored by the live ML model with false
+     * confidence. validateAllSections() must now block this before anything
+     * is written or dispatched.
+     */
+    #[Test]
+    public function completely_blank_survey_is_rejected_not_scored(): void
+    {
+        Queue::fake();
+
+        Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id])
+            ->call('goToStep', 8)
+            ->call('submitSurvey')
+            ->assertHasErrors(['a1']);
+
+        Queue::assertNotPushed(RunMlPipeline::class);
+        $this->assertDatabaseMissing('qol_surveys', [
+            'senior_citizen_id' => $this->senior->id,
+        ]);
+    }
+
+    /** A single missing required field (not a fully blank survey) must also block submission. */
+    #[Test]
+    public function partially_incomplete_survey_is_rejected_and_bounces_to_the_incomplete_step(): void
+    {
+        Queue::fake();
+
+        $component = $this->fillSectionsAtoG(Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id]))
+            ->set('d3', null) // Section D (step 4) now incomplete
+            ->call('goToStep', 8)
+            ->call('submitSurvey');
+
+        $component->assertHasErrors(['d3']);
+        $component->assertSet('step', 4); // bounced back to the first incomplete step, not left on 8
+
+        Queue::assertNotPushed(RunMlPipeline::class);
+        $this->assertDatabaseMissing('qol_surveys', [
+            'senior_citizen_id' => $this->senior->id,
+        ]);
+    }
 }

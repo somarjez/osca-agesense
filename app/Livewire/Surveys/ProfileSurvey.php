@@ -231,38 +231,54 @@ class ProfileSurvey extends Component
     }
 
     /**
-     * Honest completion signal for the registration-guide rail: the share of
-     * fields that are ACTUALLY marked `required` across every step's rule set
-     * (not a fake per-step progress guess). Most fields in this form are
-     * optional by design (partial/legacy data is expected), so only step 1's
-     * core identity fields count — the ring will reach 100% as soon as those
-     * are filled, even while later steps remain open, which correctly reflects
-     * that the record is already submittable at that point.
+     * Progress through the multi-step wizard (previously labeled "Required
+     * Fields" and computed as a required-fields-filled ratio — see git
+     * history). That framing was wrong in both directions: it hit 100% the
+     * instant Step 1's identity fields were done, even while sitting on
+     * Step 2 of 6 ("Required Fields: 100% / Step 2 of 6" contradicting each
+     * other — the reported bug); and for a senior with genuinely nothing to
+     * report in every later, optional section (no assets, no medical
+     * concerns), a fields-filled ratio could never reach 100% at all, since
+     * "no concerns" is a complete, valid answer, not a gap. Wizard position
+     * is honest in both directions and matches the "Step X of 6" caption
+     * shown right next to it — see the rail's "Progress" label
+     * (survey-guide.blade.php) and stepStatusText() below, which now tracks
+     * submit-readiness separately rather than reusing this percentage.
      */
     public function completionPercent(): int
     {
-        $rules = array_merge(
-            $this->step1Rules(), $this->step2Rules(), $this->step3Rules(),
-            $this->step4Rules(), $this->step5Rules(), $this->step6Rules(),
-        );
+        return (int) round((($this->step - 1) / max(1, $this->totalSteps - 1)) * 100);
+    }
 
-        $requiredFields = [];
-        foreach ($rules as $field => $rule) {
-            if (str_ends_with($field, '.*')) {
+    /**
+     * Whether the record can actually be submitted right now — deliberately
+     * NOT derived from completionPercent() above (wizard position). Every
+     * required field lives in Step 1; the record becomes submittable the
+     * moment those are filled, independent of which step the user is
+     * currently viewing or has visited.
+     */
+    public function stepStatusText(): string
+    {
+        [$filled, $total] = $this->requiredFieldStatus();
+
+        return match (true) {
+            $filled === 0 => "Let's get started.",
+            $filled < $total => 'In progress.',
+            default => 'Ready to submit.',
+        };
+    }
+
+    /** @return array{0: int, 1: int} [required fields filled, required fields total] — Step 1 only, see stepStatusText(). */
+    private function requiredFieldStatus(): array
+    {
+        $filled = 0;
+        $total = 0;
+        foreach ($this->step1Rules() as $field => $rule) {
+            $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
+            if (! in_array('required', $tokens, true)) {
                 continue;
             }
-            $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
-            if (in_array('required', $tokens, true)) {
-                $requiredFields[] = $field;
-            }
-        }
-
-        if (! $requiredFields) {
-            return 0;
-        }
-
-        $filled = 0;
-        foreach ($requiredFields as $field) {
+            $total++;
             $value = $this->{$field} ?? null;
             $isFilled = is_array($value) ? count($value) > 0 : ($value !== null && $value !== '');
             if ($isFilled) {
@@ -270,18 +286,7 @@ class ProfileSurvey extends Component
             }
         }
 
-        return (int) round(($filled / count($requiredFields)) * 100);
-    }
-
-    public function stepStatusText(): string
-    {
-        $percent = $this->completionPercent();
-
-        return match (true) {
-            $percent === 0 => "Let's get started.",
-            $percent < 100 => 'In progress.',
-            default => 'Ready to submit.',
-        };
+        return [$filled, $total];
     }
 
     /**

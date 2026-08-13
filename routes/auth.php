@@ -2,8 +2,10 @@
 
 use App\Models\User;
 use App\Support\SingleSession;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 
@@ -21,6 +23,16 @@ Route::middleware('guest')->group(function () {
         // Verify credentials WITHOUT establishing a session yet, so we never
         // reveal "active elsewhere" to someone who lacks the correct password.
         if (! Auth::validate($credentials)) {
+            // TC-DEP-06: Auth::validate() never fires Illuminate\Auth\Events\
+            // Failed (only Auth::attempt()'s internal failure path does, and
+            // that method is never reached on bad credentials in this flow)
+            // — dispatched manually so App\Listeners\LogAuthenticationActivity
+            // still sees every failed attempt, matching what Auth::attempt()
+            // would have fired. $user is null for an email that resolves no
+            // account at all, distinguishing that case from a wrong password
+            // on a real one.
+            Event::dispatch(new Failed('web', User::where('email', $credentials['email'])->first(), $credentials));
+
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);

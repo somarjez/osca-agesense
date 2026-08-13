@@ -41,13 +41,20 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
         // Literal path — must stay before the /{senior} wildcard below so it wins.
         Route::get('/deceased', [SeniorCitizenController::class, 'deceasedIndex'])->name('deceased');
         Route::get('/{senior}', [SeniorCitizenController::class, 'show'])->name('show');
-        Route::get('/{senior}/export', [SeniorCitizenController::class, 'export'])->name('export');
     });
 
     Route::middleware('role:admin,encoder')->group(function () {
         // Edit page renders the Livewire ProfileSurvey component, which POSTs directly
         // via Livewire's own network layer — no PUT route is needed.
         Route::get('/{senior}/edit', [SeniorCitizenController::class, 'edit'])->name('edit');
+
+        // PDF export — admin/encoder only (TC-SEC-07). Was previously grouped
+        // with the read-only role:admin,encoder,viewer routes above; moved
+        // here to match SeniorCitizenPolicy::export()'s narrowed gate — the
+        // exported PDF contains the full, unredacted profile/ML/QoL data,
+        // unlike the deliberately generalized GPS the viewer role gets on
+        // the GIS map (CoordinatePrivacy).
+        Route::get('/{senior}/export', [SeniorCitizenController::class, 'export'])->name('export');
     });
 
     Route::middleware('role:admin')->group(function () {

@@ -31,10 +31,15 @@ class ActivityLog extends Model
     /**
      * Write a log entry. Safe to call anywhere — silently skips on failure
      * so a logging error never breaks the primary operation.
+     *
+     * $subject is nullable for events with no domain-model subject —
+     * currently only a failed login attempt against a non-existent email
+     * (App\Listeners\LogAuthenticationActivity), which resolves no User at
+     * all. Every other caller in the app passes a real Model.
      */
     public static function record(
         string $action,
-        Model $subject,
+        ?Model $subject,
         string $description = '',
         array $metadata = []
     ): void {
@@ -42,8 +47,8 @@ class ActivityLog extends Model
             static::create([
                 'user_id' => Auth::id(),
                 'action' => $action,
-                'subject_type' => get_class($subject),
-                'subject_id' => $subject->getKey(),
+                'subject_type' => $subject ? get_class($subject) : null,
+                'subject_id' => $subject?->getKey(),
                 'description' => $description,
                 'metadata' => $metadata ?: null,
                 'ip_address' => Request::ip(),

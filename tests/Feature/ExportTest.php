@@ -130,13 +130,15 @@ class ExportTest extends TestCase
     }
 
     #[Test]
-    public function senior_pdf_export_returns_pdf_for_viewer()
+    public function senior_pdf_export_is_forbidden_for_viewer()
     {
+        // TC-SEC-07: viewer-role PDF export used to be allowed — see
+        // SeniorCitizenPolicy::export()'s docblock for why it was narrowed
+        // to admin/encoder only.
         $response = $this->actingAs($this->viewer)
             ->get(route('seniors.export', $this->senior));
 
-        $response->assertOk();
-        $response->assertHeader('Content-Type', 'application/pdf');
+        $response->assertForbidden();
     }
 
     #[Test]

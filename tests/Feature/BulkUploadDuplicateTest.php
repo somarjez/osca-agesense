@@ -129,8 +129,13 @@ class BulkUploadDuplicateTest extends TestCase
     #[Test]
     public function unique_senior_is_inserted_on_upload(): void
     {
+        // Letters only, no uniqid() suffix — bulk import now applies
+        // App\Support\NameRules (TC-REC-02/TC-IMP-03), which rejects the
+        // digits a uniqid() suffix would introduce. DatabaseTransactions
+        // rolls back after every test, so a fixed name carries no real
+        // collision risk here.
         $response = $this->uploadCsv($this->makeCsv(
-            firstName: 'UniqueFirst'.uniqid(),
+            firstName: 'UniqueFirstQA',
             lastName: 'UniqueLast',
             dob: '07/20/1952',
         ));

@@ -90,4 +90,47 @@ class MlHealthCheckPoolingTest extends TestCase
         $this->assertSame('error', $result['inference']);
         $this->assertContains($result['mode'], ['local_python', 'php_fallback']);
     }
+
+    /**
+     * Regression coverage for the "first analysis takes over a minute"
+     * report: a 200 from /health only means the port is bound, not that the
+     * Python service's model artifacts have finished loading (its own
+     * _warm_up_models() background thread can still be running). Before this
+     * fix, that in-progress state was indistinguishable from "fully ready" —
+     * both reported 'ok', so the wake modal declared success while the next
+     * real request still paid the full ~30s cold-load cost itself.
+     */
+    #[Test]
+    public function a_service_that_answers_but_has_not_finished_warming_up_is_reported_as_warming_not_ok(): void
+    {
+        Http::fake([
+            '*:5001/health' => Http::response(['status' => 'ok', 'models_ready' => true], 200),
+            '*:5002/health' => Http::response(['status' => 'ok', 'models_ready' => false], 200),
+        ]);
+
+        $result = app(MlService::class)->healthCheck();
+
+        $this->assertSame('ok', $result['preprocessor']);
+        $this->assertSame('warming', $result['inference']);
+        $this->assertNotSame('http', $result['mode'], 'mode must not report http/ready while the inference service is still warming up.');
+    }
+
+    /**
+     * An older/unpatched service (or any future endpoint without this
+     * concept) has no models_ready key at all — must be treated as ready,
+     * not block forever on a signal that will never arrive.
+     */
+    #[Test]
+    public function a_health_response_with_no_models_ready_key_is_still_treated_as_ready(): void
+    {
+        Http::fake([
+            '*/health' => Http::response(['status' => 'ok'], 200),
+        ]);
+
+        $result = app(MlService::class)->healthCheck();
+
+        $this->assertSame('ok', $result['preprocessor']);
+        $this->assertSame('ok', $result['inference']);
+        $this->assertSame('http', $result['mode']);
+    }
 }
