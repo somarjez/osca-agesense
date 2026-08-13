@@ -393,11 +393,19 @@
     if (!window.__oscaBound_dashboard) {
         window.__oscaBound_dashboard = true;
         document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
-        document.addEventListener('livewire:updated', boot);
+        // 'livewire:updated' is a Livewire v2 event that Livewire v3 never
+        // dispatches — that listener was silently dead, so charts never
+        // repainted after an in-place filter change (wire:model.live on the
+        // barangay/risk selects): the canvas kept showing whichever data it
+        // was last drawn with, even though #dashboard-chart-data itself had
+        // already been morphed to the fresh, correctly-filtered JSON. v3's
+        // real per-component "just finished updating" signal is the
+        // Livewire.hook('morphed', ...) hook.
+        Livewire.hook('morphed', () => boot());
         // MainDashboard is `lazy` (main-dashboard.blade.php), so on a fresh
         // load #dashboard-chart-data isn't in the DOM yet at DOMContentLoaded
-        // — render() below bails out, and without this listener the next
-        // thing to fire livewire:updated would be the component's own
+        // — render() below bails out, and without the hook above the next
+        // thing to trigger a repaint would be the component's own
         // wire:poll.300s (5 minutes later). The component dispatches this
         // event itself via Alpine x-init once its lazy placeholder is
         // replaced by the real content, so boot() runs as soon as the chart
