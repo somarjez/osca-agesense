@@ -262,7 +262,12 @@
             .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
         document.addEventListener('livewire:navigated', () => setTimeout(boot, 0));
-        document.addEventListener('livewire:updated', boot);
+        // 'livewire:updated' is a Livewire v2 event — v3 never dispatches it,
+        // so this listener was dead and the chart never repainted after an
+        // in-place barangay-filter change. See dashboard.blade.php for the
+        // full writeup; Livewire.hook('morphed', ...) is v3's real
+        // per-component "just finished updating" signal.
+        Livewire.hook('morphed', () => boot());
     }
     boot();
 })();

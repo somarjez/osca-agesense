@@ -7,8 +7,8 @@
         // a real cost on weak devices. This lightweight poller instead
         // checks a near-zero-cost endpoint (a single Cache::get, no DB
         // query) every ~15-20s, and only triggers the expensive real
-        // refresh — which naturally re-fires the chart boot() below via
-        // the livewire:updated listener — when data actually changed.
+        // refresh — which naturally re-fires the chart boot() (dashboard.blade.php)
+        // via the Livewire.hook('morphed', ...) hook — when data actually changed.
         // wire:poll.300s.visible remains as the backstop in case this
         // poller itself fails silently.
         version: {{ \App\Support\SeniorDataVersion::current() }},
