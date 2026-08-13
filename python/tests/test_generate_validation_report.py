@@ -104,7 +104,8 @@ class TestLoadModelMetrics(unittest.TestCase):
 
     def test_known_calinski_harabasz_value(self):
         metrics = load_model_metrics(MODELS_DIR)
-        self.assertAlmostEqual(metrics["calinski_harabasz"], _real_cluster_eval_metrics()["calinski_harabasz"], places=1)
+        expected = _real_cluster_eval_metrics()["calinski_harabasz"]
+        self.assertAlmostEqual(metrics["calinski_harabasz"], expected, places=1)
 
     def test_model_version_is_string(self):
         metrics = load_model_metrics(MODELS_DIR)
