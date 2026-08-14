@@ -66,6 +66,42 @@
     </div>
     @endif
 
+    {{-- Save-time validation is also surfaced in a fixed modal so users do not
+         have to find the inline summary in a long, multi-step form. --}}
+    <div x-data="{ open: false, title: 'Unable to save record', messages: [] }"
+         @profile-validation-failed.window="
+            title = $event.detail.title || 'Unable to save record';
+            messages = Array.isArray($event.detail.messages) ? $event.detail.messages : [];
+            open = true;
+         ">
+        <x-modal show="open" max-width="max-w-md" ariaLabel="Save validation errors">
+            <div role="alert" aria-live="assertive">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl grid place-items-center flex-shrink-0 bg-critical-50 dark:bg-critical-900/30 text-critical-700 dark:text-critical-300">
+                        <x-heroicon-o-exclamation-triangle class="w-5 h-5" aria-hidden="true" />
+                    </div>
+                    <div class="min-w-0">
+                        <h2 class="card-title" x-text="title"></h2>
+                        <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] mt-1">
+                            Please correct the following information and try again.
+                        </p>
+                    </div>
+                </div>
+                <ul class="mt-4 space-y-2 text-[13px] text-critical-700 dark:text-[#e08070] text-left">
+                    <template x-for="(message, index) in messages" :key="index">
+                        <li class="flex items-start gap-2">
+                            <span aria-hidden="true">&bull;</span>
+                            <span x-text="message"></span>
+                        </li>
+                    </template>
+                </ul>
+                <div class="flex justify-end mt-5">
+                    <button type="button" class="btn btn-primary" @click="open = false">Review form</button>
+                </div>
+            </div>
+        </x-modal>
+    </div>
+
     <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
 
         {{-- ── Form Card ── --}}

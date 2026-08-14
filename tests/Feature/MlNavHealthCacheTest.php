@@ -95,7 +95,10 @@ class MlNavHealthCacheTest extends TestCase
     {
         Http::fake(['*/health' => Http::response(['status' => 'ok'], 200)]);
 
-        $this->getJson(route('ml.nav-health'))->assertJson(['dot' => 'ok']);
+        $this->getJson(route('ml.nav-health'))->assertJson([
+            'dot' => 'ok',
+            'services' => ['preprocessor' => 'ok', 'inference' => 'ok'],
+        ]);
         Http::assertSentCount(2);
 
         // Within the 30s TTL — still cached.

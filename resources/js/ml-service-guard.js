@@ -12,7 +12,9 @@
 // window.OSCA.requireMl() in app.js.
 document.addEventListener('alpine:init', () => {
     Alpine.data('mlServiceGuard', (cfg) => ({
-        dot: null,
+        dot: 'checking',
+        title: 'Checking analysis services…',
+        services: { preprocessor: 'checking', inference: 'checking' },
         modalOpen: false,
         starting: false,
         // True while the currently-open modal exists because a pending
@@ -33,6 +35,8 @@ document.addEventListener('alpine:init', () => {
         wakeElapsed: 0,
         wakeFailCount: 0,
         wakeRequestInFlight: false,
+        statusCheckInFlight: false,
+        wakeGeneration: 0,
         wakeTicker: null,
         wakePoller: null,
         wakeStartedAt: null,
@@ -49,17 +53,14 @@ document.addEventListener('alpine:init', () => {
 
         // Explicit wake flow's confirmation counterpart — see _noteWakeSignal().
         _lastWakeSignalPositive: false,
+        _recoveryConfirmationTimer: null,
 
         init() {
-            // Seed from whatever the shared poller already knows (it starts
-            // polling at import time, so this may already be fresh) rather
-            // than waiting for the next broadcast.
-            this._applyHealth(window.OSCA.mlHealth.dot, window.OSCA.mlHealth.title);
-
-            document.addEventListener('osca:ml-health', this._onHealth = (e) => {
-                this._applyHealth(e.detail.dot, e.detail.title);
+            // Do not decide whether to open the login modal from the cached
+            // session seed. Only the fresh check below may leave checking.
+            window.addEventListener('osca:ml-health', this._onHealth = (e) => {
+                this._applyHealth(e.detail.dot, e.detail.title, e.detail.services);
             });
-            document.addEventListener('livewire:navigating', this._onNavigating = () => this.destroy());
 
             // Every way the modal can close — the Dismiss button, ESC
             // (x-modal's own @keydown.escape.window="modalOpen = false"),
@@ -109,14 +110,16 @@ document.addEventListener('alpine:init', () => {
         destroy() {
             this.stopWake();
             clearTimeout(this.toast.timer);
-            if (this._onHealth) document.removeEventListener('osca:ml-health', this._onHealth);
-            if (this._onNavigating) document.removeEventListener('livewire:navigating', this._onNavigating);
+            clearTimeout(this._recoveryConfirmationTimer);
+            if (this._onHealth) window.removeEventListener('osca:ml-health', this._onHealth);
         },
 
-        _applyHealth(newDot, title) {
+        _applyHealth(newDot, title, services = {}) {
             const wasKnownDown = this.dot === 'err' || this.dot === 'warn';
             const previousRaw = this._rawDot;
             this._rawDot = newDot;
+            this.title = title || this.title;
+            this.services = { ...this.services, ...services };
 
             const isOk = newDot === 'ok';
             const isDown = newDot === 'err' || newDot === 'warn';
@@ -135,6 +138,11 @@ document.addEventListener('alpine:init', () => {
                 // (previousRaw === null) or a recovery when nothing was ever
                 // confirmed down needs no such corroboration.
                 if (wasKnownDown && previousRaw !== 'ok') {
+                    clearTimeout(this._recoveryConfirmationTimer);
+                    this._recoveryConfirmationTimer = setTimeout(
+                        () => window.OSCA.mlHealth.checkNow(),
+                        3000,
+                    );
                     return; // wait for the next tick to corroborate — dot/modal stay exactly as they were
                 }
 
@@ -202,7 +210,7 @@ document.addEventListener('alpine:init', () => {
             });
 
             window.OSCA.mlHealth.checkNow().then((active) => {
-                if (active) {
+                if (active && this.dot === 'ok') {
                     this._settleRequire(true);
                     return;
                 }
@@ -230,6 +238,7 @@ document.addEventListener('alpine:init', () => {
         // ── Wake flow (hosted / Render) — ported from ml/status.blade.php ────────
         startWake() {
             if (this.waking) return;
+            this.wakeGeneration++;
             this.waking = true;
             this.wakeDone = false;
             this.wakeGaveUp = false;
@@ -237,12 +246,9 @@ document.addEventListener('alpine:init', () => {
             this.wakeStartedAt = Date.now();
             this.wakeElapsed = 0;
             this.wakeFailCount = 0;
+            this.wakeRequestInFlight = false;
+            this.statusCheckInFlight = false;
             this._lastWakeSignalPositive = false;
-
-            // Bonus fast path only — see status.blade.php's startWake() for why
-            // this isn't depended on (client network may block *.onrender.com).
-            fetch(cfg.preprocessUrl + '/health', { mode: 'no-cors' }).catch(() => {});
-            fetch(cfg.inferenceUrl + '/health', { mode: 'no-cors' }).catch(() => {});
 
             this.wakeTicker = setInterval(() => {
                 this.wakeElapsed = Math.floor((Date.now() - this.wakeStartedAt) / 1000);
@@ -259,12 +265,12 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
                 this.checkStatus();
-                this.wakeLoop();
             }, 3000);
         },
 
         wakeLoop() {
             if (this.wakeRequestInFlight || !this.waking) return;
+            const generation = this.wakeGeneration;
             this.wakeRequestInFlight = true;
             fetch(cfg.wakeUrl, {
                 method: 'POST',
@@ -275,10 +281,12 @@ document.addEventListener('alpine:init', () => {
                     return r.json();
                 })
                 .then((d) => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
                     this.wakeRequestInFlight = false;
-                    if (this.waking) this._noteWakeSignal(!!d.ready);
+                    this._noteWakeSignal(!!d.ready);
                 })
                 .catch((err) => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
                     this.wakeRequestInFlight = false;
                     if (err && err.httpError) {
                         this.stopWake();
@@ -288,21 +296,33 @@ document.addEventListener('alpine:init', () => {
         },
 
         checkStatus() {
-            fetch(cfg.wakeStatusUrl, { headers: { Accept: 'application/json' } })
-                .then((r) => {
-                    if (!r.ok) throw new Error('status check failed: ' + r.status);
-                    return r.json();
-                })
-                .then((d) => {
-                    this.wakeFailCount = 0;
-                    this._noteWakeSignal(d.mode === 'http');
+            if (this.statusCheckInFlight) return;
+            const generation = this.wakeGeneration;
+            this.statusCheckInFlight = true;
+            window.OSCA.mlHealth.checkNow()
+                .then((active) => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
+                    const states = Object.values(window.OSCA.mlHealth.services || {});
+                    const networkFailed = states.length > 0
+                        && states.every((state) => state === 'network_error');
+                    this.wakeFailCount = networkFailed ? this.wakeFailCount + 1 : 0;
+                    if (this.wakeFailCount >= 3) {
+                        this.stopWake();
+                        this.wakeError = 'Unable to check the analysis services. Please try again.';
+                        return;
+                    }
+                    this._noteWakeSignal(active);
                 })
                 .catch(() => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
                     this.wakeFailCount++;
                     if (this.wakeFailCount >= 3) {
                         this.stopWake();
-                        this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
+                        this.wakeError = 'Unable to check the analysis services. Please try again.';
                     }
+                })
+                .finally(() => {
+                    if (generation === this.wakeGeneration) this.statusCheckInFlight = false;
                 });
         },
 
@@ -327,8 +347,9 @@ document.addEventListener('alpine:init', () => {
         // every page and a reload here would interrupt whatever the user is
         // doing. Set the local dot immediately for this modal, and also force
         // the shared poller to refresh (bypassing its in-flight guard) so the
-        // topbar dot and every other listener flip green in the same beat
-        // instead of waiting for the next scheduled tick.
+        // topbar dot and every other listener flip green without waiting for
+        // the next scheduled tick. The shared poller still deduplicates this
+        // against any check already in flight.
         finishWake() {
             this.stopWake();
             this.wakeDone = true;
@@ -340,7 +361,10 @@ document.addEventListener('alpine:init', () => {
         },
 
         stopWake() {
+            this.wakeGeneration++;
             this.waking = false;
+            this.wakeRequestInFlight = false;
+            this.statusCheckInFlight = false;
             clearInterval(this.wakeTicker);
             clearInterval(this.wakePoller);
         },
@@ -357,6 +381,22 @@ document.addEventListener('alpine:init', () => {
             if (this.wakeGaveUp || this.wakeError) return 'error';
             if (this.dot === null || this.dot === 'checking') return 'checking';
             return 'inactive';
+        },
+
+        serviceLabel(state) {
+            if (state === 'ok' || state === 'ready') return 'Ready';
+            if (state === 'warming' || state === 'warming_up') return 'Warming Up';
+            if (this.waking && ['checking', 'unreachable', 'offline', 'error', 'network_error'].includes(state)) return 'Starting';
+            if (state === 'unreachable' || state === 'offline') return 'Offline';
+            if (state === 'error' || state === 'server_error' || state === 'network_error') return 'Error';
+            return 'Checking';
+        },
+
+        serviceTone(state) {
+            const label = this.serviceLabel(state);
+            if (label === 'Ready') return 'text-low-700 dark:text-low-300';
+            if (label === 'Error' || label === 'Offline') return 'text-critical-700 dark:text-[#e08070]';
+            return 'text-moderate-700 dark:text-moderate-300';
         },
 
         fmt(s) {

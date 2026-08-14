@@ -683,7 +683,7 @@ def _compute_rule_based_risk(
 
 
 # ── Main preprocessing ────────────────────────────────────────────────────────
-def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
+def preprocess(raw: Dict[str, Any], *, compute_reduction: bool = True) -> Dict[str, Any]:
     W   = _runtime_weights()
     enc: Dict[str, Any] = {}
 
@@ -1007,10 +1007,10 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
             scaled = ((arr - arr.mean()) / std).tolist()
 
     # 12. UMAP reduction
-    # Skipped in batch mode (OSCA_BATCH_MODE=1) because infer() recalculates
-    # reduced_features from scratch and ignores this value anyway. Skipping
-    # avoids repeated numba JIT overhead for each senior in a batch loop.
-    if not os.environ.get("OSCA_BATCH_MODE"):
+    # Inference recalculates reduced_features from feature_map/scaled_features.
+    # AgeSense therefore defers this duplicate work, while standalone callers
+    # keep the historical default and still receive a real UMAP reduction.
+    if compute_reduction and not os.environ.get("OSCA_BATCH_MODE"):
         reducer = _load_pickle_if_exists("umap_nd.pkl") or _load_pickle_if_exists("umap_reducer.pkl")
         if reducer is not None:
             try:
@@ -1062,17 +1062,21 @@ def preprocess(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Flask API ─────────────────────────────────────────────────────────────────
 _MODELS_READY = threading.Event()
+_WARMUP_FAILED = threading.Event()
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    # models_ready reflects whether _warm_up_models() has actually finished —
-    # the port binding (and this endpoint answering "ok") happens the instant
-    # the process starts, well before the ~30s artifact load completes. A
-    # caller that treats "status":"ok" alone as "safe to submit real work
-    # now" pays the cold-load cost itself on the first real request (TC-SVC:
-    # reported as "first analysis took over a minute, second run 2-3s").
-    return jsonify({"status": "ok", "service": "osca-preprocessor", "models_ready": _MODELS_READY.is_set()})
+    # Liveness starts when the HTTP server binds; readiness starts only after
+    # the mandatory weights, encoders, and scaler are cached.
+    ready = _MODELS_READY.is_set()
+    failed = _WARMUP_FAILED.is_set()
+    return jsonify({
+        "status": "error" if failed else ("ready" if ready else "warming_up"),
+        "service": "osca-preprocessor",
+        "ready": ready and not failed,
+        "models_ready": ready and not failed,
+    })
 
 
 @app.route("/batch_preprocess", methods=["POST"])
@@ -1089,7 +1093,7 @@ def batch_preprocess_endpoint():
                 results.append({"status": "error", "message": f"Item {idx} is not an object"})
                 continue
             try:
-                results.append(preprocess(item))
+                results.append(preprocess(item, compute_reduction=False))
             except Exception as exc:
                 logger.exception("Batch preprocess error at index %d", idx)
                 results.append({"status": "error", "message": str(exc)})
@@ -1108,7 +1112,10 @@ def preprocess_endpoint():
             return jsonify({"status": "error", "message": "Expected JSON object payload"}), 400
 
         logger.info("Preprocess request: senior_id=%s", raw.get("senior_id"))
-        result = preprocess(raw)
+        defer_reduction = request.args.get("defer_reduction", "").strip().lower() in {
+            "1", "true", "yes",
+        }
+        result = preprocess(raw, compute_reduction=not defer_reduction)
         return jsonify(result)
     except Exception as exc:
         logger.exception("Preprocessing error")
@@ -1116,27 +1123,31 @@ def preprocess_endpoint():
 
 
 def _warm_up_models() -> None:
-    """Pre-load encoders/scaler/UMAP artifacts into their @lru_cache stores in
-    a background thread so the first real /preprocess request isn't the one
-    paying the cold-load cost. /health responds immediately regardless of
-    warm-up progress. Best-effort only — never fatal to service startup.
+    """Pre-load artifacts required by normal AgeSense preprocessing.
+
+    UMAP remains lazy because downstream inference recomputes reduction and
+    deserializing the duplicate artifact dominated this service's cold start.
+    Standalone callers can still request the historical reduced output.
     """
+    _MODELS_READY.clear()
+    _WARMUP_FAILED.clear()
     try:
         _runtime_weights()
-        _load_pickle_if_exists("edu_encoder.pkl")
-        _load_pickle_if_exists("income_encoder.pkl")
-        _load_json_if_exists("feature_list.json")
+        required = {
+            "edu_encoder.pkl": _load_pickle_if_exists("edu_encoder.pkl"),
+            "income_encoder.pkl": _load_pickle_if_exists("income_encoder.pkl"),
+            "feature_list.json": _load_json_if_exists("feature_list.json"),
+            "scaler.pkl": _load_pickle_if_exists("scaler.pkl"),
+        }
+        missing = [name for name, artifact in required.items() if artifact is None]
+        if missing:
+            raise RuntimeError(f"Required preprocessing artifacts are missing: {', '.join(missing)}")
         _load_json_if_exists("vif_retained_features.json")
-        _load_pickle_if_exists("scaler.pkl")
-        _load_pickle_if_exists("umap_nd.pkl") or _load_pickle_if_exists("umap_reducer.pkl")
-        logger.info("Model warm-up complete — caches primed for first request")
+        logger.info("Mandatory warm-up complete — preprocessing service ready; UMAP remains lazy")
     except Exception:
-        logger.exception("Model warm-up failed (non-fatal); artifacts will load lazily on first request")
-    finally:
-        # Set even on failure — a request arriving now will load lazily on
-        # demand exactly as it would have before this flag existed; the
-        # flag's only job is to stop /health claiming warm-up is DONE when
-        # it hasn't even finished trying.
+        _WARMUP_FAILED.set()
+        logger.exception("Mandatory preprocessing warm-up failed")
+    else:
         _MODELS_READY.set()
 
 

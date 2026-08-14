@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
+        "test": "node --test resources/js/__tests__/ml-health.test.js resources/js/__tests__/ml-service-guard.test.js",
         "build": "vite build"
     },
     "devDependencies": {
