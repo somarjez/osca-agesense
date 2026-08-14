@@ -84,10 +84,11 @@
                         return;
                     }
                     this.checkStatus();
+                    this.wakeLoop();
                 }, 3000);
             },
-            // Send one bounded server-side wake request. Subsequent 3s ticks
-            // only poll readiness; Retry starts a new user-requested attempt.
+            // Repeat bounded server-side wake attempts until readiness is
+            // confirmed. wakeRequestInFlight prevents overlapping requests.
             wakeLoop() {
                 if (this.wakeRequestInFlight || !this.waking) return;
                 const generation = this.wakeGeneration;

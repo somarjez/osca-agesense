@@ -265,6 +265,7 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
                 this.checkStatus();
+                this.wakeLoop();
             }, 3000);
         },
 

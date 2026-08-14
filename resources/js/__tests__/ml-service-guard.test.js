@@ -135,7 +135,7 @@ test('repeated wake clicks start only one wake request', () => {
     guard.destroy()
 })
 
-test('readiness polling does not send another wake request', () => {
+test('readiness polling retries the bounded wake attempt while services are unavailable', () => {
     const guard = makeGuard({
         dot: 'err',
         title: 'Unavailable',
@@ -161,7 +161,7 @@ test('readiness polling does not send another wake request', () => {
     }
 
     assert.equal(statusChecks, 1)
-    assert.equal(wakeRequests, 0)
+    assert.equal(wakeRequests, 1)
 })
 
 test('overlapping status polls count one shared response only once', async () => {

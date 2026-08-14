@@ -44,8 +44,8 @@ class MlController extends Controller
      * (~15s) synchronous attempt via MlService::wakeAttempt(). Runs
      * server-side, from this container's own network egress, so it does not
      * depend on the client device reaching the Python hosts directly. The
-     * client sends one request and then polls readiness;
-     * another attempt is sent only when the user chooses Retry.
+     * client repeats bounded attempts while polling readiness; its in-flight
+     * guard prevents overlapping requests.
      */
     public function wake()
     {
