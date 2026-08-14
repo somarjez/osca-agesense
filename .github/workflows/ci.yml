@@ -146,6 +146,11 @@ jobs:
       - name: Run ML pipeline validation tests
         run: python python/tests/test_ml_pipeline.py
 
+      - name: Run service readiness tests
+        run: |
+          pip install pytest==8.3.5
+          python -m pytest python/tests/test_preprocess_readiness.py -q
+
       - name: Audit Python dependencies for known CVEs
         run: |
           pip install pip-audit==2.10.0
@@ -174,6 +179,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Run frontend service-state tests
+        run: npm test
+
       - name: Build frontend assets
         run: npm run build
 
@@ -188,4 +196,3 @@ jobs:
         # advisories (esbuild dev server, Deno path) never reach the deployed app.
         # Production dependencies are audited at the same high threshold.
         run: npm audit --omit=dev --audit-level=high
-

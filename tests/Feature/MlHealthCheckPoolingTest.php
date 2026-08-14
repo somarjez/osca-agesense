@@ -133,4 +133,19 @@ class MlHealthCheckPoolingTest extends TestCase
         $this->assertSame('ok', $result['inference']);
         $this->assertSame('http', $result['mode']);
     }
+
+    #[Test]
+    public function a_successful_http_response_with_an_error_service_state_is_not_ready(): void
+    {
+        Http::fake([
+            '*:5001/health' => Http::response(['status' => 'error', 'ready' => false], 200),
+            '*:5002/health' => Http::response(['status' => 'ready', 'ready' => true], 200),
+        ]);
+
+        $result = app(MlService::class)->healthCheck();
+
+        $this->assertSame('error', $result['preprocessor']);
+        $this->assertSame('ok', $result['inference']);
+        $this->assertNotSame('http', $result['mode']);
+    }
 }

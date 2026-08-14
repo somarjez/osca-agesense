@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Surveys\ProfileSurvey;
 use App\Models\SeniorCitizen;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
@@ -134,7 +135,18 @@ class OfficialOscaIdTest extends TestCase
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->set('officialOscaId', '11-1111-111')
             ->call('save')
-            ->assertHasErrors(['officialOscaId']);
+            ->assertHasErrors(['officialOscaId'])
+            ->assertSet('officialOscaId', '11-1111-111')
+            ->assertSet('firstName', 'Maria')
+            ->assertDispatched('profile-validation-failed', function (string $event, array $params): bool {
+                $this->assertSame('Unable to save record', $params['title'] ?? null);
+                $this->assertContains(
+                    'The Official OSCA ID is already assigned to another senior citizen. Please enter a unique Official OSCA ID.',
+                    $params['messages'] ?? []
+                );
+
+                return true;
+            });
 
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
     }
@@ -162,5 +174,96 @@ class OfficialOscaIdTest extends TestCase
         $senior->refresh();
         $this->assertSame('22-2222-222', $senior->official_osca_id);
         $this->assertSame('09171234567', $senior->contact_number);
+    }
+
+    #[Test]
+    public function editing_a_senior_to_another_seniors_official_osca_id_is_rejected_prominently(): void
+    {
+        SeniorCitizen::create([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'official_osca_id' => '33-3333-333',
+            'first_name' => 'Existing',
+            'last_name' => 'Owner',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1945-01-01',
+            'household_size' => 1,
+        ]);
+        $senior = SeniorCitizen::create([
+            'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
+            'official_osca_id' => '44-4444-444',
+            'first_name' => 'Second',
+            'last_name' => 'Senior',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1950-01-01',
+            'household_size' => 1,
+        ]);
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('officialOscaId', '33-3333-333')
+            ->call('save')
+            ->assertHasErrors(['officialOscaId'])
+            ->assertSet('officialOscaId', '33-3333-333')
+            ->assertDispatched('profile-validation-failed');
+
+        $this->assertSame('44-4444-444', $senior->fresh()->official_osca_id);
+    }
+
+    #[Test]
+    public function multiple_save_errors_are_dispatched_as_a_friendly_summary(): void
+    {
+        Livewire::test(ProfileSurvey::class)
+            ->set('firstName', '')
+            ->set('lastName', '')
+            ->set('barangay', '')
+            ->set('dateOfBirth', '')
+            ->call('save')
+            ->assertHasErrors(['firstName', 'lastName', 'barangay', 'dateOfBirth'])
+            ->assertDispatched('profile-validation-failed', function (string $event, array $params): bool {
+                $messages = $params['messages'] ?? [];
+                $this->assertGreaterThanOrEqual(4, count($messages));
+                $this->assertTrue(collect($messages)->contains(fn (string $message): bool => str_contains($message, 'first name')));
+                $this->assertTrue(collect($messages)->contains(fn (string $message): bool => str_contains($message, 'last name')));
+                $this->assertTrue(collect($messages)->contains(fn (string $message): bool => str_contains($message, 'barangay')));
+                $this->assertTrue(collect($messages)->contains(fn (string $message): bool => str_contains($message, 'date of birth')));
+
+                return true;
+            });
+    }
+
+    #[Test]
+    public function a_database_unique_constraint_race_is_shown_as_the_friendly_save_error(): void
+    {
+        $this->fillRequired(Livewire::test(OfficialOscaIdRaceProfileSurvey::class))
+            ->set('officialOscaId', '55-5555-555')
+            ->call('save')
+            ->assertHasErrors(['officialOscaId'])
+            ->assertSet('officialOscaId', '55-5555-555')
+            ->assertSet('firstName', 'Maria')
+            ->assertDispatched('profile-validation-failed', function (string $event, array $params): bool {
+                $this->assertContains(
+                    'The Official OSCA ID is already assigned to another senior citizen. Please enter a unique Official OSCA ID.',
+                    $params['messages'] ?? []
+                );
+
+                return true;
+            });
+    }
+}
+
+class OfficialOscaIdRaceProfileSurvey extends ProfileSurvey
+{
+    protected function persistProfile(array $data): void
+    {
+        $previous = new \PDOException(
+            'SQLSTATE[23000]: Integrity constraint violation: duplicate official_osca_id',
+            23000,
+        );
+
+        throw new QueryException(
+            'mysql',
+            'insert into senior_citizens (official_osca_id) values (?)',
+            [$data['official_osca_id'] ?? null],
+            $previous,
+        );
     }
 }

@@ -1,43 +1,54 @@
-// Single shared ML service health poller for the whole SPA session.
-//
-// Why this exists: the topbar dot used to do its own one-shot x-init fetch
-// (broken by @persist('topbar') — it only ran once per hard page load) and
-// ml-service-guard.js polled independently every 45s into its own Alpine
-// scope. Both read the same server truth but never told each other about
-// it, so a "services are back online" toast could sit right next to a dot
-// that was still red until the user hit F5. This module is the single
-// source of truth both listen to, so a fix reaches every surface at once.
-//
-// Deliberately NOT an Alpine component — a module-level singleton has none
-// of the @persist / re-init / leaked-timer failure modes ml-service-guard.js
-// has already been bitten by twice (see its own history). There is exactly
-// one timer for the entire tab session, started once at import.
+// One shared service-health source for the authenticated browser session.
+// Cached nav checks drive the topbar; checkNow() is always uncached and gates
+// login initialization plus every ML-dependent action.
 const CACHE_KEY = 'osca_nav_health'
 const URL = '/ml/nav-health'
-// Fresh (uncached — see MlController::wakeStatus()'s docblock), used only by
-// checkNow() below for a pre-operation health check right before an
-// ML-dependent action starts. Deliberately NOT the cached nav-health URL:
-// "it was up 10 minutes ago" must never be trusted before a critical
-// operation like Batch/Individual Analysis, Re-run Assessment, or the
-// ML-dependent stage of Bulk Upload.
 const CHECK_NOW_URL = '/ml/wake-status'
 const INTERVAL_DOWN_MS = 10000
 const INTERVAL_OK_MS = 30000
+
+const unavailableServices = () => ({
+    preprocessor: 'network_error',
+    inference: 'network_error',
+})
 
 function readSeed() {
     try {
         const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null')
         if (cached && typeof cached.dot === 'string') {
-            return { dot: cached.dot, title: cached.title || '' }
+            return {
+                dot: cached.dot,
+                title: cached.title || '',
+                services: cached.services || {},
+            }
         }
-    } catch (e) { /* corrupt/unavailable sessionStorage — fall through */ }
-    return { dot: 'checking', title: 'Checking analysis services…' }
+    } catch (e) { /* unavailable/corrupt sessionStorage */ }
+    return { dot: 'checking', title: 'Checking analysis services…', services: {} }
 }
 
-function writeSeed(dot, title) {
+function writeSeed(snapshot) {
     try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ dot, title, ts: Date.now() }))
-    } catch (e) { /* sessionStorage unavailable — state still updates in-memory */ }
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...snapshot, ts: Date.now() }))
+    } catch (e) { /* in-memory state remains authoritative */ }
+}
+
+function freshSnapshot(health) {
+    const services = health.services || {
+        preprocessor: health.preprocessor || 'unreachable',
+        inference: health.inference || 'unreachable',
+    }
+    const active = health.mode === 'http'
+        && services.preprocessor === 'ok'
+        && services.inference === 'ok'
+    const warming = Object.values(services).some((state) => ['starting', 'warming', 'warming_up'].includes(state))
+    const dot = active ? 'ok' : (health.local_runner === 'available' ? 'warn' : 'err')
+    const title = active
+        ? 'HTTP services online'
+        : (warming
+            ? 'Analysis services are warming up'
+            : (dot === 'warn' ? 'HTTP services offline — using local fallback' : 'Analysis services unavailable'))
+
+    return { active, dot, title, services }
 }
 
 const seed = readSeed()
@@ -45,82 +56,82 @@ const seed = readSeed()
 const mlHealth = {
     dot: seed.dot,
     title: seed.title,
+    services: seed.services,
     _timer: null,
     _inFlight: false,
     _inFlightPromise: null,
     _checkNowPromise: null,
+    _requestVersion: 0,
 
-    /**
-     * Fetch fresh status, broadcast it, and reschedule the next check.
-     * force=true skips nothing server-side (the server has its own cache) —
-     * it's here so callers right after start/stop/wake don't have to guess
-     * whether a poll is already due.
-     *
-     * Always returns a promise — a call that lands while one is already in
-     * flight returns THAT SAME promise (deduped) rather than undefined, so
-     * every caller can safely `await` this without knowing whether a poll
-     * happened to already be in progress.
-     */
-    refresh({ force = false } = {}) {
-        if (this._inFlight && !force) return this._inFlightPromise
+    _commit(snapshot, requestVersion) {
+        // A slower response started before a newer check must never replace
+        // newer READY/OFFLINE truth.
+        if (requestVersion !== this._requestVersion) return false
+
+        const previous = this.dot
+        this.dot = snapshot.dot
+        this.title = snapshot.title
+        this.services = snapshot.services || {}
+        writeSeed({ dot: this.dot, title: this.title, services: this.services })
+        window.dispatchEvent(new CustomEvent('osca:ml-health', {
+            detail: { dot: this.dot, title: this.title, services: this.services, previous },
+        }))
+        this._reschedule()
+        return true
+    },
+
+    refresh() {
+        if (this._checkNowPromise) {
+            return this._checkNowPromise.then(() => ({
+                dot: this.dot,
+                title: this.title,
+                services: this.services,
+            }))
+        }
+        if (this._inFlight) return this._inFlightPromise
 
         this._inFlight = true
+        const requestVersion = ++this._requestVersion
         this._inFlightPromise = fetch(URL, { headers: { Accept: 'application/json' } })
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
-            .then((d) => ({ dot: d.dot, title: d.title }))
-            .catch(() => ({ dot: 'err', title: 'Status unavailable' }))
-            .then(({ dot, title }) => {
+            .then((response) => (response.ok ? response.json() : Promise.reject()))
+            .then((data) => ({
+                dot: data.dot,
+                title: data.title,
+                services: data.services || {},
+            }))
+            .catch(() => ({ dot: 'err', title: 'Status unavailable', services: unavailableServices() }))
+            .then((snapshot) => {
                 this._inFlight = false
-                const previous = this.dot
-                this.dot = dot
-                this.title = title
-                writeSeed(dot, title)
-                window.dispatchEvent(new CustomEvent('osca:ml-health', { detail: { dot, title, previous } }))
-                this._reschedule()
-                return { dot, title, previous }
+                this._commit(snapshot, requestVersion)
+                return snapshot
             })
+
         return this._inFlightPromise
     },
 
-    /**
-     * Fresh, UNCACHED health check for the moment right before an
-     * ML-dependent operation starts (Batch/Individual Analysis, Re-run
-     * Assessment, Bulk Upload's ML stage) — see window.OSCA.requireMl() in
-     * app.js and window.OSCA.mlGate in ml-service-guard.js. Deduped through
-     * its own pending promise: several simultaneous pre-flight checks (e.g.
-     * the background monitor ticking at the same moment a user clicks Run
-     * Analysis) collapse into one request, not several.
-     *
-     * Updates dot/title and broadcasts osca:ml-health exactly like a normal
-     * poll tick on completion, so the topbar dot, the guard modal, and every
-     * pre-flight caller can never end up disagreeing about current status.
-     *
-     * @returns {Promise<boolean>} true only if both Python services actually answered healthy right now.
-     */
     checkNow() {
         if (this._checkNowPromise) return this._checkNowPromise
 
-        this._checkNowPromise = fetch(CHECK_NOW_URL, { headers: { Accept: 'application/json' } })
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
-            .then((health) => {
-                const active = health.mode === 'http'
-                const dot = active ? 'ok' : (health.local_runner === 'available' ? 'warn' : 'err')
-                const title = active
-                    ? 'HTTP services online'
-                    : (dot === 'warn' ? 'HTTP services offline — using local fallback' : 'All analysis services unavailable')
-                return { active, dot, title }
+        const requestVersion = ++this._requestVersion
+        const pending = fetch(CHECK_NOW_URL, { headers: { Accept: 'application/json' } })
+            .then((response) => (response.ok ? response.json() : Promise.reject()))
+            .then(freshSnapshot)
+            .catch(() => ({
+                active: false,
+                dot: 'err',
+                title: 'Status unavailable',
+                services: unavailableServices(),
+            }))
+            .then((snapshot) => {
+                this._commit(snapshot, requestVersion)
+                return snapshot.active
             })
-            .catch(() => ({ active: false, dot: 'err', title: 'Status unavailable' }))
-            .then(({ active, dot, title }) => {
-                this._checkNowPromise = null
-                const previous = this.dot
-                this.dot = dot
-                this.title = title
-                writeSeed(dot, title)
-                window.dispatchEvent(new CustomEvent('osca:ml-health', { detail: { dot, title, previous } }))
-                return active
+            .finally(() => {
+                if (this._checkNowPromise === pending) this._checkNowPromise = null
             })
-        return this._checkNowPromise
+
+        this._checkNowPromise = pending
+        return pending
     },
 
     _reschedule() {
@@ -130,9 +141,11 @@ const mlHealth = {
     },
 
     _start() {
-        this.refresh()
+        // The guard also calls checkNow() when it mounts; the shared promise
+        // collapses both startup paths into one fresh request.
+        this.checkNow()
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) this.refresh({ force: true })
+            if (!document.hidden) this.checkNow()
         })
     },
 }

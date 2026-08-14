@@ -2591,13 +2591,16 @@ def health():
     # (reported: "first analysis took over a minute, second run 2-3s" — the
     # wake modal had already declared the service "Ready" before it actually
     # was).
+    ready = _MODELS_READY.is_set()
+    failed = _WARMUP_FAILED.is_set()
     return jsonify({
-        "status": "ok",
+        "status": "error" if failed else ("ready" if ready else "warming_up"),
         "service": "osca-inference",
         "model_dir": MODEL_DIR,
         "model_version": MODEL_VERSION,
         "notebook_overrides_enabled": ENABLE_NOTEBOOK_OVERRIDES,
-        "models_ready": _MODELS_READY.is_set(),
+        "ready": ready and not failed,
+        "models_ready": ready and not failed,
     })
 
 
@@ -2653,6 +2656,7 @@ def batch_infer_endpoint():
 
 
 _MODELS_READY = threading.Event()
+_WARMUP_FAILED = threading.Event()
 
 
 def _warm_up_models() -> None:
@@ -2661,32 +2665,40 @@ def _warm_up_models() -> None:
     cost (models otherwise load lazily on first use). Runs off the request
     path — /health responds immediately regardless of warm-up progress, and a
     request arriving mid-warm-up just loads on demand as it does today.
-    Best-effort only: any failure here is logged and swallowed, never fatal.
-    Sets _MODELS_READY when done (success or failure) — see /health, which
-    reports this so callers can tell "port bound" apart from "actually warm".
+    A failure is logged and exposed as an error readiness state without
+    terminating the HTTP process. _MODELS_READY is set only after every
+    required artifact has loaded successfully.
     """
+    _MODELS_READY.clear()
+    _WARMUP_FAILED.clear()
     try:
-        _load_model("scaler.pkl")
-        _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"])
-        _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"])
+        required = {
+            "scaler": _load_model("scaler.pkl"),
+            "UMAP reducer": _load_first_model(["umap_nd.pkl", "umap_reducer.pkl"]),
+            "KMeans model": _load_first_model(["kmeans.pkl", "kmeans_k3.pkl", "kmeans_model.pkl"]),
+            "feature_list.json": _load_json("feature_list.json"),
+            "ml_risk_features.json": _load_json("ml_risk_features.json"),
+            "cluster_mapping.json": _load_json("cluster_mapping.json"),
+        }
+        for domain in ("ic", "env", "func"):
+            required[f"gbr_{domain}_risk.pkl"] = _load_model(f"gbr_{domain}_risk.pkl")
+            required[f"rfr_{domain}_risk.pkl"] = _load_model(f"rfr_{domain}_risk.pkl")
+        missing = [name for name, artifact in required.items() if artifact is None]
+        if missing:
+            raise RuntimeError(f"Required inference artifacts are missing: {', '.join(missing)}")
+
         _load_knn_classifier()
         _load_cluster_centroids_scaled()
         _load_cluster_feature_means()
         _load_cluster_profiles()
-        for domain in ("ic", "env", "func"):
-            _load_model(f"gbr_{domain}_risk.pkl")
-            _load_model(f"rfr_{domain}_risk.pkl")
         if ENABLE_NOTEBOOK_OVERRIDES:
             _load_notebook_cluster_index()
             _load_notebook_recommendation_index()
         logger.info("Model warm-up complete — caches primed for first request")
     except Exception:
-        logger.exception("Model warm-up failed (non-fatal); models will load lazily on first request")
-    finally:
-        # Set even on failure — a request arriving now will load lazily on
-        # demand exactly as it would have before this flag existed; the
-        # flag's only job is to stop /health claiming warm-up is DONE when
-        # it hasn't even finished trying.
+        _WARMUP_FAILED.set()
+        logger.exception("Mandatory inference warm-up failed")
+    else:
         _MODELS_READY.set()
 
 

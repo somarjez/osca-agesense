@@ -315,7 +315,7 @@ class MlService
         foreach (['preprocessor', 'inference'] as $name) {
             $resp = $responses[$name] ?? null;
             $results[$name] = $resp instanceof Response
-                ? ($resp->successful() ? ($this->isWarmedUp($resp) ? 'ok' : 'warming') : 'error')
+                ? ($resp->successful() ? $this->successfulHealthStatus($resp) : 'error')
                 : 'unreachable';
         }
 
@@ -347,11 +347,29 @@ class MlService
     private function isWarmedUp(Response $resp): bool
     {
         $body = $resp->json();
-        if (! is_array($body) || ! array_key_exists('models_ready', $body)) {
+        if (! is_array($body)) {
             return true;
         }
 
-        return (bool) $body['models_ready'];
+        if (array_key_exists('ready', $body)) {
+            return (bool) $body['ready'];
+        }
+
+        if (array_key_exists('models_ready', $body)) {
+            return (bool) $body['models_ready'];
+        }
+
+        return ! in_array($body['status'] ?? null, ['starting', 'warming', 'warming_up'], true);
+    }
+
+    private function successfulHealthStatus(Response $resp): string
+    {
+        $status = strtolower((string) ($resp->json('status') ?? ''));
+        if (in_array($status, ['error', 'failed', 'unhealthy'], true)) {
+            return 'error';
+        }
+
+        return $this->isWarmedUp($resp) ? 'ok' : 'warming';
     }
 
     /**
@@ -370,15 +388,8 @@ class MlService
      * prediction traffic.
      *
      * Deliberately runs server-side, from the Laravel container's own
-     * network egress. The wake button also fires a direct fetch() to
-     * *.onrender.com from the *client's* browser as a bonus fast path,
-     * but that one depends on the clicking device's own network being
-     * able to reach Render directly — a device-side firewall, DNS
-     * filter, or ad-blocker can silently drop it with no visible error.
-     * In production that made the wake button work reliably on some
-     * devices and silently time out on others, even though Render never
-     * received a single request from the failing device. This method is
-     * the fallback that doesn't have that dependency.
+     * network egress, so waking does not depend on the client device being
+     * able to reach the Render service hostnames directly.
      *
      * @return array{preprocess: bool, inference: bool} whether each service
      *                                                  responded successfully within this attempt's budget.
@@ -834,7 +845,9 @@ class MlService
         }
 
         try {
-            $response = $this->postWithColdStartRetry($this->preprocessUrl.'/preprocess', $raw);
+            // Inference rebuilds reduction from feature_map/scaled_features,
+            // so avoid loading the same UMAP artifact in both services.
+            $response = $this->postWithColdStartRetry($this->preprocessUrl.'/preprocess?defer_reduction=1', $raw);
 
             if (! $response || $response->failed()) {
                 $this->preprocessAvailable = false;

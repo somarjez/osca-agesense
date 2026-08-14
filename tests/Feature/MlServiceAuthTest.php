@@ -121,7 +121,7 @@ class MlServiceAuthTest extends TestCase
     public function preprocess_and_infer_calls_carry_the_auth_header(): void
     {
         Http::fake([
-            '*/preprocess' => Http::response(['section_scores' => []], 200),
+            '*/preprocess*' => Http::response(['section_scores' => []], 200),
             '*/infer' => Http::response($this->fakeInferResponse(), 200),
         ]);
 
@@ -133,6 +133,7 @@ class MlServiceAuthTest extends TestCase
         $this->assertHeaderSentTo('/preprocess');
         $this->assertHeaderSentTo('/infer');
         $this->assertNoRequestSentTo('/health');
+        Http::assertSent(fn (HttpClientRequest $request): bool => str_contains($request->url(), '/preprocess?defer_reduction=1'));
     }
 
     #[Test]
@@ -176,7 +177,7 @@ class MlServiceAuthTest extends TestCase
         $capturedRequest = null;
 
         Http::fake([
-            '*/preprocess' => function (HttpClientRequest $request) use (&$calls, &$capturedRequest) {
+            '*/preprocess*' => function (HttpClientRequest $request) use (&$calls, &$capturedRequest) {
                 $calls++;
                 $capturedRequest = $request;
                 // A client-side read timeout used to be retried by
@@ -221,7 +222,7 @@ class MlServiceAuthTest extends TestCase
         $calls = 0;
 
         Http::fake([
-            '*/preprocess' => function () use (&$calls) {
+            '*/preprocess*' => function () use (&$calls) {
                 $calls++;
 
                 return $calls === 1
@@ -247,7 +248,7 @@ class MlServiceAuthTest extends TestCase
         config(['services.python.token' => null]);
 
         Http::fake([
-            '*/preprocess' => Http::response(['section_scores' => []], 200),
+            '*/preprocess*' => Http::response(['section_scores' => []], 200),
             '*/infer' => Http::response($this->fakeInferResponse(), 200),
         ]);
 

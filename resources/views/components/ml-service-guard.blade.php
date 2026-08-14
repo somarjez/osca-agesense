@@ -6,8 +6,6 @@
         'navHealthUrl'  => route('ml.nav-health'),
         'wakeUrl'       => route('ml.wake'),
         'wakeStatusUrl' => route('ml.wake-status'),
-        'preprocessUrl' => $ml->preprocessUrl(),
-        'inferenceUrl'  => $ml->inferenceUrl(),
         'csrfToken'     => csrf_token(),
     ];
     $canControlLocal = $ml->localServiceControlAvailable();
@@ -68,13 +66,23 @@
                 <template x-if="phase !== 'waking' && phase !== 'active' && phase !== 'error'"><span>Analysis Services Inactive</span></template>
             </h2>
 
+            <div class="w-full my-3 rounded-xl border border-paper-rule bg-paper dark:bg-[#18211d] divide-y divide-paper-rule text-left">
+                <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                    <span class="text-[12.5px] font-medium text-ink-700 dark:text-[#c8d1cc]">Data Preprocessing</span>
+                    <span class="text-[12px] font-semibold" :class="serviceTone(services.preprocessor)" x-text="serviceLabel(services.preprocessor)"></span>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                    <span class="text-[12.5px] font-medium text-ink-700 dark:text-[#c8d1cc]">Machine Learning</span>
+                    <span class="text-[12px] font-semibold" :class="serviceTone(services.inference)" x-text="serviceLabel(services.inference)"></span>
+                </div>
+            </div>
+
             <div class="w-full text-[13px] text-ink-600 dark:text-[#9aada5] leading-relaxed space-y-2">
                 <template x-if="phase === 'inactive' || phase === 'checking'">
                     <p>
                         It has been a while since the analysis services were active. They may have gone to
-                        sleep due to inactivity. The system is still usable, but assessments will run on a
-                        lower-quality fallback until the services are back. Wake up the services to continue
-                        using analysis features?
+                        sleep due to inactivity. Other parts of the system remain available, but analysis
+                        operations will wait until these services are ready. Wake up the services to continue?
                     </p>
                 </template>
 

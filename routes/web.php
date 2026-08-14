@@ -56,13 +56,25 @@ Route::middleware(['auth'])->group(function () {
                 ($health['local_runner'] ?? null) === 'available' => 'warn',
                 default => 'err',
             };
-            $title = match ($dot) {
-                'ok' => 'HTTP services online',
-                'warn' => 'HTTP services offline — using local fallback',
+            $warming = in_array('warming', [
+                $health['preprocessor'] ?? null,
+                $health['inference'] ?? null,
+            ], true);
+            $title = match (true) {
+                $dot === 'ok' => 'HTTP services online',
+                $warming => 'Analysis services are warming up',
+                $dot === 'warn' => 'HTTP services offline — using local fallback',
                 default => 'All analysis services unavailable',
             };
 
-            return response()->json(['dot' => $dot, 'title' => $title]);
+            return response()->json([
+                'dot' => $dot,
+                'title' => $title,
+                'services' => [
+                    'preprocessor' => $health['preprocessor'] ?? 'unreachable',
+                    'inference' => $health['inference'] ?? 'unreachable',
+                ],
+            ]);
         })->name('ml.nav-health');
     });
 

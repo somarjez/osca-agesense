@@ -11,12 +11,11 @@
     <div x-data="{
             stopOpen: false, restartOpen: false,
             waking: false, wakeDone: false, wakeGaveUp: false, wakeError: null,
-            wakeElapsed: 0, wakeFailCount: 0, wakeRequestInFlight: false,
+            wakeElapsed: 0, wakeFailCount: 0, wakeRequestInFlight: false, statusCheckInFlight: false,
+            wakeGeneration: 0,
             wakeTicker: null, wakePoller: null, wakeStartedAt: null,
             wakeStatusUrl: '{{ route('ml.wake-status') }}',
             wakeUrl: '{{ route('ml.wake') }}',
-            preprocessUrl: '{{ $preprocessUrl }}',
-            inferenceUrl: '{{ $inferenceUrl }}',
             csrfToken: '{{ csrf_token() }}',
             // Cold boots on Render's free tier are documented to range
             // ~122s-180s+ per service, and the Laravel app itself can
@@ -52,34 +51,22 @@
                 // server state. (This comment deliberately contains no
                 // double-quote character — see the file-header comment above
                 // for why that matters inside this double-quoted attribute.)
-                document.addEventListener('osca:ml-health', this._onHealth = (e) => {
+                window.addEventListener('osca:ml-health', this._onHealth = (e) => {
                     if (e.detail.dot === 'ok' && !this.waking && !this.wakeDone && @js($mode !== 'http')) {
                         this.wakeDone = true;
                         setTimeout(() => Livewire.navigate(window.location.href), 400);
                     }
                 });
                 document.addEventListener('livewire:navigating', () => {
-                    if (this._onHealth) document.removeEventListener('osca:ml-health', this._onHealth);
+                    if (this._onHealth) window.removeEventListener('osca:ml-health', this._onHealth);
                 });
             },
             startWake() {
                 if (this.waking) return;
+                this.wakeGeneration++;
                 this.waking = true; this.wakeDone = false; this.wakeGaveUp = false; this.wakeError = null;
                 this.wakeStartedAt = Date.now(); this.wakeElapsed = 0; this.wakeFailCount = 0;
-                // Bonus fast path only, not depended on — a real browser
-                // visiting these exact URLs reliably wakes a fully-cold
-                // Render free-tier container, but only on a device whose
-                // network/browser can actually reach *.onrender.com
-                // directly. That's not guaranteed (a device-side firewall,
-                // DNS filter, or ad-blocker can silently drop it — found in
-                // production to make the button appear to work on some
-                // devices and silently time out on others, with Render
-                // never receiving a single request from the failing
-                // device). wakeLoop() below is the mechanism this doesn't
-                // depend on: it runs server-side, from this app's own
-                // network egress.
-                fetch(this.preprocessUrl + '/health', { mode: 'no-cors' }).catch(() => {});
-                fetch(this.inferenceUrl + '/health', { mode: 'no-cors' }).catch(() => {});
+                this.wakeRequestInFlight = false; this.statusCheckInFlight = false;
                 this.wakeTicker = setInterval(() => {
                     // Date.now()-based, not a naive counter — a throttled or
                     // delayed tick still shows the true elapsed wall-clock
@@ -97,18 +84,13 @@
                         return;
                     }
                     this.checkStatus();
-                    this.wakeLoop();
                 }, 3000);
             },
-            // Repeatedly POSTs /ml/wake — each call is a single bounded
-            // (~15s) server-side wake attempt (MlService::wakeAttempt()).
-            // wakeRequestInFlight guards against overlapping calls; since
-            // this also gets called every 3s tick from pollWake(), a call
-            // that's still in flight is simply skipped rather than piling
-            // up, so the real cadence is paced by however long each
-            // attempt actually took (at least 3s apart either way).
+            // Send one bounded server-side wake request. Subsequent 3s ticks
+            // only poll readiness; Retry starts a new user-requested attempt.
             wakeLoop() {
                 if (this.wakeRequestInFlight || !this.waking) return;
+                const generation = this.wakeGeneration;
                 this.wakeRequestInFlight = true;
                 fetch(this.wakeUrl, {
                     method: 'POST',
@@ -119,10 +101,12 @@
                     return r.json();
                 })
                 .then(d => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
                     this.wakeRequestInFlight = false;
-                    if (d.ready && this.waking) this.finishWake();
+                    if (d.ready) this.finishWake();
                 })
                 .catch(err => {
+                    if (generation !== this.wakeGeneration || !this.waking) return;
                     this.wakeRequestInFlight = false;
                     if (err && err.httpError) {
                         // The app itself rejected the request (expired
@@ -138,16 +122,21 @@
                 });
             },
             checkStatus() {
+                if (this.statusCheckInFlight) return;
+                const generation = this.wakeGeneration;
+                this.statusCheckInFlight = true;
                 fetch(this.wakeStatusUrl, { headers: { 'Accept': 'application/json' } })
                     .then(r => {
                         if (!r.ok) throw new Error('status check failed: ' + r.status);
                         return r.json();
                     })
                     .then(d => {
+                        if (generation !== this.wakeGeneration || !this.waking) return;
                         this.wakeFailCount = 0;
                         if (d.mode === 'http') this.finishWake();
                     })
                     .catch(() => {
+                        if (generation !== this.wakeGeneration || !this.waking) return;
                         this.wakeFailCount++;
                         // Tolerate a couple of transient blips (a single
                         // failed poll during a multi-minute wait shouldn't
@@ -160,6 +149,9 @@
                             this.stopWake();
                             this.wakeError = 'Lost connection to the server while waking services — please reload the page.';
                         }
+                    })
+                    .finally(() => {
+                        if (generation === this.wakeGeneration) this.statusCheckInFlight = false;
                     });
             },
             finishWake() {
@@ -171,7 +163,10 @@
                 setTimeout(() => Livewire.navigate(window.location.href), 1200);
             },
             stopWake() {
+                this.wakeGeneration++;
                 this.waking = false;
+                this.wakeRequestInFlight = false;
+                this.statusCheckInFlight = false;
                 clearInterval(this.wakeTicker);
                 clearInterval(this.wakePoller);
             },
@@ -310,12 +305,17 @@
     @endphp
     <div class="grid grid-cols-3 gap-4">
         @foreach ($healthDisplay as $key => $meta)
-        @php $status = $health[$key] ?? 'unknown'; $ok = in_array($status, ['ok', 'available']); @endphp
+        @php
+            $status = $health[$key] ?? 'unknown';
+            $ok = in_array($status, ['ok', 'available']);
+            $warming = in_array($status, ['starting', 'warming', 'warming_up']);
+            $statusLabel = $warming ? 'Warming Up' : ucfirst(str_replace('_', ' ', $status));
+        @endphp
         <div class="card">
             <div class="card-body flex items-center gap-4">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
-                    {{ $ok ? 'bg-low-50' : 'bg-high-50' }}">
-                    <span class="status-dot {{ $ok ? 'status-dot-ok' : 'status-dot-err' }}"></span>
+                    {{ $ok ? 'bg-low-50' : ($warming ? 'bg-moderate-50' : 'bg-high-50') }}">
+                    <span class="status-dot {{ $ok ? 'status-dot-ok' : ($warming ? 'status-dot-warn' : 'status-dot-err') }}"></span>
                 </div>
                 <div class="min-w-0">
                     <p class="font-semibold text-sm text-ink-800">{{ $meta['label'] }}</p>
@@ -324,7 +324,7 @@
                     @else
                         <p class="text-xs text-ink-400">{{ $meta['desc'] }}</p>
                     @endif
-                    <p class="text-xs font-semibold {{ $ok ? 'text-low-700' : 'text-critical-700' }} mt-0.5 capitalize">{{ $status }}</p>
+                    <p class="text-xs font-semibold {{ $ok ? 'text-low-700' : ($warming ? 'text-moderate-700' : 'text-critical-700') }} mt-0.5">{{ $statusLabel }}</p>
                 </div>
             </div>
         </div>

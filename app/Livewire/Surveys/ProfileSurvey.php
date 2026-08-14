@@ -5,13 +5,17 @@ namespace App\Livewire\Surveys;
 use App\Models\ProfileDraft;
 use App\Models\SeniorCitizen;
 use App\Support\NameRules;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule as ValidationRule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
 
 class ProfileSurvey extends Component
 {
+    private const OFFICIAL_OSCA_ID_UNIQUE_MESSAGE = 'The Official OSCA ID is already assigned to another senior citizen. Please enter a unique Official OSCA ID.';
+
     public ?SeniorCitizen $senior = null;
 
     public ?ProfileDraft $draft = null;
@@ -321,7 +325,22 @@ class ProfileSurvey extends Component
         // UI is currently on, so it must validate every step's rules here —
         // validating only the current step would let steps skipped via a
         // direct component call (bypassing client-side navigation) through.
-        $this->validate($this->allStepsRules(), $this->allStepsMessages());
+        try {
+            $this->validate(
+                $this->allStepsRules(),
+                $this->allStepsMessages(),
+                $this->validationAttributes(),
+            );
+        } catch (ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
+            $this->dispatch(
+                'profile-validation-failed',
+                title: 'Unable to save record',
+                messages: collect($exception->validator->errors()->all())->unique()->values()->all(),
+            );
+
+            return;
+        }
         $this->sanitizeExclusiveGroups();
 
         $data = [
@@ -382,11 +401,24 @@ class ProfileSurvey extends Component
             $data['status_changed_at'] = now();
         }
 
-        if ($this->senior) {
-            $this->senior->update($data);
-        } else {
-            $data['osca_id'] = SeniorCitizen::generateOscaId($this->barangay);
-            $this->senior = SeniorCitizen::create($data);
+        try {
+            $this->persistProfile($data);
+        } catch (QueryException $exception) {
+            // The validation query and write are separate operations. If two
+            // users race to claim the same ID, the database constraint is the
+            // final authority and must still produce the friendly save error.
+            if (! $this->isOfficialOscaIdUniqueViolation($exception)) {
+                throw $exception;
+            }
+
+            $this->addError('officialOscaId', self::OFFICIAL_OSCA_ID_UNIQUE_MESSAGE);
+            $this->dispatch(
+                'profile-validation-failed',
+                title: 'Unable to save record',
+                messages: [self::OFFICIAL_OSCA_ID_UNIQUE_MESSAGE],
+            );
+
+            return;
         }
 
         $this->saved = true;
@@ -519,6 +551,77 @@ class ProfileSurvey extends Component
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
             'dateOfDeath.after_or_equal' => 'Date of death must be in the year 1900 or later.',
             'dateOfDeath.before_or_equal' => 'Date of death cannot be in the future.',
+            'officialOscaId.unique' => self::OFFICIAL_OSCA_ID_UNIQUE_MESSAGE,
+        ];
+    }
+
+    /** Persist after validation; separated so the database-race path is testable. */
+    protected function persistProfile(array $data): void
+    {
+        if ($this->senior) {
+            $this->senior->update($data);
+
+            return;
+        }
+
+        $data['osca_id'] = SeniorCitizen::generateOscaId($this->barangay);
+        $this->senior = SeniorCitizen::create($data);
+    }
+
+    private function isOfficialOscaIdUniqueViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+        $isUniqueViolation = in_array($sqlState, ['23000', '23505'], true)
+            || in_array($driverCode, [19, 1062, 2067], true);
+
+        return $isUniqueViolation
+            && str_contains(strtolower($exception->getMessage()), 'official_osca_id');
+    }
+
+    /** Friendly labels shared by field-level errors and the save-error modal. */
+    protected function validationAttributes(): array
+    {
+        return [
+            'firstName' => 'first name',
+            'middleName' => 'middle name',
+            'lastName' => 'last name',
+            'nameExtension' => 'name extension',
+            'barangay' => 'barangay',
+            'officialOscaId' => 'Official OSCA ID',
+            'dateOfBirth' => 'date of birth',
+            'registrationDate' => 'registration date',
+            'contactNumber' => 'contact number',
+            'placeOfBirth' => 'place of birth',
+            'maritalStatus' => 'marital status',
+            'ethnicOrigin' => 'ethnic origin',
+            'bloodType' => 'blood type',
+            'dateOfDeath' => 'date of death',
+            'deceasedNote' => 'deceased note',
+            'numChildren' => 'number of children',
+            'numWorkingChildren' => 'number of working children',
+            'childFinancialSupport' => 'child financial support',
+            'spouseWorking' => 'spouse employment status',
+            'householdSize' => 'household size',
+            'educationalAttainment' => 'educational attainment',
+            'communityService' => 'community service',
+            'livingWith' => 'living arrangement',
+            'householdCondition' => 'household condition',
+            'incomeSource' => 'income source',
+            'realAssets' => 'real assets',
+            'movableAssets' => 'movable assets',
+            'monthlyIncomeRange' => 'monthly income range',
+            'problemsNeeds' => 'problems and needs',
+            'medicalConcern' => 'medical concern',
+            'dentalConcern' => 'dental concern',
+            'opticalConcern' => 'optical concern',
+            'hearingConcern' => 'hearing concern',
+            'socialEmotionalConcern' => 'social and emotional concern',
+            'healthcareDifficulty' => 'healthcare access',
+            'hasMedicalCheckup' => 'medical checkup status',
+            'checkupSchedule' => 'checkup schedule',
+            'consentGivenAt' => 'consent date',
+            'consentMethod' => 'consent method',
         ];
     }
 
