@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Services\MlService;
 use Illuminate\Support\Facades\Artisan;
 
 /**
@@ -37,25 +38,24 @@ class CronTickController extends Controller
         // cutoff, both on this route). 60s leaves real headroom under the 90s
         // ceiling for schedule:run's own time plus request/response overhead.
         //
-        // This does NOT fully close the failure mode: --max-time only checks
-        // BETWEEN jobs, not within one, and a single ML job whose inference
-        // call hits a sleeping Python service can legitimately block for up
-        // to services.python.cold_start_timeout (180s by default — see
-        // MlService::postWithColdStartRetry) before this check ever gets a
-        // chance to run. That residual case needs a separate fix (e.g. jobs
-        // detecting they're running under a time-boxed drain and skipping the
-        // cold-start retry) and is deliberately not attempted here.
+        // --max-time only checks BETWEEN jobs, not within one. Cron mode now
+        // gives MlService its own short cold-start budget, so a sleeping
+        // Python service cannot hold this request past the proxy ceiling; any
+        // remaining pending work is available for the next scheduled tick.
         //
         // No --tries override: each job already sets its own safe $tries,
         // and queue.php's retry_after (600s) is deliberately kept above every
         // job's $timeout (300s) — overriding tries/timeout here would fight
         // that invariant.
-        Artisan::call('queue:work', [
-            '--queue' => 'ml,default',
-            '--stop-when-empty' => true,
-            '--max-time' => 60,
-        ]);
-        $queueOutput = Artisan::output();
+        $queueOutput = MlService::runInCronDrain(function (): string {
+            Artisan::call('queue:work', [
+                '--queue' => 'ml,default',
+                '--stop-when-empty' => true,
+                '--max-time' => 60,
+            ]);
+
+            return Artisan::output();
+        });
 
         return response()->json([
             'ok' => true,

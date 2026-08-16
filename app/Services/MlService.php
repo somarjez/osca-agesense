@@ -29,6 +29,36 @@ class MlService
     // reintroduce a hardcoded literal at a call site.
     private static ?array $thresholdsCache = null;
 
+    private static bool $cronDrainActive = false;
+
+    /** Run queue work with a bounded cold-start retry budget. */
+    public static function runInCronDrain(callable $callback): mixed
+    {
+        $wasActive = self::$cronDrainActive;
+        self::$cronDrainActive = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$cronDrainActive = $wasActive;
+        }
+    }
+
+    public static function isCronDrainActive(): bool
+    {
+        return self::$cronDrainActive;
+    }
+
+    public static function coldStartTimeoutForCurrentContext(): int
+    {
+        return (int) config(
+            self::$cronDrainActive
+                ? 'services.python.cron_cold_start_timeout'
+                : 'services.python.cold_start_timeout',
+            self::$cronDrainActive ? 8 : 240,
+        );
+    }
+
     private static function thresholds(): array
     {
         return self::$thresholdsCache ??= RiskThresholds::load();
@@ -809,7 +839,7 @@ class MlService
      */
     private function postWithColdStartRetry(string $url, array $payload): ?Response
     {
-        $deadline = microtime(true) + $this->coldStartTimeout;
+        $deadline = microtime(true) + self::coldStartTimeoutForCurrentContext();
         $response = null;
 
         while (true) {
