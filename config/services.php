@@ -50,6 +50,7 @@ return [
         // 240 gives real margin over the slower observed runs instead of
         // sitting right at the edge.
         'cold_start_timeout' => env('PYTHON_COLD_START_TIMEOUT', 240),
+        'cron_cold_start_timeout' => env('PYTHON_CRON_COLD_START_TIMEOUT', 8),
         // Wait between cold-start poll attempts (respects a platform
         // Retry-After header when present, capped by this as the default).
         // 0 disables the wait entirely — used by tests so the retry path

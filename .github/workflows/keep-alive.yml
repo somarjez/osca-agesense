@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Hit the cron-tick endpoint
         run: |
-          curl -sf -X POST "https://pagsanjan-osca.online/api/internal/cron-tick" \
+          curl --fail-with-body --show-error -X POST "https://pagsanjan-osca.online/api/internal/cron-tick" \
             -H "X-Cron-Token: ${{ secrets.CRON_TRIGGER_TOKEN }}" \
-            --max-time 280
+            --connect-timeout 15 \
+            --max-time 85 \
+            --write-out "\nHTTP status: %{http_code}\n"
