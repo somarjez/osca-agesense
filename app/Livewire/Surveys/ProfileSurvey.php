@@ -515,6 +515,12 @@ class ProfileSurvey extends Component
         return $this->step1Messages();
     }
 
+    /** Latest date of birth that makes someone SeniorCitizen::MINIMUM_AGE today. */
+    private function minimumBirthDate(): string
+    {
+        return now()->subYears(SeniorCitizen::MINIMUM_AGE)->toDateString();
+    }
+
     private function step1Rules(): array
     {
         return [
@@ -527,7 +533,7 @@ class ProfileSurvey extends Component
                 'nullable', 'string', 'max:50',
                 ValidationRule::unique('senior_citizens', 'official_osca_id')->ignore($this->senior?->id),
             ],
-            'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today',
+            'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today|before_or_equal:'.$this->minimumBirthDate(),
             'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
@@ -545,6 +551,7 @@ class ProfileSurvey extends Component
             'nameExtension.regex' => NameRules::SUFFIX_MESSAGE,
             'dateOfBirth.after_or_equal' => 'Date of birth must be in the year 1900 or later.',
             'dateOfBirth.before' => 'Date of birth must be in the past.',
+            'dateOfBirth.before_or_equal' => 'This senior must be at least '.SeniorCitizen::MINIMUM_AGE.' years old to be registered.',
             'registrationDate.after_or_equal' => 'Registration date must be in the year 1900 or later.',
             'registrationDate.before_or_equal' => 'Registration date cannot be in the future.',
             'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',

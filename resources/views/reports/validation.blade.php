@@ -21,9 +21,8 @@
         </div>
         <h2 class="font-serif text-xl font-semibold text-ink-900 dark:text-[#e4e1d8]">No validation data yet</h2>
         <p class="text-sm text-ink-500 dark:text-[#8a9087] mt-2 leading-relaxed">
-            The evaluation reports haven't been imported. Run
-            <code class="font-mono text-[12.5px] bg-paper-2 dark:bg-[#131917] px-1.5 py-0.5 rounded">php artisan ml:sync-validation</code>
-            to publish the latest results, then reload this page.
+            The evaluation reports haven't been published yet. Ask a system administrator to
+            sync the latest results, then reload this page.
         </p>
     </div>
 @else
@@ -1140,9 +1139,7 @@
 
         @if (!($fidelity['available'] ?? false))
         <div class="card card-body text-center py-8 text-[13px] text-ink-400">
-            Concordance data not available. Run
-            <code class="font-mono text-[12px] bg-paper-2 dark:bg-[#131917] px-1.5 py-0.5 rounded">php artisan ml:sync-validation</code>
-            to generate it.
+            Concordance data not available. Ask a system administrator to publish it.
         </div>
         @else
 
@@ -1303,9 +1300,9 @@
         <div class="eyebrow mb-2">Provenance</div>
         <p class="text-[12.5px] text-ink-500 dark:text-[#8a9087] leading-relaxed max-w-3xl">
             Results computed over {{ $provenance['n_seniors'] }} senior records using the <strong class="text-ink-700 dark:text-[#c8c4bc]">live model pipeline</strong>
-            (KNN k=5 cluster classifier + GBR/RFR risk ensemble, <code class="font-mono text-[11.5px]">ENABLE_NOTEBOOK_OVERRIDES=false</code>).
+            (KNN k=5 cluster classifier + GBR/RFR risk ensemble, running live rather than from the notebook cache).
             Age is frozen to each senior's survey date for reproducibility. All model artifacts are checksum-verified
-            against <code class="font-mono text-[11.5px]">model_manifest.json</code> at startup, so every device produces identical results.
+            at startup, so every device produces identical results.
             @if ($provenance['generated_at'])
                 Last evaluated {{ $provenance['generated_at']->format('d F Y, H:i') }}.
             @endif

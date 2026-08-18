@@ -329,8 +329,8 @@
                     </p>
                     <div class="rounded-xl bg-moderate-50 dark:bg-moderate-50/10 border border-moderate-100 dark:border-moderate-700/30 px-4 py-3 text-[12px] text-moderate-700 dark:text-[#d4a830] space-y-1.5">
                         <p class="font-semibold">Only run this when intentionally recomputing results.</p>
-                        <p>For seeded seniors, results are sourced from the validated notebook export when <code class="font-mono bg-moderate-100 dark:bg-moderate-700/20 px-0.5 rounded">ENABLE_NOTEBOOK_OVERRIDES=true</code> is set.</p>
-                        <p>If notebook overrides are disabled, scores will be recomputed by the live model.</p>
+                        <p>For seeded seniors, results are normally sourced from the validated notebook export.</p>
+                        <p>When that source is disabled, scores will be recomputed by the live model instead.</p>
                     </div>
                     <p class="text-[11.5px] text-ink-400 dark:text-[#6b7570]">Jobs are queued and processed in the background. Keeping this page open makes them finish faster; leaving is safe but slower.</p>
                     <div class="flex gap-2 justify-end pt-1 border-t border-paper-rule dark:border-[#2b3530]">

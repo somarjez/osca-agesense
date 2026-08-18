@@ -145,8 +145,9 @@
                 </table>
             </div>
             <div class="mt-4 space-y-1.5">
+                @php $riskPcts = \App\Support\Percentages::apportion($riskDistribution['data'] ?? []); @endphp
                 @foreach ($riskDistribution['labels'] as $i => $label)
-                    @php $val = $riskDistribution['data'][$i] ?? 0; $pct = round($val / $riskTotal * 100); @endphp
+                    @php $val = $riskDistribution['data'][$i] ?? 0; $pct = $riskPcts[$i] ?? 0; @endphp
                     <div class="flex items-center gap-2 text-[11.5px] text-ink-700 dark:text-[#b0b5b2]">
                         <span class="w-2 h-2 rounded-sm dot-3d flex-shrink-0" style="background-color: {{ $riskDistribution['colors'][$i] }}"></span>
                         <span>{{ $label }}</span>

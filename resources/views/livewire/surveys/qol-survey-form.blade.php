@@ -82,7 +82,10 @@
             {{-- Validation errors --}}
             @if ($errors->any())
             <div class="px-5 py-3 bg-moderate-50 dark:bg-moderate-500/10 border-b border-moderate-100 dark:border-moderate-500/20">
-                <p class="text-[13px] font-medium text-moderate-700 dark:text-moderate-500">Please answer all questions in this section before continuing.</p>
+                <p class="text-[13px] font-medium text-moderate-700 dark:text-moderate-500">
+                    Please answer all questions in <strong>{{ $sections[$step] ?? 'this section' }}</strong> before continuing.
+                    ({{ $errors->count() }} {{ Str::plural('question', $errors->count()) }} unanswered.)
+                </p>
             </div>
             @endif
 

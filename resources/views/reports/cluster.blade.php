@@ -21,6 +21,7 @@
     @endif
 
     {{-- ── Action Bar ── --}}
+    @role('admin')
     <div class="flex justify-end gap-2">
         <form method="POST" action="{{ route('reports.cluster.snapshot') }}">
             @csrf
@@ -35,6 +36,7 @@
             Export CSV
         </a>
     </div>
+    @endrole
 
     {{-- ── Profile Group Cards (risk averages per profile group) ── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

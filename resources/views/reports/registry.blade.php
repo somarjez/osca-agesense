@@ -98,7 +98,7 @@
         </div>
         <div class="px-5 pt-3">
             <x-alert type="warning">
-                Backups contain senior-citizen personal and health data. Downloaded files must be stored securely and never shared over insecure channels. See <code>docs/BACKUP_AND_RECOVERY.md</code>.
+                Backups contain senior-citizen personal and health data. Downloaded files must be stored securely and never shared over insecure channels.
             </x-alert>
         </div>
         <div class="overflow-x-auto">

@@ -16,6 +16,18 @@ class SeniorCitizen extends Model
     use HasFactory, SoftDeletes;
 
     /**
+     * OSCA registration is restricted to actual senior citizens. Used to
+     * bound date_of_birth validation on every user-facing registration path
+     * (ProfileSurvey, BulkUploadController) and anywhere else "senior" needs
+     * a concrete age floor. Deliberately not applied to the historical CSV
+     * seeders (OscaCsvSeeder, MagdapioImportSeeder) — those reseed the fixed
+     * dataset the notebook's cached validation artifacts are calibrated
+     * against, so silently dropping a row there risks desyncing row counts
+     * from that evidence rather than just rejecting bad new input.
+     */
+    public const MINIMUM_AGE = 60;
+
+    /**
      * Auto-generate the public route-key UUID on creation. `uuid` is
      * intentionally excluded from $fillable — it is system-generated only.
      */
