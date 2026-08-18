@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -25,7 +26,7 @@ class CronTickControllerTest extends TestCase
         config(['services.cron.token' => 'test-cron-token']);
     }
 
-    private function hit(): \Illuminate\Testing\TestResponse
+    private function hit(): TestResponse
     {
         return $this->postJson('/api/internal/cron-tick', [], ['X-Cron-Token' => 'test-cron-token']);
     }
