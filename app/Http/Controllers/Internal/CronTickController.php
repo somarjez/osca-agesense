@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Internal;
 use App\Http\Controllers\Controller;
 use App\Services\MlService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Phase E — the free tier has no persistent queue worker and no schedule:run
@@ -19,43 +20,78 @@ class CronTickController extends Controller
 {
     public function __invoke()
     {
+        // Overall wall-clock deadline for THIS ENTIRE REQUEST — schedule:run
+        // plus queue:work together — not just the queue drain. Previously
+        // only queue:work had a --max-time, evaluated BETWEEN jobs, never
+        // during one: a chunk that was already running when the check fired
+        // could still push the whole request past nginx's 90s
+        // fastcgi_read_timeout and curl's 85s --max-time in
+        // .github/workflows/keep-alive.yml (confirmed in production: the
+        // workflow failing every run with curl exit 28, "0 bytes received"
+        // after 85s — RequeueUnscoredSeniors dispatches up to 8 ProcessMlBatch
+        // chunks per tick, and one 25-senior chunk measured ~35-40s on
+        // Render's free tier — see docs/DEPLOYMENT.md §12b).
+        $deadline = microtime(true) + (int) config('services.python.cron_budget', 70);
+
         Artisan::call('schedule:run');
         $scheduleOutput = Artisan::output();
 
-        // --stop-when-empty: process everything currently pending then exit
-        // cleanly (no daemon, safe to run once per HTTP request).
-        // --max-time=60: caps a single invocation so a large backlog can't
-        // run indefinitely within one request — the next 10-minute tick picks
-        // up where this one left off. This used to be 240s, which ignored the
-        // reverse-proxy chain in front of this endpoint: nginx's
-        // fastcgi_read_timeout (conf/nginx/nginx-site.conf) is 90s, and
-        // Cloudflare's own hard proxy timeout is a non-configurable 100s —
-        // both sit BELOW 240s, so once there was enough queued work to make
-        // this request legitimately run that long, nginx or Cloudflare killed
-        // the connection first and the whole tick was reported as a failure
-        // (confirmed in production: 504 "upstream timed out" from nginx, and
-        // 499 "client prematurely closed connection" from Cloudflare's own
-        // cutoff, both on this route). 60s leaves real headroom under the 90s
-        // ceiling for schedule:run's own time plus request/response overhead.
-        //
-        // --max-time only checks BETWEEN jobs, not within one. Cron mode now
-        // gives MlService its own short cold-start budget, so a sleeping
-        // Python service cannot hold this request past the proxy ceiling; any
-        // remaining pending work is available for the next scheduled tick.
-        //
+        // Reserve cron_job_headroom out of whatever's left so a job already
+        // running when queue:work's own --max-time check fires (only
+        // evaluated BETWEEN jobs) can't run the response past $deadline —
+        // see the class docblock above and MlService::coldStartTimeoutForCurrentContext()
+        // for the matching cold-start-side budget.
+        $headroom = (int) config('services.python.cron_job_headroom', 45);
+        $maxTime = (int) floor($deadline - microtime(true)) - $headroom;
+
+        if ($maxTime <= 0) {
+            // schedule:run alone used the whole tick budget (or came close
+            // enough that starting a job risks the same timeout this exists
+            // to prevent). Skip the drain — nothing is lost, the next
+            // 10-minute tick picks up any pending work.
+            return response()->json([
+                'ok' => true,
+                'ran_at' => now()->toDateTimeString(),
+                'schedule_output' => trim($scheduleOutput),
+                'queue_output' => '(skipped — schedule:run used the full tick budget)',
+            ]);
+        }
+
+        // Same named lock DrainsMlQueue::drainQueueAfterResponse() serializes
+        // every other drain on (bulk upload, manual batch run, batchStatus()'s
+        // poll-triggered top-up) — without it, a cron tick could run
+        // queue:work concurrently with one of those, producing the
+        // duplicated-chunk contention against the single-threaded inference
+        // service that lock was added to prevent. No-ops (skips the drain,
+        // not the whole tick) if another drain already holds it — that drain
+        // is already making progress on the same queue.
+        $lock = Cache::lock('ml:queue-drain', $maxTime + 60);
+        if (! $lock->get()) {
+            return response()->json([
+                'ok' => true,
+                'ran_at' => now()->toDateTimeString(),
+                'schedule_output' => trim($scheduleOutput),
+                'queue_output' => '(skipped — another drain already holds the lock)',
+            ]);
+        }
+
         // No --tries override: each job already sets its own safe $tries,
         // and queue.php's retry_after (600s) is deliberately kept above every
         // job's $timeout (300s) — overriding tries/timeout here would fight
         // that invariant.
-        $queueOutput = MlService::runInCronDrain(function (): string {
-            Artisan::call('queue:work', [
-                '--queue' => 'ml,default',
-                '--stop-when-empty' => true,
-                '--max-time' => 60,
-            ]);
+        try {
+            $queueOutput = MlService::runInCronDrain(function () use ($maxTime): string {
+                Artisan::call('queue:work', [
+                    '--queue' => 'ml,default',
+                    '--stop-when-empty' => true,
+                    '--max-time' => $maxTime,
+                ]);
 
-            return Artisan::output();
-        });
+                return Artisan::output();
+            });
+        } finally {
+            $lock->release();
+        }
 
         return response()->json([
             'ok' => true,

@@ -89,6 +89,17 @@ return [
         // clear of the Flask 5MB request-body ceiling, and caps the blast
         // radius of one bad chunk to a quarter as many seniors.
         'batch_chunk_size' => env('ML_BATCH_CHUNK_SIZE', 25),
+        // CronTickController's own overall wall-clock budget for the whole
+        // request (schedule:run + queue:work). 70s leaves real margin under
+        // both curl's 85s --max-time in .github/workflows/keep-alive.yml and
+        // nginx's fastcgi_read_timeout (90s, conf/nginx/nginx-site.conf).
+        'cron_budget' => env('CRON_TICK_BUDGET', 70),
+        // Reserved out of cron_budget so queue:work's own --max-time (only
+        // checked BETWEEN jobs, never during one) can't let an
+        // already-running job push the response past cron_budget — a
+        // 25-senior ProcessMlBatch chunk measured ~35-40s on Render's free
+        // tier (docs/DEPLOYMENT.md §12b); 45 covers that with margin.
+        'cron_job_headroom' => env('PYTHON_CRON_JOB_HEADROOM', 45),
     ],
 
     'overpass' => [

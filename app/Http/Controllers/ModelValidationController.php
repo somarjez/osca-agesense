@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\ModelValidation;
+use App\Support\RiskThresholds;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -36,9 +37,10 @@ class ModelValidationController extends Controller
         $confidence = $mv->confidence($clustering, $regression, $classification, $xai, $recs);
 
         $charts = $mv->chartPayload($clustering, $regression, $classification, $xai, $recs);
+        $thresholds = RiskThresholds::load();
 
         return view('reports.validation', compact(
-            'clustering', 'regression', 'classification', 'xai', 'recs', 'fidelity', 'provenance', 'charts', 'confidence'
+            'clustering', 'regression', 'classification', 'xai', 'recs', 'fidelity', 'provenance', 'charts', 'confidence', 'thresholds'
         ) + ['available' => $mv->available()]);
     }
 
