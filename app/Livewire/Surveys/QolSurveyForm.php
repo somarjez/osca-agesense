@@ -6,6 +6,7 @@ use App\Jobs\RunMlPipeline;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Support\Concerns\DrainsMlQueue;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class QolSurveyForm extends Component
@@ -254,7 +255,7 @@ class QolSurveyForm extends Component
         // behind the modal overlay while showConfirm is true.
         try {
             $this->validateAllSections();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->showConfirm = false;
 
             throw $e;

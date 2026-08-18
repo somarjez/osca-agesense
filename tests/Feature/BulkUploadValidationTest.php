@@ -147,7 +147,7 @@ class BulkUploadValidationTest extends TestCase
 
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => $firstName]);
         $errors = session('bulk_errors') ?? [];
-        $this->assertStringContainsString('under '.\App\Models\SeniorCitizen::MINIMUM_AGE, implode(' ', $errors));
+        $this->assertStringContainsString('under '.SeniorCitizen::MINIMUM_AGE, implode(' ', $errors));
     }
 
     #[Test]

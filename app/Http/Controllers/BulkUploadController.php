@@ -477,7 +477,7 @@ class BulkUploadController extends Controller
                         if ($dobCarbon->age < SeniorCitizen::MINIMUM_AGE) {
                             $chunkSkipped++;
                             $chunkSkipReasons['invalid_date']++;
-                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" implies an age under ".SeniorCitizen::MINIMUM_AGE." — skipped.";
+                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" implies an age under ".SeniorCitizen::MINIMUM_AGE.' — skipped.';
 
                             continue;
                         }
