@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CurrentMlResult;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -56,14 +57,18 @@ class Recommendation extends Model
 
     /**
      * Limit to "current" recommendations — those belonging to each senior's
-     * latest ML result (max ml_result id per senior). Older assessments' recs
-     * remain in the table as history but are excluded here. Correlated subquery
-     * so it composes inside relationships, whereHas, withCount, and aggregates.
+     * latest ML result (max ml_result id per senior, excluding soft-deleted
+     * and orphaned rows — see App\Support\CurrentMlResult). Older assessments'
+     * recs remain in the table as history but are excluded here. Correlated
+     * subquery so it composes inside relationships, whereHas, withCount, and
+     * aggregates.
      */
     public function scopeCurrent($query)
     {
         return $query->whereRaw(
-            'recommendations.ml_result_id = (select max(id) from ml_results where ml_results.senior_citizen_id = recommendations.senior_citizen_id)'
+            'recommendations.ml_result_id = ('
+                .CurrentMlResult::correlatedMaxIdSql('recommendations.senior_citizen_id')
+                .')'
         );
     }
 

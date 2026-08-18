@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
+use App\Support\CurrentMlResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -28,12 +29,20 @@ class RecommendationController extends Controller
         // GROUP-BY version was tried first and measured ~2.6s — better, but
         // still ran the MAX(id) lookup once per recommendation row; this
         // join-based version measured ~1.6s for the seniors query alone.)
-        $currentMlResults = DB::table('ml_results')
-            ->select('senior_citizen_id')
-            ->selectRaw('MAX(id) as ml_result_id')
-            ->groupBy('senior_citizen_id');
+        //
+        // CurrentMlResult::perSeniorSubquery() (not a bare "MAX(id) ... GROUP
+        // BY") — this raw DB::table() query bypasses Eloquent's SoftDeletes
+        // global scope entirely, so without its explicit deleted_at filter a
+        // soft-deleted ml_results row still won the MAX(id) and got joined
+        // here. Combined with the missing deleted_at filter on
+        // `recommendations` below, that's what made a single re-run's
+        // superseded-but-not-yet-purged recommendation rows double every
+        // count on this page (20 shown on the profile, 40 here) — see
+        // MlService::persistResults()'s soft-delete-then-insert.
+        $currentMlResults = CurrentMlResult::perSeniorSubquery();
 
         $recCounts = DB::table('recommendations')
+            ->whereNull('recommendations.deleted_at')
             ->joinSub($currentMlResults, 'current_ml', fn ($join) => $join->on('recommendations.ml_result_id', '=', 'current_ml.ml_result_id'))
             ->select('current_ml.senior_citizen_id')
             ->selectRaw('COUNT(*) as recommendations_count')
@@ -42,6 +51,7 @@ class RecommendationController extends Controller
             ->groupBy('current_ml.senior_citizen_id');
 
         $statsRow = DB::table('recommendations')
+            ->whereNull('recommendations.deleted_at')
             ->joinSub($currentMlResults, 'current_ml', fn ($join) => $join->on('recommendations.ml_result_id', '=', 'current_ml.ml_result_id'))
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("SUM(CASE WHEN recommendations.status = 'pending' THEN 1 ELSE 0 END) as pending")

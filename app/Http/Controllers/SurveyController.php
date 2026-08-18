@@ -77,6 +77,21 @@ class SurveyController extends Controller
     public function qolDestroy(QolSurvey $survey)
     {
         $senior = $survey->seniorCitizen;
+
+        // Cascade soft-delete: recommendations → ml_result → survey. Mirrors
+        // SeniorCitizenController::destroy()'s archive cascade. Without this,
+        // the ml_result kept pointing at a trashed survey — an "orphan" that
+        // every "latest ml_result" reader still picked as current (see
+        // App\Support\CurrentMlResult) — which is why re-running an
+        // assessment after deleting the latest QoL survey used to silently
+        // update a row nothing displayed. The confirm modal already tells
+        // the user this survey's decision-support output will be deleted;
+        // this makes that true.
+        if ($survey->mlResult) {
+            $survey->mlResult->recommendations()->delete();
+            $survey->mlResult->delete();
+        }
+
         $survey->delete();
 
         if (request()->headers->get('referer') && str_contains(request()->headers->get('referer'), '/seniors/')) {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\EncryptedOrPlainText;
+use App\Support\CurrentMlResult;
 use App\Support\DbHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -200,9 +201,15 @@ class SeniorCitizen extends Model
         return $this->hasMany(MlResult::class);
     }
 
+    /**
+     * "Latest" excludes an orphan — an ml_result whose qol_survey was
+     * soft-deleted out from under it (see App\Support\CurrentMlResult) —
+     * so this always resolves to the newest ml_result that's still backed by
+     * a real, undeleted survey (or by no survey at all).
+     */
     public function latestMlResult(): HasOne
     {
-        return $this->hasOne(MlResult::class)->latestOfMany();
+        return $this->hasOne(MlResult::class)->ofMany(['id' => 'max'], CurrentMlResult::excludeOrphaned());
     }
 
     public function recommendations(): HasMany

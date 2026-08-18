@@ -493,11 +493,30 @@ class SeniorCitizenController extends Controller
     public function restore(int $id, Request $request)
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
-        // Restore all data that was soft-deleted when this senior was archived
-        Recommendation::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
-        MlResult::withTrashed()->where('senior_citizen_id', $senior->id)->restore();
+
+        // Restore only rows trashed BY this archive — not recommendations,
+        // ml_results, or QoL surveys the user individually soft-deleted
+        // earlier (e.g. via SurveyController::qolDestroy()), which must stay
+        // superseded/deleted. destroy()'s cascade trashes recommendations,
+        // then ml_results, then surveys, then the senior, all within the
+        // same request — comfortably inside this 5-second window ending at
+        // the senior's own deleted_at. Without this, un-archiving used to
+        // resurrect every recommendation/ml_result ever superseded for this
+        // senior as genuinely live duplicates.
+        $archivedAt = $senior->deleted_at;
+        $windowStart = $archivedAt?->copy()->subSeconds(5);
+
+        Recommendation::withTrashed()
+            ->where('senior_citizen_id', $senior->id)
+            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
+            ->restore();
+        MlResult::withTrashed()
+            ->where('senior_citizen_id', $senior->id)
+            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
+            ->restore();
         QolSurvey::onlyTrashed()
             ->where('senior_citizen_id', $senior->id)
+            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
             ->each(fn ($s) => $s->restore());
         $senior->restore();
 
