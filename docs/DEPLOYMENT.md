@@ -599,7 +599,9 @@ Everything above this section covers local/office Windows deployment. This secti
 - The 3 daily maintenance tasks in `routes/console.php` (cluster snapshot, GIS route-distance backfill, proximity scoring) never fire — nothing runs `schedule:run`.
 - The web service sleeps after ~15 min idle, causing a ~60-90s cold start on the next visit.
 
-**The fix — `.github/workflows/keep-alive.yml`:** a scheduled GitHub Actions workflow hits `POST /api/internal/cron-tick` (guarded by the `VerifyCronToken` middleware checking an `X-Cron-Token` header against `CRON_TRIGGER_TOKEN`) every 10 minutes during business hours (6am-8pm PHT, 7 days/week). That one request runs `schedule:run` (fires any due maintenance task) then `queue:work --queue=ml,default --stop-when-empty --max-time=60` (drains whatever's pending on both queues) — and, as a side effect of just being an HTTP request, keeps the Render service from going to sleep during that window. During this bounded drain, ML cold-start retries use `PYTHON_CRON_COLD_START_TIMEOUT` (8 seconds by default); pending jobs remain available for the next tick.
+**The fix — `.github/workflows/keep-alive.yml`:** a scheduled GitHub Actions workflow first pings the Render web service to absorb a cold start off the budget below, then hits `POST /api/internal/cron-tick` (guarded by the `VerifyCronToken` middleware checking an `X-Cron-Token` header against `CRON_TRIGGER_TOKEN`, with `--retry 2` in case the warm-up wasn't enough) every 10 minutes during business hours (6am-8pm PHT, 7 days/week). That one request runs `schedule:run` (fires any due maintenance task) then `queue:work --queue=ml,default --stop-when-empty --max-time={dynamic}` (drains whatever's pending on both queues) — and, as a side effect of just being an HTTP request, keeps the Render service from going to sleep during that window.
+
+`CronTickController` bounds the **whole request** to `services.python.cron_budget` (70s by default) — not just the drain. `queue:work`'s own `--max-time` is only checked *between* jobs, never during one, so a fixed 60s budget could still let an already-running `ProcessMlBatch` chunk (up to ~35-40s on Render's free tier, see §12b) push the response past curl's `--max-time` and nginx's `fastcgi_read_timeout` — the confirmed cause of the workflow failing every run with curl exit 28 ("0 bytes received" after 85s). The controller now computes `queue:work`'s `--max-time` as `cron_budget − time already spent on schedule:run − services.python.cron_job_headroom` (45s by default, sized to cover one worst-case chunk), and skips the drain entirely (reporting `queue_output: "(skipped — ...)"`, still `"ok": true`) if `schedule:run` alone already used the budget — any pending work is picked up by the next tick. It also takes the same `ml:queue-drain` cache lock `DrainsMlQueue::drainQueueAfterResponse()` uses, so a cron tick can never run concurrently with a post-response drain from a bulk upload or manual batch run. During whatever drain does run, ML cold-start retries use `PYTHON_CRON_COLD_START_TIMEOUT` (8 seconds by default).
 
 **Why business hours only, not 24/7:** the Render Hobby (free) plan pools **750 instance-hours/month across every free service in the workspace** — this project has 3 (`osca-agesense` Laravel + `osca-preprocess` + `osca-inference`). Pinging the Laravel app 24/7 alone would use ~720-730 of those 750 hours, leaving almost nothing for the 2 Python ML services and risking the whole workspace being suspended until the next monthly reset if they get any meaningful daily use too. The 6am-8pm PHT window uses roughly 360 hours/month instead, leaving real headroom. Outside the window, the first visit of the day eats one cold start — same as today, just narrowed to off-hours.
 
@@ -613,7 +615,7 @@ Everything above this section covers local/office Windows deployment. This secti
 
 **To rotate the token:** repeat steps 1-3 with a new value — both sides must match or every request 403s.
 
-**To check it's working:** GitHub repo → Actions tab → "keep-alive" workflow → run history should show green ticks every 10 minutes during the window (or trigger one manually via "Run workflow" / `workflow_dispatch`). A 200 response body includes `schedule_output`/`queue_output` JSON fields showing what actually ran.
+**To check it's working:** GitHub repo → Actions tab → "keep-alive" workflow → run history should show green ticks every 10 minutes during the window (or trigger one manually via "Run workflow" / `workflow_dispatch`). A 200 response body includes `schedule_output`/`queue_output` JSON fields showing what actually ran — `queue_output` reading `"(skipped — schedule:run used the full tick budget)"` or `"(skipped — another drain already holds the lock)"` is expected occasionally, not a failure; either way `"ok": true` and pending work is picked up by the next tick.
 
 ### 12a. Production-tuned settings that must survive redeploys
 
@@ -665,8 +667,10 @@ post-upload drain clears about 4 of them (~100 seniors) before its budget runs o
 previously mistaken for a hard "100-record cap" on bulk upload — it wasn't, all 360 rows were
 imported correctly, only risk scoring lagged. The remaining chunks are picked up by:
 
-- the 10-minute keep-alive cron tick (§12 above), which drains for up to 240s (~6 chunks) per
-  tick, and
+- the 10-minute keep-alive cron tick (§12 above), which drains for up to
+  `services.python.cron_budget − services.python.cron_job_headroom` seconds
+  (roughly 25s, ~1 chunk, at the 70s/45s defaults — deliberately small; see
+  §12's explanation of why the drain can't just run longer) per tick, and
 - `php artisan ml:requeue-unscored` (`routes/console.php`, `everyTenMinutes()`), a
   reconciliation sweeper that finds any active senior with a survey but no usable `MlResult` —
   including one stranded by a chunk whose worker died mid-job — and requeues it. This is what

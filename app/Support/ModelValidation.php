@@ -324,7 +324,18 @@ class ModelValidation
     public function riskClassification(): array
     {
         $summary = $this->json('risk_level_validation_summary.json') ?? [];
-        $cm = $summary['confusion_matrix'] ?? [];
+        // Commit 67f8ec0 (#219) renamed this key to confusion_matrix_3class
+        // in the git-tracked public artifact without updating this reader —
+        // on any environment without the gitignored local mirror (which
+        // still used the old key), $cm silently stayed [] and the whole
+        // classification card rendered as "held-out set (0 seniors)" with
+        // 0% accuracy. Accept either generation, and the older 4-class
+        // notebook-raw key as a last resort — the CRITICAL→HIGH fold below
+        // already normalizes whichever schema this resolves to.
+        $cm = $summary['confusion_matrix_3class']
+            ?? $summary['confusion_matrix']
+            ?? $summary['confusion_matrix_4class_notebook_raw']
+            ?? [];
 
         // Collapse the legacy 4-level matrix into the live 3 levels
         // (CRITICAL → HIGH). confusion_matrix is keyed [Pred_X][True_Y].
@@ -394,6 +405,10 @@ class ModelValidation
         }
 
         return [
+            // False when the confusion-matrix artifact was missing/unreadable
+            // (all-zero matrix) — lets the view show its existing "not
+            // available" empty state instead of a misleadingly precise 0%.
+            'available' => $total > 0,
             'matrix' => $matrix,
             'levels' => self::LEVELS,
             'accuracy' => $accuracy,
@@ -402,7 +417,11 @@ class ModelValidation
             'per_class' => $perClass,
             'distribution' => $dist,
             'thresholds' => $thresholds,
-            'selected_threshold' => $summary['selected_threshold_set'] ?? 'moderate',
+            // Both known artifact generations actually say "balanced" — this
+            // fallback only fires if selected_threshold_set is itself
+            // missing, so it must match, or the "Selected" badge highlights
+            // the wrong row in the threshold trade-off table.
+            'selected_threshold' => $summary['selected_threshold_set'] ?? 'balanced',
             'verdicts' => [
                 'accuracy' => $this->verdict($accuracy >= 0.70, 'Strong', 'Adequate'),
                 'safety' => $this->verdict(($perClass['HIGH']['recall'] ?? 0) >= 0.85, 'High-sensitivity', 'Moderate'),

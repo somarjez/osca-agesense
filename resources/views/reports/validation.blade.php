@@ -466,7 +466,9 @@
         </div>
         <p class="text-[13.5px] text-ink-500 dark:text-[#8a9087] max-w-3xl leading-relaxed">
             Each senior receives three domain risk scores — intrinsic capacity, environment, and functional ability —
-            blended into one overall level. The models were tested on held-out seniors they never saw during training.
+            blended into one overall level. The domain-score regression models below were tested on held-out seniors
+            they never saw during training; the risk-level agreement further down is a separate check against the
+            coded clinical rules, over the full assessed cohort.
         </p>
 
         {{-- Regression KPIs --}}
@@ -654,6 +656,11 @@
                     <div class="card-sub">Accuracy {{ $pct($classification['accuracy'], 0) }} · catches {{ $pct($classification['high_recall'], 0) }} of high-risk seniors</div>
                 </div>
                 <div class="card-body">
+                    @if (! ($classification['available'] ?? false))
+                    <p class="text-[13px] text-ink-400 text-center py-8">
+                        Classification evidence isn't available yet — the confusion-matrix artifact hasn't been published.
+                    </p>
+                    @else
                     @php
                         $m = $classification['matrix'];
                         $levels = $classification['levels'];
@@ -704,6 +711,7 @@
                         ({{ $pct($classification['high_recall'], 0) }}) is the headline number, not raw precision.
                         Scores of 0.70 and above are additionally marked with a <strong class="text-ink-700 dark:text-[#c8c4bc]">Priority Flag</strong>.
                     </p>
+                    @endif
                 </div>
             </div>
 
@@ -754,8 +762,17 @@
         <div class="card">
             <div class="card-head">
                 <div class="card-title">Risk-level classification report</div>
-                <div class="card-sub">Per-level precision, recall, and F1 on the held-out set ({{ array_sum(array_column($classification['per_class'], 'support')) }} seniors)</div>
+                @if ($classification['available'] ?? false)
+                <div class="card-sub">Per-level precision, recall, and F1 — ensemble agreement with the coded clinical rules across all {{ array_sum(array_column($classification['per_class'], 'support')) }} assessed seniors, not a held-out split</div>
+                @endif
             </div>
+            @if (! ($classification['available'] ?? false))
+            <div class="card-body">
+                <p class="text-[13px] text-ink-400 text-center py-8">
+                    Classification evidence isn't available yet — the confusion-matrix artifact hasn't been published.
+                </p>
+            </div>
+            @else
             <div class="overflow-x-auto">
                 <table class="w-full text-[12.5px]">
                     <thead>
@@ -789,6 +806,7 @@
                     </tbody>
                 </table>
             </div>
+            @endif
         </div>
     </section>
 
@@ -797,7 +815,7 @@
             <div class="eyebrow mb-3">Visual evidence</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 @include('reports.partials.validation-figure', ['plot' => 'risk_distribution', 'title' => 'Figure 7 — Risk distribution', 'caption' => 'How composite risk and risk levels are spread across the senior population.'])
-                @include('reports.partials.validation-figure', ['plot' => 'risk_level_confusion_matrix', 'title' => 'Figure 8 — Confusion matrix', 'caption' => 'Predicted vs. actual risk levels on the held-out set.'])
+                @include('reports.partials.validation-figure', ['plot' => 'risk_level_confusion_matrix', 'title' => 'Figure 8 — Confusion matrix', 'caption' => 'Ensemble-predicted vs. rule-based risk levels across all assessed seniors.'])
                 @include('reports.partials.validation-figure', ['plot' => 'calibration_reliability', 'title' => 'Figure 9 — Calibration', 'caption' => 'Predicted risk vs. the rule-based reference across score bands.'])
             </div>
         </div>
@@ -1211,7 +1229,7 @@
                 <div class="flex items-center gap-2 pt-1">
                     <x-heroicon-o-shield-check class="w-4 h-4 text-low-600 flex-shrink-0" />
                     <span class="text-[12px] text-ink-600 dark:text-[#a8b0ab]">
-                        Risk thresholds: HIGH ≥ 0.54 · MODERATE ≥ 0.39 · Priority flag ≥ 0.70
+                        Risk thresholds: HIGH ≥ {{ number_format($thresholds['high'], 2) }} · MODERATE ≥ {{ number_format($thresholds['moderate'], 2) }} · Priority flag ≥ {{ number_format($thresholds['critical'], 2) }}
                     </span>
                 </div>
             </div>

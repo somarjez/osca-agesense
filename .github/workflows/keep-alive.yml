@@ -25,10 +25,33 @@ jobs:
     name: tick
     runs-on: ubuntu-latest
     steps:
+      # A sleeping Render web service takes 60-90s+ to cold-boot. Without
+      # this, a cold start could eat most of the cron-tick request's own
+      # budget below before Laravel even starts handling it, tripping
+      # CronTickController's internal deadline (services.python.cron_budget,
+      # 70s) or curl's own --max-time before real work ever ran. This ping
+      # only needs the app to start responding, not to finish — 404 on /
+      # is fine, a network failure/timeout is tolerated (|| true) since the
+      # cron-tick request right after this is the one that must succeed.
+      - name: Warm up the web service
+        run: |
+          curl --silent --show-error -o /dev/null -w "warm-up status: %{http_code}\n" \
+            --connect-timeout 15 --max-time 90 \
+            "https://pagsanjan-osca.online/" || true
+
+      # CronTickController now bounds its own total runtime to
+      # services.python.cron_budget (70s, see config/services.php), so a
+      # single tick can no longer run past this --max-time on its own —
+      # --retry covers the case where the warm-up above wasn't enough
+      # (Render's cold start still landed on this request instead) rather
+      # than a still-oversized drain.
       - name: Hit the cron-tick endpoint
         run: |
           curl --fail-with-body --show-error -X POST "https://pagsanjan-osca.online/api/internal/cron-tick" \
             -H "X-Cron-Token: ${{ secrets.CRON_TRIGGER_TOKEN }}" \
             --connect-timeout 15 \
             --max-time 85 \
+            --retry 2 \
+            --retry-all-errors \
+            --retry-delay 5 \
             --write-out "\nHTTP status: %{http_code}\n"
