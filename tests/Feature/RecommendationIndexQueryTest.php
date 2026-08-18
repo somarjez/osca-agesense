@@ -176,6 +176,47 @@ class RecommendationIndexQueryTest extends TestCase
     }
 
     /**
+     * Regression for the "20 on the profile, 40 on this page" duplication
+     * bug: a re-run soft-deletes the old recommendations on the same
+     * ml_result (MlService::persistResults()) and inserts a fresh set. The
+     * raw DB::table() aggregates here must exclude the soft-deleted rows —
+     * see CurrentMlResult and index()'s whereNull('recommendations.deleted_at').
+     */
+    #[Test]
+    public function re_run_does_not_double_count_superseded_recommendations(): void
+    {
+        $senior = $this->makeSeniorWithRecs(['first_name' => 'RerunDupQIdx'], 'HIGH', [
+            ['urgency' => 'immediate', 'status' => 'pending'],
+            ['urgency' => 'planned', 'status' => 'pending'],
+        ]);
+
+        // Simulate a re-run against the SAME ml_result: soft-delete the old
+        // recommendations, then insert a fresh set — exactly what
+        // MlService::persistResults() does.
+        $mlResultId = $senior->recommendations()->first()->ml_result_id;
+        Recommendation::where('ml_result_id', $mlResultId)->delete();
+        for ($i = 0; $i < 2; $i++) {
+            Recommendation::create([
+                'ml_result_id' => $mlResultId, 'senior_citizen_id' => $senior->id,
+                'priority' => 1, 'type' => 'general', 'domain' => 'medical',
+                'action' => 'RecQIdx rerun action', 'urgency' => 'planned', 'status' => 'pending',
+            ]);
+        }
+
+        $this->assertSame(
+            2,
+            Recommendation::where('ml_result_id', $mlResultId)->count(),
+            'Sanity check: soft-deleted originals must not appear in a plain Eloquent count.'
+        );
+
+        $row = $this->get(route('recommendations.index', ['barangay' => 'Anibong']))
+            ->viewData('seniors')->firstWhere('id', $senior->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame(2, (int) $row->recommendations_count, 'Superseded recommendations must not be double-counted after a re-run.');
+    }
+
+    /**
      * $stats['seniors'] was rebuilt to reuse the shared $recCounts derived
      * table instead of SeniorCitizen::active()->whereHas('currentRecommendations')
      * — must still exclude a deceased senior's current recs, exactly as the

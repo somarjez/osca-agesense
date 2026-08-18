@@ -147,4 +147,44 @@ class ArchiveCascadeTest extends TestCase
         $found = MlResult::where('id', $result->id)->first();
         $this->assertNull($found, 'Soft-deleted MlResult should be excluded from default queries.');
     }
+
+    /**
+     * Regression: restore() used to restore EVERY trashed recommendation and
+     * ml_result for a senior, not just the ones trashed by this archive —
+     * resurrecting a recommendation set that a re-run had already
+     * legitimately superseded (soft-deleted) before the archive happened.
+     */
+    #[Test]
+    public function restore_does_not_resurrect_recommendations_superseded_before_the_archive(): void
+    {
+        $senior = $this->makeSenior();
+
+        // Simulate a superseded (re-run) recommendation set: trashed well
+        // before the archive (backdated past the archive cascade's 5-second
+        // matching window — see restore()'s docblock), not as part of it.
+        $staleResult = $this->makeResult($senior);
+        $staleRec = $this->makeRecommendation($staleResult, $senior);
+        $staleRec->delete();
+        $staleResult->delete();
+        // update() no-ops on deleted_at — it's not $fillable — so force it.
+        $staleRec->forceFill(['deleted_at' => now()->subHour()])->save();
+        $staleResult->forceFill(['deleted_at' => now()->subHour()])->save();
+
+        // Current, live data at archive time.
+        $liveResult = $this->makeResult($senior);
+        $liveRec = $this->makeRecommendation($liveResult, $senior);
+
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->actingAs($this->admin)
+            ->post(route('seniors.restore', $senior->id))
+            ->assertRedirect(route('seniors.archives'));
+
+        // The archive-time data comes back...
+        $this->assertDatabaseHas('ml_results', ['id' => $liveResult->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('recommendations', ['id' => $liveRec->id, 'deleted_at' => null]);
+
+        // ...but the pre-archive superseded data must stay trashed.
+        $this->assertSoftDeleted('ml_results', ['id' => $staleResult->id]);
+        $this->assertSoftDeleted('recommendations', ['id' => $staleRec->id]);
+    }
 }

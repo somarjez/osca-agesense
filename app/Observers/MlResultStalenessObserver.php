@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\MlResult;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
+use App\Support\CurrentMlResult;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -77,6 +78,23 @@ class MlResultStalenessObserver
         }
     }
 
+    /**
+     * Deleting a QoL survey — including the latest one — changes which
+     * ml_result is "current" (see App\Support\CurrentMlResult). Whatever
+     * that recomputed current result now is, flag it so the "Results may be
+     * outdated" banner appears rather than silently showing an older
+     * assessment as if nothing happened. SurveyController::qolDestroy()
+     * already cascades the deleted survey's own ml_result, so this mainly
+     * covers deletion of a non-latest survey and any future delete path that
+     * doesn't cascade.
+     */
+    public function deleted(Model $model): void
+    {
+        if ($model instanceof QolSurvey) {
+            $this->markLatestStale($model->senior_citizen_id, 'qol_updated');
+        }
+    }
+
     // ── Internals ────────────────────────────────────────────────────────────
 
     private function handleSeniorUpdated(SeniorCitizen $senior): void
@@ -113,9 +131,11 @@ class MlResultStalenessObserver
         // Find the latest result regardless of current stale state.
         // If it is already stale for a different reason, we still update stale_reason
         // to the most recent cause so the UI and logs reflect what changed last.
-        $latest = MlResult::where('senior_citizen_id', $seniorId)
-            ->orderByDesc('id')
-            ->first();
+        // excludeOrphaned() skips a result whose qol_survey was itself
+        // soft-deleted — same "current" definition every other reader uses.
+        $query = MlResult::where('senior_citizen_id', $seniorId);
+        (CurrentMlResult::excludeOrphaned())($query);
+        $latest = $query->orderByDesc('id')->first();
 
         if ($latest) {
             $latest->markStale($reason);
