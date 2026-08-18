@@ -32,7 +32,9 @@
             @endforeach
         </select>
         <span class="text-sm text-ink-500">{{ $resultsCount }} total records</span>
+        @role('admin')
         <a href="{{ route('reports.cluster.export') }}" class="btn ml-auto">Export CSV</a>
+        @endrole
     </div>
 
     {{-- ── Cluster cards ── --}}

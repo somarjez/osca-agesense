@@ -30,6 +30,7 @@
             <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to {{ $senior->status === 'deceased' ? 'deceased list' : 'records' }}
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
+            @can('update', $senior)
             @if (!empty($draftSurvey))
             <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="btn btn-primary">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Continue draft
@@ -156,13 +157,18 @@
                 </p>
                 <p x-show="err" x-text="err" x-cloak class="text-xs text-critical-700 mt-1 text-right"></p>
             </div>
+            @endcan
 
+            @can('export', $senior)
             <a href="{{ route('seniors.export', $senior) }}" class="btn">
                 <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export PDF
             </a>
+            @endcan
+            @can('update', $senior)
             <a href="{{ route('seniors.edit', $senior) }}" class="btn">
                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
             </a>
+            @endcan
         </div>
     </div>
 
@@ -702,11 +708,13 @@
             @if ($senior->qolSurveys->isNotEmpty())
             <x-card title="QoL Survey History">
                 <x-slot name="actions">
+                    @can('update', $senior)
                     @if (!empty($draftSurvey))
                     <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
                     @else
                     <a href="{{ route('surveys.qol.create', $senior) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
                     @endif
+                    @endcan
                 </x-slot>
                 <x-slot name="noPadding">true</x-slot>
                 <table class="w-full text-sm">
@@ -740,6 +748,7 @@
                                     <a href="{{ route('surveys.qol.results', $survey) }}"
                                        class="btn btn-ghost text-[11px] px-2 py-0.5">Results</a>
                                     @endif
+                                    @role('admin')
                                     <div x-data="{ open: false }">
                                         <button @click="open = true"
                                                 class="btn btn-ghost text-[11px] px-2 py-0.5 text-critical-700 hover:bg-critical-50 hover:text-critical-900">
@@ -758,6 +767,7 @@
                                             </p>
                                         </x-confirm-modal>
                                     </div>
+                                    @endrole
                                 </div>
                             </td>
                         </tr>

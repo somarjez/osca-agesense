@@ -474,6 +474,13 @@ class BulkUploadController extends Controller
 
                             continue;
                         }
+                        if ($dobCarbon->age < SeniorCitizen::MINIMUM_AGE) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['invalid_date']++;
+                            $errors[] = 'Row '.($lineNum + 2).": date of birth \"{$rawDob}\" implies an age under ".SeniorCitizen::MINIMUM_AGE.' — skipped.';
+
+                            continue;
+                        }
 
                         // Duplicate guard: skip if an active (non-archived) senior with the
                         // same name, date of birth, and barangay already exists.

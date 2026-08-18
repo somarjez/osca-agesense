@@ -79,6 +79,36 @@ class ProfileSurveyValidationTest extends TestCase
             ->assertSet('saved', true);
     }
 
+    /**
+     * SeniorCitizen::MINIMUM_AGE gate: a birthdate making the person 20
+     * used to pass step1Rules() with no age floor at all — a non-senior
+     * could be registered as a real senior record.
+     */
+    #[Test]
+    public function under_sixty_date_of_birth_is_rejected(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('dateOfBirth', now()->subYears(20)->format('Y-m-d'))
+            ->call('nextStep')
+            ->assertHasErrors(['dateOfBirth']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function exactly_sixty_years_old_is_accepted_but_one_day_younger_is_not(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('dateOfBirth', now()->subYears(60)->format('Y-m-d'))
+            ->call('nextStep')
+            ->assertHasNoErrors(['dateOfBirth']);
+
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('dateOfBirth', now()->subYears(60)->addDay()->format('Y-m-d'))
+            ->call('nextStep')
+            ->assertHasErrors(['dateOfBirth']);
+    }
+
     #[Test]
     public function invalid_specialization_value_on_step_3_is_rejected(): void
     {

@@ -37,6 +37,30 @@
         };
     }
 
+    // Largest-remainder rounding: each value's share of the total rounds to
+    // a whole percent while the parts still sum to exactly 100 — independent
+    // Math.round(share * 100) per value can drift off 100 (e.g. counts
+    // 1/1/4 of 6 round independently to 17/17/67 = 101%). Mirrors
+    // App\Support\Percentages::apportion() on the PHP side.
+    function apportionPercentages(values) {
+        const total = values.reduce((a, b) => a + (Number(b) || 0), 0);
+        if (total <= 0) return values.map(() => 0);
+
+        const shares = values.map(v => (Number(v) || 0) / total * 100);
+        const floors = shares.map(Math.floor);
+        const remainders = shares.map((s, i) => ({ i, r: s - floors[i] }));
+        remainders.sort((a, b) => b.r - a.r);
+
+        let pointsToDistribute = 100 - floors.reduce((a, b) => a + b, 0);
+        for (const { i } of remainders) {
+            if (pointsToDistribute <= 0) break;
+            floors[i]++;
+            pointsToDistribute--;
+        }
+
+        return floors;
+    }
+
     function upsert(id, config) {
         const canvas = document.getElementById(id);
         if (!canvas) return;
@@ -94,8 +118,10 @@
         },
     };
 
-    // Count + share drawn at the end of each horizontal bar.
-    function hBarValuePlugin(total) {
+    // Count + share drawn at the end of each horizontal bar. `pcts` is
+    // pre-apportioned (see apportionPercentages()) so every bar's share and
+    // the tooltip callback that also reads it stay in agreement and sum to 100.
+    function hBarValuePlugin(pcts) {
         return {
             id: 'hBarValue',
             afterDatasetsDraw(chart) {
@@ -110,7 +136,7 @@
                 meta.data.forEach((bar, i) => {
                     const v = chart.data.datasets[0].data[i];
                     if (v == null) return;
-                    const pct = Math.round((v / total) * 100);
+                    const pct = pcts[i] ?? 0;
                     ctx.fillText(`${v} · ${pct}%`, bar.x + 6, bar.y);
                 });
                 ctx.restore();
@@ -214,10 +240,10 @@
 
         // Profile Groups — horizontal bars ranked by size. Long group names get
         // room on the left (wrapped ticks); count + share sit at each bar end.
-        const pgTotal = p.cluster.data.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
         const pg = p.cluster.labels
             .map((label, i) => ({ label, value: p.cluster.data[i] ?? 0, color: recolor(p.cluster.colors)[i] ?? '#94a3b8' }))
             .sort((a, b) => b.value - a.value);
+        const pgPcts = apportionPercentages(pg.map(g => g.value));
         upsert('clusterChart', {
             type: 'bar',
             data: {
@@ -265,10 +291,10 @@
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => ` ${c.parsed.x} seniors · ${Math.round((c.parsed.x / pgTotal) * 100)}%` } },
+                    tooltip: { callbacks: { label: c => ` ${c.parsed.x} seniors · ${pgPcts[c.dataIndex] ?? 0}%` } },
                 },
             },
-            plugins: [hBarValuePlugin(pgTotal)],
+            plugins: [hBarValuePlugin(pgPcts)],
         });
 
         // Domain scores — radar (full-width slot; shows the WHO-domain profile shape)

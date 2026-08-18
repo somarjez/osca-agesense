@@ -177,4 +177,51 @@ class QolSurveyValidationTest extends TestCase
             'senior_citizen_id' => $this->senior->id,
         ]);
     }
+
+    /**
+     * Regression for Issue 5: submitting with a section left blank used to
+     * spin on "Processing…" forever with no visible error — confirmSubmit()
+     * set showConfirm=true unconditionally, and validation only happened
+     * inside submitSurvey() (reached when the modal's own confirm button is
+     * clicked), whose failure path left showConfirm stuck true (modal open,
+     * error banner rendered behind it) and the Alpine `submitting` flag
+     * never reset. confirmSubmit() now validates BEFORE opening the modal,
+     * so an incomplete survey never reaches confirmation at all.
+     */
+    #[Test]
+    public function confirm_submit_on_an_incomplete_survey_never_opens_the_dialog(): void
+    {
+        Queue::fake();
+
+        $component = $this->fillSectionsAtoG(Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id]))
+            ->set('d3', null) // Section D (step 4) now incomplete
+            ->call('goToStep', 8)
+            ->call('confirmSubmit');
+
+        $component->assertHasErrors(['d3']);
+        $component->assertSet('showConfirm', false);
+        $component->assertSet('step', 4); // bounced back to the first incomplete step
+
+        Queue::assertNotPushed(RunMlPipeline::class);
+    }
+
+    /**
+     * Defense-in-depth path: even if showConfirm somehow ends up true before
+     * submitSurvey() re-validates (e.g. a stale/tampered direct call), the
+     * modal must not stay stuck open on failure.
+     */
+    #[Test]
+    public function submit_survey_closes_the_dialog_if_validation_still_fails(): void
+    {
+        Queue::fake();
+
+        $component = $this->fillSectionsAtoG(Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id]))
+            ->set('d3', null)
+            ->set('showConfirm', true)
+            ->call('goToStep', 8)
+            ->call('submitSurvey');
+
+        $component->assertHasErrors(['d3']);
+        $component->assertSet('showConfirm', false);
+    }
 }

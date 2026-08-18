@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Livewire\Surveys\ProfileSurvey;
 use App\Livewire\Surveys\QolSurveyForm;
+use App\Models\MlResult;
+use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -236,5 +238,81 @@ class PolicyAuthorizationTest extends TestCase
 
         $this->actingAs($this->viewer);
         Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id])->assertForbidden();
+    }
+
+    // ── Viewer must not SEE write/export controls, not just be blocked on click ──
+
+    #[Test]
+    public function viewer_does_not_see_write_or_export_controls_on_senior_show(): void
+    {
+        $response = $this->actingAs($this->viewer)->get(route('seniors.show', $this->senior));
+
+        $response->assertOk();
+        $response->assertDontSee('Re-run Assessment');
+        $response->assertDontSee('Export PDF');
+        $response->assertDontSee(route('seniors.edit', $this->senior), false);
+    }
+
+    #[Test]
+    public function admin_does_see_write_and_export_controls_on_senior_show(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $this->senior));
+
+        $response->assertOk();
+        $response->assertSee('Re-run Assessment');
+        $response->assertSee('Export PDF');
+    }
+
+    #[Test]
+    public function viewer_does_not_see_write_controls_on_senior_index(): void
+    {
+        $response = $this->actingAs($this->viewer)->get(route('seniors.index'));
+
+        $response->assertOk();
+        // Not the plain string "Bulk Upload" — the upload modal's own markup
+        // (title "Bulk Upload Seniors") stays in the response inside a
+        // <template x-if> for Alpine's lazy-render perf pattern (see the
+        // modal's own docblock); it's inert without its trigger button and
+        // still gated server-side by the same policy. Check the trigger
+        // control and the real navigation targets instead.
+        $response->assertDontSee('@click.stop="uploadOpen = true"', false);
+        $response->assertDontSee(route('seniors.create'), false);
+        $response->assertDontSee(route('seniors.edit', $this->senior), false);
+    }
+
+    #[Test]
+    public function viewer_does_not_see_snapshot_or_export_controls_on_cluster_report(): void
+    {
+        $response = $this->actingAs($this->viewer)->get(route('reports.cluster'));
+
+        $response->assertOk();
+        // Not "Take Snapshot" alone — that string also appears in an
+        // unrelated caption ("Click Take Snapshot above...") shown when
+        // there's no snapshot history yet. The form action is unambiguous.
+        $response->assertDontSee(route('reports.cluster.snapshot'), false);
+        $response->assertDontSee(route('reports.cluster.export'), false);
+    }
+
+    #[Test]
+    public function viewer_sees_a_read_only_status_badge_instead_of_the_status_select_on_recommendation_show(): void
+    {
+        $result = MlResult::create([
+            'senior_citizen_id' => $this->senior->id,
+            'model_version' => 'v1',
+        ]);
+        $rec = Recommendation::create([
+            'ml_result_id' => $result->id,
+            'senior_citizen_id' => $this->senior->id,
+            'priority' => 1,
+            'type' => 'general',
+            'action' => 'Test action',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->viewer)->get(route('recommendations.show', $this->senior));
+
+        $response->assertOk();
+        $response->assertDontSee(route('recommendations.status', $rec), false);
+        $response->assertSee('Pending');
     }
 }

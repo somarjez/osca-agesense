@@ -74,6 +74,7 @@
                     </button>
                     @endif
                 </div>
+                @role('admin')
                 <a href="{{ route('reports.risk.export', array_filter([
                         'risk' => $filterRisk,
                         'barangay' => $filterBarangay,
@@ -84,6 +85,7 @@
                     ])) }}" class="btn">
                     <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
                 </a>
+                @endrole
             </div>
         </div>
     </div>

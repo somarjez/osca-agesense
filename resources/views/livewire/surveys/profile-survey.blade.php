@@ -231,13 +231,13 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Date of Birth <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <input type="date" wire:model.live="dateOfBirth" min="1900-01-01" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
+                        <input type="date" wire:model.blur="dateOfBirth" min="1900-01-01" max="{{ date('Y-m-d', strtotime('-60 years')) }}"
                                class="form-input {{ $errors->has('dateOfBirth') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         @error('dateOfBirth') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Registration Date</label>
-                        <input type="date" wire:model.live="registrationDate" min="1900-01-01" max="{{ date('Y-m-d') }}"
+                        <input type="date" wire:model.blur="registrationDate" min="1900-01-01" max="{{ date('Y-m-d') }}"
                                class="form-input {{ $errors->has('registrationDate') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                         <p class="text-[11px] text-ink-400 dark:text-[#6b7570] mt-1">When the senior was registered with OSCA.</p>
                         @error('registrationDate') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
@@ -306,7 +306,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-ink-600 mb-1">Consent Date</label>
-                            <input type="date" wire:model.live="consentGivenAt" min="1900-01-01" max="{{ date('Y-m-d') }}"
+                            <input type="date" wire:model.blur="consentGivenAt" min="1900-01-01" max="{{ date('Y-m-d') }}"
                                    class="form-input {{ $errors->has('consentGivenAt') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                             @error('consentGivenAt') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                         </div>

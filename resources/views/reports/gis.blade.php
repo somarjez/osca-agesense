@@ -432,14 +432,14 @@
                             ['label' => 'Moderate Risk', 'value' => $riskDistribution['moderate'], 'class' => 'bg-moderate-500'],
                             ['label' => 'High Risk', 'value' => $riskDistribution['high'], 'class' => 'bg-high-500'],
                         ];
-                        $riskGrandTotal = max($riskDistribution['total'], 1);
+                        $riskRowPcts = \App\Support\Percentages::apportion(array_column($riskRows, 'value'));
                     @endphp
-                    @foreach ($riskRows as $row)
+                    @foreach ($riskRows as $i => $row)
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 {{ $row['class'] }}"></span>
                             <span class="text-ink-700 dark:text-[#b0b5b2]">{{ $row['label'] }}</span>
                             <span class="ml-auto font-mono tnum font-semibold text-ink-800 dark:text-[#d8ddd9]">
-                                {{ number_format($row['value']) }} ({{ round($row['value'] / $riskGrandTotal * 100) }}%)
+                                {{ number_format($row['value']) }} ({{ $riskRowPcts[$i] ?? 0 }}%)
                             </span>
                         </div>
                     @endforeach

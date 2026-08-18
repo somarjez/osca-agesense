@@ -139,6 +139,18 @@ class BulkUploadValidationTest extends TestCase
     }
 
     #[Test]
+    public function under_sixty_date_of_birth_is_skipped_not_inserted(): void
+    {
+        $firstName = 'UnderageDob';
+        $dob = now()->subYears(20)->format('m/d/Y');
+        $response = $this->uploadCsv($this->makeCsv(firstName: $firstName, dob: $dob));
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => $firstName]);
+        $errors = session('bulk_errors') ?? [];
+        $this->assertStringContainsString('under '.SeniorCitizen::MINIMUM_AGE, implode(' ', $errors));
+    }
+
+    #[Test]
     public function calendar_invalid_date_of_birth_is_skipped_not_silently_rolled_forward(): void
     {
         // Feb 31 doesn't exist — this used to silently become Mar 2 instead

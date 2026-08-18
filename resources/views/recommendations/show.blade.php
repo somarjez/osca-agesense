@@ -189,6 +189,7 @@
                     <p class="text-[11.5px] text-ink-400 mt-1 italic">{{ $rec->notes }}</p>
                     @endif
                 </div>
+                @can('update', $senior)
                 <form method="POST" action="{{ route('recommendations.status', $rec) }}" class="flex-shrink-0">
                     @csrf @method('PATCH')
                     <select name="status" onchange="this.form.submit()" class="form-select w-auto text-[12px] py-1">
@@ -199,6 +200,9 @@
                         @endforeach
                     </select>
                 </form>
+                @else
+                <span class="badge badge-neutral flex-shrink-0">{{ ucwords(str_replace('_',' ',$rec->status)) }}</span>
+                @endcan
             </div>
             @endforeach
         </div>
@@ -209,11 +213,13 @@
             icon="document"
             title="No recommendations yet"
             description="Complete a QoL survey and run the ML assessment to generate tailored recommendations.">
+            @can('update', $senior)
             <x-slot name="action">
                 <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary inline-flex gap-1.5">
                     <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Take QoL Survey
                 </a>
             </x-slot>
+            @endcan
         </x-empty-state>
     </x-card>
     @endforelse

@@ -6,6 +6,7 @@ use App\Jobs\RunMlPipeline;
 use App\Models\QolSurvey;
 use App\Models\SeniorCitizen;
 use App\Support\Concerns\DrainsMlQueue;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class QolSurveyForm extends Component
@@ -188,6 +189,14 @@ class QolSurveyForm extends Component
             $incomplete = array_filter($this->requiredFieldsForStep($step), fn ($v) => $v === null);
             if ($incomplete) {
                 $this->step = $step;
+                // Fired before validate() throws — Livewire still delivers
+                // dispatches queued before a ValidationException, and this is
+                // what actually moves the stepper/scroll to the step $this->step
+                // now points at (nextStep()/prevStep()/goToStep() all fire it;
+                // this was the one caller that didn't, so an incomplete
+                // section-8-then-submit jump left the UI showing step 8's
+                // fields while the error was really back on an earlier step).
+                $this->dispatch('qol-step-changed');
                 $this->validate($this->requiredRulesForStep($step), array_fill_keys(
                     array_map(fn ($k) => "{$k}.required", array_keys($incomplete)),
                     'Please answer all questions in this section before submitting.'
@@ -217,6 +226,16 @@ class QolSurveyForm extends Component
 
     public function confirmSubmit(): void
     {
+        // Validate BEFORE the modal opens. Previously this just set
+        // showConfirm=true and left every check to submitSurvey() — reached
+        // only when the modal's own "Confirm & Submit" button fires — so an
+        // incomplete survey opened the modal, spun on "Processing…" forever
+        // (the Alpine `submitting` flag is deliberately never reset — see
+        // the blade — and showConfirm never got reset either), and the one
+        // error banner that existed was rendered BEHIND the modal overlay.
+        // An incomplete survey now never reaches the confirmation dialog.
+        $this->validateAllSections();
+
         $this->showConfirm = true;
     }
 
@@ -228,11 +247,19 @@ class QolSurveyForm extends Component
 
         // Full re-validation of every required section — see
         // validateAllSections()'s docblock for why this can't be skipped
-        // even though nextStep() already validated each step on the way
-        // here. Throws a ValidationException (Livewire renders it as normal
-        // field errors and jumps back to the first incomplete step via the
-        // existing #[On('qol-step-changed')] wiring) instead of persisting.
-        $this->validateAllSections();
+        // even though confirmSubmit() already validated once on the way
+        // here (defense against a stale/tampered direct call to this
+        // action). If it still fails here, close the confirmation modal
+        // instead of leaving it stuck open with no visible error — the
+        // banner this throw surfaces renders in the question card, which is
+        // behind the modal overlay while showConfirm is true.
+        try {
+            $this->validateAllSections();
+        } catch (ValidationException $e) {
+            $this->showConfirm = false;
+
+            throw $e;
+        }
 
         $this->isProcessing = true;
 
