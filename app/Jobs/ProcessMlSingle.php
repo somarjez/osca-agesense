@@ -8,6 +8,7 @@ use App\Services\MlService;
 use App\Support\SeniorDataVersion;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 
 class ProcessMlSingle implements ShouldQueue
 {
@@ -54,6 +55,11 @@ class ProcessMlSingle implements ShouldQueue
         // in MlService — dashboard/report caches are keyed on this stamp and
         // MlService itself never bumps it.
         SeniorDataVersion::bump();
+
+        // See ProcessMlBatch::handle()'s matching comment — the batch page's
+        // "N still awaiting" count is otherwise stale for up to 60s after
+        // this senior stops being unscored.
+        Cache::forget('ml_unscored_count');
     }
 
     /**

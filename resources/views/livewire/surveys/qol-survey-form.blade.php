@@ -240,21 +240,31 @@
                         </span>
                     </button>
                     @else
-                    <button type="button" wire:click="confirmSubmit"
-                            wire:loading.attr="disabled" wire:target="confirmSubmit"
-                            class="btn btn-primary">
-                        <span wire:loading.remove wire:target="confirmSubmit" class="inline-flex items-center gap-1.5">
-                            <x-heroicon-o-check class="w-3.5 h-3.5" />
-                            Submit &amp; Run Assessment
-                        </span>
-                        <span wire:loading.inline-flex wire:target="confirmSubmit" class="items-center gap-1.5">
-                            <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                            </svg>
-                            Processing…
-                        </span>
-                    </button>
+                    {{-- x-data here (not wire:loading alone) for the same reason the
+                         confirm modal below uses it: an instant, synchronous
+                         client-side lock on click, reset via the $wire promise once
+                         Livewire's response actually lands — whether confirmSubmit()
+                         opened the modal or threw a validation error. wire:loading
+                         alone reports "request in flight" but field-testing found it
+                         didn't visibly disable/spin for this specific button. --}}
+                    <div x-data="{ submitting: false }">
+                        <button type="button"
+                                @click="submitting = true; $wire.confirmSubmit().then(() => submitting = false)"
+                                x-bind:disabled="submitting"
+                                class="btn btn-primary">
+                            <span x-show="!submitting" class="inline-flex items-center gap-1.5">
+                                <x-heroicon-o-check class="w-3.5 h-3.5" />
+                                Submit &amp; Run Assessment
+                            </span>
+                            <span x-show="submitting" x-cloak class="inline-flex items-center gap-1.5">
+                                <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                </svg>
+                                Processing…
+                            </span>
+                        </button>
+                    </div>
                     @endif
                 </div>
             </div>

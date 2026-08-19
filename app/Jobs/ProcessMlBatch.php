@@ -88,6 +88,14 @@ class ProcessMlBatch implements ShouldQueue
         // widget's own TTL. Bumped once per chunk, not per senior, since this
         // is a Cache::forever() file write.
         SeniorDataVersion::bump();
+
+        // MlController::unscoredCount() (the batch page's "N senior(s) still
+        // awaiting risk assessment" banner) is cached for 60s and nothing
+        // else invalidates it — a batch that fully finishes scoring in under
+        // a minute left the banner showing the pre-batch count until that
+        // TTL happened to expire on its own. Forgetting it here means the
+        // very next 3s batch-status poll recomputes a fresh value.
+        Cache::forget('ml_unscored_count');
     }
 
     /**
