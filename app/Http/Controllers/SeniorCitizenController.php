@@ -401,11 +401,7 @@ class SeniorCitizenController extends Controller
     {
         $this->authorize('delete', $senior);
 
-        // Cascade soft-delete: recommendations → ml_results → surveys → senior
-        Recommendation::where('senior_citizen_id', $senior->id)->delete();
-        MlResult::where('senior_citizen_id', $senior->id)->delete();
-        $senior->qolSurveys()->each(fn ($s) => $s->delete());
-        $senior->delete();
+        $this->archiveCascade($senior);
 
         return $this->stateRedirect($request, 'seniors.index', 'success', 'Senior record archived.');
     }
@@ -418,14 +414,31 @@ class SeniorCitizenController extends Controller
         }
         $seniors = SeniorCitizen::whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
-            Recommendation::where('senior_citizen_id', $senior->id)->delete();
-            MlResult::where('senior_citizen_id', $senior->id)->delete();
-            $senior->qolSurveys()->each(fn ($s) => $s->delete());
-            $senior->delete();
+            $this->archiveCascade($senior);
         }
         $count = $seniors->count();
 
         return $this->stateRedirect($request, 'seniors.index', 'success', "{$count} senior record(s) archived.");
+    }
+
+    /**
+     * Cascade soft-delete: recommendations → ml_results → surveys → senior.
+     * Shared by destroy() and bulkDestroy() so the two stay identical.
+     *
+     * QoL surveys are stamped with archived_with_senior_at BEFORE they're
+     * soft-deleted, so restore()/bulkRestore() can later tell "trashed by
+     * THIS archive" apart from "already deleted by an admin via
+     * SurveyController::qolDestroy() before this archive happened" — see
+     * restore()'s docblock. qolSurveys() excludes already-trashed rows, so
+     * individually deleted surveys are never touched here.
+     */
+    private function archiveCascade(SeniorCitizen $senior): void
+    {
+        Recommendation::where('senior_citizen_id', $senior->id)->delete();
+        MlResult::where('senior_citizen_id', $senior->id)->delete();
+        $senior->qolSurveys()->update(['archived_with_senior_at' => now()]);
+        $senior->qolSurveys()->each(fn ($s) => $s->delete());
+        $senior->delete();
     }
 
     public function bulkRestore(Request $request)
@@ -436,14 +449,37 @@ class SeniorCitizenController extends Controller
         }
         $seniors = SeniorCitizen::onlyTrashed()->whereIn('id', $ids)->get();
         foreach ($seniors as $senior) {
-            QolSurvey::onlyTrashed()
-                ->where('senior_citizen_id', $senior->id)
-                ->each(fn ($s) => $s->restore());
+            $this->restoreArchivedSurveys($senior);
             $senior->restore();
         }
         $count = $seniors->count();
 
         return $this->stateRedirect($request, 'seniors.archives', 'success', "{$count} senior record(s) restored.");
+    }
+
+    /**
+     * Restores only the QoL surveys THIS senior's archive trashed — i.e.
+     * rows carrying archived_with_senior_at, stamped by archiveCascade().
+     * Surveys an admin individually deleted via SurveyController::qolDestroy()
+     * before the archive have no marker and are deliberately skipped, fixing
+     * the bug where un-archiving used to resurrect them too.
+     *
+     * Clears the marker on the rows it restores, so a senior can be
+     * archived and restored again later with a different live survey set
+     * and the marker reflects that later archive, not this one.
+     */
+    private function restoreArchivedSurveys(SeniorCitizen $senior): void
+    {
+        QolSurvey::onlyTrashed()
+            ->where('senior_citizen_id', $senior->id)
+            ->whereNotNull('archived_with_senior_at')
+            ->each(function (QolSurvey $survey) {
+                // Assigned before restore() so SoftDeletes::restore()'s own
+                // save() clears the marker and deleted_at in the same
+                // UPDATE, instead of an extra bulk statement afterward.
+                $survey->archived_with_senior_at = null;
+                $survey->restore();
+            });
     }
 
     public function bulkForceDestroy(Request $request)
@@ -478,6 +514,12 @@ class SeniorCitizenController extends Controller
             ->paginate(20)->withQueryString();
 
         $archivedSurveys = QolSurvey::onlyTrashed()
+            // Excludes surveys trashed by a senior's own archive cascade
+            // (archived_with_senior_at set) — those come back automatically
+            // when the senior is restored and shouldn't be independently
+            // restorable from here. Only surveys an admin individually
+            // deleted via SurveyController::qolDestroy() show up.
+            ->whereNull('archived_with_senior_at')
             ->with(['seniorCitizen' => fn ($q) => $q->withTrashed()])
             ->when($request->search, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->searchTerm($request->search)))
             ->when($request->barangay, fn ($q) => $q->whereHas('seniorCitizen', fn ($q) => $q->withTrashed()->where('barangay', $request->barangay))
@@ -512,9 +554,17 @@ class SeniorCitizenController extends Controller
         // and re-running the assessment regenerates a clean, correct set.
         // Matches bulkRestore()'s existing behavior below, which never
         // attempted to restore recommendations/ml_results either.
-        QolSurvey::onlyTrashed()
-            ->where('senior_citizen_id', $senior->id)
-            ->each(fn ($s) => $s->restore());
+        //
+        // QoL surveys themselves DO get restored — but only the ones THIS
+        // archive trashed. A survey an admin had individually deleted via
+        // SurveyController::qolDestroy() before the archive must stay
+        // deleted; it's the survey data itself, not a regeneratable ML
+        // artifact, so there's no "re-run" escape hatch for it like there
+        // is for recommendations/ml_results above. archiveCascade() stamps
+        // archived_with_senior_at on the surveys it trashes so
+        // restoreArchivedSurveys() can tell the two cases apart without
+        // relying on timestamps.
+        $this->restoreArchivedSurveys($senior);
         $senior->restore();
 
         return $this->stateRedirect($request, 'seniors.archives', 'success', 'Senior record restored to active — re-run the assessment to regenerate risk scores and recommendations.');

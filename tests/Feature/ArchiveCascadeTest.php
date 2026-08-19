@@ -8,6 +8,7 @@ use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
@@ -72,6 +73,21 @@ class ArchiveCascadeTest extends TestCase
         ]);
     }
 
+    private function makeSurvey(SeniorCitizen $senior): QolSurvey
+    {
+        return QolSurvey::create([
+            'senior_citizen_id' => $senior->id,
+            'survey_date' => now(),
+            'status' => 'processed',
+        ]);
+    }
+
+    /** Reads archived_with_senior_at directly, bypassing the model's cast/scope. */
+    private function marker(QolSurvey $survey)
+    {
+        return DB::table('qol_surveys')->where('id', $survey->id)->value('archived_with_senior_at');
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     #[Test]
@@ -110,11 +126,7 @@ class ArchiveCascadeTest extends TestCase
         $senior = $this->makeSenior();
         $result = $this->makeResult($senior);
         $rec = $this->makeRecommendation($result, $senior);
-        $survey = QolSurvey::create([
-            'senior_citizen_id' => $senior->id,
-            'survey_date' => now(),
-            'status' => 'processed',
-        ]);
+        $survey = $this->makeSurvey($senior);
 
         // Archive first
         $this->actingAs($this->admin)
@@ -129,10 +141,178 @@ class ArchiveCascadeTest extends TestCase
         $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'deleted_at' => null]);
         $this->assertDatabaseHas('qol_surveys', ['id' => $survey->id, 'deleted_at' => null]);
 
+        // ...and the archive marker is cleared on the way back, so a later
+        // archive/restore cycle doesn't inherit it.
+        $this->assertNull($this->marker($survey));
+
         // ...but the ml_result and recommendation stay superseded — the
         // senior shows as needing re-assessment, not a stale/duplicated one.
         $this->assertSoftDeleted('ml_results', ['id' => $result->id]);
         $this->assertSoftDeleted('recommendations', ['id' => $rec->id]);
+    }
+
+    /**
+     * The reported bug: a QoL survey an admin had individually deleted
+     * (SurveyController::qolDestroy(), an independent decision made BEFORE
+     * the archive) used to come back when the senior was later archived and
+     * restored, because restore() restored every trashed survey for the
+     * senior with no notion of which archive (if any) trashed it. Fixed by
+     * stamping archived_with_senior_at on surveys the archive cascade itself
+     * trashes and scoping restore() to that marker — see
+     * SeniorCitizenController::archiveCascade()/restoreArchivedSurveys().
+     */
+    #[Test]
+    public function restore_does_not_resurrect_a_survey_deleted_individually_before_the_archive(): void
+    {
+        $senior = $this->makeSenior();
+        $kept = $this->makeSurvey($senior);
+        $deletedFirst = $this->makeSurvey($senior);
+
+        // Admin deletes one survey on its own, before the senior is archived.
+        $this->actingAs($this->admin)
+            ->delete(route('surveys.qol.destroy', $deletedFirst))
+            ->assertRedirect();
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedFirst->id]);
+
+        // Now the senior itself gets archived and restored.
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->actingAs($this->admin)
+            ->post(route('seniors.restore', $senior->id))
+            ->assertRedirect(route('seniors.archives'));
+
+        $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'deleted_at' => null]);
+        // The survey that was live at archive time comes back...
+        $this->assertDatabaseHas('qol_surveys', ['id' => $kept->id, 'deleted_at' => null]);
+        // ...but the one deleted beforehand must stay archived.
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedFirst->id]);
+    }
+
+    #[Test]
+    public function archive_stamps_only_the_surveys_it_trashes(): void
+    {
+        $senior = $this->makeSenior();
+        $kept = $this->makeSurvey($senior);
+        $deletedFirst = $this->makeSurvey($senior);
+
+        $this->actingAs($this->admin)->delete(route('surveys.qol.destroy', $deletedFirst));
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+
+        $this->assertNotNull($this->marker($kept));
+        $this->assertNull($this->marker($deletedFirst));
+    }
+
+    /**
+     * Guards against an implementation that stamps the marker but forgets to
+     * clear it on restore: if a survey deleted BETWEEN two archive cycles
+     * kept a marker from the first cycle, the second restore would
+     * incorrectly resurrect it.
+     */
+    #[Test]
+    public function a_survey_deleted_between_two_archive_cycles_is_not_resurrected_by_the_second_restore(): void
+    {
+        $senior = $this->makeSenior();
+        $keptThroughout = $this->makeSurvey($senior);
+        $deletedBetweenCycles = $this->makeSurvey($senior);
+
+        // Cycle 1: archive, then restore — both surveys are live at this point.
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->actingAs($this->admin)->post(route('seniors.restore', $senior->id));
+        $this->assertNull($this->marker($keptThroughout));
+        $this->assertNull($this->marker($deletedBetweenCycles));
+
+        // Between cycles, the admin deletes one survey on its own.
+        $this->actingAs($this->admin)->delete(route('surveys.qol.destroy', $deletedBetweenCycles));
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedBetweenCycles->id]);
+
+        // Cycle 2: archive, then restore again.
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->actingAs($this->admin)->post(route('seniors.restore', $senior->id));
+
+        $this->assertDatabaseHas('qol_surveys', ['id' => $keptThroughout->id, 'deleted_at' => null]);
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedBetweenCycles->id]);
+    }
+
+    #[Test]
+    public function bulk_restore_leaves_individually_deleted_surveys_archived(): void
+    {
+        $seniorA = $this->makeSenior();
+        $keptA = $this->makeSurvey($seniorA);
+        $deletedA = $this->makeSurvey($seniorA);
+
+        $seniorB = $this->makeSenior();
+        $keptB = $this->makeSurvey($seniorB);
+        $deletedB = $this->makeSurvey($seniorB);
+
+        $this->actingAs($this->admin)->delete(route('surveys.qol.destroy', $deletedA));
+        $this->actingAs($this->admin)->delete(route('surveys.qol.destroy', $deletedB));
+
+        $this->actingAs($this->admin)
+            ->post(route('seniors.bulk-archive'), ['ids' => [$seniorA->id, $seniorB->id]])
+            ->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->post(route('seniors.bulk-restore'), ['ids' => [$seniorA->id, $seniorB->id]])
+            ->assertRedirect(route('seniors.archives'));
+
+        $this->assertDatabaseHas('senior_citizens', ['id' => $seniorA->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('senior_citizens', ['id' => $seniorB->id, 'deleted_at' => null]);
+
+        $this->assertDatabaseHas('qol_surveys', ['id' => $keptA->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('qol_surveys', ['id' => $keptB->id, 'deleted_at' => null]);
+        $this->assertNull($this->marker($keptA));
+        $this->assertNull($this->marker($keptB));
+
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedA->id]);
+        $this->assertSoftDeleted('qol_surveys', ['id' => $deletedB->id]);
+    }
+
+    #[Test]
+    public function archives_page_lists_only_individually_deleted_surveys(): void
+    {
+        $senior = $this->makeSenior();
+        $keptAtArchive = $this->makeSurvey($senior);
+        $deletedIndividually = $this->makeSurvey($senior);
+
+        $this->actingAs($this->admin)->delete(route('surveys.qol.destroy', $deletedIndividually));
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+
+        $response = $this->actingAs($this->admin)->get(route('seniors.archives'));
+        $response->assertOk();
+
+        $archivedSurveyIds = $response->viewData('archivedSurveys')->pluck('id');
+
+        $this->assertTrue($archivedSurveyIds->contains($deletedIndividually->id));
+        $this->assertFalse($archivedSurveyIds->contains($keptAtArchive->id));
+    }
+
+    /**
+     * SurveyController::qolRestore() clears the marker defensively, so a
+     * survey restored directly through that route can never carry a stale
+     * marker into the senior's next archive/restore cycle (see its own
+     * docblock).
+     */
+    #[Test]
+    public function individually_restoring_a_survey_clears_the_archive_marker(): void
+    {
+        $senior = $this->makeSenior();
+        $survey = $this->makeSurvey($senior);
+
+        // Archive and restore once so the survey carries a marker, then gets
+        // it cleared by the normal senior-restore path...
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->actingAs($this->admin)->post(route('seniors.restore', $senior->id));
+
+        // ...archive again so it's trashed-with-marker, then restore it
+        // directly via the QoL-specific route instead of the senior route.
+        $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
+        $this->assertNotNull($this->marker($survey));
+
+        $this->actingAs($this->admin)
+            ->post(route('surveys.qol.restore', $survey->id))
+            ->assertRedirect(route('seniors.archives'));
+
+        $this->assertDatabaseHas('qol_surveys', ['id' => $survey->id, 'deleted_at' => null]);
+        $this->assertNull($this->marker($survey));
     }
 
     #[Test]
