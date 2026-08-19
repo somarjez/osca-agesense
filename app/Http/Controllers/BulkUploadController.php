@@ -31,6 +31,26 @@ class BulkUploadController extends Controller
         'first_name', 'last_name', 'barangay', 'dob', 'gender',
     ];
 
+    /**
+     * The 29 CSV columns backing QolSurveyForm's required sections A-G
+     * (h1/h2 — Section H — are optional there too, per
+     * QolSurveyForm::requiredFieldsForStep() and completionPercent()'s
+     * documented 29-item denominator). Bulk import previously built a
+     * QolSurvey from these columns with no completeness check at all — a
+     * row with a blank section still got inserted, scored, and marked
+     * "Processed" with every score showing as "—", unlike the interactive
+     * form, which has required this since QolSurveyForm::validateAllSections().
+     */
+    private const REQUIRED_QOL_COLUMNS = [
+        'qol_enjoy_life', 'qol_life_satisfaction', 'qol_future_outlook', 'qol_meaningfulness',
+        'phy_energy', 'phy_pain_r', 'phy_health_limit_r', 'phy_mobility_outside', 'phy_mobility_indoor',
+        'psych_happiness', 'psych_peace', 'psych_lonely_r', 'psych_confidence',
+        'func_independence', 'func_autonomy', 'func_control', 'env_income_limit_r',
+        'soc_social_support', 'soc_close_friend', 'soc_participation', 'soc_opportunity', 'soc_respect',
+        'env_safe_home', 'env_safe_neighborhood', 'env_service_access', 'env_home_comfort',
+        'env_fin_household', 'env_fin_medical', 'env_fin_personal',
+    ];
+
     // The 'osca_id' column is the official OSCA-ID (optional, staff-entered) —
     // distinct from the system-generated osca_id column, which every imported
     // row gets automatically via generateOscaId() regardless of this column.
@@ -489,6 +509,26 @@ class BulkUploadController extends Controller
                             $chunkSkipped++;
                             $chunkSkipReasons['duplicate']++;
                             $errors[] = 'Row '.($lineNum + 2).": {$firstName} {$lastName} ({$barangay}, {$dob}) already exists — skipped.";
+
+                            continue;
+                        }
+
+                        // Entirely-blank QoL survey check. Individual missing/invalid
+                        // cells are deliberately still tolerated here (imported with
+                        // that field null — see the "QoL scores are optional" test
+                        // below), matching this loop's existing tolerance for partial
+                        // data elsewhere. But a row where NONE of the 29 required
+                        // columns hold a valid rating has nothing for the ML pipeline
+                        // to score at all — it previously still got imported, scored,
+                        // and marked "Processed" with every score showing "—".
+                        $missingQolColumns = array_values(array_filter(
+                            self::REQUIRED_QOL_COLUMNS,
+                            fn ($col) => $this->scoreVal($row[$col] ?? null) === null
+                        ));
+                        if (count($missingQolColumns) === count(self::REQUIRED_QOL_COLUMNS)) {
+                            $chunkSkipped++;
+                            $chunkSkipReasons['missing_field']++;
+                            $errors[] = 'Row '.($lineNum + 2).": {$firstName} {$lastName} has a completely blank QoL survey — skipped.";
 
                             continue;
                         }
