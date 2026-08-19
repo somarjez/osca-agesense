@@ -121,7 +121,7 @@
         <div class="flex items-center gap-2">
             <button @click="selected = []" class="btn btn-ghost text-[12px] px-3 py-1.5">Deselect all</button>
             @role('admin')
-            <button @click="bulkArchiveOpen = true"
+            <button @click.stop="bulkArchiveOpen = true"
                     class="btn text-[12px] px-3 py-1.5 text-high-700 border-high-200 hover:bg-high-50">
                 <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
                 Archive Selected
@@ -256,7 +256,7 @@
                             </a>
                             @endcan
                             @can('delete', $senior)
-                            <button @click="openArchive('{{ $senior->uuid }}', '{{ addslashes($senior->full_name) }}')"
+                            <button @click.stop="openArchive('{{ $senior->uuid }}', '{{ addslashes($senior->full_name) }}')"
                                     class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 text-high-700 hover:text-high-900 hover:bg-high-50 dark:hover:bg-high-50/10"
                                     title="Archive record">
                                 <x-heroicon-o-archive-box class="w-3.5 h-3.5" />
