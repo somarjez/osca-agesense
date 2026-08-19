@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\MlResult;
+use App\Models\QolSurvey;
 use App\Models\Recommendation;
 use App\Models\SeniorCitizen;
 use App\Models\User;
@@ -90,12 +91,30 @@ class ArchiveCascadeTest extends TestCase
         $this->assertSoftDeleted('recommendations', ['id' => $rec->id]);
     }
 
+    /**
+     * restore() deliberately restores only the senior and their QoL
+     * surveys — NOT recommendations or ml_results. See restore()'s own
+     * docblock: a timestamp-window approach for "which trashed rows belong
+     * to this archive" was tried and shipped, then broke in production the
+     * first time a re-run happened shortly before an archive (both
+     * soft-deletes landed in the window, so restore brought back TWO
+     * superseded generations at once — e.g. 34 recommendations shown where
+     * only 17 should have been). Restoring nothing beyond the survey
+     * sidesteps that ambiguity entirely; the profile page already renders
+     * an "unassessed" state gracefully, and re-running regenerates a clean
+     * set.
+     */
     #[Test]
-    public function restore_restores_ml_results_and_recommendations(): void
+    public function restore_brings_back_the_senior_and_surveys_but_not_ml_results_or_recommendations(): void
     {
         $senior = $this->makeSenior();
         $result = $this->makeResult($senior);
         $rec = $this->makeRecommendation($result, $senior);
+        $survey = QolSurvey::create([
+            'senior_citizen_id' => $senior->id,
+            'survey_date' => now(),
+            'status' => 'processed',
+        ]);
 
         // Archive first
         $this->actingAs($this->admin)
@@ -106,10 +125,14 @@ class ArchiveCascadeTest extends TestCase
             ->post(route('seniors.restore', $senior->id))
             ->assertRedirect(route('seniors.archives'));
 
-        // All records should be back with deleted_at = null
+        // Senior and their QoL survey come back...
         $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('ml_results', ['id' => $result->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('recommendations', ['id' => $rec->id,    'deleted_at' => null]);
+        $this->assertDatabaseHas('qol_surveys', ['id' => $survey->id, 'deleted_at' => null]);
+
+        // ...but the ml_result and recommendation stay superseded — the
+        // senior shows as needing re-assessment, not a stale/duplicated one.
+        $this->assertSoftDeleted('ml_results', ['id' => $result->id]);
+        $this->assertSoftDeleted('recommendations', ['id' => $rec->id]);
     }
 
     #[Test]
@@ -149,42 +172,44 @@ class ArchiveCascadeTest extends TestCase
     }
 
     /**
-     * Regression: restore() used to restore EVERY trashed recommendation and
-     * ml_result for a senior, not just the ones trashed by this archive —
-     * resurrecting a recommendation set that a re-run had already
-     * legitimately superseded (soft-deleted) before the archive happened.
+     * Regression for the production bug that killed the earlier windowed
+     * approach: a re-run happening shortly before an archive used to leave
+     * TWO recommendation generations inside the restore window, so
+     * un-archiving resurrected both at once (a senior showing 17
+     * recommendations went to 34 after archive → restore). Explicitly
+     * exercises that exact sequence — re-run (supersedes the first
+     * generation), then archive, then restore, all in quick succession —
+     * and asserts only ONE generation is ever live at a time, regardless of
+     * how close together the soft-deletes happened.
      */
     #[Test]
-    public function restore_does_not_resurrect_recommendations_superseded_before_the_archive(): void
+    public function a_re_run_immediately_before_an_archive_does_not_get_resurrected_alongside_the_live_snapshot(): void
     {
         $senior = $this->makeSenior();
 
-        // Simulate a superseded (re-run) recommendation set: trashed well
-        // before the archive (backdated past the archive cascade's 5-second
-        // matching window — see restore()'s docblock), not as part of it.
-        $staleResult = $this->makeResult($senior);
-        $staleRec = $this->makeRecommendation($staleResult, $senior);
-        $staleRec->delete();
-        $staleResult->delete();
-        // update() no-ops on deleted_at — it's not $fillable — so force it.
-        $staleRec->forceFill(['deleted_at' => now()->subHour()])->save();
-        $staleResult->forceFill(['deleted_at' => now()->subHour()])->save();
+        // Generation 1 — superseded by a "re-run" moments before archiving.
+        $firstResult = $this->makeResult($senior);
+        $firstRec = $this->makeRecommendation($firstResult, $senior);
+        $firstRec->delete();
+        $firstResult->delete();
 
-        // Current, live data at archive time.
-        $liveResult = $this->makeResult($senior);
-        $liveRec = $this->makeRecommendation($liveResult, $senior);
+        // Generation 2 — the live snapshot at archive time.
+        $secondResult = $this->makeResult($senior);
+        $secondRec = $this->makeRecommendation($secondResult, $senior);
 
+        // Archive and restore back-to-back, same as generation 1's
+        // supersession above — nothing here is time-shifted, so this is the
+        // worst case for any timestamp-window approach.
         $this->actingAs($this->admin)->delete(route('seniors.destroy', $senior));
         $this->actingAs($this->admin)
             ->post(route('seniors.restore', $senior->id))
             ->assertRedirect(route('seniors.archives'));
 
-        // The archive-time data comes back...
-        $this->assertDatabaseHas('ml_results', ['id' => $liveResult->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('recommendations', ['id' => $liveRec->id, 'deleted_at' => null]);
-
-        // ...but the pre-archive superseded data must stay trashed.
-        $this->assertSoftDeleted('ml_results', ['id' => $staleResult->id]);
-        $this->assertSoftDeleted('recommendations', ['id' => $staleRec->id]);
+        // Neither generation is restored — both stay trashed, and a fresh
+        // re-run (not a resurrection) is what produces the next live set.
+        $this->assertSoftDeleted('ml_results', ['id' => $firstResult->id]);
+        $this->assertSoftDeleted('recommendations', ['id' => $firstRec->id]);
+        $this->assertSoftDeleted('ml_results', ['id' => $secondResult->id]);
+        $this->assertSoftDeleted('recommendations', ['id' => $secondRec->id]);
     }
 }
