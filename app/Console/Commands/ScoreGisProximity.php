@@ -8,6 +8,7 @@ use App\Models\SeniorCitizen;
 use App\Models\SeniorFacilityRouteDistance;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ScoreGisProximity extends Command
 {
@@ -175,7 +176,7 @@ class ScoreGisProximity extends Command
     private function activeFacilitiesByCategory(): array
     {
         $facilities = Facility::query()
-            ->where('is_active', true)
+            ->where('is_active', DB::raw('true'))
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->get();

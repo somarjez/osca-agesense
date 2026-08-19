@@ -13,6 +13,8 @@ use App\Observers\SeniorLocationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -62,6 +64,42 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->input('email').'|'.$request->ip());
         });
+
+        // Temporary perf diagnostic — logs cumulative DB query time and
+        // query count per request, so a slow request can be split into
+        // "DB-bound" vs "everything else" (framework boot, view/Livewire
+        // render). Needed because Neon's own dashboard only sees each
+        // query's server-side execution time, not what share of a request's
+        // wall-clock time (nginx's rt= in the access log) that DB time
+        // actually accounts for — the two prior production perf PRs
+        // (prefetch-storm fix, then PgBouncer pooling) each measurably
+        // helped, but pages are still taking several seconds, and this is
+        // the next piece of evidence needed to tell whether the remaining
+        // cost is the database or PHP execution itself. Cheap (one closure
+        // per query incrementing two counters, one log line at request end)
+        // and meant to be temporary — remove once diagnosed. Skips /up
+        // (Render's health check, polled constantly) to avoid log noise.
+        if (! $this->app->runningUnitTests() && ! $this->app->runningInConsole()) {
+            $queryTimeMs = 0.0;
+            $queryCount = 0;
+
+            DB::listen(function ($query) use (&$queryTimeMs, &$queryCount) {
+                $queryTimeMs += $query->time;
+                $queryCount++;
+            });
+
+            $this->app->terminating(function () use (&$queryTimeMs, &$queryCount) {
+                if (request()->is('up')) {
+                    return;
+                }
+
+                Log::info('perf', [
+                    'path' => request()->path(),
+                    'query_ms' => round($queryTimeMs, 1),
+                    'query_count' => $queryCount,
+                ]);
+            });
+        }
 
         // TC-DEP-06 — login/logout/failed-login audit trail
         // (App\Listeners\LogAuthenticationActivity). Deliberately NOT

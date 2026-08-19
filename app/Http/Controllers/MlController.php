@@ -85,7 +85,7 @@ class MlController extends Controller
             'total_processed' => MlResult::whereIn('id', $activeLatestIds)->count(),
             'last_run' => MlResult::whereIn('id', $activeLatestIds)->latest()->value('processed_at'),
             'urgent_count' => MlResult::whereIn('id', $activeLatestIds)->where('priority_flag', 'urgent')->count(),
-            'critical_count' => MlResult::whereIn('id', $activeLatestIds)->where('critical_flag', true)->count(),
+            'critical_count' => MlResult::whereIn('id', $activeLatestIds)->where('critical_flag', DB::raw('true'))->count(),
             'unprocessed' => SeniorCitizen::active()->whereDoesntHave('mlResults')->count(),
             'notebook_cache' => $sourceCounts['notebook_cache'] ?? 0,
             'live_model' => $sourceCounts['live_model'] ?? 0,
@@ -206,7 +206,7 @@ class MlController extends Controller
                     $q->where('status', 'processed')
                         ->where(function ($q2) {
                             $q2->whereDoesntHave('mlResult')
-                                ->orWhereHas('mlResult', fn ($q3) => $q3->where('is_stale', true));
+                                ->orWhereHas('mlResult', fn ($q3) => $q3->where('is_stale', DB::raw('true')));
                         });
                 })
                 ->count();

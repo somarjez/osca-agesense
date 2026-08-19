@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class Facility extends Model
 {
@@ -41,7 +42,7 @@ class Facility extends Model
             'facilities.active_with_coordinates',
             now()->addHours(24),
             fn () => static::query()
-                ->where('is_active', true)
+                ->where('is_active', DB::raw('true'))
                 ->whereNotNull('latitude')
                 ->whereNotNull('longitude')
                 ->orderBy('type')
