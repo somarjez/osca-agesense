@@ -1,11 +1,5 @@
 {{-- resources/views/livewire/surveys/qol-survey-form.blade.php --}}
-<div class="max-w-6xl mx-auto space-y-5" x-data="{ scale: [
-    { value: 1, label: 'Strongly Disagree' },
-    { value: 2, label: 'Disagree' },
-    { value: 3, label: 'Neither' },
-    { value: 4, label: 'Agree' },
-    { value: 5, label: 'Strongly Agree' }
-]}">
+<div class="max-w-6xl mx-auto space-y-5">
 
     <x-breadcrumb :links="[
         ['label' => 'Dashboard', 'href' => route('dashboard')],
@@ -184,9 +178,7 @@
                             <button type="button"
                                     @click="value = (value === {{ $val }} ? null : {{ $val }})"
                                     :aria-pressed="(value === {{ $val }}).toString()"
-                                    :class="value === {{ $val }}
-                                        ? 'border-forest-500 bg-forest-600 text-white ring-2 ring-forest-400 ring-offset-2 ring-offset-paper dark:ring-offset-[#1a221e] shadow-md scale-[1.04]'
-                                        : 'border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570] hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400'"
+                                    :class="value === {{ $val }} ? 'qol-rating-btn-selected' : 'qol-rating-btn-idle'"
                                     class="text-center py-2 rounded-xl border-2 text-[13px] font-semibold transition-colors">
                                 {{ $val }}
                             </button>

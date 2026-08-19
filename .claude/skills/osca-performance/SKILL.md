@@ -174,9 +174,42 @@ entry *before* the fetch starts and only clears it from the fetch's own
 `.then()`; an aborted fetch leaves that entry permanently unresolved, hanging
 that link until a hard reload.
 
-Sidebar and pagination links use `wire:navigate.hover` (prefetch after ~60ms of
-hover), not bare `wire:navigate` — keep that modifier on new nav links too, it's
-the cheapest win here.
+### `.hover` prefetch — removed, do not reintroduce (2026-08-19)
+Sidebar and pagination links previously used `wire:navigate.hover` (prefetch
+after ~60ms of hover). That is now **plain `wire:navigate`** everywhere
+(`layouts/app.blade.php`'s 19 sidebar links, `vendor/pagination/custom.blade.php`'s
+page links) — do not add `.hover` back to these or to new nav links.
+
+`.hover` is only a win when pages are light and the server has idle capacity to
+burn on a guess. Neither holds here: pages run 70KB-364KB rendered
+(`/dashboard` 85KB, `/seniors` 300KB, `/reports/gis` 364KB), and production runs
+on a single 0.5-CPU Render free-tier instance (local dev has its own cap — the
+4-worker php-cgi pool from PR #223). One mouse sweep across the sidebar used to
+fire 6-8 concurrent full-page prefetches for pages the user never opened —
+confirmed directly in production nginx logs: 22 seconds of `Referer: /seniors`
+requests (`/reports/gis` 364KB, `/ml/batch` 224KB, `/reports/validation` 231KB,
+`/seniors/archives` re-rendered 3x from repeat hovers, `/seniors` itself
+300KB — **~1.44MB rendered for pages nobody clicked**) saturating the entire
+worker pool so the page the user actually clicked queued behind renders nobody
+asked for. This was the dominant cause of reported "everything feels slow"
+navigation lag, on both production and local. See the git log around
+2026-08-19 (branch `perf/nav-prefetch-storm-and-page-weight`) for the full
+investigation and log evidence.
+
+**Page-weight audit done alongside this fix:** `resources/views/seniors/index.blade.php`'s
+three modals (bulk upload, bulk archive, single archive) are now all deferred
+with `<template x-if="...Open">` instead of always-rendered `x-show`/`x-cloak`
+— the bulk-upload one already was; the two archive modals were converted to
+match. `reports/gis.blade.php` (the single heaviest page, ~6600 lines) and
+`seniors/show.blade.php` were audited and left alone: neither has the
+eager-modal pattern — GIS's weight is the already-optimized map code covered
+above (don't touch), and show's is legitimate per-visit survey/ML history data,
+not dead weight. Origin-level gzip (added the same pass, both nginx configs)
+is what actually shrinks those two over the wire now.
+
+If page weight drops further and Render moves off the free tier, `.hover`
+could become a reasonable win again — but re-add it deliberately, with fresh
+log evidence, not by default.
 
 ---
 

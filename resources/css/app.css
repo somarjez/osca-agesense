@@ -29,6 +29,21 @@
     @apply text-[10.5px] uppercase tracking-[0.13em] font-semibold text-ink-400;
   }
 
+  /* QoL survey rating buttons (1-5 scale) — the selected/idle Tailwind class
+     lists used to be written out verbatim inline via Alpine's :class ternary
+     (qol-survey-form.blade.php), ~650 bytes emitted 5x per question. Every
+     Livewire response re-renders the whole form (no wire:model on these —
+     they're entangled), so that ternary alone was roughly 15KB of every
+     /livewire/update response on the busiest page in the app. Hoisting the
+     two states into named classes here cuts each button's :class value down
+     to a single short class name; same visual result via Tailwind's @apply. */
+  .qol-rating-btn-selected {
+    @apply border-forest-500 bg-forest-600 text-white ring-2 ring-forest-400 ring-offset-2 ring-offset-paper dark:ring-offset-[#1a221e] shadow-md scale-[1.04];
+  }
+  .qol-rating-btn-idle {
+    @apply border-paper-rule dark:border-[#2b3530] text-ink-500 dark:text-[#6b7570] hover:border-forest-300 dark:hover:border-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20 hover:text-forest-700 dark:hover:text-forest-400;
+  }
+
   /* Cards */
   .card {
     @apply bg-white border border-paper-rule rounded-2xl shadow-sm overflow-visible flex flex-col;
