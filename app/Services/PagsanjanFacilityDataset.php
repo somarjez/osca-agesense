@@ -95,7 +95,7 @@ class PagsanjanFacilityDataset
 
             if ($deactivateStale) {
                 $stats['deactivated'] = Facility::query()
-                    ->where('is_active', true)
+                    ->where('is_active', DB::raw('true'))
                     ->where(function ($query) use ($datasetIds) {
                         $query->whereIn('source', self::MANAGED_SOURCES)
                             ->orWhere(function ($query) use ($datasetIds) {
