@@ -10,7 +10,9 @@ use App\Observers\ActivityLogObserver;
 use App\Observers\MlResultStalenessObserver;
 use App\Observers\SeniorDataVersionObserver;
 use App\Observers\SeniorLocationObserver;
+use App\Support\PostgresEmulatedPreparesConnection;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Connection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton('command.serve', function () {
             return new ServeCommand;
         });
+
+        // See PostgresEmulatedPreparesConnection's own docblock: under
+        // PDO::ATTR_EMULATE_PREPARES (config/database.php, required for
+        // Neon's pooled endpoint), a bound PHP boolean becomes a bare
+        // integer literal that Postgres refuses for boolean columns on
+        // INSERT/UPDATE. Must be registered before the pgsql connection is
+        // first resolved, so this lives in register(), not boot().
+        Connection::resolverFor('pgsql', fn ($connection, $database, $prefix, $config) => new PostgresEmulatedPreparesConnection($connection, $database, $prefix, $config));
     }
 
     /**
