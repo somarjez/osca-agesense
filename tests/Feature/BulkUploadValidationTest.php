@@ -163,6 +163,60 @@ class BulkUploadValidationTest extends TestCase
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => $firstName, 'date_of_birth' => '2020-03-02']);
     }
 
+    // ── QoL completeness validation ─────────────────────────────────────────────
+
+    /**
+     * Regression: bulk import built a QolSurvey from whatever CSV cells were
+     * present with zero completeness check — a row missing a whole section
+     * still got imported, scored, and marked "Processed" with every score
+     * showing "—". The interactive form (QolSurveyForm::validateAllSections())
+     * has required this since #235; bulk import never went through it.
+     */
+    #[Test]
+    public function row_with_an_entirely_blank_qol_survey_is_skipped_not_scored_incomplete(): void
+    {
+        // makeCsv() only exposes qol1/qol2 as overridable — everything else
+        // it hardcodes to '3' — so this builds the row directly to blank all
+        // 29 required QoL columns and reproduce the exact reported bug: a
+        // fully-blank survey that still got imported, scored, and marked
+        // "Processed" with every score showing "—".
+        $firstName = 'BlankQolSurvey';
+        $header = 'first_name,middle_name,last_name,name_ext,barangay,dob,contact_number,'.
+                  'place_of_birth,marital_status,gender,religion,ethnic_origin,blood_type,'.
+                  'num_children,num_working_children,child_financial_support,spouse_working,'.
+                  'household_size,education,specialization,community_service,living_with,'.
+                  'household_condition,income_source,real_assets,movable_assets,'.
+                  'monthly_income_range,problems_needs,medical_concern,dental_concern,'.
+                  'optical_concern,hearing_concern,social_emotional_concern,healthcare_difficulty,'.
+                  'has_medical_checkup,checkup_schedule,qol_enjoy_life,qol_life_satisfaction,'.
+                  'qol_future_outlook,qol_meaningfulness,phy_energy,phy_pain_r,'.
+                  'phy_health_limit_r,phy_mobility_outside,phy_mobility_indoor,psych_happiness,'.
+                  'psych_peace,psych_lonely_r,psych_confidence,func_independence,func_autonomy,'.
+                  'func_control,env_income_limit_r,soc_social_support,soc_close_friend,'.
+                  'soc_participation,soc_opportunity,soc_respect,env_safe_home,'.
+                  'env_safe_neighborhood,env_service_access,env_home_comfort,env_fin_household,'.
+                  'env_fin_medical,env_fin_personal,spi_belief_comfort,spi_belief_practice,timestamp';
+        $data = implode(',', [
+            $firstName, '', 'ValidLast', '', 'Pagsanjan', '01/15/1950',
+            '', '', 'Single', 'Male', '', '', '', '0', '0', 'N/A', 'N/A', '1',
+            '', '', '', '', '', '', '', '', 'Below 5000', '', '', '', '', '', '', '',
+            'No', '',
+            // All 29 QoL rating columns left blank.
+            '', '', '', '', '', '', '', '', '',
+            '', '', '', '', '', '', '', '',
+            '', '', '', '', '', '', '', '', '',
+            '', '', '', '', '', '', '', '',
+            '01/10/2024',
+        ]);
+        $csv = $header."\n".$data."\n";
+
+        $this->uploadCsv($csv);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => $firstName]);
+        $errors = session('bulk_errors') ?? [];
+        $this->assertStringContainsString('completely blank QoL survey', implode(' ', $errors));
+    }
+
     // ── QoL score validation (TC-IMP-03) ────────────────────────────────────────
 
     #[Test]
