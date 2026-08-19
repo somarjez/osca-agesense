@@ -30,6 +30,7 @@ class QolSurvey extends Model
 
     protected $casts = [
         'survey_date' => 'date',
+        'archived_with_senior_at' => 'datetime',
     ];
 
     // Reverse-scored items (higher raw = lower QoL, so 6 - value)

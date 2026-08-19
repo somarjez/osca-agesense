@@ -168,7 +168,7 @@
         <div class="px-5 py-4 border-b border-paper-rule flex items-center justify-between">
             <div>
                 <div class="font-semibold text-ink-900">Archived QoL Surveys</div>
-                <div class="text-xs text-ink-400 mt-0.5">Surveys archived when a senior was moved to archives</div>
+                <div class="text-xs text-ink-400 mt-0.5">Surveys deleted individually — surveys archived along with a senior are restored automatically when that senior is restored</div>
             </div>
             <span class="badge badge-neutral">{{ $archivedSurveys->total() }} total</span>
         </div>
@@ -227,7 +227,7 @@
                 @empty
                 <tr>
                     <td colspan="7" class="td text-center py-10">
-                        <p class="text-ink-400 text-sm">No archived QoL surveys.</p>
+                        <p class="text-ink-400 text-sm">No individually deleted QoL surveys.</p>
                     </td>
                 </tr>
                 @endforelse
@@ -257,7 +257,7 @@
             </div>
             <div class="card-body">
                 <p class="text-[13px] text-ink-700">
-                    <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved back to Active Records. Their QoL surveys will also be restored.
+                    <span class="font-semibold" x-text="selected.length"></span> senior record(s) will be moved back to Active Records, along with the QoL surveys that were archived with them. Surveys deleted individually beforehand stay archived.
                 </p>
                 <div class="flex gap-2 justify-end mt-5">
                     <button @click="bulkRestoreOpen = false" :disabled="bulkRestoring" class="btn">Cancel</button>

@@ -105,7 +105,16 @@ class SurveyController extends Controller
 
     public function qolRestore(int $id)
     {
-        QolSurvey::onlyTrashed()->findOrFail($id)->restore();
+        $survey = QolSurvey::onlyTrashed()->findOrFail($id);
+        // Defensive: this route restores an individually deleted survey (the
+        // Archives page only lists ones with no archived_with_senior_at
+        // marker — see SeniorCitizenController::archives()), but normalize
+        // here too so a restored row can never carry a stale marker into
+        // the senior's next archive/restore cycle. Assigned before restore()
+        // so SoftDeletes::restore()'s own save() clears both columns in one
+        // UPDATE — same pattern as SeniorCitizenController::restoreArchivedSurveys().
+        $survey->archived_with_senior_at = null;
+        $survey->restore();
 
         return redirect()->route('seniors.archives')->with('success', 'QoL survey restored.');
     }
