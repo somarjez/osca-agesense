@@ -92,6 +92,20 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            // Production connects through Neon's pooled endpoint (PgBouncer,
+            // transaction-pooling mode) so a single Render instance doesn't pay
+            // a fresh-connection handshake on every request. Transaction pooling
+            // can hand a "session" a different physical connection between
+            // statements, which breaks PDO's default native server-side prepared
+            // statements — surfaced in production as every query after the first
+            // failing with SQLSTATE[25P02] ("current transaction is aborted").
+            // Emulating prepares client-side avoids relying on server-side
+            // statement state surviving across pooled connection handoffs. Safe
+            // on a direct (non-pooled) connection too — this is a client-side
+            // compatibility mode, not a correctness change either way.
+            'options' => extension_loaded('pdo_pgsql') ? [
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ] : [],
         ],
 
         'sqlsrv' => [
