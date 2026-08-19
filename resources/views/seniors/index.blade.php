@@ -328,8 +328,11 @@
     </div>
 
     {{-- ── Bulk Archive Confirmation Modal ──────────────────────────────── --}}
-    <div x-show="bulkArchiveOpen" x-cloak
-         role="dialog"
+    {{-- <template x-if>, matching the Bulk Upload modal's pattern below —
+         deferred until bulkArchiveOpen actually flips true instead of always
+         present in the DOM behind display:none. --}}
+    <template x-if="bulkArchiveOpen">
+    <div role="dialog"
          aria-modal="true"
          aria-labelledby="bulk-archive-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -361,10 +364,11 @@
             </div>
         </div>
     </div>
+    </template>
 
     {{-- ── Single Archive Confirmation Modal ─────────────────────────── --}}
-    <div x-show="singleArchiveOpen" x-cloak
-         role="dialog"
+    <template x-if="singleArchiveOpen">
+    <div role="dialog"
          aria-modal="true"
          aria-labelledby="single-archive-title"
          class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -399,6 +403,7 @@
             </div>
         </div>
     </div>
+    </template>
 
     {{-- ── Bulk Upload Modal ───────────────────────────────────────────── --}}
     {{-- <template x-if>, not x-show — this panel (drop zone, drag-drop

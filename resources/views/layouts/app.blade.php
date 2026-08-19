@@ -96,7 +96,7 @@
             <div x-show="!sidebarOpen" x-cloak class="h-1"></div>
 
             <a href="{{ route('dashboard') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('dashboard', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Dashboard'">
@@ -104,7 +104,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Dashboard</span>
             </a>
             <a href="{{ route('seniors.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('seniors.index', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Senior Records'">
@@ -112,7 +112,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Senior Records</span>
             </a>
             <a href="{{ route('seniors.deceased') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('seniors.deceased', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Deceased Seniors'">
@@ -122,7 +122,7 @@
 
             @hasanyrole('admin|encoder')
             <a href="{{ route('seniors.create') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('seniors.create', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'New Profile'">
@@ -130,7 +130,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">New Profile</span>
             </a>
             <a href="{{ route('seniors.drafts.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('seniors.drafts.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Drafts'">
@@ -138,7 +138,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Drafts</span>
             </a>
             <a href="{{ route('surveys.qol.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('surveys.qol.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'QoL Surveys'">
@@ -153,7 +153,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.cluster') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('reports.cluster', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Profile Groups'">
@@ -161,7 +161,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Profile Groups</span>
             </a>
             <a href="{{ route('reports.gis') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('reports.gis', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'GIS Analytics'">
@@ -169,7 +169,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">GIS Analytics</span>
             </a>
             <a href="{{ route('reports.risk') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('reports.risk', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Risk Reports'">
@@ -177,7 +177,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Risk Reports</span>
             </a>
             <a href="{{ route('reports.barangay.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('reports.barangay.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Barangay Report'">
@@ -185,7 +185,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Barangay Report</span>
             </a>
             <a href="{{ route('recommendations.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('recommendations.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Recommendations'">
@@ -200,7 +200,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('ml.status') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('ml.status', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Service Status'">
@@ -208,7 +208,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Service Status</span>
             </a>
             <a href="{{ route('ml.batch') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('ml.batch', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Batch Analysis'">
@@ -224,7 +224,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('reports.validation') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('reports.validation', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'System Validation'">
@@ -232,7 +232,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">System Validation</span>
             </a>
             <a href="{{ route('activity-log.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('activity-log.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Activity Log'">
@@ -240,7 +240,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Activity Log</span>
             </a>
             <a href="{{ route('reports.registry') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Registry and Backup'">
@@ -248,7 +248,7 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Registry and Backup</span>
             </a>
             <a href="{{ route('users.index') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('users.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'User Management'">
@@ -262,7 +262,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('seniors.archives') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('seniors.archives', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Archives'">
@@ -277,7 +277,7 @@
             <div x-show="!sidebarOpen" x-cloak class="my-2 border-t border-paper-rule dark:border-[#2b3530] mx-1"></div>
 
             <a href="{{ route('help') }}"
-               wire:navigate.hover
+               wire:navigate
                class="nav-link"
                :class="{ 'nav-link-active': $navActive('{{ route('help', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Help Centre'">
