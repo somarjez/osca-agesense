@@ -494,33 +494,30 @@ class SeniorCitizenController extends Controller
     {
         $senior = SeniorCitizen::withTrashed()->findOrFail($id);
 
-        // Restore only rows trashed BY this archive — not recommendations,
-        // ml_results, or QoL surveys the user individually soft-deleted
-        // earlier (e.g. via SurveyController::qolDestroy()), which must stay
-        // superseded/deleted. destroy()'s cascade trashes recommendations,
-        // then ml_results, then surveys, then the senior, all within the
-        // same request — comfortably inside this 5-second window ending at
-        // the senior's own deleted_at. Without this, un-archiving used to
-        // resurrect every recommendation/ml_result ever superseded for this
-        // senior as genuinely live duplicates.
-        $archivedAt = $senior->deleted_at;
-        $windowStart = $archivedAt?->copy()->subSeconds(5);
-
-        Recommendation::withTrashed()
-            ->where('senior_citizen_id', $senior->id)
-            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
-            ->restore();
-        MlResult::withTrashed()
-            ->where('senior_citizen_id', $senior->id)
-            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
-            ->restore();
+        // Deliberately does NOT restore recommendations or ml_results — only
+        // the senior and their QoL surveys. A senior can accumulate many
+        // superseded (soft-deleted) recommendation/ml_result generations
+        // over time (every re-run soft-deletes-then-inserts on the same
+        // ml_result_id — see MlService::persistResults()), all sharing the
+        // same senior_citizen_id. There is no reliable way to tell "trashed
+        // by THIS archive" apart from "trashed by an unrelated earlier
+        // re-run" after the fact — a prior attempt used a 5-second window
+        // ending at the senior's own deleted_at, which broke in production
+        // the first time a re-run happened shortly before an archive (both
+        // landed in the window, so the restore brought back two generations
+        // at once — e.g. 34 recommendations instead of the correct 17).
+        // Restoring only the senior + surveys sidesteps the ambiguity
+        // entirely: the profile page already handles "no current
+        // assessment" gracefully (0 recommendations, an unassessed state),
+        // and re-running the assessment regenerates a clean, correct set.
+        // Matches bulkRestore()'s existing behavior below, which never
+        // attempted to restore recommendations/ml_results either.
         QolSurvey::onlyTrashed()
             ->where('senior_citizen_id', $senior->id)
-            ->when($archivedAt, fn ($q) => $q->whereBetween('deleted_at', [$windowStart, $archivedAt]))
             ->each(fn ($s) => $s->restore());
         $senior->restore();
 
-        return $this->stateRedirect($request, 'seniors.archives', 'success', 'Senior record restored to active.');
+        return $this->stateRedirect($request, 'seniors.archives', 'success', 'Senior record restored to active — re-run the assessment to regenerate risk scores and recommendations.');
     }
 
     public function forceDestroy(int $id, Request $request)
