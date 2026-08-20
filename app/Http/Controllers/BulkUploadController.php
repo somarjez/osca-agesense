@@ -276,6 +276,32 @@ class BulkUploadController extends Controller
     }
 
     /**
+     * Clears the persisted bulk-import-status:{user} key, called when staff
+     * dismiss the "Import failed" toast or close the Bulk Upload modal on a
+     * failed import (seniors/index.blade.php). The status marker above is
+     * deliberately server-persisted so an in-progress import survives a page
+     * navigation — but that also means a purely client-side dismiss (nulling
+     * Alpine state) never actually ends a terminal 'failed'/'done' state: the
+     * very next /seniors load re-seeds it from this same cache key
+     * (SeniorCitizenController::index()), which was reported as "Import
+     * failed reappears after navigating away and returning" even though
+     * staff had already dismissed it. Guarded to 'processing' only — a
+     * dismiss firing from a stale tab (or a race with a fresh upload) must
+     * never erase a genuinely in-flight import's status out from under it.
+     */
+    public function dismissStatus()
+    {
+        $key = 'bulk-import-status:'.auth()->id();
+        $status = Cache::get($key);
+
+        if ($status && ($status['status'] ?? null) !== 'processing') {
+            Cache::forget($key);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * Single write path for the bulk-import-status:{user} cache key —
      * previously three near-identical Cache::put() literals (initial
      * "processing", per-chunk progress, final "done"), which made it easy

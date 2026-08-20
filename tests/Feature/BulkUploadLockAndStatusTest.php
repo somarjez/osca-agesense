@@ -189,4 +189,96 @@ class BulkUploadLockAndStatusTest extends TestCase
             'skipped' => 0,
         ]);
     }
+
+    #[Test]
+    public function failed_status_is_persisted_after_a_missing_column_upload(): void
+    {
+        // Deliberately built without the header row's 'barangay' column
+        // (REQUIRED_COLUMNS), bypassing makeCsv() which always includes it —
+        // this is the missing-required-columns early return in
+        // BulkUploadController::processUpload() that writes a 'failed'
+        // status via putImportStatus().
+        $csv = "first_name,last_name,dob,gender\nNoBarangay,Test,01/15/1950,Male\n";
+        $tmpPath = tempnam(sys_get_temp_dir(), 'test_').'.csv';
+        file_put_contents($tmpPath, $csv);
+        $file = new UploadedFile($tmpPath, 'missing_column.csv', 'text/csv', null, true);
+
+        $response = $this->actingAs($this->admin)
+            ->post(route('seniors.bulk-upload'), ['file' => $file]);
+
+        $response->assertSessionHasErrors('file');
+
+        $statusResponse = $this->actingAs($this->admin)->getJson(route('seniors.bulk-upload.status'));
+        $statusResponse->assertOk();
+        $statusResponse->assertJson(['status' => 'failed']);
+        $this->assertStringContainsString(
+            'Missing required columns',
+            $statusResponse->json('message')
+        );
+    }
+
+    // ── Tests: status dismiss endpoint ──────────────────────────────────────
+
+    #[Test]
+    public function dismissing_the_import_status_clears_it_so_it_does_not_reappear(): void
+    {
+        // Reproduces the reported bug: a failed import's status must not
+        // resurrect itself on the next page load once staff have dismissed
+        // it (closed the toast / closed the modal).
+        $csv = "first_name,last_name,dob,gender\nNoBarangay,Test,01/15/1950,Male\n";
+        $tmpPath = tempnam(sys_get_temp_dir(), 'test_').'.csv';
+        file_put_contents($tmpPath, $csv);
+        $file = new UploadedFile($tmpPath, 'missing_column.csv', 'text/csv', null, true);
+
+        $this->actingAs($this->admin)->post(route('seniors.bulk-upload'), ['file' => $file]);
+
+        $this->actingAs($this->admin)->getJson(route('seniors.bulk-upload.status'))
+            ->assertJson(['status' => 'failed']);
+
+        $dismissResponse = $this->actingAs($this->admin)
+            ->postJson(route('seniors.bulk-upload.status.dismiss'));
+        $dismissResponse->assertOk();
+        $dismissResponse->assertJson(['success' => true]);
+
+        $this->actingAs($this->admin)->getJson(route('seniors.bulk-upload.status'))
+            ->assertJson(['status' => 'idle']);
+
+        // The exact reported symptom: a fresh /seniors load (simulating
+        // "navigated away and came back") must not re-seed the dismissed
+        // failure into the view.
+        $indexResponse = $this->actingAs($this->admin)->get(route('seniors.index'));
+        $indexResponse->assertViewHas('bulkImportStatus', null);
+    }
+
+    #[Test]
+    public function dismiss_does_not_clear_an_in_progress_import(): void
+    {
+        Cache::put('bulk-import-status:'.$this->admin->id, [
+            'status' => 'processing',
+            'total' => 10,
+            'processed' => 3,
+        ], now()->addMinutes(15));
+
+        $this->actingAs($this->admin)
+            ->postJson(route('seniors.bulk-upload.status.dismiss'))
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->actingAs($this->admin)->getJson(route('seniors.bulk-upload.status'))
+            ->assertJson(['status' => 'processing', 'total' => 10, 'processed' => 3]);
+    }
+
+    #[Test]
+    public function dismiss_requires_the_bulk_upload_role(): void
+    {
+        $viewer = User::firstOrCreate(
+            ['email' => 'viewer@osca.local'],
+            ['name' => 'OSCA Viewer', 'password' => Hash::make('password')]
+        );
+        $viewer->syncRoles(['viewer']);
+
+        $this->actingAs($viewer)
+            ->postJson(route('seniors.bulk-upload.status.dismiss'))
+            ->assertForbidden();
+    }
 }

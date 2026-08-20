@@ -13,6 +13,9 @@ Route::prefix('seniors')->name('seniors.')->group(function () {
         // Polled by seniors/index.blade.php to show insert-phase progress
         // after a page reload/return — see BulkUploadController::status().
         Route::get('/bulk-upload/status', [BulkUploadController::class, 'status'])->name('bulk-upload.status');
+        // Clears the same status marker on dismiss — see
+        // BulkUploadController::dismissStatus().
+        Route::post('/bulk-upload/status/dismiss', [BulkUploadController::class, 'dismissStatus'])->name('bulk-upload.status.dismiss');
     });
 
     Route::middleware(['role:admin,encoder', 'no.time.limit'])->group(function () {

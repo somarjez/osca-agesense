@@ -322,7 +322,7 @@
             </p>
             <p class="text-[12px] text-high-700 mt-0.5" x-show="importStatus && importStatus.status === 'failed'" x-text="importStatus ? importStatus.message : ''"></p>
         </div>
-        <button @click="importStatus = null" class="text-ink-300 hover:text-ink-600 flex-shrink-0">
+        <button @click="dismissImportStatus()" class="text-ink-300 hover:text-ink-600 flex-shrink-0">
             <x-heroicon-o-x-mark class="w-4 h-4" />
         </button>
     </div>
@@ -607,6 +607,7 @@ function seniorIndex() {
         importStatus: @json($bulkImportStatus ?? null),
         importPollTimer: null,
         importStatusUrl: '{{ route('seniors.bulk-upload.status') }}',
+        importDismissUrl: '{{ route('seniors.bulk-upload.status.dismiss') }}',
 
         // Live ML-service dot for the Import-button hint below — a plain JS
         // read of the shared singleton (window.OSCA.mlHealth, ml-health.js)
@@ -634,6 +635,23 @@ function seniorIndex() {
                     })
                     .catch(err => console.debug('bulk-import status poll failed', err));
             }, 3000);
+        },
+
+        // The toast above is driven by a server-persisted cache key (see
+        // BulkUploadController::status()/dismissStatus()), so nulling
+        // importStatus alone lets the very next /seniors load re-seed it
+        // from that same key — reported as "Import failed reappears after
+        // navigating away and returning" even though staff had already
+        // dismissed it. Clear locally first for instant feedback, then
+        // tell the server to forget it so it stays gone across navigation.
+        dismissImportStatus() {
+            this.importStatus = null;
+            clearInterval(this.importPollTimer);
+            fetch(this.importDismissUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            }).catch(err => console.debug('bulk-import status dismiss failed', err));
         },
 
         init() {
@@ -766,6 +784,15 @@ function seniorIndex() {
         closeUpload() {
             this.uploadOpen = false;
             this.dragging = false;
+            // Closing/cancelling the modal on a failed import must clear the
+            // persisted status the same way dismissing the toast does (see
+            // dismissImportStatus() above) — otherwise the "Import failed"
+            // toast reappears on the next navigation even though staff just
+            // closed the modal. Left untouched while 'processing' so a
+            // normal close during a live import doesn't lose its progress.
+            if (this.importStatus && this.importStatus.status === 'failed') {
+                this.dismissImportStatus();
+            }
         },
 
         handleDrop(e) {
