@@ -681,6 +681,34 @@ So a 360-row import needs roughly **9-10 minutes of cumulative queue-worker time
 spread across 2-3 keep-alive ticks. The Batch Assessment page (`/ml/batch`) shows a live
 "N senior(s) still awaiting risk assessment" count while this catches up.
 
+### 12c. Verifying response compression — expect zstd/br in the browser, not just gzip
+
+`conf/nginx/nginx-site.conf` and `conf/nginx/local/nginx.conf` both enable `gzip` at the
+origin (see the `gzip on; ... gzip_types ...` block in each) — that's the layer this project
+controls. Production sits behind **Cloudflare**, though, which terminates the browser's TLS
+connection and re-negotiates its own compression independently of whatever the origin sent:
+Cloudflare decodes the origin's gzip and re-encodes to the *best* algorithm the browser's
+`Accept-Encoding` header advertises, which for current Chrome/Edge is **zstd**, not gzip.
+
+Confirmed against production:
+
+```
+curl -sI -H 'Accept-Encoding: gzip' https://pagsanjan-osca.online/login
+  → Content-Encoding: gzip
+
+curl -sI -H 'Accept-Encoding: gzip, deflate, br, zstd' https://pagsanjan-osca.online/login
+  → Content-Encoding: zstd
+```
+
+Both responses carry `vary: Accept-Encoding`, `Server: cloudflare`, and
+`x-render-origin-server: nginx` — the origin is gzipping correctly and Cloudflare is honoring
+the negotiation correctly. **`Content-Encoding: zstd` in DevTools on `/seniors` (or any page)
+is expected, not a regression** — zstd is smaller and faster to decode than gzip. When
+verifying origin-level compression specifically, curl the URL directly with
+`Accept-Encoding: gzip` (as above) rather than reading the encoding a full browser receives;
+the pass condition is "a `Content-Encoding` header is present at all" (compression happened
+somewhere in the chain), not "the header says gzip".
+
 ---
 
 ## Related Documents

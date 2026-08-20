@@ -205,7 +205,10 @@ match. `reports/gis.blade.php` (the single heaviest page, ~6600 lines) and
 eager-modal pattern — GIS's weight is the already-optimized map code covered
 above (don't touch), and show's is legitimate per-visit survey/ML history data,
 not dead weight. Origin-level gzip (added the same pass, both nginx configs)
-is what actually shrinks those two over the wire now.
+is what actually shrinks those two over the wire now — in production, Cloudflare
+re-encodes that gzip to zstd/br per the browser's `Accept-Encoding`, so DevTools
+showing `Content-Encoding: zstd` on a page is expected, not a lost fix; see
+docs/DEPLOYMENT.md §12c for the curl-based way to verify origin gzip directly.
 
 If page weight drops further and Render moves off the free tier, `.hover`
 could become a reasonable win again — but re-add it deliberately, with fresh
