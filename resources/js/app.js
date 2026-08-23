@@ -2,6 +2,7 @@ import './bootstrap'
 import './ml-health'
 import './ml-service-guard'
 import './idle-logout'
+import './login-attempt-watch'
 import './navigation'
 import { loadCharts, loadMaps } from './loaders'
 
@@ -64,15 +65,19 @@ document.addEventListener('alpine:init', () => {
     //   true: highlights on the path itself or any deeper path under it (e.g.
     //     User Management also matches /users/create) — the client-side
     //     equivalent of the old request()->routeIs('name.*') wildcard checks.
-    //   'resource': highlights on the path itself or a numeric-id child route
-    //     one level down (e.g. Senior Records also matches /seniors/42 and
-    //     /seniors/42/edit) WITHOUT also matching static sibling routes like
-    //     /seniors/create or /seniors/drafts, which a blanket prefix would.
+    //   'resource': highlights on the path itself or a UUID-keyed child
+    //     route one level down (e.g. Senior Records also matches
+    //     /seniors/{uuid} and /seniors/{uuid}/edit — SeniorCitizen's route
+    //     key is 'uuid', not an auto-increment id, see
+    //     app/Models/SeniorCitizen.php's getRouteKeyName()) WITHOUT also
+    //     matching static sibling routes like /seniors/create or
+    //     /seniors/drafts, which a blanket prefix would.
+    const UUID_SEGMENT = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
     Alpine.magic('navActive', () => (paths, prefix = false) => {
         const list = Array.isArray(paths) ? paths : [paths]
         return list.some(p => {
             if (navState.path === p) return true
-            if (prefix === 'resource') return new RegExp('^' + p + '/\\d+(/edit)?$').test(navState.path)
+            if (prefix === 'resource') return new RegExp('^' + p + '/' + UUID_SEGMENT + '(/edit)?$').test(navState.path)
             return prefix && navState.path.startsWith(p + '/')
         })
     })

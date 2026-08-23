@@ -446,5 +446,6 @@
 <x-toast />
 <x-ml-service-guard />
 <x-idle-warning />
+<x-single-session-alert />
 </body>
 </html>

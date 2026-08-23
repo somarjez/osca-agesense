@@ -1,8 +1,11 @@
 {{-- resources/views/livewire/reports/risk-report.blade.php --}}
 <div class="space-y-5">
 
+    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster'; @endphp
+
     {{-- ── Summary Cards ── --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <div class="relative grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <x-loading-overlay :target="$riskFilterTarget" />
         @php
         $levelMeta = [
             'HIGH'     => ['accent' => 'high',     'label' => 'High Risk'],
@@ -91,7 +94,8 @@
     </div>
 
     {{-- ── Data Table ── --}}
-    <div class="card overflow-visible">
+    <div class="card overflow-visible relative">
+        <x-loading-overlay :target="$riskFilterTarget" />
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>

@@ -43,8 +43,13 @@ Route::middleware('guest')->group(function () {
         $sessionId = $request->session()->getId();
 
         // One active session per account: block if this account is already
-        // signed in (and not idle) on another device.
+        // signed in (and not idle) on another device. Also record the
+        // attempt so the currently-active session can be notified on its
+        // next poll (resources/js/login-attempt-watch.js) — without this,
+        // the active user has no way to know someone just tried.
         if (SingleSession::activeElsewhere($user, $sessionId)) {
+            SingleSession::recordAttempt($user, $request->ip());
+
             throw ValidationException::withMessages([
                 'email' => 'Your account is currently active on another device. Please sign out there before starting a new session.',
             ]);
@@ -72,9 +77,12 @@ Route::post('/logout', function (Request $request) {
     // Flash AFTER invalidate() so it lands in the fresh session, not the
     // destroyed one. "inactivity" is sent by the idle-logout timer
     // (resources/js/idle-logout.js) via the hidden form in
-    // components/idle-warning.blade.php; a normal profile-menu sign-out
-    // sends no reason and stays silent.
-    return $reason === 'inactivity'
-        ? redirect('/login')->with('status', 'You were signed out due to inactivity.')
-        : redirect('/login');
+    // components/idle-warning.blade.php; "single_session_takeover" is sent
+    // the same way by components/single-session-alert.blade.php's "Log out"
+    // button; a normal profile-menu sign-out sends no reason and stays silent.
+    return match ($reason) {
+        'inactivity' => redirect('/login')->with('status', 'You were signed out due to inactivity.'),
+        'single_session_takeover' => redirect('/login')->with('status', 'You were signed out so another sign-in attempt could proceed.'),
+        default => redirect('/login'),
+    };
 })->name('logout')->middleware('auth');

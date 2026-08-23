@@ -101,24 +101,31 @@ document.addEventListener('alpine:init', () => {
         }
     })
 
-    // ── Immediate click feedback ───────────────────────────────────────────
+    // ── Immediate click feedback + navigation lock ─────────────────────────
     // The sidebar is @persist'd, so a click no longer produces any visible
     // DOM change until the response lands (previously the whole body,
     // including the sidebar, would morph and implicitly show "something is
-    // happening"). Give nav links their own instant feedback instead.
+    // happening"). Give every wire:navigate link instant feedback instead,
+    // and disable ALL of them for the duration of the transition — without
+    // this, a second click (same link, a different sidebar item, or a
+    // different senior's row) starts an overlapping navigation that the
+    // race-correction logic above has to clean up after the fact. Locking
+    // up front avoids that entirely. The attribute selector (not a
+    // per-page CSS class) means this applies everywhere wire:navigate is
+    // used — sidebar, senior-record rows/actions, pagination — with no
+    // per-template opt-in required.
     document.addEventListener('click', (e) => {
-        // .nav-link is only ever used on the sidebar's own wire:navigate(.hover)
-        // links (layouts/app.blade.php) — no need to also check for the
-        // attribute, which would need escaping for the .hover-modified ones.
-        const link = e.target.closest('.nav-link')
+        const link = e.target.closest('[wire\\:navigate]')
         if (!link) return
-        link.classList.add('nav-link-pending')
+        link.classList.add('wire-nav-pending')
         link.setAttribute('aria-busy', 'true')
+        document.body.classList.add('is-navigating')
     })
     document.addEventListener('livewire:navigated', () => {
-        document.querySelectorAll('.nav-link-pending').forEach((el) => {
-            el.classList.remove('nav-link-pending')
+        document.querySelectorAll('.wire-nav-pending').forEach((el) => {
+            el.classList.remove('wire-nav-pending')
             el.removeAttribute('aria-busy')
         })
+        document.body.classList.remove('is-navigating')
     })
 })

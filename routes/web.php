@@ -6,6 +6,7 @@ use App\Http\Controllers\GisApiController;
 use App\Http\Controllers\HelpController;
 use App\Services\MlService;
 use App\Support\SeniorDataVersion;
+use App\Support\SingleSession;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard/version-check', fn () => response()->json([
             'version' => SeniorDataVersion::current(),
         ]))->name('dashboard.version-check');
+
+        // Polled every ~20s by the currently-active session (resources/js/
+        // login-attempt-watch.js) so it can be notified when someone else
+        // tries to sign in to the same account while it's blocked by
+        // SingleSession — see routes/auth.php's blocked-login branch, which
+        // is the only place that ever writes this cache entry. Read-and-clear
+        // (see SingleSession::pullAttempt) so it's only ever surfaced once.
+        Route::get('/account/login-attempt-check', fn () => response()->json([
+            'attempt' => SingleSession::pullAttempt(auth()->id()),
+        ]))->name('account.login-attempt-check');
 
         Route::get('/help', HelpController::class)->name('help');
 

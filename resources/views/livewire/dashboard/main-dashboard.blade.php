@@ -41,8 +41,14 @@
 
     <x-page-header title="Dashboard" subtitle="OSCA senior citizen overview · Pagsanjan, Laguna" />
 
+    {{-- Every wire:model.live filter below re-renders this whole component,
+         so one shared wire:target list covers every card's loading overlay:
+         the two selects, the risk-slice click handler, and Clear filters. --}}
+    @php $dashFilterTarget = 'selectedBarangay,selectedRisk,clearFilters,setRiskFilter'; @endphp
+
     {{-- ── KPIs ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 rise-in">
+    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4 rise-in">
+        <x-loading-overlay :target="$dashFilterTarget" />
         <x-kpi label="Total Seniors"   :value="number_format($stats['total'])"    accent="forest"   sub="Active records · all barangays" />
         <x-kpi label="QoL Surveyed"    :value="number_format($stats['surveyed'])" accent="info"     sub="With WHO IC/ENV/FA data" />
 
@@ -131,7 +137,8 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch rise-in rise-1">
 
         {{-- Risk Distribution --}}
-        <x-card title="Risk Distribution" sub="Composite risk strata · click to filter">
+        <x-card title="Risk Distribution" sub="Composite risk strata · click to filter" class="relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div wire:ignore class="relative h-56"><canvas id="riskChart" aria-label="Risk distribution: high, moderate, and low risk senior counts" role="img"></canvas></div>
             <div class="sr-only">
                 <table>
@@ -181,7 +188,8 @@
                 'count' => $clusterDistribution['data'][$i]   ?? 0,
             ])->sortByDesc('count')->values();
         @endphp
-        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · ranked by size" :fill="true">
+        <x-card title="Profile Groups" sub="{{ count($clusterDistribution['ids'] ?? []) }} groups · ranked by size" :fill="true" class="relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             @if ($pgEntries->sum('count') > 0)
                 <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 14rem"><canvas id="clusterChart" aria-label="Profile group distribution: senior count per group, ranked" role="img"></canvas></div>
                 <div class="sr-only">
@@ -214,7 +222,8 @@
         </x-card>
 
         {{-- Domain Scores — radar + score legend --}}
-        <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" :fill="true">
+        <x-card title="Domain Scores" sub="Average WHO-domain score across filtered seniors" :fill="true" class="relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             {{-- Radar chart grows to fill available card space --}}
             <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 13rem"><canvas id="domainChart" aria-label="Average score per WHO health domain" role="img"></canvas></div>
             <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 shrink-0">
@@ -229,7 +238,8 @@
         </x-card>
 
         {{-- Urgent Pending Actions — first 5, not collapsible --}}
-        <div class="card">
+        <div class="card relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div class="card-head">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-7 h-7 rounded-lg chip-3d grid place-items-center bg-high-50 text-high-600 flex-shrink-0">
@@ -271,7 +281,8 @@
         </div>
 
         {{-- Recent Senior Records — first 5, not collapsible --}}
-        <div class="card">
+        <div class="card relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div class="card-head">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-7 h-7 rounded-lg chip-3d grid place-items-center bg-forest-50 text-forest-700 flex-shrink-0">
@@ -317,12 +328,14 @@
         </div>
 
         {{-- Age Group Distribution — fills its row height (sits beside the tall list cards) --}}
-        <x-card title="Age Group Distribution" sub="Senior count by age band" :fill="true">
+        <x-card title="Age Group Distribution" sub="Senior count by age band" :fill="true" class="relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div wire:ignore class="relative flex-1 min-h-0" style="min-height: 15rem"><canvas id="ageChart" aria-label="Age distribution: senior counts grouped by age bands" role="img"></canvas></div>
         </x-card>
 
         {{-- Wellbeing Index — gauge (fills the last-row cell beside Barangay) --}}
-        <x-card>
+        <x-card class="relative">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div class="text-center">
                 <div class="card-title">Wellbeing Index</div>
                 <div class="card-sub mt-0.5">Average wellbeing of assessed seniors — higher is better</div>
@@ -350,7 +363,8 @@
         </x-card>
 
         {{-- Barangay Breakdown — proportional data-bar list (wide base of the bento) --}}
-        <x-card title="Barangay Breakdown" sub="Total seniors · high-risk share, by barangay" class="xl:col-span-2">
+        <x-card title="Barangay Breakdown" sub="Total seniors · high-risk share, by barangay" class="relative xl:col-span-2">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-2.5">
                 @foreach ($barangayBreakdown as $row)
                     @php

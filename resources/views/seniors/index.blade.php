@@ -70,7 +70,7 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
-                <select name="barangay" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="barangay" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
                         <option value="{{ $brgy }}" {{ request('barangay')==$brgy?'selected':'' }}>{{ $brgy }}</option>
@@ -79,7 +79,7 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Risk Level</label>
-                <select name="risk" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="risk" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
                         <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ ucfirst(strtolower($r)) }}</option>
@@ -88,7 +88,7 @@
             </div>
             <div class="min-w-[180px]">
                 <label class="eyebrow block mb-1.5">Profile Group</label>
-                <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Groups</option>
                     <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
                     <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Stable / Moderate</option>
@@ -97,7 +97,7 @@
                 </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
                     Search
                 </button>

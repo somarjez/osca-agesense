@@ -2,7 +2,8 @@
 <div class="space-y-6">
 
     {{-- ── Eval metrics ── --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <x-loading-overlay target="selectedBarangay" />
         @php
         $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
         $metrics = [
@@ -38,7 +39,8 @@
     </div>
 
     {{-- ── Cluster cards ── --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <x-loading-overlay target="selectedBarangay" />
         @foreach ($clusterSummaries as $clusterId => $summary)
         <div class="card">
             <div class="card-head">
@@ -83,7 +85,8 @@
     </div>
 
     {{-- ── Charts row ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <x-loading-overlay target="selectedBarangay" />
         <x-card title="Risk by Profile Group" sub="Score out of 100%">
             <div wire:ignore class="h-56"><canvas id="domainClusterChart"></canvas></div>
         </x-card>
@@ -124,7 +127,8 @@
     </div>
 
     {{-- ── Member table ── --}}
-    <x-card title="Profile Group Member Records">
+    <x-card title="Profile Group Member Records" class="relative">
+        <x-loading-overlay target="selectedBarangay" />
         <x-slot name="noPadding">true</x-slot>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">

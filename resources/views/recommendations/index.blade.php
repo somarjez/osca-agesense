@@ -44,7 +44,7 @@
             <input type="hidden" name="quick" value="{{ request('quick') }}">
             <input type="hidden" name="has_urgent" value="{{ request('has_urgent') }}">
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
                 @if (request()->hasAny(['barangay','risk','has_urgent','search','quick']))

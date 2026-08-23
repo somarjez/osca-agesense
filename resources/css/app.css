@@ -344,10 +344,20 @@
   /* Immediate click feedback while a wire:navigate fetch is in flight — the
      sidebar is @persist'd (layouts/app.blade.php) so a click no longer
      triggers any visible DOM change until the response lands; without this
-     a click could otherwise look like it did nothing for a moment. Cleared
-     by resources/js/navigation.js on livewire:navigated. */
-  .nav-link-pending {
+     a click could otherwise look like it did nothing for a moment. Applies
+     to any wire:navigate link (sidebar, senior-record rows/actions,
+     pagination), not just the sidebar. Cleared by resources/js/navigation.js
+     on livewire:navigated. */
+  .wire-nav-pending {
     @apply opacity-60;
+  }
+
+  /* Navigation lock: disables every wire:navigate link for the duration of
+     a transition, so a second click (a different sidebar item, a different
+     senior's row) can't start an overlapping navigation. Set/cleared by
+     resources/js/navigation.js. */
+  body.is-navigating a[wire\:navigate] {
+    @apply pointer-events-none;
   }
 
   /* @persist('sidebar') (layouts/app.blade.php) wraps <aside> in a plain

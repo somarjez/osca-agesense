@@ -44,7 +44,7 @@
                        class="form-input">
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
                     Filter
                 </button>
