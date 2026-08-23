@@ -55,38 +55,38 @@ document.addEventListener('alpine:init', () => {
     document.addEventListener('livewire:navigated', () => {
         navState.path = window.location.pathname
     })
-    // exact: highlights only on an exact path match (e.g. Dashboard, GIS
-    // Analytics — pages with no nested sub-routes).
-    // prefix: highlights on the path itself or any deeper path under it (e.g.
-    // Drafts also matches /seniors/drafts/5, User Management also matches
-    // /users/create) — the client-side equivalent of the old
-    // request()->routeIs('name.*') wildcard checks.
-    Alpine.magic('navActive', () => (path, prefix = false) => {
-        if (!prefix) return navState.path === path
-        return navState.path === path || navState.path.startsWith(path + '/')
+    // path: a single path string, or an array of path strings when a nav item
+    // should also light up on an unrelated URL tree (e.g. Drafts also
+    // highlighting while continuing a draft under /surveys/profile/drafts/*).
+    // prefix modes:
+    //   false (default): exact match only (e.g. Dashboard, GIS Analytics —
+    //     pages with no nested sub-routes).
+    //   true: highlights on the path itself or any deeper path under it (e.g.
+    //     User Management also matches /users/create) — the client-side
+    //     equivalent of the old request()->routeIs('name.*') wildcard checks.
+    //   'resource': highlights on the path itself or a numeric-id child route
+    //     one level down (e.g. Senior Records also matches /seniors/42 and
+    //     /seniors/42/edit) WITHOUT also matching static sibling routes like
+    //     /seniors/create or /seniors/drafts, which a blanket prefix would.
+    Alpine.magic('navActive', () => (paths, prefix = false) => {
+        const list = Array.isArray(paths) ? paths : [paths]
+        return list.some(p => {
+            if (navState.path === p) return true
+            if (prefix === 'resource') return new RegExp('^' + p + '/\\d+(/edit)?$').test(navState.path)
+            return prefix && navState.path.startsWith(p + '/')
+        })
     })
 
     // ── Persisted topbar content sync ─────────────────────────────────────────
-    // Page title and the search box's current value are also server-rendered
-    // into the now-persisted topbar, so they'd otherwise freeze at whatever
-    // they were on the very first page load. <head> is NOT persisted — Livewire
-    // merges it fresh on every navigation — so the page-title <meta> tag
-    // (layouts/app.blade.php) is always current; copy it into the frozen <h1>.
-    // The search box's value is derivable straight from the URL, no meta tag
-    // needed: mirrors request()->routeIs('seniors.*') by checking the path
-    // prefix, since every seniors.* route's URI starts with /seniors.
+    // Page title is server-rendered into the now-persisted topbar, so it'd
+    // otherwise freeze at whatever it was on the very first page load. <head>
+    // is NOT persisted — Livewire merges it fresh on every navigation — so the
+    // page-title <meta> tag (layouts/app.blade.php) is always current; copy it
+    // into the frozen <h1>.
     document.addEventListener('livewire:navigated', () => {
         const titleEl = document.getElementById('topbar-page-title')
         const metaTitle = document.querySelector('meta[name="page-title"]')
         if (titleEl && metaTitle) titleEl.textContent = metaTitle.content
-
-        const searchEl = document.getElementById('topbar-search-input')
-        if (searchEl) {
-            const onSeniorsPages = window.location.pathname.startsWith('/seniors')
-            searchEl.value = onSeniorsPages
-                ? (new URLSearchParams(window.location.search).get('search') ?? '')
-                : ''
-        }
     })
 
     // ── Hover tooltip ─────────────────────────────────────────────────────────

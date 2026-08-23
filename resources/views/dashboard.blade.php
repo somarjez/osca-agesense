@@ -291,7 +291,21 @@
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => ` ${c.parsed.x} seniors · ${pgPcts[c.dataIndex] ?? 0}%` } },
+                    tooltip: {
+                        // Floats the tooltip ABOVE the hovered row (in the gap
+                        // between bars) instead of beside it, so it never
+                        // competes for the same narrow horizontal space as the
+                        // wrapped y-axis labels on the left or
+                        // hBarValuePlugin's permanent "count · pct%" label on
+                        // the right. The row's own y-axis label already names
+                        // the group, so the redundant title is dropped too —
+                        // shrinking the box down to just the count/share line.
+                        yAlign: 'bottom',
+                        callbacks: {
+                            title: () => '',
+                            label: c => ` ${c.parsed.x} seniors · ${pgPcts[c.dataIndex] ?? 0}%`,
+                        },
+                    },
                 },
             },
             plugins: [hBarValuePlugin(pgPcts)],
@@ -348,7 +362,13 @@
                 maintainAspectRatio: false,
                 animation: { duration: 300, easing: 'easeOutQuart' },
                 layout: { padding: { top: 18 } },
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    // barValuePlugin always draws the value just above the bar
+                    // (bar.y - 6); keep the hover tooltip below the bar's top so
+                    // the two labels don't sit on top of each other.
+                    tooltip: { yAlign: 'bottom' },
+                },
                 scales: {
                     x: {
                         grid: { display: false },
@@ -388,6 +408,11 @@
                 circumference: 180,
                 cutout: '70%',
                 animation: { duration: 400, easing: 'easeOutQuart' },
+                // Purely decorative — no tooltip, no click action. Chart.js still
+                // auto-darkens arc segments on hover by default even with the
+                // tooltip disabled; events: [] stops all hover/click listeners
+                // on the canvas so neither segment reacts to the cursor at all.
+                events: [],
                 plugins: { legend: { display: false }, tooltip: { enabled: false } },
             },
             plugins: [gaugeTextPlugin(hasWb ? Math.round(wb) : 0, hasWb)],

@@ -12,12 +12,17 @@
             <div class="card-title">Filter Log</div>
             <div class="flex items-center gap-3">
                 <span class="text-[12px] text-ink-400">{{ number_format($logs->total()) }} entries</span>
-                <form method="POST" action="{{ route('activity-log.clear') }}" x-data
-                      @submit.prevent="if (confirm('Permanently delete ALL {{ number_format($logs->total()) }} log entries? This cannot be undone.')) $el.submit()">
+                <form x-ref="clearAllForm" method="POST" action="{{ route('activity-log.clear') }}" x-data="{ clearAllOpen: false }">
                     @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-ghost text-xs text-critical-700 hover:bg-critical-50">
+                    <button type="button" @click="clearAllOpen = true" class="btn btn-ghost text-xs text-critical-700 hover:bg-critical-50">
                         Clear All
                     </button>
+                    <x-confirm-modal show="clearAllOpen"
+                                     title="Delete all activity log entries?"
+                                     confirm="$refs.clearAllForm.requestSubmit()"
+                                     confirm-label="Delete all permanently">
+                        <p>All <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ number_format($logs->total()) }}</strong> activity log entries will be <strong class="text-ink-900 dark:text-[#e4e1d8]">permanently</strong> deleted. This cannot be undone.</p>
+                    </x-confirm-modal>
                 </form>
             </div>
         </div>

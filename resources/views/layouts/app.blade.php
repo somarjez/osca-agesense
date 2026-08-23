@@ -106,7 +106,7 @@
             <a href="{{ route('seniors.index') }}"
                wire:navigate
                class="nav-link"
-               :class="{ 'nav-link-active': $navActive('{{ route('seniors.index', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
+               :class="{ 'nav-link-active': $navActive('{{ route('seniors.index', [], false) }}', 'resource'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Senior Records'">
                 <x-heroicon-o-users class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Senior Records</span>
@@ -132,7 +132,7 @@
             <a href="{{ route('seniors.drafts.index') }}"
                wire:navigate
                class="nav-link"
-               :class="{ 'nav-link-active': $navActive('{{ route('seniors.drafts.index', [], false) }}', true), 'nav-link-collapsed': !sidebarOpen }"
+               :class="{ 'nav-link-active': $navActive(['{{ route('seniors.drafts.index', [], false) }}', '{{ url('/surveys/profile/drafts') }}'], true), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Drafts'">
                 <x-heroicon-o-pencil-square class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Drafts</span>
@@ -242,7 +242,7 @@
             <a href="{{ route('reports.registry') }}"
                wire:navigate
                class="nav-link"
-               :class="{ 'nav-link-collapsed': !sidebarOpen }"
+               :class="{ 'nav-link-active': $navActive('{{ route('reports.registry', [], false) }}'), 'nav-link-collapsed': !sidebarOpen }"
                :title="sidebarOpen ? '' : 'Registry and Backup'">
                 <x-heroicon-o-table-cells class="w-4 h-4 flex-shrink-0" />
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Registry and Backup</span>
@@ -304,30 +304,11 @@
         @persist('topbar')
         <header class="no-print bg-white dark:bg-[#151c19] border-b border-paper-rule dark:border-[#2b3530] px-6 flex items-center flex-shrink-0 gap-4 h-14 shadow-[0_1px_0_rgba(20,30,25,0.05)]">
 
-            {{-- Left: Page title (fixed width so search stays centered) --}}
-            <div class="flex items-center gap-2.5 min-w-0 w-52 flex-shrink-0">
+            {{-- Left: Page title (grows to fill the space; truncate is only a
+                 safety net for an unusually long dynamic title at narrow widths) --}}
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
                 <h1 id="topbar-page-title" class="font-serif text-[18px] font-semibold tracking-snug text-ink-900 dark:text-[#e4e1d8] leading-none truncate">@yield('page-title', 'Dashboard')</h1>
             </div>
-
-            {{-- Center: Search bar — navigates to seniors.index with ?search= --}}
-            {{-- Use / key to focus. Shows current search value when on senior pages. --}}
-            <form action="{{ route('seniors.index') }}" method="GET"
-                  x-data="{}"
-                  @keydown.slash.window.prevent="$refs.topbarSearch.focus()"
-                  class="flex-1 hidden md:block max-w-sm mx-auto">
-                <div class="topbar-search">
-                    <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5 text-ink-300 dark:text-[#4a5550] flex-shrink-0" />
-                    <input id="topbar-search-input"
-                           x-ref="topbarSearch"
-                           type="text"
-                           name="search"
-                           aria-label="Search seniors by name, OSCA ID or System ID"
-                           value="{{ request()->routeIs('seniors.*') ? request('search') : '' }}"
-                           placeholder="Search seniors by name, OSCA ID or System ID…"
-                           autocomplete="off" />
-                    <kbd class="text-[10px] text-ink-300 dark:text-[#4a5550] font-mono bg-paper-rule/60 dark:bg-[#2b3530]/80 px-1.5 py-0.5 rounded-md flex-shrink-0 leading-none">/</kbd>
-                </div>
-            </form>
 
             {{-- Right: utilities --}}
             <div class="flex items-center gap-1.5 flex-shrink-0 ml-auto">
@@ -364,14 +345,6 @@
                 </a>
 
                 <div class="h-4 w-px bg-paper-rule dark:bg-[#2b3530] mx-1"></div>
-
-                {{-- Notification bell --}}
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-400 dark:text-[#6b7570]
-                               hover:bg-paper-2 dark:hover:bg-[#202a26] hover:text-ink-700 dark:hover:text-[#c8c4bc]
-                               transition-all duration-150 cursor-not-allowed opacity-50"
-                        title="Notifications (coming soon)" disabled>
-                    <x-heroicon-o-bell class="w-4 h-4" />
-                </button>
 
                 {{-- User profile dropdown --}}
                 @php
@@ -413,7 +386,9 @@
                          role="menu">
                         {{-- Identity header --}}
                         <div class="px-4 py-3 border-b border-paper-rule dark:border-[#2b3530]">
-                            <div class="text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                            <x-tooltip :text="e(auth()->user()?->name ?? 'OSCA Staff')" position="bottom" width="w-56" class="block">
+                                <div class="text-[13px] font-semibold text-ink-900 dark:text-[#e4e1d8] truncate">{{ auth()->user()?->name ?? 'OSCA Staff' }}</div>
+                            </x-tooltip>
                             <div class="text-[11px] text-ink-500 dark:text-[#6b7570]">{{ $roleLabels[$roleName] ?? 'OSCA Staff' }}</div>
                         </div>
                         {{-- Dark mode toggle --}}
