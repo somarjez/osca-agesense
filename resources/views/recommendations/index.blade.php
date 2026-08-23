@@ -15,7 +15,7 @@
     </div>
 
     {{-- ── Filters (compact toolbar) ── --}}
-    <form method="GET" class="card">
+    <form method="GET" id="recommendations-filter-form" class="card">
         <div class="card-body flex flex-wrap items-end gap-3 py-3">
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1">Search</label>
@@ -24,7 +24,7 @@
             </div>
             <div class="min-w-[150px]">
                 <label class="eyebrow block mb-1">Barangay</label>
-                <select name="barangay" class="form-select">
+                <select name="barangay" class="form-select" onchange="this.form.requestSubmit()">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
                     <option value="{{ $brgy }}" {{ request('barangay') === $brgy ? 'selected' : '' }}>{{ $brgy }}</option>
@@ -33,7 +33,7 @@
             </div>
             <div class="min-w-[130px]">
                 <label class="eyebrow block mb-1">Risk</label>
-                <select name="risk" class="form-select">
+                <select name="risk" class="form-select" onchange="this.form.requestSubmit()">
                     <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
                     <option value="{{ $r }}" {{ strtoupper(request('risk')) === $r ? 'selected' : '' }}>{{ ucfirst(strtolower($r)) }}</option>
@@ -48,7 +48,7 @@
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
                 @if (request()->hasAny(['barangay','risk','has_urgent','search','quick']))
-                <a href="{{ route('recommendations.index') }}" class="btn">Clear</a>
+                <a href="{{ route('recommendations.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

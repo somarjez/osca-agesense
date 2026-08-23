@@ -1,7 +1,7 @@
 {{-- resources/views/livewire/reports/risk-report.blade.php --}}
 <div class="space-y-5">
 
-    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster'; @endphp
+    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster,sortColumn'; @endphp
 
     {{-- ── Summary Cards ── --}}
     <div class="relative grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -109,13 +109,19 @@
                             Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('ic_risk')">
-                            IC {{ $sortBy === 'ic_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Intrinsic Capacity" position="top" width="w-44">
+                                <span>IC {{ $sortBy === 'ic_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('env_risk')">
-                            Env {{ $sortBy === 'env_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Environment" position="top" width="w-44">
+                                <span>Env {{ $sortBy === 'env_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('func_risk')">
-                            Func {{ $sortBy === 'func_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Functional Ability" position="top" width="w-44">
+                                <span>Func {{ $sortBy === 'func_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none"
                             wire:click="sortColumn('overall_risk_level')">
@@ -167,6 +173,7 @@
                         </td>
                         <td class="td text-right">
                             <a href="{{ route('seniors.show', $senior) }}"
+                               wire:navigate data-loading="Loading…"
                                class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">
                                 View →
                             </a>

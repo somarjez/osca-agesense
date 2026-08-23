@@ -60,7 +60,7 @@
                     Search
                 </button>
                 @if (request()->hasAny(['search','barangay']))
-                    <a href="{{ route('seniors.deceased') }}" class="btn">
+                    <a href="{{ route('seniors.deceased') }}" wire:navigate class="btn" data-loading="Clearing…">
                         <x-heroicon-o-x-mark class="w-3.5 h-3.5" />
                         Clear
                     </a>

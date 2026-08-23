@@ -30,7 +30,25 @@
         <div class="card-body flex flex-wrap items-end gap-4">
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Action</label>
-                <select name="action" class="form-select">
+                {{-- Deferred click on the real submit button — two separate
+                     issues stack here, both confirmed by isolated testing:
+                     (1) this field's name="action" shadows the native
+                     HTMLFormElement.action DOM property (a named form
+                     control shadows any same-named property on its form —
+                     form.action here returns the <select> itself, not a URL
+                     string). this.form.requestSubmit() reads that shadowed
+                     property internally and silently submits with no query
+                     string. (2) Even clicking the real submit button
+                     synchronously, from inside the 'change' event's own
+                     dispatch, produced the same empty-query-string result —
+                     but calling that exact same click() as a fresh top-level
+                     task (via setTimeout) worked correctly every time.
+                     Wrapping in setTimeout avoids whatever reentrancy the
+                     browser applies to a submission triggered synchronously
+                     from within another event's handler. Renaming the field
+                     isn't an option; it's the actual query param name the
+                     controller reads (request('action')). --}}
+                <select name="action" class="form-select" onchange="setTimeout(() => this.form.querySelector('button[type=submit]').click())">
                     <option value="">All Actions</option>
                     @foreach ($actions as $a)
                     <option value="{{ $a }}" {{ request('action') === $a ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $a)) }}</option>
@@ -49,7 +67,7 @@
                     Filter
                 </button>
                 @if (request()->hasAny(['action','search']))
-                <a href="{{ route('activity-log.index') }}" class="btn">Clear</a>
+                <a href="{{ route('activity-log.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

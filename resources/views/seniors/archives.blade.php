@@ -34,7 +34,7 @@
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" /> Search
                 </button>
                 @if (request()->hasAny(['search','barangay']))
-                    <a href="{{ route('seniors.archives') }}" class="btn">Clear</a>
+                    <a href="{{ route('seniors.archives') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

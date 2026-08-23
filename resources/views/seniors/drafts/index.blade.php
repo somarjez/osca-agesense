@@ -22,7 +22,7 @@
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
                 @if (request()->hasAny(['search']))
-                <a href="{{ route('seniors.drafts.index') }}" class="btn">Clear</a>
+                <a href="{{ route('seniors.drafts.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

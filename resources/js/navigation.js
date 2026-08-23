@@ -120,11 +120,25 @@ document.addEventListener('alpine:init', () => {
         link.classList.add('wire-nav-pending')
         link.setAttribute('aria-busy', 'true')
         document.body.classList.add('is-navigating')
+
+        // Same data-loading convention as the global non-Livewire form
+        // submit-guard below, extended to links: opt in per-link with
+        // data-loading="Label" to swap its content for a spinner while the
+        // navigation is in flight (e.g. "Clear" filter links, "View →" table
+        // row links) instead of relying on the opacity dim alone.
+        if (link.dataset.loading) {
+            link.dataset.origHtml = link.innerHTML
+            link.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> ' + link.dataset.loading
+        }
     })
     document.addEventListener('livewire:navigated', () => {
         document.querySelectorAll('.wire-nav-pending').forEach((el) => {
             el.classList.remove('wire-nav-pending')
             el.removeAttribute('aria-busy')
+            if (el.dataset.origHtml !== undefined) {
+                el.innerHTML = el.dataset.origHtml
+                delete el.dataset.origHtml
+            }
         })
         document.body.classList.remove('is-navigating')
     })
