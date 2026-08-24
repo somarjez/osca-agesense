@@ -263,20 +263,30 @@ class ProfileSurvey extends Component
      */
     public function stepStatusText(): string
     {
-        [$filled, $total] = $this->requiredFieldStatus();
+        [$filled, $total, $missing] = $this->requiredFieldStatus();
 
         return match (true) {
             $filled === 0 => "Let's get started.",
-            $filled < $total => 'In progress.',
+            $filled < $total => 'In progress. Missing: '.implode(', ', array_map('ucfirst', $missing)).'.',
             default => 'Ready to submit.',
         };
     }
 
-    /** @return array{0: int, 1: int} [required fields filled, required fields total] — Step 1 only, see stepStatusText(). */
+    /** Whether every required field (Step 1 only) is filled, so Save can be enabled from any step. */
+    public function canSave(): bool
+    {
+        [$filled, $total] = $this->requiredFieldStatus();
+
+        return $filled === $total;
+    }
+
+    /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels] — Step 1 only, see stepStatusText()/canSave(). */
     private function requiredFieldStatus(): array
     {
         $filled = 0;
         $total = 0;
+        $missing = [];
+        $labels = $this->validationAttributes();
         foreach ($this->step1Rules() as $field => $rule) {
             $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
             if (! in_array('required', $tokens, true)) {
@@ -287,10 +297,12 @@ class ProfileSurvey extends Component
             $isFilled = is_array($value) ? count($value) > 0 : ($value !== null && $value !== '');
             if ($isFilled) {
                 $filled++;
+            } else {
+                $missing[] = $labels[$field] ?? $field;
             }
         }
 
-        return [$filled, $total];
+        return [$filled, $total, $missing];
     }
 
     /**
@@ -612,6 +624,8 @@ class ProfileSurvey extends Component
             'householdSize' => 'household size',
             'educationalAttainment' => 'educational attainment',
             'communityService' => 'community service',
+            'specialization' => 'specialization',
+            'specialization.*' => 'specialization',
             'livingWith' => 'living arrangement',
             'householdCondition' => 'household condition',
             'incomeSource' => 'income source',

@@ -149,7 +149,7 @@
                                :class="recordStatus === '{{ $val }}'
                                        ? '{{ $val === 'deceased' ? 'border-critical-500 bg-critical-100 dark:bg-critical-700/20' : 'border-forest-500 bg-forest-50 dark:bg-forest-900/30' }}'
                                        : 'border-paper-rule hover:bg-paper dark:hover:bg-[#202a26]'">
-                            <input type="radio" wire:model="status" x-model="recordStatus" value="{{ $val }}" class="accent-forest-700">
+                            <input type="radio" wire:model.live="status" x-model="recordStatus" value="{{ $val }}" class="accent-forest-700">
                             <span class="text-sm font-medium text-ink-700">{{ $label }}</span>
                         </label>
                         @endforeach
@@ -183,7 +183,7 @@
 
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">First Name <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <input type="text" wire:model="firstName" placeholder="Juan"
+                        <input type="text" wire:model.blur="firstName" placeholder="Juan"
                                @input="check('firstName', $event.target.value)"
                                :aria-invalid="!!errors.firstName"
                                class="form-input">
@@ -201,7 +201,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Last Name <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <input type="text" wire:model="lastName" placeholder="Dela Cruz"
+                        <input type="text" wire:model.blur="lastName" placeholder="Dela Cruz"
                                @input="check('lastName', $event.target.value)"
                                :aria-invalid="!!errors.lastName"
                                class="form-input">
@@ -220,7 +220,7 @@
 
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Barangay <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <select wire:model="barangay"
+                        <select wire:model.live="barangay"
                                 class="form-select {{ $errors->has('barangay') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                             <option value="">Select barangay…</option>
                             @foreach (\App\Models\SeniorCitizen::barangayList() as $b)
@@ -642,8 +642,13 @@
 
             </div>
 
-            {{-- ── Footer Navigation ── --}}
-            <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex items-center gap-3">
+            {{-- ── Footer Navigation ──
+                 sticky, not fixed: <main> (resources/js/app.js) is the actual
+                 scroll container and this footer lives inside its two-column
+                 grid, so `sticky bottom-0` pins it to the bottom of the
+                 viewport without losing the column's width the way `fixed`
+                 would. bg-* is required once content scrolls underneath. --}}
+            <div class="sticky bottom-0 bg-white dark:bg-[#151c19] z-10 border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex items-center gap-3">
                 <a href="{{ $senior ? route('seniors.show', $senior) : route('seniors.index') }}" wire:navigate
                    class="btn btn-ghost text-[13px]">
                     Cancel
@@ -667,6 +672,28 @@
                 </button>
 
                 <div class="ml-auto flex gap-3">
+                    {{-- Save is reachable from every step (not just the last) — save()
+                         already validates the full record regardless of $step, so
+                         there's no correctness reason to gate it behind the wizard. --}}
+                    <button wire:click="save"
+                            wire:loading.attr="disabled"
+                            wire:target="save"
+                            :disabled="hasNameError || @js(! $this->canSave())"
+                            @if (! $this->canSave()) title="{{ $this->stepStatusText() }}" @endif
+                            class="btn {{ $step === $totalSteps ? 'btn-primary' : '' }}">
+                        <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
+                            <x-heroicon-o-check class="w-4 h-4" />
+                            Save Profile
+                        </span>
+                        <span wire:loading.inline-flex wire:target="save" class="items-center gap-1.5">
+                            <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                            Saving…
+                        </span>
+                    </button>
+
                     @if ($step < $totalSteps)
                     <button type="button" wire:click="nextStep"
                             wire:loading.attr="disabled"
@@ -683,24 +710,6 @@
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                             </svg>
                             Loading…
-                        </span>
-                    </button>
-                    @else
-                    <button wire:click="save"
-                            wire:loading.attr="disabled"
-                            wire:target="save"
-                            :disabled="hasNameError"
-                            class="btn btn-primary">
-                        <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
-                            <x-heroicon-o-check class="w-4 h-4" />
-                            Save Profile
-                        </span>
-                        <span wire:loading.inline-flex wire:target="save" class="items-center gap-1.5">
-                            <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                            </svg>
-                            Saving…
                         </span>
                     </button>
                     @endif

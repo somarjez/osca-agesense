@@ -221,6 +221,24 @@ document.addEventListener('livewire:before-update', function () {
     if (main) window.__livewireMainScroll = main.scrollTop
 })
 
+// Orphaned tooltip guard: hoverTip (components/tooltip.blade.php) moves its
+// panel to document.body on hover so it isn't clipped by a scrolling
+// ancestor. If a Livewire morph removes/recreates the trigger mid-hover
+// (e.g. clicking a sortable column header that also carries a tooltip), the
+// moved panel loses its only mouseleave listener and is never told to close
+// — it just stays stuck open. Force every body-appended tooltip panel closed
+// before every commit so this can't happen. Uses Livewire.hook('commit', ...)
+// rather than the 'livewire:before-update' DOM event above — that event does
+// not fire in this app's Livewire v3 setup (confirmed empirically; see the
+// 'morphed' hook used for chart re-renders in dashboard.blade.php /
+// cluster-analysis.blade.php for the same reason), so a handler registered
+// on it silently never runs.
+Livewire.hook('commit', function () {
+    document.querySelectorAll('body > [data-tooltip-panel]').forEach(function (panel) {
+        panel.style.display = 'none'
+    })
+})
+
 document.addEventListener('livewire:updated', function () {
     const main = document.querySelector('main')
     if (main && window.__livewireMainScroll !== undefined) {

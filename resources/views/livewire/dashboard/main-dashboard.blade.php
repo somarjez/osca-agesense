@@ -43,17 +43,20 @@
 
     {{-- Every wire:model.live filter below re-renders this whole component,
          so one shared wire:target list covers every card's loading overlay:
-         the two selects, the risk-slice click handler, and Clear filters. --}}
-    @php $dashFilterTarget = 'selectedBarangay,selectedRisk,clearFilters,setRiskFilter'; @endphp
+         the two selects and Clear filters. --}}
+    @php $dashFilterTarget = 'selectedBarangay,selectedRisk,clearFilters'; @endphp
 
-    {{-- ── KPIs ── --}}
-    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4 rise-in">
-        <x-loading-overlay :target="$dashFilterTarget" />
-        <x-kpi label="Total Seniors"   :value="number_format($stats['total'])"    accent="forest"   sub="Active records · all barangays" />
-        <x-kpi label="QoL Surveyed"    :value="number_format($stats['surveyed'])" accent="info"     sub="With WHO IC/ENV/FA data" />
+    {{-- ── KPIs ──
+         Each card gets its own loading overlay (rather than one shared
+         overlay spanning the whole row) so the spinner is centered on the
+         card that's actually loading, not floating mid-row across all four. --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 rise-in">
+        <x-kpi label="Total Seniors"   :value="number_format($stats['total'])"    accent="forest"   sub="Active records · all barangays" :loading-target="$dashFilterTarget" />
+        <x-kpi label="QoL Surveyed"    :value="number_format($stats['surveyed'])" accent="info"     sub="With WHO IC/ENV/FA data" :loading-target="$dashFilterTarget" />
 
         {{-- High Risk card merged with Urgent Priority --}}
         <div class="kpi kpi-high relative overflow-hidden">
+            <x-loading-overlay :target="$dashFilterTarget" />
             <div class="kpi-rule bg-high-500"></div>
             <div class="kpi-label">High Risk</div>
             <div class="flex items-baseline gap-2">
@@ -73,7 +76,7 @@
             </div>
         </div>
 
-        <x-kpi label="Pending Actions" :value="number_format($stats['pendingRecs'])" accent="moderate" sub="Recommendations open" />
+        <x-kpi label="Pending Actions" :value="number_format($stats['pendingRecs'])" accent="moderate" sub="Recommendations open" :loading-target="$dashFilterTarget" />
     </div>
 
     {{-- ── Filter bar ── --}}
@@ -101,7 +104,6 @@
         @endif
 
         <div class="ml-auto flex items-center gap-3 text-[11.5px] text-ink-500">
-            <span class="hidden md:inline text-ink-400">Tip: click a risk slice to filter</span>
             <a href="{{ route('ml.status') }}" class="inline-flex items-center gap-1.5 hover:text-ink-900 dark:hover:text-[#e4e1d8] transition-colors">
                 <span class="eyebrow">Analysis Services</span>
                 <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3 opacity-60" />
@@ -137,7 +139,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch rise-in rise-1">
 
         {{-- Risk Distribution --}}
-        <x-card title="Risk Distribution" sub="Composite risk strata · click to filter" class="relative">
+        <x-card title="Risk Distribution" sub="Composite risk strata" class="relative">
             <x-loading-overlay :target="$dashFilterTarget" />
             <div wire:ignore class="relative h-56"><canvas id="riskChart" aria-label="Risk distribution: high, moderate, and low risk senior counts" role="img"></canvas></div>
             <div class="sr-only">

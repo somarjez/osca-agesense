@@ -1,9 +1,11 @@
 {{-- resources/views/livewire/reports/cluster-analysis.blade.php --}}
 <div class="space-y-6">
 
-    {{-- ── Eval metrics ── --}}
-    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <x-loading-overlay target="selectedBarangay" />
+    {{-- ── Eval metrics ──
+         Each card gets its own loading overlay (rather than one shared
+         overlay spanning the whole row) so the spinner is centered on the
+         card that's actually loading, not floating mid-row across all four. --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         @php
         $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
         $metrics = [
@@ -15,6 +17,7 @@
         @endphp
         @foreach ($metrics as [$label, $value, $note, $good])
         <div class="kpi">
+            <x-loading-overlay target="selectedBarangay" />
             <div class="kpi-rule {{ $good ? 'bg-low-500' : 'bg-moderate-500' }}"></div>
             <div class="kpi-label">{{ $label }}</div>
             <div class="kpi-value">{{ $value }}</div>

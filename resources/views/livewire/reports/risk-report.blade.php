@@ -3,9 +3,11 @@
 
     @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster,sortColumn'; @endphp
 
-    {{-- ── Summary Cards ── --}}
-    <div class="relative grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <x-loading-overlay :target="$riskFilterTarget" />
+    {{-- ── Summary Cards ──
+         Each card gets its own loading overlay (rather than one shared
+         overlay spanning the whole row) so the spinner is centered on the
+         card that's actually loading, not floating mid-row across all three. --}}
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         @php
         $levelMeta = [
             'HIGH'     => ['accent' => 'high',     'label' => 'High Risk'],
@@ -17,6 +19,7 @@
         @php $stat = $summaryStats[$level] ?? null; @endphp
         <div class="kpi cursor-pointer transition-shadow hover:shadow-md"
              wire:click="$set('filterRisk', '{{ strtolower($level) }}')">
+            <x-loading-overlay :target="$riskFilterTarget" />
             <div class="kpi-rule bg-{{ $meta['accent'] }}-500"></div>
             <div class="kpi-label">{{ $meta['label'] }}</div>
             <div class="kpi-value text-{{ $meta['accent'] }}-700">{{ $stat?->count ?? 0 }}</div>

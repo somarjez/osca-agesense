@@ -221,15 +221,6 @@
                 maintainAspectRatio: false,
                 cutout: '72%',
                 animation: doughnutAnim,
-                onHover: (e, els) => { if (e.native) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-                onClick: (e, els, chart) => {
-                    if (!els.length) return;
-                    const label = String(chart.data.labels[els[0].index] || '');
-                    const level = label.toLowerCase().replace('risk', '').trim();
-                    if (window.Livewire && ['high', 'moderate', 'low'].includes(level)) {
-                        window.Livewire.dispatch('dashboard-filter-risk', { level });
-                    }
-                },
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } },
