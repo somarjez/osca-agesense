@@ -4,7 +4,7 @@
     'accent' => 'forest',  // forest|critical|high|moderate|low|info
     'sub' => null,
     'valueColor' => null,  // optional override e.g. 'text-critical-700'
-    'loadingTarget' => null,  // wire:target propert(ies)/method(s); renders a per-card <x-loading-overlay> when set — see .kpi's `relative` in app.css
+    'loadingTarget' => null,  // wire:target propert(ies)/method(s); renders a per-card loading overlay when set — see .kpi's `relative` in app.css
 ])
 @php
 $ruleClass = match($accent) {
