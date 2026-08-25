@@ -216,6 +216,13 @@ class PolicyAuthorizationTest extends TestCase
             ->set('lastName', 'Policy')
             ->set('barangay', 'Pinagsanjan')
             ->set('dateOfBirth', '1948-05-02')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000')
             ->call('save')
             ->assertSet('saved', true);
 

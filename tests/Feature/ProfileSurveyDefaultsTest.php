@@ -66,7 +66,14 @@ class ProfileSurveyDefaultsTest extends TestCase
             ->set('firstName', 'Maria')
             ->set('lastName', 'Santos')
             ->set('barangay', 'Anibong')
-            ->set('dateOfBirth', '1948-05-02');
+            ->set('dateOfBirth', '1948-05-02')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
     #[Test]
@@ -161,7 +168,7 @@ class ProfileSurveyDefaultsTest extends TestCase
     }
 
     #[Test]
-    public function saving_an_untouched_create_persists_the_defaults(): void
+    public function saving_a_completed_create_persists_the_neutral_defaults(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->call('save')
@@ -178,7 +185,7 @@ class ProfileSurveyDefaultsTest extends TestCase
         $this->assertSame(['Limited problems encountered'], $senior->problems_needs);
         $this->assertSame(['No known assets'], $senior->real_assets);
         $this->assertSame(['No known assets'], $senior->movable_assets);
-        $this->assertNull($senior->living_with);
+        $this->assertSame(['Children'], $senior->living_with);
     }
 
     #[Test]
