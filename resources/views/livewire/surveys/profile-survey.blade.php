@@ -250,7 +250,7 @@
                         @error('officialOscaId') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1 flex items-center gap-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Gender</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Gender <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <select wire:model="gender"
                                 class="form-input">
                             <option value="">Select…</option>
@@ -258,7 +258,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Marital Status</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Marital Status <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <select wire:model="maritalStatus"
                                 class="form-input">
                             <option value="">Select…</option>
@@ -330,22 +330,22 @@
                     desc="Household size and family support details." />
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Number of Children</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Number of Children <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="number" wire:model="numChildren" min="0"
                                class="form-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Number of Working Children</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Number of Working Children <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="number" wire:model="numWorkingChildren" min="0"
                                class="form-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Household Size (total members)</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Household Size (total members) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="number" wire:model="householdSize" min="1"
                                class="form-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Financially Supported by Children?</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Financially Supported by Children? <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <select wire:model="childFinancialSupport"
                                 class="form-input">
                             <option value="">Select…</option>
@@ -353,7 +353,7 @@
                         </select>
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-xs font-medium text-ink-600 mb-1">Spouse / Partner Working?</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-1">Spouse / Partner Working? <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="flex gap-3">
                             @foreach (['Yes','No','Deceased','N/A'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer">
@@ -372,7 +372,7 @@
                     desc="Educational background, skills, and community involvement." />
                 <div class="space-y-5">
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Educational Attainment</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Educational Attainment <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach (['Not Attended School','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'] as $edu)
                             <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-paper-rule hover:bg-paper transition-colors {{ $educationalAttainment === $edu ? 'border-forest-500 bg-forest-50' : '' }}">
@@ -413,7 +413,7 @@
                     desc="Living arrangement and household condition." />
                 <div class="space-y-5">
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Living / Residing with (check all applicable)</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Living / Residing with (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-3 gap-2"
                              x-data="exclusiveGroup('livingWith', @js($xt['livingWith']))" @change="onChange($event)">
                             @foreach (['Alone','Spouse','Children','Grandchildren','Relative(s)','Friend(s)','Care Institution'] as $opt)
@@ -460,7 +460,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Monthly Income Range</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Monthly Income Range <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach (['Below 1,000','1,000 - 5,000','5,000 - 10,000','10,000 - 20,000','20,000 - 30,000','30,000 - 40,000','40,000 - 50,000','50,000 - 60,000','60,000 and above'] as $inc)
                             <label class="flex items-center gap-2 cursor-pointer p-2 border border-paper-rule rounded-lg hover:bg-paper {{ $monthlyIncomeRange===$inc ? 'border-forest-500 bg-forest-50' : '' }}">
@@ -472,7 +472,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Real / Immovable Assets</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Real / Immovable Assets <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('realAssets', @js($xt['realAssets']))" @change="onChange($event)">
                                 @foreach (['House','Lot/Farmland','House and Lot','Commercial Building','Apartment/Rental Unit','Fishpond/Resort','Agricultural Land/Farm','No known assets'] as $opt)
@@ -484,7 +484,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Personal / Movable Assets</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Personal / Movable Assets <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('movableAssets', @js($xt['movableAssets']))" @change="onChange($event)">
                                 @foreach (['Automobile','Motorcycle','Bicycle','Personal Computer','Laptop','Tablet','Mobile Phone','Heavy Equipment','Appliances (Refrigerator / TV / Washing Machine)','No known assets'] as $opt)
@@ -497,7 +497,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Problems / Needs Commonly Encountered</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Problems / Needs Commonly Encountered <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-2 gap-2"
                              x-data="exclusiveGroup('problemsNeeds', @js($xt['problemsNeeds']))" @change="onChange($event)">
                             @foreach ([
@@ -538,7 +538,7 @@
                     desc="Medical, dental, sensory, and healthcare access concerns." />
                 <div class="space-y-5">
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Medical Concerns (check all applicable)</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Medical Concerns (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-3 gap-2"
                              x-data="exclusiveGroup('medicalConcern', @js($xt['medicalConcern']))" @change="onChange($event)">
                             @foreach ($this->medicalConcernOptions() as $opt)
@@ -550,7 +550,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-ink-600 mb-2">Social / Emotional Concerns (check all applicable)</label>
+                        <label class="block text-xs font-medium text-ink-600 mb-2">Social / Emotional Concerns (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-2 gap-2"
                              x-data="exclusiveGroup('socialEmotionalConcern', @js($xt['socialEmotionalConcern']))" @change="onChange($event)">
                             @foreach ($this->socialEmotionalConcernOptions() as $opt)
@@ -563,7 +563,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-5">
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Dental Concern (check all applicable)</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Dental Concern (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('dentalConcern', @js($xt['dentalConcern']))" @change="onChange($event)">
                                 @foreach (['Needs dental care','Tooth decay/cavities','Gum disease','Tooth loss/missing teeth','Healthy Teeth'] as $opt)
@@ -575,7 +575,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Optical / Vision (check all applicable)</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Optical / Vision (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('opticalConcern', @js($xt['opticalConcern']))" @change="onChange($event)">
                                 @foreach (['Eye impairment','Needs eye care','Blurred vision','Cataract','Glaucoma','Healthy Eyes'] as $opt)
@@ -587,7 +587,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Hearing (check all applicable)</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Hearing (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('hearingConcern', @js($xt['hearingConcern']))" @change="onChange($event)">
                                 @foreach (['Hearing impairment','Partial hearing loss','Difficulty hearing conversations','Uses hearing aid','Healthy Hearing'] as $opt)
@@ -599,7 +599,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-2">Healthcare Access Difficulty (check all applicable)</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-2">Healthcare Access Difficulty (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <div class="space-y-1"
                                  x-data="exclusiveGroup('healthcareDifficulty', @js($xt['healthcareDifficulty']))" @change="onChange($event)">
                                 @foreach (['High cost of medicines','Lack of medicines','Lack of medical attention','Difficulty accessing health facilities','Lack of transportation to clinics','Long waiting time','Healthcare is accessible'] as $opt)
@@ -675,11 +675,12 @@
                     {{-- Save is reachable from every step (not just the last) — save()
                          already validates the full record regardless of $step, so
                          there's no correctness reason to gate it behind the wizard. --}}
+                    <span class="inline-flex"
+                          :title="(hasNameError || @js(! $this->canSave())) ? 'Answer all required fields.' : null">
                     <button wire:click="save"
                             wire:loading.attr="disabled"
                             wire:target="save"
                             :disabled="hasNameError || @js(! $this->canSave())"
-                            @if (! $this->canSave()) title="{{ $this->stepStatusText() }}" @endif
                             class="btn {{ $step === $totalSteps ? 'btn-primary' : '' }}">
                         <span wire:loading.remove wire:target="save" class="inline-flex items-center gap-1.5">
                             <x-heroicon-o-check class="w-4 h-4" />
@@ -693,6 +694,7 @@
                             Saving…
                         </span>
                     </button>
+                    </span>
 
                     @if ($step < $totalSteps)
                     <button type="button" wire:click="nextStep"
@@ -721,14 +723,7 @@
 
         {{-- ── Right Rail: Registration Guide ── --}}
         @php
-            // Only Step 1 (Identifying Information) has any required fields —
-            // every later step is optional by design. Naming "required
-            // fields" on a step that has none was misleading (and is why the
-            // ring below is now Progress through the wizard, not a
-            // required-fields ratio — see completionPercent()'s docblock).
-            $registrationIntro = $step === 1
-                ? 'Fill out all required fields in Step 1 to proceed.'
-                : 'This section is optional. Fill in what applies, or continue to the next step.';
+            $registrationIntro = 'Answer all required fields marked with an asterisk before saving the profile.';
         @endphp
         <x-survey-guide
             title="Registration Guide"

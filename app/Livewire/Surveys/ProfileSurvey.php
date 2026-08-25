@@ -257,9 +257,8 @@ class ProfileSurvey extends Component
     /**
      * Whether the record can actually be submitted right now — deliberately
      * NOT derived from completionPercent() above (wizard position). Every
-     * required field lives in Step 1; the record becomes submittable the
-     * moment those are filled, independent of which step the user is
-     * currently viewing or has visited.
+     * required field across all six steps must be filled, independent of
+     * which step the user is currently viewing or has visited.
      */
     public function stepStatusText(): string
     {
@@ -272,7 +271,7 @@ class ProfileSurvey extends Component
         };
     }
 
-    /** Whether every required field (Step 1 only) is filled, so Save can be enabled from any step. */
+    /** Whether every required field is filled, so Save can be enabled from any step. */
     public function canSave(): bool
     {
         [$filled, $total] = $this->requiredFieldStatus();
@@ -280,14 +279,14 @@ class ProfileSurvey extends Component
         return $filled === $total;
     }
 
-    /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels] — Step 1 only, see stepStatusText()/canSave(). */
+    /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels]. */
     private function requiredFieldStatus(): array
     {
         $filled = 0;
         $total = 0;
         $missing = [];
         $labels = $this->validationAttributes();
-        foreach ($this->step1Rules() as $field => $rule) {
+        foreach ($this->allStepsRules() as $field => $rule) {
             $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
             if (! in_array('required', $tokens, true)) {
                 continue;
@@ -506,7 +505,9 @@ class ProfileSurvey extends Component
         // needs to guard against malformed/oversized data for these five
         // fields, not re-litigate already-persisted legacy values.
         foreach (['specialization', 'communityService', 'incomeSource', 'medicalConcern', 'socialEmotionalConcern'] as $field) {
-            $rules[$field] = 'array';
+            $rules[$field] = in_array($field, ['medicalConcern', 'socialEmotionalConcern'], true)
+                ? 'required|array|min:1'
+                : 'array';
             $rules["{$field}.*"] = 'string|max:255';
         }
 
@@ -546,6 +547,8 @@ class ProfileSurvey extends Component
                 ValidationRule::unique('senior_citizens', 'official_osca_id')->ignore($this->senior?->id),
             ],
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today|before_or_equal:'.$this->minimumBirthDate(),
+            'gender' => 'required|string|max:255',
+            'maritalStatus' => 'required|string|max:255',
             'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
@@ -613,6 +616,7 @@ class ProfileSurvey extends Component
             'contactNumber' => 'contact number',
             'placeOfBirth' => 'place of birth',
             'maritalStatus' => 'marital status',
+            'gender' => 'gender',
             'ethnicOrigin' => 'ethnic origin',
             'bloodType' => 'blood type',
             'dateOfDeath' => 'date of death',
@@ -650,11 +654,11 @@ class ProfileSurvey extends Component
     private function step2Rules(): array
     {
         return [
-            'numChildren' => 'integer|min:0|max:50',
-            'numWorkingChildren' => 'integer|min:0|max:50',
-            'householdSize' => 'integer|min:1|max:50',
-            'childFinancialSupport' => [ValidationRule::in(['', 'Yes', 'No', 'Occasional', 'N/A'])],
-            'spouseWorking' => [ValidationRule::in(['', 'Yes', 'No', 'Deceased', 'N/A'])],
+            'numChildren' => 'required|integer|min:0|max:50',
+            'numWorkingChildren' => 'required|integer|min:0|max:50',
+            'householdSize' => 'required|integer|min:1|max:50',
+            'childFinancialSupport' => ['required', ValidationRule::in(['Yes', 'No', 'Occasional', 'N/A'])],
+            'spouseWorking' => ['required', ValidationRule::in(['Yes', 'No', 'Deceased', 'N/A'])],
         ];
     }
 
@@ -662,6 +666,7 @@ class ProfileSurvey extends Component
     private function step3Rules(): array
     {
         return [
+            'educationalAttainment' => 'required|string|max:255',
             'specialization' => 'array',
             'specialization.*' => ['string', ValidationRule::in(self::specializationOptions())],
             'communityService' => 'array',
@@ -673,7 +678,7 @@ class ProfileSurvey extends Component
     private function step4Rules(): array
     {
         return [
-            'livingWith' => 'array',
+            'livingWith' => 'required|array|min:1',
             'livingWith.*' => 'string|max:255',
             'householdCondition' => 'array',
             'householdCondition.*' => 'string|max:255',
@@ -686,12 +691,12 @@ class ProfileSurvey extends Component
         return [
             'incomeSource' => 'array',
             'incomeSource.*' => ['string', ValidationRule::in(self::incomeSourceOptions())],
-            'realAssets' => 'array',
+            'realAssets' => 'required|array|min:1',
             'realAssets.*' => 'string|max:255',
-            'movableAssets' => 'array',
+            'movableAssets' => 'required|array|min:1',
             'movableAssets.*' => 'string|max:255',
-            'monthlyIncomeRange' => 'nullable|string|max:255',
-            'problemsNeeds' => 'array',
+            'monthlyIncomeRange' => 'required|string|max:255',
+            'problemsNeeds' => 'required|array|min:1',
             'problemsNeeds.*' => 'string|max:255',
         ];
     }
@@ -700,17 +705,17 @@ class ProfileSurvey extends Component
     private function step6Rules(): array
     {
         return [
-            'medicalConcern' => 'array',
+            'medicalConcern' => 'required|array|min:1',
             'medicalConcern.*' => ['string', ValidationRule::in(self::medicalConcernOptions())],
-            'socialEmotionalConcern' => 'array',
+            'socialEmotionalConcern' => 'required|array|min:1',
             'socialEmotionalConcern.*' => ['string', ValidationRule::in(self::socialEmotionalConcernOptions())],
-            'dentalConcern' => 'array',
+            'dentalConcern' => 'required|array|min:1',
             'dentalConcern.*' => 'string|max:255',
-            'opticalConcern' => 'array',
+            'opticalConcern' => 'required|array|min:1',
             'opticalConcern.*' => 'string|max:255',
-            'hearingConcern' => 'array',
+            'hearingConcern' => 'required|array|min:1',
             'hearingConcern.*' => 'string|max:255',
-            'healthcareDifficulty' => 'array',
+            'healthcareDifficulty' => 'required|array|min:1',
             'healthcareDifficulty.*' => 'string|max:255',
         ];
     }

@@ -51,7 +51,39 @@ class OfficialOscaIdTest extends TestCase
             ->set('firstName', 'Maria')
             ->set('lastName', 'Santos')
             ->set('barangay', 'Anibong')
-            ->set('dateOfBirth', '1948-05-02');
+            ->set('dateOfBirth', '1948-05-02')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
+    }
+
+    private function requiredStoredProfile(): array
+    {
+        return [
+            'gender' => 'Female',
+            'marital_status' => 'Widowed',
+            'num_children' => 0,
+            'num_working_children' => 0,
+            'child_financial_support' => 'Yes',
+            'spouse_working' => 'N/A',
+            'household_size' => 1,
+            'educational_attainment' => 'High School Graduate',
+            'living_with' => ['Children'],
+            'real_assets' => ['No known assets'],
+            'movable_assets' => ['No known assets'],
+            'monthly_income_range' => '5,000 - 10,000',
+            'problems_needs' => ['Limited problems encountered'],
+            'medical_concern' => ['Physically Healthy'],
+            'social_emotional_concern' => ['Living in a healthy environment'],
+            'dental_concern' => ['Healthy Teeth'],
+            'optical_concern' => ['Healthy Eyes'],
+            'hearing_concern' => ['Healthy Hearing'],
+            'healthcare_difficulty' => ['Healthcare is accessible'],
+        ];
     }
 
     #[Test]
@@ -98,14 +130,14 @@ class OfficialOscaIdTest extends TestCase
     #[Test]
     public function official_osca_id_can_be_assigned_later_via_edit(): void
     {
-        $senior = SeniorCitizen::create([
+        $senior = SeniorCitizen::create(array_merge($this->requiredStoredProfile(), [
             'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
             'first_name' => 'Juan',
             'last_name' => 'Dela Cruz',
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
             'household_size' => 1,
-        ]);
+        ]));
         $this->assertNull($senior->official_osca_id);
 
         Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
@@ -154,7 +186,7 @@ class OfficialOscaIdTest extends TestCase
     #[Test]
     public function editing_a_senior_without_changing_their_own_official_osca_id_does_not_trigger_uniqueness_error(): void
     {
-        $senior = SeniorCitizen::create([
+        $senior = SeniorCitizen::create(array_merge($this->requiredStoredProfile(), [
             'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
             'official_osca_id' => '22-2222-222',
             'first_name' => 'Juan',
@@ -162,7 +194,7 @@ class OfficialOscaIdTest extends TestCase
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
             'household_size' => 1,
-        ]);
+        ]));
 
         Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
             ->assertSet('officialOscaId', '22-2222-222')
@@ -188,7 +220,7 @@ class OfficialOscaIdTest extends TestCase
             'date_of_birth' => '1945-01-01',
             'household_size' => 1,
         ]);
-        $senior = SeniorCitizen::create([
+        $senior = SeniorCitizen::create(array_merge($this->requiredStoredProfile(), [
             'osca_id' => SeniorCitizen::generateOscaId('Anibong'),
             'official_osca_id' => '44-4444-444',
             'first_name' => 'Second',
@@ -196,7 +228,7 @@ class OfficialOscaIdTest extends TestCase
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
             'household_size' => 1,
-        ]);
+        ]));
 
         Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
             ->set('officialOscaId', '33-3333-333')

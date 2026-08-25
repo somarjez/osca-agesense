@@ -60,9 +60,43 @@ class DeceasedStatusTest extends TestCase
             'barangay' => 'Anibong',
             'date_of_birth' => '1945-03-10',
             'gender' => 'Male',
+            'marital_status' => 'Widowed',
+            'child_financial_support' => 'Yes',
+            'spouse_working' => 'N/A',
+            'household_size' => 1,
+            'num_children' => 0,
+            'num_working_children' => 0,
+            'educational_attainment' => 'High School Graduate',
+            'living_with' => ['Children'],
+            'real_assets' => ['No known assets'],
+            'movable_assets' => ['No known assets'],
+            'monthly_income_range' => '5,000 - 10,000',
+            'problems_needs' => ['Limited problems encountered'],
+            'medical_concern' => ['Physically Healthy'],
+            'social_emotional_concern' => ['Living in a healthy environment'],
+            'dental_concern' => ['Healthy Teeth'],
+            'optical_concern' => ['Healthy Eyes'],
+            'hearing_concern' => ['Healthy Hearing'],
+            'healthcare_difficulty' => ['Healthcare is accessible'],
             'status' => 'active',
             'encoded_by' => 'Test',
         ], $overrides));
+    }
+
+    private function fillRequired($component)
+    {
+        return $component
+            ->set('firstName', 'Brand')
+            ->set('lastName', 'NewSenior')
+            ->set('barangay', 'Anibong')
+            ->set('dateOfBirth', '1950-01-01')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
     // ── Model scopes ─────────────────────────────────────────────────────────
@@ -202,11 +236,7 @@ class DeceasedStatusTest extends TestCase
     public function new_profile_always_saves_as_active(): void
     {
         $this->actingAs($this->admin);
-        Livewire::test(ProfileSurvey::class)
-            ->set('firstName', 'Brand')
-            ->set('lastName', 'NewSenior')
-            ->set('barangay', 'Anibong')
-            ->set('dateOfBirth', '1950-01-01')
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->call('save')
             ->assertHasNoErrors()
             ->assertSet('saved', true);

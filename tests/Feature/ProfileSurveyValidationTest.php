@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -43,14 +44,54 @@ class ProfileSurveyValidationTest extends TestCase
         $this->actingAs($this->admin);
     }
 
-    /** Fill the step-1 required fields so save() can reach later-step validation. */
+    /** Fill every required field so tests can isolate one validation behavior. */
     private function fillRequired($component)
     {
         return $component
             ->set('firstName', 'Maria')
             ->set('lastName', 'Santos')
             ->set('barangay', 'Anibong')
-            ->set('dateOfBirth', '1948-05-02');
+            ->set('dateOfBirth', '1948-05-02')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
+    }
+
+    public static function newlyRequiredAnswerFields(): array
+    {
+        return [
+            'gender' => ['gender', ''],
+            'marital status' => ['maritalStatus', ''],
+            'financial support' => ['childFinancialSupport', ''],
+            'spouse employment' => ['spouseWorking', ''],
+            'educational attainment' => ['educationalAttainment', ''],
+            'living arrangement' => ['livingWith', []],
+            'monthly income' => ['monthlyIncomeRange', ''],
+            'real assets' => ['realAssets', []],
+            'movable assets' => ['movableAssets', []],
+            'problems and needs' => ['problemsNeeds', []],
+            'medical concern' => ['medicalConcern', []],
+            'social and emotional concern' => ['socialEmotionalConcern', []],
+            'dental concern' => ['dentalConcern', []],
+            'optical concern' => ['opticalConcern', []],
+            'hearing concern' => ['hearingConcern', []],
+            'healthcare access' => ['healthcareDifficulty', []],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('newlyRequiredAnswerFields')]
+    public function save_rejects_an_unanswered_required_profile_field(string $field, mixed $emptyValue): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set($field, $emptyValue)
+            ->call('save')
+            ->assertHasErrors([$field])
+            ->assertSet('saved', false);
     }
 
     #[Test]
@@ -231,6 +272,22 @@ class ProfileSurveyValidationTest extends TestCase
             'household_size' => 1,
             'num_children' => 0,
             'num_working_children' => 0,
+            'gender' => 'Female',
+            'marital_status' => 'Widowed',
+            'child_financial_support' => 'Yes',
+            'spouse_working' => 'N/A',
+            'educational_attainment' => 'High School Graduate',
+            'living_with' => ['Children'],
+            'real_assets' => ['No known assets'],
+            'movable_assets' => ['No known assets'],
+            'monthly_income_range' => '5,000 - 10,000',
+            'problems_needs' => ['Limited problems encountered'],
+            'medical_concern' => ['Physically Healthy'],
+            'social_emotional_concern' => ['Living in a healthy environment'],
+            'dental_concern' => ['Healthy Teeth'],
+            'optical_concern' => ['Healthy Eyes'],
+            'hearing_concern' => ['Healthy Hearing'],
+            'healthcare_difficulty' => ['Healthcare is accessible'],
         ], $overrides));
     }
 
@@ -363,11 +420,8 @@ class ProfileSurveyValidationTest extends TestCase
     public function create_profile_accepts_legitimate_names(): void
     {
         foreach (self::validNames() as [$name]) {
-            Livewire::test(ProfileSurvey::class)
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
                 ->set('firstName', $name)
-                ->set('lastName', 'Santos')
-                ->set('barangay', 'Anibong')
-                ->set('dateOfBirth', '1948-05-02')
                 ->call('save')
                 ->assertHasNoErrors(['firstName'])
                 ->assertSet('saved', true);

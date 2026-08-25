@@ -13,14 +13,9 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
- * Regression coverage for the reported bug: "Required Fields" showed 100%
- * immediately after only Step 1 (Identifying Information) was filled, while
- * the rail simultaneously said "Step 2 of 6" and "Fill out all required
- * fields in Step 2 to proceed" — self-contradictory, since Step 2 has no
- * required fields at all. completionPercent() now tracks wizard position
- * (rendered as "Progress"); stepStatusText() tracks submit-readiness
- * (Step 1's required fields) independently. See ProfileSurvey.php's
- * docblocks on both methods.
+ * Regression coverage for the progress rail and save readiness. Wizard
+ * progress tracks the current step, while stepStatusText()/canSave() track
+ * required answers independently across the full profile.
  */
 class ProfileSurveyProgressTest extends TestCase
 {
@@ -53,15 +48,19 @@ class ProfileSurveyProgressTest extends TestCase
             ->set('firstName', 'Maria')
             ->set('lastName', 'Santos')
             ->set('barangay', 'Anibong')
-            ->set('dateOfBirth', '1948-05-02');
+            ->set('dateOfBirth', '1948-05-02')
+            ->set('gender', 'Female')
+            ->set('maritalStatus', 'Widowed')
+            ->set('childFinancialSupport', 'Yes')
+            ->set('spouseWorking', 'N/A')
+            ->set('educationalAttainment', 'High School Graduate')
+            ->set('livingWith', ['Children'])
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
     #[Test]
-    public function progress_is_not_100_percent_after_only_step_1_is_filled(): void
+    public function progress_is_not_100_percent_on_step_2_even_when_required_fields_are_filled(): void
     {
-        // This is the exact reported scenario: Step 1 done, sitting on
-        // Step 2 of 6. The old ratio-based percent hit 100% here; the new
-        // wizard-position percent must not.
         $component = $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->set('step', 2);
 
@@ -99,26 +98,40 @@ class ProfileSurveyProgressTest extends TestCase
     }
 
     #[Test]
+    public function a_missing_required_field_on_a_later_step_blocks_save_readiness(): void
+    {
+        $component = $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('livingWith', []);
+
+        $this->assertFalse($component->instance()->canSave());
+        $this->assertStringContainsString('Living arrangement', $component->instance()->stepStatusText());
+    }
+
+    #[Test]
+    public function disabled_save_profile_explains_that_all_required_fields_must_be_answered(): void
+    {
+        Livewire::test(ProfileSurvey::class)
+            ->assertSee('Answer all required fields.');
+    }
+
+    #[Test]
     public function submit_readiness_text_says_in_progress_when_required_fields_are_incomplete(): void
     {
         $component = Livewire::test(ProfileSurvey::class)
             ->set('firstName', 'Maria')
             ->set('step', 3); // moved on, but lastName/barangay/dob still unset
 
-        $this->assertSame(
-            'In progress. Missing: Last name, Barangay, Date of birth.',
+        $this->assertStringStartsWith(
+            'In progress. Missing: Last name, Barangay, Date of birth',
             $component->instance()->stepStatusText()
         );
     }
 
     #[Test]
-    public function submit_readiness_text_says_lets_get_started_when_no_required_field_is_filled(): void
+    public function submit_readiness_text_is_in_progress_when_only_neutral_defaults_are_filled(): void
     {
-        // $status defaults to 'active' on a fresh mount (a real, pre-filled
-        // required field, not an empty one) — clear it explicitly to reach
-        // the genuine zero-filled state.
-        $component = Livewire::test(ProfileSurvey::class)->set('status', '');
+        $component = Livewire::test(ProfileSurvey::class);
 
-        $this->assertSame("Let's get started.", $component->instance()->stepStatusText());
+        $this->assertStringStartsWith('In progress. Missing: First name', $component->instance()->stepStatusText());
     }
 }
