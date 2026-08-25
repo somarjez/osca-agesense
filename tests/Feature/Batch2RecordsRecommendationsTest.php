@@ -191,6 +191,16 @@ class Batch2RecordsRecommendationsTest extends TestCase
     }
 
     #[Test]
+    public function recommendation_quick_filters_show_loading_feedback(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->get(route('recommendations.index'))
+            ->assertOk();
+
+        $this->assertSame(5, substr_count($response->getContent(), 'data-loading="Filtering…"'));
+    }
+
+    #[Test]
     public function exported_pdf_template_is_formal_and_uses_corrected_labels(): void
     {
         $senior = $this->makeSenior();

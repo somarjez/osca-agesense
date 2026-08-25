@@ -4,6 +4,7 @@
     'accent' => 'forest',  // forest|critical|high|moderate|low|info
     'sub' => null,
     'valueColor' => null,  // optional override e.g. 'text-critical-700'
+    'loadingTarget' => null,  // wire:target propert(ies)/method(s); renders a per-card loading overlay when set — see .kpi's `relative` in app.css
 ])
 @php
 $ruleClass = match($accent) {
@@ -17,6 +18,9 @@ $ruleClass = match($accent) {
 $accentClass = 'kpi--' . $accent;
 @endphp
 <div class="kpi {{ $accentClass }}">
+    @if ($loadingTarget)
+        <x-loading-overlay :target="$loadingTarget" />
+    @endif
     <div class="kpi-rule {{ $ruleClass }}"></div>
     <div class="kpi-label">{{ $label }}</div>
     <div class="kpi-value {{ $valueColor }}" data-countup>{{ $value }}</div>

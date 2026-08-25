@@ -10,11 +10,20 @@
         <div class="card-body flex flex-wrap items-center gap-3 py-3">
             <x-heroicon-o-map-pin class="w-4 h-4 text-ink-400 flex-shrink-0" />
             <select class="form-select max-w-[220px]"
-                    onchange="window.location.href='{{ url('/reports/barangay/') }}/' + this.value">
+                    onchange="this.disabled = true; this.nextElementSibling.style.display = 'inline-flex'; window.location.href='{{ url('/reports/barangay/') }}/' + this.value">
                 @foreach ($barangays as $b)
                 <option value="{{ $b }}" {{ $b === $brgy ? 'selected' : '' }}>{{ $b }}</option>
                 @endforeach
             </select>
+            {{-- Inline "spinner + label" chip, matching the same convention
+                 used everywhere else (button data-loading swaps, the card
+                 loading overlay) — not absolutely positioned over the
+                 select, and reuses .btn-spinner instead of a bespoke spinner.
+                 Toggled via inline style (not a Tailwind class) so there's no
+                 ambiguity about which "display" utility wins the cascade. --}}
+            <span class="items-center gap-1.5 text-[12px] text-ink-500 dark:text-[#8a9087]" style="display: none;">
+                <span class="btn-spinner" aria-hidden="true"></span> Loading…
+            </span>
             <a href="{{ route('reports.risk') }}"
                class="btn btn-ghost text-[12.5px] gap-1.5 ml-auto">
                 <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> All Barangays
@@ -159,9 +168,12 @@
                 <div class="card-title">Senior Citizen Roster — {{ $brgy }}</div>
             </div>
             <div class="flex items-center gap-2">
-                <form method="GET" action="{{ route('reports.barangay', ['brgy' => $brgy]) }}">
+                <form method="GET" action="{{ route('reports.barangay', ['brgy' => $brgy]) }}" class="flex items-center gap-1.5">
                     <input type="text" name="roster_search" value="{{ request('roster_search') }}"
                            placeholder="Search roster…" class="form-input text-[12px] max-w-[180px]">
+                    <button type="submit" class="btn btn-ghost text-[12px] px-2.5 py-1.5" data-loading="Searching" aria-label="Search roster">
+                        <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
+                    </button>
                 </form>
                 <span class="text-[11.5px] text-ink-400 dark:text-[#6b7570] tnum">{{ $total }} seniors</span>
             </div>
@@ -207,6 +219,7 @@
                         <td class="td text-[12px] text-ink-500 dark:text-[#8a9087]">{{ $ml?->cluster_name ?? '—' }}</td>
                         <td class="td text-right">
                             <a href="{{ route('seniors.show', $senior) }}"
+                               wire:navigate data-loading="Loading…"
                                class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">View →</a>
                         </td>
                     </tr>

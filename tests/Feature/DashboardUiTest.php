@@ -111,6 +111,15 @@ class DashboardUiTest extends TestCase
     }
 
     #[Test]
+    public function loading_overlay_preserves_flex_layout_while_livewire_displays_it(): void
+    {
+        $html = view('components.loading-overlay', ['target' => 'selectedBarangay'])->render();
+
+        $this->assertStringContainsString('wire:loading.flex', $html);
+        $this->assertStringContainsString('items-center justify-center', $html);
+    }
+
+    #[Test]
     public function qol_surveyed_count_excludes_deceased_seniors(): void
     {
         // Regression: "QoL Surveyed" must never exceed "Total Seniors" (active).

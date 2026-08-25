@@ -18,11 +18,11 @@
                        placeholder="Applicant name…" class="form-input w-full">
             </div>
             <div class="flex gap-2 self-end">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
                 @if (request()->hasAny(['search']))
-                <a href="{{ route('seniors.drafts.index') }}" class="btn">Clear</a>
+                <a href="{{ route('seniors.drafts.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

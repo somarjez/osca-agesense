@@ -15,7 +15,7 @@
     </div>
 
     {{-- ── Filters (compact toolbar) ── --}}
-    <form method="GET" class="card">
+    <form method="GET" id="recommendations-filter-form" class="card">
         <div class="card-body flex flex-wrap items-end gap-3 py-3">
             <div class="flex-1 min-w-[200px]">
                 <label class="eyebrow block mb-1">Search</label>
@@ -24,7 +24,7 @@
             </div>
             <div class="min-w-[150px]">
                 <label class="eyebrow block mb-1">Barangay</label>
-                <select name="barangay" class="form-select">
+                <select name="barangay" class="form-select" onchange="this.form.requestSubmit()">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
                     <option value="{{ $brgy }}" {{ request('barangay') === $brgy ? 'selected' : '' }}>{{ $brgy }}</option>
@@ -33,7 +33,7 @@
             </div>
             <div class="min-w-[130px]">
                 <label class="eyebrow block mb-1">Risk</label>
-                <select name="risk" class="form-select">
+                <select name="risk" class="form-select" onchange="this.form.requestSubmit()">
                     <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
                     <option value="{{ $r }}" {{ strtoupper(request('risk')) === $r ? 'selected' : '' }}>{{ ucfirst(strtolower($r)) }}</option>
@@ -44,11 +44,11 @@
             <input type="hidden" name="quick" value="{{ request('quick') }}">
             <input type="hidden" name="has_urgent" value="{{ request('has_urgent') }}">
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-funnel class="w-3.5 h-3.5" /> Filter
                 </button>
                 @if (request()->hasAny(['barangay','risk','has_urgent','search','quick']))
-                <a href="{{ route('recommendations.index') }}" class="btn">Clear</a>
+                <a href="{{ route('recommendations.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>
@@ -66,12 +66,12 @@
     @endphp
     <div role="tablist" aria-label="Quick filters"
          class="flex flex-wrap gap-1 p-1 rounded-xl bg-paper-2 dark:bg-[#171c19] border border-paper-rule dark:border-[#2b3530]">
-        <a href="{{ route('recommendations.index', $base) }}" class="{{ $qBase }} {{ $isAll ? $qOn : $qOff }}">All</a>
-        <a href="{{ route('recommendations.index', $base + ['has_urgent' => 1]) }}" class="{{ $qBase }} {{ $hasUrgent ? $qOn : $qOff }}">
+        <a href="{{ route('recommendations.index', $base) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $isAll ? $qOn : $qOff }}">All</a>
+        <a href="{{ route('recommendations.index', $base + ['has_urgent' => 1]) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $hasUrgent ? $qOn : $qOff }}">
             <x-heroicon-o-exclamation-triangle class="w-3.5 h-3.5" /> Needs attention
         </a>
-        <a href="{{ route('recommendations.index', $base + ['quick' => 'pending']) }}" class="{{ $qBase }} {{ $quick === 'pending' ? $qOn : $qOff }}">Pending</a>
-        <a href="{{ route('recommendations.index', $base + ['quick' => 'done']) }}" class="{{ $qBase }} {{ $quick === 'done' ? $qOn : $qOff }}">All done</a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'pending']) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $quick === 'pending' ? $qOn : $qOff }}">Pending</a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'done']) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $quick === 'done' ? $qOn : $qOff }}">All done</a>
     </div>
 
     {{-- ── Seniors Table ── --}}

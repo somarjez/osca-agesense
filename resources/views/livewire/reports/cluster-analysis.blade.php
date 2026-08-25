@@ -1,7 +1,10 @@
 {{-- resources/views/livewire/reports/cluster-analysis.blade.php --}}
 <div class="space-y-6">
 
-    {{-- ── Eval metrics ── --}}
+    {{-- ── Eval metrics ──
+         Each card gets its own loading overlay (rather than one shared
+         overlay spanning the whole row) so the spinner is centered on the
+         card that's actually loading, not floating mid-row across all four. --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         @php
         $fmt = fn($v, $d) => $v !== null ? number_format($v, $d) : '—';
@@ -14,6 +17,7 @@
         @endphp
         @foreach ($metrics as [$label, $value, $note, $good])
         <div class="kpi">
+            <x-loading-overlay target="selectedBarangay" />
             <div class="kpi-rule {{ $good ? 'bg-low-500' : 'bg-moderate-500' }}"></div>
             <div class="kpi-label">{{ $label }}</div>
             <div class="kpi-value">{{ $value }}</div>
@@ -38,7 +42,8 @@
     </div>
 
     {{-- ── Cluster cards ── --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <x-loading-overlay target="selectedBarangay" />
         @foreach ($clusterSummaries as $clusterId => $summary)
         <div class="card">
             <div class="card-head">
@@ -83,7 +88,8 @@
     </div>
 
     {{-- ── Charts row ── --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <x-loading-overlay target="selectedBarangay" />
         <x-card title="Risk by Profile Group" sub="Score out of 100%">
             <div wire:ignore class="h-56"><canvas id="domainClusterChart"></canvas></div>
         </x-card>
@@ -124,7 +130,8 @@
     </div>
 
     {{-- ── Member table ── --}}
-    <x-card title="Profile Group Member Records">
+    <x-card title="Profile Group Member Records" class="relative">
+        <x-loading-overlay target="selectedBarangay,sortColumn" />
         <x-slot name="noPadding">true</x-slot>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -136,9 +143,9 @@
                     <th class="th cursor-pointer" wire:click="sortColumn('composite_risk')">
                         Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '' }}
                     </th>
-                    <th class="th text-center">IC</th>
-                    <th class="th text-center">ENV</th>
-                    <th class="th text-center">FA</th>
+                    <th class="th text-center"><x-tooltip text="Intrinsic Capacity" position="top" width="w-44"><span>IC</span></x-tooltip></th>
+                    <th class="th text-center"><x-tooltip text="Environment" position="top" width="w-44"><span>ENV</span></x-tooltip></th>
+                    <th class="th text-center"><x-tooltip text="Functional Ability" position="top" width="w-44"><span>FA</span></x-tooltip></th>
                     <th class="th text-center">Overall</th>
                     <th class="th"></th>
                 </tr>
@@ -157,6 +164,7 @@
                     <td class="td text-center"><x-risk-badge :level="$result->overall_risk_level" /></td>
                     <td class="td text-right">
                         <a href="{{ route('seniors.show', $senior) }}"
+                           wire:navigate data-loading="Loading…"
                            class="group inline-flex items-center gap-1 text-xs font-semibold text-forest-700 dark:text-[#7cbda3] hover:text-forest-900 dark:hover:text-[#9bd9c1]"
                            aria-label="View {{ $senior?->full_name }}">
                             View

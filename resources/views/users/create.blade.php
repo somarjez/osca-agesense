@@ -75,6 +75,9 @@
                     @error('password')
                     <p class="mt-1 text-xs text-critical-700 dark:text-[#e08070]">{{ $message }}</p>
                     @enderror
+                    <p class="mt-1.5 text-[11px] text-ink-500 dark:text-[#8a9087] leading-relaxed">
+                        At least 8 characters, including uppercase, lowercase, a number, and a symbol.
+                    </p>
                 </div>
 
                 <div>

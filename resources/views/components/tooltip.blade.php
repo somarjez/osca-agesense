@@ -17,7 +17,7 @@
      on this component's raw output. --}}
 <span class="relative inline-flex" x-data="hoverTip" @mouseenter="show()" @mouseleave="hide()">
     <span x-ref="trigger" class="inline-flex">{{ $slot }}</span>
-    <div x-ref="panel" data-pos="{{ $position }}" style="display:none"
+    <div x-ref="panel" data-pos="{{ $position }}" data-tooltip-panel style="display:none"
          class="fixed z-[200] {{ $width }} rounded-lg border border-paper-rule bg-white shadow-lg text-[11.5px] text-ink-700 leading-relaxed px-3 py-2.5 whitespace-normal pointer-events-none
                 dark:bg-[#1e2822] dark:border-[#2b3530] dark:text-[#c8c4bc]">
         {!! $text !!}

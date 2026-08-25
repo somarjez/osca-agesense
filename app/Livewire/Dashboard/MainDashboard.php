@@ -13,7 +13,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use Livewire\Attributes\On;
 use Livewire\Component;
 
 class MainDashboard extends Component
@@ -346,16 +345,6 @@ class MainDashboard extends Component
     {
         $this->selectedBarangay = '';
         $this->selectedRisk = '';
-    }
-
-    /** Click-to-filter from the Risk Distribution chart. Toggles off if re-clicked. */
-    #[On('dashboard-filter-risk')]
-    public function setRiskFilter(string $level = ''): void
-    {
-        $level = strtolower($level);
-        $this->selectedRisk = in_array($level, ['high', 'moderate', 'low'], true)
-            ? ($this->selectedRisk === $level ? '' : $level)
-            : '';
     }
 
     public function updatedSelectedBarangay(): void {}

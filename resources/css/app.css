@@ -226,8 +226,8 @@
     transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), border-color 0.18s ease;
   }
   .card-lift:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
-  .kpi { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1); }
-  .kpi:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
+  .kpi.cursor-pointer { transition: transform 0.18s cubic-bezier(0.22,1,0.36,1); }
+  .kpi.cursor-pointer:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20,30,25,0.05), 0 10px 22px -8px rgba(22,33,58,0.16); }
 
   /* ── Depth pack — faux-3D accents ─────────────────────────────────────────
      Static gradients + inset shadows only (no per-frame cost, no filters).
@@ -344,10 +344,20 @@
   /* Immediate click feedback while a wire:navigate fetch is in flight — the
      sidebar is @persist'd (layouts/app.blade.php) so a click no longer
      triggers any visible DOM change until the response lands; without this
-     a click could otherwise look like it did nothing for a moment. Cleared
-     by resources/js/navigation.js on livewire:navigated. */
-  .nav-link-pending {
+     a click could otherwise look like it did nothing for a moment. Applies
+     to any wire:navigate link (sidebar, senior-record rows/actions,
+     pagination), not just the sidebar. Cleared by resources/js/navigation.js
+     on livewire:navigated. */
+  .wire-nav-pending {
     @apply opacity-60;
+  }
+
+  /* Navigation lock: disables every wire:navigate link for the duration of
+     a transition, so a second click (a different sidebar item, a different
+     senior's row) can't start an overlapping navigation. Set/cleared by
+     resources/js/navigation.js. */
+  body.is-navigating a[wire\:navigate] {
+    @apply pointer-events-none;
   }
 
   /* @persist('sidebar') (layouts/app.blade.php) wraps <aside> in a plain
@@ -385,19 +395,6 @@
   .kpi--low      { background: linear-gradient(155deg, rgba(74,138,104,0.07) 0%, #ffffff 55%); }
   .kpi--info     { background: linear-gradient(155deg, rgba(82,122,155,0.08) 0%, #ffffff 55%); }
 
-  /* Search input in topbar */
-  .topbar-search {
-    @apply flex items-center gap-2.5 bg-paper-2 dark:bg-[#1a201d] border border-paper-rule dark:border-[#2b3530]
-           rounded-xl px-3.5 h-[34px]
-           hover:border-ink-300 dark:hover:border-[#3d4d46]
-           focus-within:border-ink-300 dark:focus-within:border-[#3d4d46]
-           transition-colors duration-150 w-full;
-  }
-  .topbar-search input {
-    @apply bg-transparent border-0 outline-none focus:ring-0 text-ink-900 dark:text-[#e4e1d8]
-           placeholder:text-ink-300 dark:placeholder:text-[#4a5550]
-           text-[13px] w-full min-w-0;
-  }
 }
 
 /* ── Dark Mode ────────────────────────────────────────────────────────── */
@@ -476,11 +473,6 @@
 .dark .form-select:hover { border-color: #3d4d46; }
 .dark .form-input::placeholder,
 .dark .form-select::placeholder { color: #4a5550; }
-
-.dark .topbar-search { background-color: #1a201d; border-color: #2b3530; }
-.dark .topbar-search:hover { border-color: #3d4d46; }
-.dark .topbar-search input { color: #e4e1d8; }
-.dark .topbar-search input::placeholder { color: #4a5550; }
 
 .dark .badge-neutral  { background-color: #202a26; color: #b0b5b2; border-color: #2b3530; }
 .dark .badge-cluster-1 { background: #0d2b1a; color: #6dd89e; border-color: #1a5530; }

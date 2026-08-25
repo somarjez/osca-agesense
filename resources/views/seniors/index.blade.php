@@ -70,7 +70,7 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Barangay</label>
-                <select name="barangay" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="barangay" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Barangays</option>
                     @foreach ($barangays as $brgy)
                         <option value="{{ $brgy }}" {{ request('barangay')==$brgy?'selected':'' }}>{{ $brgy }}</option>
@@ -79,7 +79,7 @@
             </div>
             <div class="min-w-[140px]">
                 <label class="eyebrow block mb-1.5">Risk Level</label>
-                <select name="risk" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="risk" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Levels</option>
                     @foreach (['HIGH','MODERATE','LOW'] as $r)
                         <option value="{{ $r }}" {{ strtoupper(request('risk'))==$r?'selected':'' }}>{{ ucfirst(strtolower($r)) }}</option>
@@ -88,7 +88,7 @@
             </div>
             <div class="min-w-[180px]">
                 <label class="eyebrow block mb-1.5">Profile Group</label>
-                <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').submit()">
+                <select name="cluster" class="form-select" onchange="document.getElementById('seniors-filter-form').requestSubmit()">
                     <option value="">All Groups</option>
                     <option value="1" {{ request('cluster')=='1'?'selected':'' }}>Group 1 · High Functioning</option>
                     <option value="2" {{ request('cluster')=='2'?'selected':'' }}>Group 2 · Stable / Moderate</option>
@@ -97,12 +97,12 @@
                 </select>
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
                     Search
                 </button>
                 @if (request()->hasAny(['search','barangay','risk','cluster']))
-                    <a href="{{ route('seniors.index') }}" wire:navigate class="btn">
+                    <a href="{{ route('seniors.index') }}" wire:navigate class="btn" data-loading="Clearing…">
                         <x-heroicon-o-x-mark class="w-3.5 h-3.5" />
                         Clear
                     </a>
@@ -306,7 +306,7 @@
          same border-l-4 card as 'processing' but in the app's existing
          high-* danger palette (see the file-error alert above) rather than
          info-blue, so the two states read as visually distinct at a glance. --}}
-    <div x-show="importStatus && (importStatus.status === 'processing' || importStatus.status === 'failed')" x-cloak
+    <div x-show="!uploadOpen && importStatus && (importStatus.status === 'processing' || importStatus.status === 'failed')" x-cloak
          :class="importStatus && importStatus.status === 'failed' ? 'border-high-500' : 'border-info-500'"
          class="fixed bottom-5 right-5 z-50 max-w-sm w-full card shadow-xl border-l-4 flex items-start gap-3 px-4 py-3">
         <svg x-show="importStatus && importStatus.status === 'processing'" class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
@@ -453,6 +453,28 @@
                     </div>
                     @endif
 
+                    {{-- Already-in-progress: block a second upload outright instead of
+                         just letting the server reject it, so the drop zone is replaced
+                         (not just visually covered) while another import is running. --}}
+                    <template x-if="importStatus && importStatus.status === 'processing'">
+                        <div class="flex items-start gap-3 bg-info-50 border border-info-100 rounded-xl px-4 py-8">
+                            <svg class="animate-spin w-5 h-5 text-info-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            <div>
+                                <p class="text-[13.5px] font-semibold text-ink-900">An import is already in progress</p>
+                                <p class="text-[12.5px] text-ink-600 mt-0.5">
+                                    <span x-text="importStatus ? importStatus.processed : 0"></span> of
+                                    <span x-text="importStatus ? importStatus.total : 0"></span> row(s) processed&hellip;
+                                    Please wait for it to finish before starting another upload.
+                                </p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="!(importStatus && importStatus.status === 'processing')">
+                    <div>
                     {{-- Drop zone --}}
                     <form id="bulk-upload-form"
                           method="POST"
@@ -501,7 +523,7 @@
                     </form>
 
                     {{-- Template download + column reference --}}
-                    <div class="rounded-xl border border-paper-rule dark:border-[#2b3530] overflow-hidden">
+                    <div class="rounded-xl border border-paper-rule dark:border-[#2b3530] overflow-hidden mt-5">
                         <div class="px-4 py-3 bg-paper-2 dark:bg-[#1a201d] flex items-center justify-between gap-3 border-b border-paper-rule dark:border-[#2b3530]">
                             <div class="flex items-center gap-2">
                                 <x-heroicon-o-table-cells class="w-4 h-4 text-ink-400" />
@@ -558,6 +580,8 @@
                             </div>
                         </div>
                     </div>
+                    </div>
+                    </template>
                 </div>
             </div>
 
@@ -572,6 +596,7 @@
                 <div class="flex gap-2">
                     <button type="button" @click="closeUpload()" class="btn">Cancel</button>
                     <button type="button" @click="submit()"
+                            x-show="!(importStatus && importStatus.status === 'processing')"
                             :disabled="!fileName || uploading"
                             :class="(!fileName || uploading) ? 'opacity-50 cursor-not-allowed' : ''"
                             class="btn btn-primary gap-2">
@@ -585,6 +610,15 @@
                             <x-heroicon-o-arrow-up-tray class="w-3.5 h-3.5" />
                         </template>
                         <span x-text="uploading ? 'Importing…' : 'Import'"></span>
+                    </button>
+                    <button type="button" disabled
+                            x-show="importStatus && importStatus.status === 'processing'"
+                            class="btn btn-primary gap-2 opacity-50 cursor-not-allowed">
+                        <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        <span>Import in progress&hellip;</span>
                     </button>
                 </div>
             </div>

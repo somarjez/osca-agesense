@@ -99,6 +99,34 @@ class Batch5ReportsTest extends TestCase
     }
 
     #[Test]
+    public function risk_report_clear_filters_resets_every_filter(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(RiskReport::class)
+            ->set('filterSearch', 'Aurelio')
+            ->set('filterRisk', 'high')
+            ->set('filterBarangay', 'Sabang')
+            ->set('filterCluster', '3')
+            ->call('clearFilters')
+            ->assertSet('filterSearch', '')
+            ->assertSet('filterRisk', '')
+            ->assertSet('filterBarangay', '')
+            ->assertSet('filterCluster', '');
+    }
+
+    #[Test]
+    public function risk_report_filters_and_actions_share_one_desktop_row(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(RiskReport::class)
+            ->set('filterRisk', 'high')
+            ->assertSeeHtml('xl:grid-cols-6')
+            ->assertSeeHtml('wire:click="clearFilters"');
+    }
+
+    #[Test]
     public function risk_export_includes_all_levels_by_default_and_respects_risk_filter(): void
     {
         $this->makeSeniorWithRisk('HIGH', 'Zelda', 'Highexport');

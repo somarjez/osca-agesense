@@ -105,7 +105,10 @@ class ProfileSurveyProgressTest extends TestCase
             ->set('firstName', 'Maria')
             ->set('step', 3); // moved on, but lastName/barangay/dob still unset
 
-        $this->assertSame('In progress.', $component->instance()->stepStatusText());
+        $this->assertSame(
+            'In progress. Missing: Last name, Barangay, Date of birth.',
+            $component->instance()->stepStatusText()
+        );
     }
 
     #[Test]

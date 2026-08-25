@@ -12,12 +12,17 @@
             <div class="card-title">Filter Log</div>
             <div class="flex items-center gap-3">
                 <span class="text-[12px] text-ink-400">{{ number_format($logs->total()) }} entries</span>
-                <form method="POST" action="{{ route('activity-log.clear') }}" x-data
-                      @submit.prevent="if (confirm('Permanently delete ALL {{ number_format($logs->total()) }} log entries? This cannot be undone.')) $el.submit()">
+                <form x-ref="clearAllForm" method="POST" action="{{ route('activity-log.clear') }}" x-data="{ clearAllOpen: false }">
                     @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-ghost text-xs text-critical-700 hover:bg-critical-50">
+                    <button type="button" @click="clearAllOpen = true" class="btn btn-ghost text-xs text-critical-700 hover:bg-critical-50">
                         Clear All
                     </button>
+                    <x-confirm-modal show="clearAllOpen"
+                                     title="Delete all activity log entries?"
+                                     confirm="$refs.clearAllForm.requestSubmit()"
+                                     confirm-label="Delete all permanently">
+                        <p>All <strong class="text-ink-900 dark:text-[#e4e1d8]">{{ number_format($logs->total()) }}</strong> activity log entries will be <strong class="text-ink-900 dark:text-[#e4e1d8]">permanently</strong> deleted. This cannot be undone.</p>
+                    </x-confirm-modal>
                 </form>
             </div>
         </div>
@@ -25,7 +30,25 @@
         <div class="card-body flex flex-wrap items-end gap-4">
             <div class="min-w-[160px]">
                 <label class="eyebrow block mb-1.5">Action</label>
-                <select name="action" class="form-select">
+                {{-- Deferred click on the real submit button — two separate
+                     issues stack here, both confirmed by isolated testing:
+                     (1) this field's name="action" shadows the native
+                     HTMLFormElement.action DOM property (a named form
+                     control shadows any same-named property on its form —
+                     form.action here returns the <select> itself, not a URL
+                     string). this.form.requestSubmit() reads that shadowed
+                     property internally and silently submits with no query
+                     string. (2) Even clicking the real submit button
+                     synchronously, from inside the 'change' event's own
+                     dispatch, produced the same empty-query-string result —
+                     but calling that exact same click() as a fresh top-level
+                     task (via setTimeout) worked correctly every time.
+                     Wrapping in setTimeout avoids whatever reentrancy the
+                     browser applies to a submission triggered synchronously
+                     from within another event's handler. Renaming the field
+                     isn't an option; it's the actual query param name the
+                     controller reads (request('action')). --}}
+                <select name="action" class="form-select" onchange="setTimeout(() => this.form.querySelector('button[type=submit]').click())">
                     <option value="">All Actions</option>
                     @foreach ($actions as $a)
                     <option value="{{ $a }}" {{ request('action') === $a ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $a)) }}</option>
@@ -39,12 +62,12 @@
                        class="form-input">
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading="Filtering…">
                     <x-heroicon-o-magnifying-glass class="w-3.5 h-3.5" />
                     Filter
                 </button>
                 @if (request()->hasAny(['action','search']))
-                <a href="{{ route('activity-log.index') }}" class="btn">Clear</a>
+                <a href="{{ route('activity-log.index') }}" wire:navigate class="btn" data-loading="Clearing…">Clear</a>
                 @endif
             </div>
         </div>

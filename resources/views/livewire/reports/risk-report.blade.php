@@ -1,7 +1,12 @@
 {{-- resources/views/livewire/reports/risk-report.blade.php --}}
 <div class="space-y-5">
 
-    {{-- ── Summary Cards ── --}}
+    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster,clearFilters,sortColumn'; @endphp
+
+    {{-- ── Summary Cards ──
+         Each card gets its own loading overlay (rather than one shared
+         overlay spanning the whole row) so the spinner is centered on the
+         card that's actually loading, not floating mid-row across all three. --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         @php
         $levelMeta = [
@@ -14,6 +19,7 @@
         @php $stat = $summaryStats[$level] ?? null; @endphp
         <div class="kpi cursor-pointer transition-shadow hover:shadow-md"
              wire:click="$set('filterRisk', '{{ strtolower($level) }}')">
+            <x-loading-overlay :target="$riskFilterTarget" />
             <div class="kpi-rule bg-{{ $meta['accent'] }}-500"></div>
             <div class="kpi-label">{{ $meta['label'] }}</div>
             <div class="kpi-value text-{{ $meta['accent'] }}-700">{{ $stat?->count ?? 0 }}</div>
@@ -24,9 +30,7 @@
 
     {{-- ── Filters ── --}}
     <div class="card">
-        <div class="card-body py-4 space-y-3">
-            {{-- Aligned filter grid: every control shares one column width --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="card-body py-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Search</span>
                     <input type="text" wire:model.live.debounce.300ms="filterSearch"
@@ -63,13 +67,10 @@
                         <option value="4">C4 · Low Functioning / Multi-Domain Priority Seniors</option>
                     </select>
                 </label>
-            </div>
 
-            <div class="flex items-center justify-between gap-3 pt-1">
-                <div class="min-h-[1.75rem] flex items-center">
+                <div class="min-h-[2.25rem] flex items-center">
                     @if ($filterRisk || $filterBarangay || $filterCluster || $filterSearch)
-                    <button wire:click="$set('filterRisk',''); $set('filterBarangay',''); $set('filterCluster',''); $set('filterSearch','')"
-                            class="btn btn-ghost text-[12.5px] gap-1.5">
+                    <button wire:click="clearFilters" class="btn btn-ghost text-[12.5px] gap-1.5 whitespace-nowrap">
                         <x-heroicon-o-x-mark class="w-3.5 h-3.5" /> Clear filters
                     </button>
                     @endif
@@ -82,16 +83,16 @@
                         'search' => $filterSearch,
                         'sort' => $sortBy,
                         'dir' => $sortDir,
-                    ])) }}" class="btn">
+                    ])) }}" class="btn whitespace-nowrap">
                     <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
                 </a>
                 @endrole
-            </div>
         </div>
     </div>
 
     {{-- ── Data Table ── --}}
-    <div class="card overflow-visible">
+    <div class="card overflow-visible relative">
+        <x-loading-overlay :target="$riskFilterTarget" />
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
@@ -105,13 +106,19 @@
                             Composite Risk {{ $sortBy === 'composite_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('ic_risk')">
-                            IC {{ $sortBy === 'ic_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Intrinsic Capacity" position="top" width="w-44">
+                                <span>IC {{ $sortBy === 'ic_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('env_risk')">
-                            Env {{ $sortBy === 'env_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Environment" position="top" width="w-44">
+                                <span>Env {{ $sortBy === 'env_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none" wire:click="sortColumn('func_risk')">
-                            Func {{ $sortBy === 'func_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                            <x-tooltip text="Functional Ability" position="top" width="w-44">
+                                <span>Func {{ $sortBy === 'func_risk' ? ($sortDir === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </x-tooltip>
                         </th>
                         <th class="th text-center cursor-pointer select-none"
                             wire:click="sortColumn('overall_risk_level')">
@@ -163,6 +170,7 @@
                         </td>
                         <td class="td text-right">
                             <a href="{{ route('seniors.show', $senior) }}"
+                               wire:navigate data-loading="Loading…"
                                class="text-[12px] text-forest-700 dark:text-forest-400 hover:text-forest-900 dark:hover:text-forest-300 font-semibold">
                                 View →
                             </a>
