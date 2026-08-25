@@ -1,7 +1,7 @@
 {{-- resources/views/livewire/reports/risk-report.blade.php --}}
 <div class="space-y-5">
 
-    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster,sortColumn'; @endphp
+    @php $riskFilterTarget = 'filterSearch,filterRisk,filterBarangay,filterCluster,clearFilters,sortColumn'; @endphp
 
     {{-- ── Summary Cards ──
          Each card gets its own loading overlay (rather than one shared
@@ -30,9 +30,7 @@
 
     {{-- ── Filters ── --}}
     <div class="card">
-        <div class="card-body py-4 space-y-3">
-            {{-- Aligned filter grid: every control shares one column width --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="card-body py-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
                 <label class="block">
                     <span class="eyebrow block mb-1.5">Search</span>
                     <input type="text" wire:model.live.debounce.300ms="filterSearch"
@@ -69,13 +67,10 @@
                         <option value="4">C4 · Low Functioning / Multi-Domain Priority Seniors</option>
                     </select>
                 </label>
-            </div>
 
-            <div class="flex items-center justify-between gap-3 pt-1">
-                <div class="min-h-[1.75rem] flex items-center">
+                <div class="min-h-[2.25rem] flex items-center">
                     @if ($filterRisk || $filterBarangay || $filterCluster || $filterSearch)
-                    <button wire:click="$set('filterRisk',''); $set('filterBarangay',''); $set('filterCluster',''); $set('filterSearch','')"
-                            class="btn btn-ghost text-[12.5px] gap-1.5">
+                    <button wire:click="clearFilters" class="btn btn-ghost text-[12.5px] gap-1.5 whitespace-nowrap">
                         <x-heroicon-o-x-mark class="w-3.5 h-3.5" /> Clear filters
                     </button>
                     @endif
@@ -88,11 +83,10 @@
                         'search' => $filterSearch,
                         'sort' => $sortBy,
                         'dir' => $sortDir,
-                    ])) }}" class="btn">
+                    ])) }}" class="btn whitespace-nowrap">
                     <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export CSV
                 </a>
                 @endrole
-            </div>
         </div>
     </div>
 

@@ -66,12 +66,12 @@
     @endphp
     <div role="tablist" aria-label="Quick filters"
          class="flex flex-wrap gap-1 p-1 rounded-xl bg-paper-2 dark:bg-[#171c19] border border-paper-rule dark:border-[#2b3530]">
-        <a href="{{ route('recommendations.index', $base) }}" class="{{ $qBase }} {{ $isAll ? $qOn : $qOff }}">All</a>
-        <a href="{{ route('recommendations.index', $base + ['has_urgent' => 1]) }}" class="{{ $qBase }} {{ $hasUrgent ? $qOn : $qOff }}">
+        <a href="{{ route('recommendations.index', $base) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $isAll ? $qOn : $qOff }}">All</a>
+        <a href="{{ route('recommendations.index', $base + ['has_urgent' => 1]) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $hasUrgent ? $qOn : $qOff }}">
             <x-heroicon-o-exclamation-triangle class="w-3.5 h-3.5" /> Needs attention
         </a>
-        <a href="{{ route('recommendations.index', $base + ['quick' => 'pending']) }}" class="{{ $qBase }} {{ $quick === 'pending' ? $qOn : $qOff }}">Pending</a>
-        <a href="{{ route('recommendations.index', $base + ['quick' => 'done']) }}" class="{{ $qBase }} {{ $quick === 'done' ? $qOn : $qOff }}">All done</a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'pending']) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $quick === 'pending' ? $qOn : $qOff }}">Pending</a>
+        <a href="{{ route('recommendations.index', $base + ['quick' => 'done']) }}" wire:navigate data-loading="Filtering…" class="{{ $qBase }} {{ $quick === 'done' ? $qOn : $qOff }}">All done</a>
     </div>
 
     {{-- ── Seniors Table ── --}}

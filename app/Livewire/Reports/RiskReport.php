@@ -82,6 +82,12 @@ class RiskReport extends Component
         $this->resetPage();
     }
 
+    public function clearFilters(): void
+    {
+        $this->reset(['filterRisk', 'filterBarangay', 'filterCluster', 'filterSearch']);
+        $this->resetPage();
+    }
+
     public function updatedFilterRisk(): void
     {
         $this->resetPage();

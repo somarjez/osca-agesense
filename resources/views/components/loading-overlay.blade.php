@@ -18,7 +18,7 @@
      by inspecting Livewire's injected <style> tag directly. Its
      pointer-events: none is fine to keep (this overlay isn't interactive). --}}
 <div
-    wire:loading
+    wire:loading.flex
     wire:target="{{ $target }}"
     class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 rounded-2xl bg-paper/95 dark:bg-[#131917]/95 !opacity-100"
     role="status" aria-live="polite" aria-label="Loading"
