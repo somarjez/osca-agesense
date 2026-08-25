@@ -186,6 +186,22 @@ class DeceasedStatusTest extends TestCase
     }
 
     #[Test]
+    public function marking_a_senior_deceased_requires_a_date_of_death(): void
+    {
+        $senior = $this->makeSenior();
+
+        $this->actingAs($this->admin);
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('status', 'deceased')
+            ->set('dateOfDeath', '')
+            ->call('save')
+            ->assertHasErrors(['dateOfDeath'])
+            ->assertSet('saved', false);
+
+        $this->assertSame('active', $senior->fresh()->status);
+    }
+
+    #[Test]
     public function reactivating_a_deceased_senior_clears_death_fields(): void
     {
         $senior = $this->makeSenior([

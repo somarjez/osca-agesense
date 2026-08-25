@@ -550,9 +550,10 @@ class ProfileSurvey extends Component
             'gender' => 'required|string|max:255',
             'maritalStatus' => 'required|string|max:255',
             'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
+            'contactNumber' => ['nullable', 'regex:/^\d{7,20}$/'],
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
-            'dateOfDeath' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
+            'dateOfDeath' => 'nullable|required_if:status,deceased|date|after_or_equal:1900-01-01|before_or_equal:today',
             'deceasedNote' => 'nullable|string|max:500',
         ];
     }
@@ -569,10 +570,12 @@ class ProfileSurvey extends Component
             'dateOfBirth.before_or_equal' => 'This senior must be at least '.SeniorCitizen::MINIMUM_AGE.' years old to be registered.',
             'registrationDate.after_or_equal' => 'Registration date must be in the year 1900 or later.',
             'registrationDate.before_or_equal' => 'Registration date cannot be in the future.',
+            'contactNumber.regex' => 'Contact number must contain 7 to 20 digits only.',
             'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
             'dateOfDeath.after_or_equal' => 'Date of death must be in the year 1900 or later.',
             'dateOfDeath.before_or_equal' => 'Date of death cannot be in the future.',
+            'dateOfDeath.required_if' => 'Date of death is required when the senior is deceased.',
             'officialOscaId.unique' => self::OFFICIAL_OSCA_ID_UNIQUE_MESSAGE,
         ];
     }

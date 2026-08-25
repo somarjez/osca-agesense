@@ -54,10 +54,10 @@
                     {{ $senior->osca_id }}
                 </p>
                 <div class="flex flex-col gap-2">
-                    <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary justify-center">
+                    <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening survey…" class="btn btn-primary justify-center">
                         + Take QoL Survey →
                     </a>
-                    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-secondary justify-center">
+                    <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-secondary justify-center">
                         ← Back to Profile
                     </a>
                 </div>
@@ -158,8 +158,9 @@
 
                     <div x-show="recordStatus === 'deceased'" x-cloak class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-paper-2">
                         <div>
-                            <label class="block text-xs font-medium text-ink-600 mb-1">Date of Death</label>
+                            <label class="block text-xs font-medium text-ink-600 mb-1">Date of Death <span class="text-critical-700" aria-hidden="true">*</span></label>
                             <input type="date" wire:model="dateOfDeath" min="1900-01-01" max="{{ date('Y-m-d') }}"
+                                   x-bind:required="recordStatus === 'deceased'"
                                    class="form-input {{ $errors->has('dateOfDeath') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
                             @error('dateOfDeath') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
                         </div>
@@ -289,8 +290,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Contact Number</label>
-                        <input type="text" wire:model="contactNumber" placeholder="09XX XXX XXXX"
-                               class="form-input">
+                        <input type="text" wire:model="contactNumber" inputmode="numeric" pattern="[0-9]*" maxlength="20"
+                               placeholder="09171234567"
+                               class="form-input {{ $errors->has('contactNumber') ? 'border-critical-400 focus:border-critical-500 focus:ring-critical-500/20' : '' }}">
+                        @error('contactNumber') <p class="text-[11.5px] text-critical-700 dark:text-[#e08070] mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Place of Birth</label>

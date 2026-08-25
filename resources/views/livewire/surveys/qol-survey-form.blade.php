@@ -14,7 +14,7 @@
     />
 
     {{-- ── Back button ── --}}
-    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+    <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
         </svg>
@@ -61,11 +61,11 @@
         {{-- ── Question Card ── --}}
         <div>
         <form wire:submit.prevent="{{ $step < $totalSteps ? 'nextStep' : 'confirmSubmit' }}">
-        <div class="card overflow-hidden">
+        <div class="card">
 
             {{-- Instructions header (step 1 only) --}}
             @if ($step === 1)
-            <div class="bg-forest-50 dark:bg-forest-900/20 border-b border-forest-100 dark:border-forest-800/30 px-5 py-3">
+            <div class="rounded-t-2xl bg-forest-50 dark:bg-forest-900/20 border-b border-forest-100 dark:border-forest-800/30 px-5 py-3">
                 <p class="text-[13px] text-forest-800 dark:text-forest-300">
                     <strong>Instructions:</strong> In the past four weeks, how true is each statement for you?
                     Rate each item from <strong>1 (Strongly Disagree)</strong> to <strong>5 (Strongly Agree)</strong>.
@@ -196,8 +196,8 @@
             </div>
 
             {{-- ── Navigation Footer ── --}}
-            <div class="border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex items-center gap-3">
-                <a href="{{ route('seniors.show', $senior) }}" wire:navigate class="btn btn-ghost text-[13px]">
+            <div class="sticky bottom-0 bg-white dark:bg-[#151c19] z-10 border-t border-paper-rule dark:border-[#2b3530] px-5 py-4 flex flex-wrap items-center gap-3">
+                <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-ghost text-[13px]">
                     Cancel
                 </a>
 
@@ -214,7 +214,7 @@
                     <span wire:loading wire:target="saveDraft">Saving…</span>
                 </button>
 
-                <div class="ml-auto flex gap-3">
+                <div class="ml-auto flex flex-wrap gap-3">
                     @if ($step < $totalSteps)
                     <button type="button" wire:click="nextStep"
                             wire:loading.attr="disabled" wire:target="nextStep"

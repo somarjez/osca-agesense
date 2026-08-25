@@ -26,17 +26,17 @@
 
     {{-- Top action bar --}}
     <div class="flex items-center gap-3 flex-wrap">
-        <a href="{{ $recordsRoute }}" class="btn btn-ghost gap-1.5 pl-1.5">
+        <a href="{{ $recordsRoute }}" wire:navigate data-loading="Opening records…" class="btn btn-ghost gap-1.5 pl-1.5">
             <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to {{ $senior->status === 'deceased' ? 'deceased list' : 'records' }}
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
             @can('update', $senior)
             @if (!empty($draftSurvey))
-            <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="btn btn-primary">
+            <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" wire:navigate data-loading="Opening survey…" class="btn btn-primary">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Continue draft
             </a>
             @else
-            <a href="{{ route('surveys.qol.create', $senior) }}" class="btn">
+            <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening survey…" class="btn">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> New QoL Survey
             </a>
             @endif
@@ -160,12 +160,15 @@
             @endcan
 
             @can('export', $senior)
-            <a href="{{ route('seniors.export', $senior) }}" class="btn">
-                <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export PDF
+            <a href="{{ route('seniors.export', $senior) }}" class="btn"
+               x-data="{ loading: false }" @click="loading = true; setTimeout(() => loading = false, 4000)"
+               :aria-busy="loading.toString()" :class="{ 'pointer-events-none opacity-70': loading }">
+                <span x-show="!loading" class="inline-flex items-center gap-1.5"><x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export PDF</span>
+                <span x-show="loading" x-cloak class="inline-flex items-center gap-1.5"><span class="btn-spinner" aria-hidden="true"></span> Preparing PDF…</span>
             </a>
             @endcan
             @can('update', $senior)
-            <a href="{{ route('seniors.edit', $senior) }}" class="btn">
+            <a href="{{ route('seniors.edit', $senior) }}" wire:navigate data-loading="Opening editor…" class="btn">
                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
             </a>
             @endcan
@@ -710,9 +713,9 @@
                 <x-slot name="actions">
                     @can('update', $senior)
                     @if (!empty($draftSurvey))
-                    <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
+                    <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" wire:navigate data-loading="Opening…" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
                     @else
-                    <a href="{{ route('surveys.qol.create', $senior) }}" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
+                    <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening…" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
                     @endif
                     @endcan
                 </x-slot>

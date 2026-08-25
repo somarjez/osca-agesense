@@ -112,6 +112,26 @@ class ProfileSurveyValidationTest extends TestCase
     }
 
     #[Test]
+    public function contact_number_rejects_non_digit_characters(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('contactNumber', '0917-ABC-4567')
+            ->call('save')
+            ->assertHasErrors(['contactNumber'])
+            ->assertSet('saved', false);
+    }
+
+    #[Test]
+    public function contact_number_rejects_values_too_long_to_store_safely(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('contactNumber', str_repeat('9', 21))
+            ->call('save')
+            ->assertHasErrors(['contactNumber'])
+            ->assertSet('saved', false);
+    }
+
+    #[Test]
     public function whitelisted_barangay_is_accepted(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))

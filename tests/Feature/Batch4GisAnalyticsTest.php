@@ -56,6 +56,27 @@ class Batch4GisAnalyticsTest extends TestCase
     }
 
     #[Test]
+    public function gis_search_results_have_an_opaque_light_surface(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('reports.gis'))
+            ->assertOk()
+            ->assertSee('id="gis-senior-search-results"', false)
+            ->assertSee('bg-white dark:bg-[#1b211e]', false);
+    }
+
+    #[Test]
+    public function barangay_report_links_show_navigation_loading_feedback(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->get(route('reports.gis'))
+            ->assertOk();
+
+        $response->assertSee('data-loading="Opening report…"', false);
+        $this->assertGreaterThanOrEqual(2, substr_count($response->getContent(), 'wire:navigate'));
+    }
+
+    #[Test]
     public function facility_markers_stay_below_clickable_senior_layers_without_canvas_blocking(): void
     {
         $this->actingAs($this->admin)

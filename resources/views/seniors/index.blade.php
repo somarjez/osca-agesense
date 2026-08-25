@@ -237,6 +237,7 @@
                         <div class="flex items-center justify-end gap-1">
                             <a href="{{ route('seniors.show', $senior) }}"
                                wire:navigate
+                               data-loading="Opening…"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="View profile">
                                 <x-heroicon-o-eye class="w-3.5 h-3.5" /> View
@@ -244,12 +245,14 @@
                             @can('update', $senior)
                             <a href="{{ route('seniors.edit', $senior) }}"
                                wire:navigate
+                               data-loading="Opening…"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="Edit profile">
                                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit
                             </a>
                             <a href="{{ route('surveys.qol.create', $senior) }}"
                                wire:navigate
+                               data-loading="Opening…"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="New QoL survey">
                                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> QoL
