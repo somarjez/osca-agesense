@@ -30,6 +30,11 @@ const loginAttemptWatch = {
     },
 
     _start() {
+        // The alert component registers its window listener while Livewire
+        // initializes. Waiting for that lifecycle event prevents a fast
+        // read-and-clear response from being dispatched before the listener
+        // exists and silently losing the notification.
+        document.addEventListener('livewire:initialized', () => this._check(), { once: true })
         this._timer = setInterval(() => this._check(), INTERVAL_MS)
         // Catch an attempt that happened while this tab was backgrounded,
         // instead of waiting up to INTERVAL_MS after regaining focus.

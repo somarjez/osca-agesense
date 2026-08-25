@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SingleSession;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -31,11 +35,16 @@ class SingleSessionTest extends TestCase
         parent::setUp();
         $this->withoutVite();
 
-        User::create([
+        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $user = User::create([
             'name' => 'Single Session Target',
             'email' => 'single@osca.local',
             'password' => Hash::make('correct-password'),
         ]);
+        $user->syncRoles(['admin']);
+        Cache::forget("single_session_attempt:{$user->id}");
     }
 
     private function user(): User
@@ -154,5 +163,48 @@ class SingleSessionTest extends TestCase
         ]);
         $second->assertRedirect(route('dashboard', absolute: false));
         $this->assertAuthenticated();
+    }
+
+    #[Test]
+    public function login_attempt_endpoint_requires_authentication(): void
+    {
+        $this->getJson(route('account.login-attempt-check'))->assertUnauthorized();
+    }
+
+    #[Test]
+    public function login_attempt_is_user_scoped_and_read_once(): void
+    {
+        SingleSession::recordAttempt($this->user(), '203.0.113.8');
+
+        $other = User::create([
+            'name' => 'Other Session User',
+            'email' => 'other-session@osca.local',
+            'password' => Hash::make('correct-password'),
+        ]);
+        $other->syncRoles(['admin']);
+
+        $this->actingAs($other)
+            ->getJson(route('account.login-attempt-check'))
+            ->assertOk()
+            ->assertJsonPath('attempt', null);
+
+        $this->actingAs($this->user())
+            ->getJson(route('account.login-attempt-check'))
+            ->assertOk()
+            ->assertJsonPath('attempt.ip', '203.0.113.8');
+
+        $this->getJson(route('account.login-attempt-check'))
+            ->assertOk()
+            ->assertJsonPath('attempt', null);
+    }
+
+    #[Test]
+    public function login_attempt_survives_a_realistic_background_tab_delay(): void
+    {
+        SingleSession::recordAttempt($this->user(), '203.0.113.9');
+
+        $this->travel(2)->minutes();
+
+        $this->assertSame('203.0.113.9', SingleSession::pullAttempt($this->user()->id)['ip'] ?? null);
     }
 }

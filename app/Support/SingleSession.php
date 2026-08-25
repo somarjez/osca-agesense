@@ -55,7 +55,7 @@ class SingleSession
      * only needs to survive one poll cycle of the active session's client
      * (resources/js/login-attempt-watch.js), not serve as an audit trail.
      */
-    private const ATTEMPT_TTL_SECONDS = 30;
+    private const ATTEMPT_TTL_SECONDS = 300;
 
     /**
      * Record that a login was just blocked for $user because their account

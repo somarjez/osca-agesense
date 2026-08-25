@@ -26,6 +26,43 @@
 // the destination URL. We track the most recent one; if a landing doesn't
 // match it, a stale response won the race and we re-issue navigation to
 // wherever the user actually last clicked.
+export function shouldHandleNavigationClick(event, link) {
+    const target = (link.getAttribute('target') || '').toLowerCase()
+
+    return (event.button ?? 0) === 0
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+        && !link.hasAttribute('download')
+        && (target === '' || target === '_self')
+}
+
+export function shouldBlockNavigationKeydown(event, link, isNavigating) {
+    return isNavigating && event.key === 'Enter' && Boolean(link)
+}
+
+export function bypassWireNavigation(event, link) {
+    const target = (link?.getAttribute('target') || '').trim().toLowerCase()
+    const usesBrowserNavigation = Boolean(link)
+        && (link.hasAttribute('download') || (target !== '' && target !== '_self'))
+    const isActivationEvent = event.type !== 'keydown' || event.key === 'Enter'
+
+    if (!usesBrowserNavigation || !isActivationEvent) return false
+
+    // Livewire 3.8 does not exclude target/download links from wire:navigate.
+    // Stop its handlers while leaving the browser's default action intact.
+    event.stopImmediatePropagation()
+    return true
+}
+
+for (const eventName of ['mousedown', 'click', 'keydown']) {
+    document.addEventListener(eventName, (event) => {
+        const link = event.target.closest?.('[wire\\:navigate]')
+        bypassWireNavigation(event, link)
+    }, true)
+}
+
 document.addEventListener('alpine:init', () => {
     let latestIntent = null
 
@@ -58,6 +95,7 @@ document.addEventListener('alpine:init', () => {
     const WATCHDOG_MS = 10000 // comfortably longer than a slow/cold-start render
 
     document.addEventListener('alpine:navigate', () => {
+        document.body.classList.add('is-navigating')
         clearTimeout(watchdogTimer)
         watchdogTimer = setTimeout(() => {
             const landed = window.location.pathname + window.location.search
@@ -116,10 +154,9 @@ document.addEventListener('alpine:init', () => {
     // per-template opt-in required.
     document.addEventListener('click', (e) => {
         const link = e.target.closest('[wire\\:navigate]')
-        if (!link) return
+        if (!link || !shouldHandleNavigationClick(e, link)) return
         link.classList.add('wire-nav-pending')
         link.setAttribute('aria-busy', 'true')
-        document.body.classList.add('is-navigating')
 
         // Same data-loading convention as the global non-Livewire form
         // submit-guard below, extended to links: opt in per-link with
@@ -131,6 +168,13 @@ document.addEventListener('alpine:init', () => {
             link.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> ' + link.dataset.loading
         }
     })
+    document.addEventListener('keydown', (e) => {
+        const link = e.target.closest?.('[wire\\:navigate]')
+        if (!shouldBlockNavigationKeydown(e, link, document.body.classList.contains('is-navigating'))) return
+
+        e.preventDefault()
+        e.stopImmediatePropagation()
+    }, true)
     document.addEventListener('livewire:navigated', () => {
         document.querySelectorAll('.wire-nav-pending').forEach((el) => {
             el.classList.remove('wire-nav-pending')
