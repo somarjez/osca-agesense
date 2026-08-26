@@ -16,10 +16,10 @@
         :subtitle="$senior->barangay . ' · ' . $recommendations->count() . ' recommendation' . ($recommendations->count() !== 1 ? 's' : '')"
     />
     <div class="flex items-center gap-3">
-        <a href="{{ route('recommendations.index') }}" class="btn btn-ghost gap-1.5 pl-1.5">
+        <a href="{{ route('recommendations.index') }}" wire:navigate data-loading="Opening list…" class="btn btn-ghost gap-1.5 pl-1.5">
             <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Recommendations list
         </a>
-        <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5">
+        <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-ghost gap-1.5">
             <x-heroicon-o-user class="w-3.5 h-3.5" /> Back to profile
         </a>
     </div>
@@ -217,7 +217,7 @@
             description="Complete a QoL survey and run the ML assessment to generate tailored recommendations.">
             @can('update', $senior)
             <x-slot name="action">
-                <a href="{{ route('surveys.qol.create', $senior) }}" class="btn btn-primary inline-flex gap-1.5">
+                <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening survey…" class="btn btn-primary inline-flex gap-1.5">
                     <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Take QoL Survey
                 </a>
             </x-slot>

@@ -271,6 +271,18 @@ class PolicyAuthorizationTest extends TestCase
     }
 
     #[Test]
+    public function senior_profile_actions_expose_visible_loading_states(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('seniors.show', $this->senior));
+
+        $response->assertOk();
+        $response->assertSee('data-loading="Opening records…"', false);
+        $response->assertSee('data-loading="Opening survey…"', false);
+        $response->assertSee('Preparing PDF…');
+        $response->assertSee('data-loading="Opening editor…"', false);
+    }
+
+    #[Test]
     public function viewer_does_not_see_write_controls_on_senior_index(): void
     {
         $response = $this->actingAs($this->viewer)->get(route('seniors.index'));

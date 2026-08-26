@@ -133,6 +133,14 @@ class QolSurveyValidationTest extends TestCase
             ->assertHasNoErrors();
     }
 
+    #[Test]
+    public function survey_navigation_remains_visible_while_the_form_scrolls(): void
+    {
+        Livewire::test(QolSurveyForm::class, ['seniorId' => $this->senior->id])
+            ->assertSeeHtml('class="sticky bottom-0')
+            ->assertDontSeeHtml('class="card overflow-hidden"');
+    }
+
     /**
      * Regression coverage for the audit's Critical finding (TC-REC-07): a
      * completely blank survey — reached by jumping the stepper straight to

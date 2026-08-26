@@ -76,14 +76,14 @@
             </div>
 
             <div class="card-body space-y-4">
-                <div class="relative">
+                <div class="relative isolate z-20">
                     <label class="block">
                         <span class="eyebrow block mb-1.5">Find a Senior</span>
                         <input id="gis-senior-search" type="text" autocomplete="off"
                             class="form-input" placeholder="Search by name, OSCA ID or System ID...">
                     </label>
                     <ul id="gis-senior-search-results"
-                        class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-paper-0 dark:bg-[#1b211e] shadow-lg text-sm">
+                        class="hidden absolute z-[1300] mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-paper-rule dark:border-[#2b3530] bg-white dark:bg-[#1b211e] shadow-xl text-sm">
                     </ul>
                 </div>
 
@@ -369,6 +369,7 @@
                                 $highPct = round(($row['high_risk_count'] ?? 0) / $barangayMax * 100);
                             @endphp
                             <a href="{{ route('reports.barangay', $row['barangay']) }}"
+                               wire:navigate data-loading="Opening report…"
                                class="flex items-center gap-2.5 group">
                                 <span class="w-4 flex-shrink-0 text-[11px] text-ink-400 dark:text-[#6b7570] tnum">{{ $i + 1 }}</span>
                                 <span class="w-[30%] sm:w-24 flex-shrink-0 truncate text-[12px] font-medium text-ink-800 dark:text-[#d8ddd9] group-hover:text-forest-700 dark:group-hover:text-forest-400 transition-colors"
@@ -405,7 +406,7 @@
                 @endif
             </div>
             <div class="card-body pt-3 border-t border-paper-rule dark:border-[#2b3530]">
-                <a href="{{ route('reports.barangay.index') }}" class="text-[12.5px] font-semibold text-forest-700 dark:text-forest-400 hover:underline underline-offset-2">
+                <a href="{{ route('reports.barangay.index') }}" wire:navigate data-loading="Opening report…" class="text-[12.5px] font-semibold text-forest-700 dark:text-forest-400 hover:underline underline-offset-2">
                     View Full Report →
                 </a>
             </div>

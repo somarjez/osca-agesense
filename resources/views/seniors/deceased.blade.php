@@ -96,7 +96,7 @@
                         </div>
                     </td>
                     <td class="td">
-                        <a href="{{ route('seniors.show', $senior) }}" class="flex items-center gap-3">
+                        <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening…" class="flex items-center gap-3">
                             <div class="w-7 h-7 rounded-full bg-ink-100 dark:bg-ink-800/60 grid place-items-center flex-shrink-0">
                                 <span class="text-[11px] font-semibold text-ink-400 dark:text-ink-500">{{ strtoupper(substr($senior->first_name,0,1).substr($senior->last_name,0,1)) }}</span>
                             </div>
@@ -122,12 +122,14 @@
                     <td class="td">
                         <div class="flex items-center justify-end gap-1">
                             <a href="{{ route('seniors.show', $senior) }}"
+                               wire:navigate data-loading="Opening…"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="View profile">
                                 <x-heroicon-o-eye class="w-3.5 h-3.5" /> View
                             </a>
                             @hasanyrole('admin|encoder')
                             <a href="{{ route('seniors.edit', $senior) }}"
+                               wire:navigate data-loading="Opening…"
                                class="btn btn-ghost text-[11.5px] px-2.5 py-1.5 gap-1.5"
                                title="Edit profile — reactivate here">
                                 <x-heroicon-o-pencil class="w-3.5 h-3.5" /> Edit

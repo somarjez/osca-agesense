@@ -21,11 +21,11 @@
 
     {{-- Back --}}
     @if ($senior && !$senior->trashed())
-    <a href="{{ route('seniors.show', $senior) }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+    <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
         <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to {{ $senior->full_name }}
     </a>
     @else
-    <a href="{{ route('surveys.qol.index') }}" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
+    <a href="{{ route('surveys.qol.index') }}" wire:navigate data-loading="Opening surveys…" class="btn btn-ghost gap-1.5 pl-1.5 w-fit">
         <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> Back to QoL Surveys
     </a>
     @endif
