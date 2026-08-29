@@ -151,6 +151,80 @@ document.addEventListener('alpine:init', () => {
         },
     }))
 
+    // ── Family composition cross-field guard (ProfileSurvey Step 2) ──────────
+    // Working Children must not exceed Number of Children, and Financially
+    // Supported by Children can't be Yes/Occasional when Number of Children
+    // is 0. Reads $wire directly like exclusiveGroup above — plain
+    // (undecorated) wire:model already updates $wire reactively on every
+    // change, so no local state mirror or network round trip is needed for
+    // the live clamp/grayout. ProfileSurvey::step2Rules() is the actual
+    // enforcement authority server-side (lte:numChildren + a closure rule).
+    Alpine.data('familyCompositionGuard', () => ({
+        get numChildren() {
+            return Number(this.$wire.numChildren) || 0
+        },
+        get workingChildrenExceeds() {
+            return Number(this.$wire.numWorkingChildren) > this.numChildren
+        },
+        get supportBlockedByZeroChildren() {
+            return this.numChildren === 0
+        },
+        // Spouse/Partner Working only makes sense with an actual spouse — "N/A"
+        // stays selectable when Marital Status (Step 1) is Single. maritalStatus
+        // lives on Step 1 but $wire is shared across the whole component, so it's
+        // readable here even while viewing Step 2.
+        get spouseWorkingBlockedBySingle() {
+            return this.$wire.maritalStatus === 'Single'
+        },
+        clampWorkingChildren(e) {
+            const max = this.numChildren
+            const v = Number(e.target.value)
+            if (v > max) {
+                e.target.value = max
+                this.$wire.numWorkingChildren = max
+            }
+        },
+    }))
+
+    // ── Dependency cross-field guard (ProfileSurvey Step 4) ──────────────────
+    // livingWith's "Alone" and householdCondition's "Overcrowded in home" /
+    // "Shared with relatives" are mutually exclusive. Unlike exclusiveGroup()
+    // (same-property, silently auto-unchecks), this is cross-property and
+    // grays out + disables the contradicting checkbox instead of silently
+    // correcting it — the user must uncheck one side first. A checkbox is
+    // only disabled when it is NOT already checked, so a pre-existing
+    // contradictory legacy record (e.g. from BulkUploadController, which
+    // bypasses this validation entirely) never gets permanently deadlocked —
+    // either side can always be unchecked. ProfileSurvey::step4Rules() is the
+    // server-side enforcement authority.
+    Alpine.data('dependencyCrossGuard', () => ({
+        conflictingConditions: ['Overcrowded in home', 'Shared with relatives'],
+        get aloneSelected() {
+            return (this.$wire.livingWith ?? []).includes('Alone')
+        },
+        get conflictingConditionSelected() {
+            const hc = this.$wire.householdCondition ?? []
+            return this.conflictingConditions.some((c) => hc.includes(c))
+        },
+        aloneDisabled() {
+            return !this.aloneSelected && this.conflictingConditionSelected
+        },
+        conditionDisabled(option) {
+            return this.conflictingConditions.includes(option)
+                && !(this.$wire.householdCondition ?? []).includes(option)
+                && this.aloneSelected
+        },
+        // "Spouse" can't be a living arrangement when there's no spouse (Single)
+        // or the spouse is deceased. Same not-already-checked deadlock guard as
+        // aloneDisabled()/conditionDisabled() above.
+        get spouseLivingBlocked() {
+            return this.$wire.maritalStatus === 'Single' || this.$wire.spouseWorking === 'Deceased'
+        },
+        spouseOptionDisabled() {
+            return !(this.$wire.livingWith ?? []).includes('Spouse') && this.spouseLivingBlocked
+        },
+    }))
+
     // ── Real-time name field validation (ProfileSurvey: New Profile / Edit) ──
     // Client-side mirror of App\Support\NameRules — the ONE source of truth
     // for the pattern strings, seeded in via @js($this->nameGuardConfig()).

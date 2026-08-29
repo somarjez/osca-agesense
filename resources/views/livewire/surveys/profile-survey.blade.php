@@ -331,7 +331,7 @@
                 @if ($step === 2)
                 <x-survey-section-head :step="2" title="Family Composition"
                     desc="Household size and family support details." />
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-4" x-data="familyCompositionGuard()">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Number of Children <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="number" wire:model="numChildren" min="0"
@@ -339,8 +339,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Number of Working Children <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <input type="number" wire:model="numWorkingChildren" min="0"
+                        <input type="number" wire:model="numWorkingChildren" min="0" :max="numChildren"
+                               @input="clampWorkingChildren($event)"
                                class="form-input">
+                        <p class="mt-1 text-xs text-critical-700" x-show="workingChildrenExceeds" x-cloak>Cannot exceed number of children.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Household Size (total members) <span class="text-critical-700" aria-hidden="true">*</span></label>
@@ -352,19 +354,23 @@
                         <select wire:model="childFinancialSupport"
                                 class="form-input">
                             <option value="">Select…</option>
-                            <option>Yes</option><option>No</option><option>Occasional</option><option>N/A</option>
+                            <option :disabled="supportBlockedByZeroChildren">Yes</option><option>No</option><option :disabled="supportBlockedByZeroChildren">Occasional</option><option>N/A</option>
                         </select>
+                        <p class="mt-1 text-xs text-critical-700" x-show="supportBlockedByZeroChildren" x-cloak>"Yes"/"Occasional" unavailable when number of children is 0.</p>
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-ink-600 mb-1">Spouse / Partner Working? <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="flex gap-3">
                             @foreach (['Yes','No','Deceased','N/A'] as $opt)
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" wire:model="spouseWorking" value="{{ $opt }}" class="accent-forest-700">
+                            <label class="flex items-center gap-2 cursor-pointer"
+                                   @if ($opt !== 'N/A') :class="{ 'opacity-50 cursor-not-allowed': spouseWorkingBlockedBySingle }" @endif>
+                                <input type="radio" wire:model="spouseWorking" value="{{ $opt }}" class="accent-forest-700"
+                                       @if ($opt !== 'N/A') :disabled="spouseWorkingBlockedBySingle" @endif>
                                 <span class="text-sm text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseWorkingBlockedBySingle" x-cloak>Only "N/A" applies when marital status is Single.</p>
                     </div>
                 </div>
                 @endif
@@ -414,18 +420,23 @@
                 @if ($step === 4)
                 <x-survey-section-head :step="4" title="Dependency Profile"
                     desc="Living arrangement and household condition." />
-                <div class="space-y-5">
+                <div class="space-y-5" x-data="dependencyCrossGuard()">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Living / Residing with (check all applicable) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <div class="grid grid-cols-3 gap-2"
                              x-data="exclusiveGroup('livingWith', @js($xt['livingWith']))" @change="onChange($event)">
                             @foreach (['Alone','Spouse','Children','Grandchildren','Relative(s)','Friend(s)','Care Institution'] as $opt)
-                            <label class="flex items-center gap-2 cursor-pointer p-2 border border-paper-rule rounded-lg hover:bg-paper">
-                                <input type="checkbox" wire:model="livingWith" value="{{ $opt }}" class="accent-forest-700 rounded">
+                            <label class="flex items-center gap-2 cursor-pointer p-2 border border-paper-rule rounded-lg hover:bg-paper"
+                                   @if ($opt === 'Alone') :class="{ 'opacity-50 cursor-not-allowed': aloneDisabled() }"
+                                   @elseif ($opt === 'Spouse') :class="{ 'opacity-50 cursor-not-allowed': spouseOptionDisabled() }" @endif>
+                                <input type="checkbox" wire:model="livingWith" value="{{ $opt }}" class="accent-forest-700 rounded"
+                                       @if ($opt === 'Alone') :disabled="aloneDisabled()"
+                                       @elseif ($opt === 'Spouse') :disabled="spouseOptionDisabled()" @endif>
                                 <span class="text-xs text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseLivingBlocked" x-cloak>"Spouse" is unavailable when marital status is Single or Spouse/Partner Working is "Deceased".</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Household Condition (check all applicable)</label>
@@ -436,12 +447,15 @@
                                 'House is owned','Land is not owned','Shared with relatives',
                                 'Government-Provided',
                             ] as $opt)
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" wire:model="householdCondition" value="{{ $opt }}" class="accent-forest-700 rounded">
+                            <label class="flex items-center gap-2 cursor-pointer"
+                                   :class="{ 'opacity-50 cursor-not-allowed': conditionDisabled('{{ $opt }}') }">
+                                <input type="checkbox" wire:model="householdCondition" value="{{ $opt }}" class="accent-forest-700 rounded"
+                                       :disabled="conditionDisabled('{{ $opt }}')">
                                 <span class="text-xs text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
+                        <p class="mt-1 text-xs text-critical-700" x-show="aloneSelected" x-cloak>Some household conditions are unavailable while living arrangement is "Alone".</p>
                     </div>
                 </div>
                 @endif
