@@ -1,7 +1,7 @@
 Target,Model,Best_MAE_CV,Params
-ic_risk,GBR,0.0087,"{'subsample': 0.8, 'n_estimators': 300, 'min_samples_leaf': 3, 'max_depth': 5, 'learning_rate': 0.08}"
-ic_risk,RFR,0.0163,"{'n_estimators': 100, 'min_samples_split': 4, 'min_samples_leaf': 1, 'max_features': 0.7, 'max_depth': None}"
-env_risk,GBR,0.0132,"{'subsample': 0.8, 'n_estimators': 300, 'min_samples_leaf': 1, 'max_depth': 2, 'learning_rate': 0.08}"
-env_risk,RFR,0.0263,"{'n_estimators': 200, 'min_samples_split': 4, 'min_samples_leaf': 2, 'max_features': 0.5, 'max_depth': 12}"
-func_risk,GBR,0.0138,"{'subsample': 0.8, 'n_estimators': 300, 'min_samples_leaf': 1, 'max_depth': 2, 'learning_rate': 0.08}"
-func_risk,RFR,0.0258,"{'n_estimators': 200, 'min_samples_split': 4, 'min_samples_leaf': 2, 'max_features': 0.5, 'max_depth': 12}"
+ic_risk,GBR,0.0088,"{'subsample': 0.9, 'n_estimators': 300, 'min_samples_leaf': 2, 'max_depth': 5, 'learning_rate': 0.08}"
+ic_risk,RFR,0.0153,"{'n_estimators': 100, 'min_samples_split': 4, 'min_samples_leaf': 1, 'max_features': 0.7, 'max_depth': None}"
+env_risk,GBR,0.0133,"{'subsample': 0.8, 'n_estimators': 300, 'min_samples_leaf': 1, 'max_depth': 2, 'learning_rate': 0.08}"
+env_risk,RFR,0.0255,"{'n_estimators': 150, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': 0.5, 'max_depth': None}"
+func_risk,GBR,0.0141,"{'subsample': 0.8, 'n_estimators': 300, 'min_samples_leaf': 1, 'max_depth': 2, 'learning_rate': 0.08}"
+func_risk,RFR,0.0259,"{'n_estimators': 200, 'min_samples_split': 4, 'min_samples_leaf': 2, 'max_features': 0.5, 'max_depth': 12}"

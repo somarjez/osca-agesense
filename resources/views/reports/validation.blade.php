@@ -1141,12 +1141,21 @@
 
     {{-- ════════ 05 · CONCORDANCE ════════ --}}
     <section id="concordance" class="scroll-mt-20 space-y-4 pt-2">
+        @php
+            $overallConcordancePct = (($fidelity['cluster_match_pct'] ?? 0) + ($fidelity['risk_match_pct'] ?? 0)) / 2;
+            $overallConcordanceGood = $overallConcordancePct >= 0.95;
+        @endphp
         <div class="flex items-center justify-between gap-3">
             <h2 class="font-serif text-xl font-semibold text-ink-900 dark:text-[#e4e1d8]">
                 <span class="font-mono text-sm text-ink-300 dark:text-[#5a6460] mr-2">05</span>Live system vs notebook
             </h2>
             @if (($fidelity['available'] ?? false))
-                {!! $chip($fidelity['verdicts']['cluster']) !!}
+                <div class="flex items-center gap-3">
+                    {!! $chip(['good' => $overallConcordanceGood, 'label' => $overallConcordanceGood ? 'Strong' : 'Borderline']) !!}
+                    <span class="font-mono text-[13px] font-semibold tnum {{ $overallConcordanceGood ? 'text-low-700 dark:text-[#6dd89e]' : 'text-moderate-700 dark:text-[#e0c060]' }}">
+                        Overall Concordance: {{ number_format($overallConcordancePct * 100, 0) }}%
+                    </span>
+                </div>
             @endif
         </div>
         <p class="text-[13.5px] text-ink-500 dark:text-[#8a9087] max-w-3xl leading-relaxed">

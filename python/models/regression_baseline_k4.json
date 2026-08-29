@@ -3,3240 +3,3501 @@
     "key": "52f331688dc484dfd91f7cbe",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.16583192955259835,
-    "env_risk": 0.6994748801581752,
-    "func_risk": 0.680515255943392,
-    "composite_risk": 0.4596215780999836
+    "ic_risk": 0.16725923881771898,
+    "env_risk": 0.701529646265461,
+    "func_risk": 0.6802125926290528,
+    "composite_risk": 0.46024193816230585
   },
   {
     "key": "47ef6be1ccdfca45e3789a36",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.24996687851984264,
-    "env_risk": 0.5953464178935177,
-    "func_risk": 0.5772076370013379,
-    "composite_risk": 0.3650620696647926
+    "ic_risk": 0.24992564082268265,
+    "env_risk": 0.5944932677617585,
+    "func_risk": 0.5747263317800199,
+    "composite_risk": 0.3644804846462082
   },
   {
     "key": "daf6d46056aae4abcc67695d",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.18706770495023353,
-    "env_risk": 0.6782901528619351,
-    "func_risk": 0.5516024999179345,
-    "composite_risk": 0.44533580011530166
+    "ic_risk": 0.18754802708893079,
+    "env_risk": 0.6778102199190937,
+    "func_risk": 0.5522314751320327,
+    "composite_risk": 0.4454396559458301
   },
   {
     "key": "6e546a3bb96cebab41e82c31",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5208402866643704,
-    "env_risk": 0.707539804320515,
-    "func_risk": 0.6351461178745452,
-    "composite_risk": 0.5188322769638904
+    "ic_risk": 0.5207978754383299,
+    "env_risk": 0.7077222962927605,
+    "func_risk": 0.6403835187295329,
+    "composite_risk": 0.5197234136486079
   },
   {
     "key": "438f9bc7bfd496dbc3aee0e0",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2290504397789478,
-    "env_risk": 0.5147484324064044,
-    "func_risk": 0.41538948292077343,
-    "composite_risk": 0.3148605475776079
+    "ic_risk": 0.22961032448903457,
+    "env_risk": 0.5153899646473409,
+    "func_risk": 0.41343474683984005,
+    "composite_risk": 0.3147692888873259
   },
   {
     "key": "93e9118695bc4bd0f55cff4c",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.29094176001691774,
-    "env_risk": 0.5231643751384327,
-    "func_risk": 0.5893434225965383,
-    "composite_risk": 0.3369820957458338
+    "ic_risk": 0.29107141475802756,
+    "env_risk": 0.5223081173567199,
+    "func_risk": 0.5892581764031535,
+    "composite_risk": 0.33682815903860924
   },
   {
     "key": "a6429f6721621b291e69d2e2",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10464599847052172,
-    "env_risk": 0.4391652221234656,
-    "func_risk": 0.4982306596077687,
-    "composite_risk": 0.30020171879962443
+    "ic_risk": 0.10389432795430996,
+    "env_risk": 0.43786553725716587,
+    "func_risk": 0.4990178357845873,
+    "composite_risk": 0.299936716957666
   },
   {
     "key": "697a16c0393e9bd2b65d989d",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06294046981915505,
-    "env_risk": 0.4824500219846094,
-    "func_risk": 0.42520121444981307,
-    "composite_risk": 0.21951587005644382
+    "ic_risk": 0.0627441226891768,
+    "env_risk": 0.47977595667923423,
+    "func_risk": 0.42043958335826276,
+    "composite_risk": 0.2181776465325325
   },
   {
     "key": "25ca8e14c951cc314593f7d4",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.291665117715085,
-    "env_risk": 0.5365137486644618,
-    "func_risk": 0.5116872206493658,
-    "composite_risk": 0.3532928231852081
+    "ic_risk": 0.29180446092383777,
+    "env_risk": 0.5380508556677837,
+    "func_risk": 0.5135970825661057,
+    "composite_risk": 0.35393066706729454
   },
   {
     "key": "cd775bc537be9f27c5b32ef5",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16664714635631486,
-    "env_risk": 0.6014521281737689,
-    "func_risk": 0.5886516631924463,
-    "composite_risk": 0.3661266347737948
+    "ic_risk": 0.16614727848600158,
+    "env_risk": 0.6004431129080243,
+    "func_risk": 0.5910705785360835,
+    "composite_risk": 0.3662352958018038
   },
   {
     "key": "96894f3cc606cdd1e46e7664",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41829970285567264,
-    "env_risk": 0.6689860118023137,
-    "func_risk": 0.6993571069357868,
-    "composite_risk": 0.5238214227160671
+    "ic_risk": 0.4177195032971862,
+    "env_risk": 0.6714560768688268,
+    "func_risk": 0.6996192433032972,
+    "composite_risk": 0.5242284743270016
   },
   {
     "key": "20d504d8c28e0574b1f351c1",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.04076756094519873,
-    "env_risk": 0.4312504700531501,
-    "func_risk": 0.29137021305716426,
-    "composite_risk": 0.2697095561216143
+    "ic_risk": 0.04122715149077224,
+    "env_risk": 0.4326510321577437,
+    "func_risk": 0.2909917025164781,
+    "composite_risk": 0.27000518126755824
   },
   {
     "key": "dd8e904e495d5992eb6f05d0",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.24986625114685143,
-    "env_risk": 0.6597381706151314,
-    "func_risk": 0.6441296658964009,
-    "composite_risk": 0.4194852460620879
+    "ic_risk": 0.2497568986137207,
+    "env_risk": 0.6563959213486694,
+    "func_risk": 0.643498727679942,
+    "composite_risk": 0.4187167079099505
   },
   {
     "key": "2fdc990add66a68f02bc6291",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2497892122305927,
-    "env_risk": 0.574681107349183,
-    "func_risk": 0.6155229256486483,
-    "composite_risk": 0.4076918192511338
+    "ic_risk": 0.24986327164580507,
+    "env_risk": 0.5708015853887716,
+    "func_risk": 0.6134161136878444,
+    "composite_risk": 0.40661164373765035
   },
   {
     "key": "95dbcb33a0b361199ef4c00b",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3756945841920596,
-    "env_risk": 0.6014198056039024,
-    "func_risk": 0.6159079568388868,
-    "composite_risk": 0.463464332914139
+    "ic_risk": 0.375756731386562,
+    "env_risk": 0.6016721379660208,
+    "func_risk": 0.6165426950081878,
+    "composite_risk": 0.4636296020267232
   },
   {
     "key": "e0f03dd1c2906e9c52a71063",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.541162711714002,
-    "env_risk": 0.6554759491881679,
-    "func_risk": 0.7138103900856879,
-    "composite_risk": 0.5222816565878062
+    "ic_risk": 0.5405376140121432,
+    "env_risk": 0.6520530832323607,
+    "func_risk": 0.7132017297239392,
+    "composite_risk": 0.5214019946240169
   },
   {
     "key": "e92d4b5b52a07be530dd5f88",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.375362693092245,
-    "env_risk": 0.6058712851821315,
-    "func_risk": 0.5790846396532452,
-    "composite_risk": 0.5023265063606029
+    "ic_risk": 0.37578209590547484,
+    "env_risk": 0.6055334588532338,
+    "func_risk": 0.5802374803000073,
+    "composite_risk": 0.5025324285405526
   },
   {
     "key": "c0c38b474b4e4891af237988",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.583713999906026,
-    "env_risk": 0.5636419197119557,
-    "func_risk": 0.7505341994644503,
-    "composite_risk": 0.48901915743809576
+    "ic_risk": 0.5832791097742784,
+    "env_risk": 0.5637031396622196,
+    "func_risk": 0.751114018937427,
+    "composite_risk": 0.48904289614120133
   },
   {
     "key": "ac0b1e70f7a2df6e5efdfcbc",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.35656714347688856,
-    "env_risk": 0.6064302197375362,
-    "func_risk": 0.6194351750749412,
-    "composite_risk": 0.36948379630614203
+    "ic_risk": 0.35645720857129126,
+    "env_risk": 0.60297419810489,
+    "func_risk": 0.6219760414460683,
+    "composite_risk": 0.36921659262376616
   },
   {
     "key": "48674927a40c0cccb6dd95b8",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16656283852601286,
-    "env_risk": 0.4240273419895602,
-    "func_risk": 0.3338970995042839,
-    "composite_risk": 0.2989666311674547
+    "ic_risk": 0.16705207375019052,
+    "env_risk": 0.42121858364191667,
+    "func_risk": 0.3356305599326378,
+    "composite_risk": 0.2988061439368659
   },
   {
     "key": "e6d3d5b8c2ee685fd693ca0d",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2913638165239479,
-    "env_risk": 0.4605005611174146,
-    "func_risk": 0.5133647633936714,
-    "composite_risk": 0.3764090786559181
+    "ic_risk": 0.2914144606670687,
+    "env_risk": 0.4598266499812108,
+    "func_risk": 0.5124591273492463,
+    "composite_risk": 0.3761396698124194
   },
   {
     "key": "6d8a68c33ba5c398eeee97eb",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.33356301239237074,
-    "env_risk": 0.641567045029185,
-    "func_risk": 0.5357243684055507,
-    "composite_risk": 0.3752870568405654
+    "ic_risk": 0.33360391933298583,
+    "env_risk": 0.6432537812483914,
+    "func_risk": 0.5352362804996719,
+    "composite_risk": 0.37553909364436094
   },
   {
     "key": "9bdf56f22f021514c1eae514",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.33145734670727867,
-    "env_risk": 0.5286483542808829,
-    "func_risk": 0.5697318334954335,
-    "composite_risk": 0.3705910999669677
+    "ic_risk": 0.3330142900654483,
+    "env_risk": 0.5309340816633529,
+    "func_risk": 0.5743849880330619,
+    "composite_risk": 0.3720985845832495
   },
   {
     "key": "55e1ca00846c57f1ae8b9a6b",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.33190510754763763,
-    "env_risk": 0.5125000001860177,
-    "func_risk": 0.5432743001045207,
-    "composite_risk": 0.42008324275597453
+    "ic_risk": 0.3321031134245229,
+    "env_risk": 0.5104425882294782,
+    "func_risk": 0.5415774591548209,
+    "composite_risk": 0.41944532832894066
   },
   {
     "key": "5485008de65342791e507e82",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4799606471506805,
-    "env_risk": 0.4942775047510941,
-    "func_risk": 0.5579347650404634,
-    "composite_risk": 0.4254000804727681
+    "ic_risk": 0.4806258475944303,
+    "env_risk": 0.4916512469293853,
+    "func_risk": 0.5589266118354249,
+    "composite_risk": 0.42518623164867964
   },
   {
     "key": "833d511f43b99513dbaf7627",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1462061165587834,
-    "env_risk": 0.4690427218941767,
-    "func_risk": 0.40156132729871363,
-    "composite_risk": 0.24832302040648258
+    "ic_risk": 0.14643380000541273,
+    "env_risk": 0.4714076335186063,
+    "func_risk": 0.4010961253268056,
+    "composite_risk": 0.2487453366322966
   },
   {
     "key": "0b8667008d015195583da17e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.22985547446063603,
-    "env_risk": 0.5752837528565418,
-    "func_risk": 0.5693385218851662,
-    "composite_risk": 0.42281015736960914
+    "ic_risk": 0.22932386569118385,
+    "env_risk": 0.575636469575642,
+    "func_risk": 0.5672851388394577,
+    "composite_risk": 0.42243691244737447
   },
   {
     "key": "3d37f664302b546aaf7df9ed",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4161797135617263,
-    "env_risk": 0.6401451864375652,
-    "func_risk": 0.6367218289376244,
-    "composite_risk": 0.47269664502457165
+    "ic_risk": 0.4173167302138937,
+    "env_risk": 0.6441975601393837,
+    "func_risk": 0.6347239549012949,
+    "composite_risk": 0.4733659534517195
   },
   {
     "key": "38c5611b64c2ab1a496fda99",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12479425527735467,
-    "env_risk": 0.6187729786090929,
-    "func_risk": 0.5492011227437104,
-    "composite_risk": 0.3273998777758534
+    "ic_risk": 0.1255346627931688,
+    "env_risk": 0.6210159206883734,
+    "func_risk": 0.5483923676252569,
+    "composite_risk": 0.3278407279783643
   },
   {
     "key": "4c0b4d1f9155bdac0fc5fb7d",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.29125825544944917,
-    "env_risk": 0.4951252469985052,
-    "func_risk": 0.42819808081655836,
-    "composite_risk": 0.35266650755596335
+    "ic_risk": 0.29210608473672484,
+    "env_risk": 0.4965965818530901,
+    "func_risk": 0.42881823415671166,
+    "composite_risk": 0.3532152719543968
   },
   {
     "key": "635d8b724695906fcd268af9",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5631250484026484,
-    "env_risk": 0.6340617575133822,
-    "func_risk": 0.697905293180074,
-    "composite_risk": 0.5314178335135482
+    "ic_risk": 0.5625791539460885,
+    "env_risk": 0.6357969634492237,
+    "func_risk": 0.698901012314839,
+    "composite_risk": 0.531811069630546
   },
   {
     "key": "523d661fbfe4b7b74a24f446",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.31088586155409614,
-    "env_risk": 0.47331401405925133,
-    "func_risk": 0.5040253489005243,
-    "composite_risk": 0.2731376586241559
+    "ic_risk": 0.3109740313504117,
+    "env_risk": 0.4730177386812801,
+    "func_risk": 0.5065686225079263,
+    "composite_risk": 0.27351723844490855
   },
   {
     "key": "6ec74961638fb5425dfc1969",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3115871050964098,
-    "env_risk": 0.5975980827196076,
-    "func_risk": 0.653992459160784,
-    "composite_risk": 0.4607219044161127
+    "ic_risk": 0.3125179596031218,
+    "env_risk": 0.5978777123548528,
+    "func_risk": 0.6546826118948946,
+    "composite_risk": 0.4610687978145678
   },
   {
     "key": "46aab3263856bb6b23eb7b5d",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2709950945981121,
-    "env_risk": 0.561360008085463,
-    "func_risk": 0.6284179007013928,
-    "composite_risk": 0.346987310882318
+    "ic_risk": 0.2707973998816112,
+    "env_risk": 0.5588717789010555,
+    "func_risk": 0.6276901697083528,
+    "composite_risk": 0.34635019491754154
   },
   {
     "key": "8d0bde23cc71651e2fdc948d",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6489349038308415,
-    "env_risk": 0.6039607596622985,
-    "func_risk": 0.7974442131740089,
-    "composite_risk": 0.5438957103961409
+    "ic_risk": 0.648289387929684,
+    "env_risk": 0.6024310659131579,
+    "func_risk": 0.7962691093271751,
+    "composite_risk": 0.543283090403731
   },
   {
     "key": "a0d1deb46ee07400d8199646",
     "cluster_named_id": 4,
     "overall_risk_level": "CRITICAL",
-    "ic_risk": 0.9641517358716851,
-    "env_risk": 0.7990927473755159,
-    "func_risk": 0.9877780261665015,
-    "composite_risk": 0.747477937342559
+    "ic_risk": 0.9640784516862309,
+    "env_risk": 0.7978049814492567,
+    "func_risk": 0.9870533718973215,
+    "composite_risk": 0.7470963672416394
   },
   {
     "key": "9f815558f923e53e740ba9fe",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6903210351773627,
-    "env_risk": 0.7345447164365696,
-    "func_risk": 0.7573464582472159,
-    "composite_risk": 0.6130438227964726
+    "ic_risk": 0.69077810777983,
+    "env_risk": 0.7356937223198331,
+    "func_risk": 0.7581769390022712,
+    "composite_risk": 0.6134900222295598
   },
   {
     "key": "97e82681f9d64c21ef5f4fc9",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.25006527711757254,
-    "env_risk": 0.4532277147451872,
-    "func_risk": 0.44278919885866586,
-    "composite_risk": 0.37503411874526116
+    "ic_risk": 0.250036244860511,
+    "env_risk": 0.4528503356644691,
+    "func_risk": 0.4418900309154674,
+    "composite_risk": 0.37480752185211075
   },
   {
     "key": "b607053d9fe87ecd9c03442c",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22959789234339356,
-    "env_risk": 0.5607572318246589,
-    "func_risk": 0.4890394532696668,
-    "composite_risk": 0.3286398711918451
+    "ic_risk": 0.2294884691402093,
+    "env_risk": 0.5649371791087034,
+    "func_risk": 0.4882983410969447,
+    "composite_risk": 0.3293011635689116
   },
   {
     "key": "c31afa04d819cfacd0d65def",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.12537687747322934,
-    "env_risk": 0.6462918172344807,
-    "func_risk": 0.5837701159585746,
-    "composite_risk": 0.3974632928643991
+    "ic_risk": 0.12585119447714158,
+    "env_risk": 0.6469185955245694,
+    "func_risk": 0.582617783416041,
+    "composite_risk": 0.39748511883897614
   },
   {
     "key": "5c449a5b8ce27677146be9e0",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1871141868939679,
-    "env_risk": 0.45960103166873245,
-    "func_risk": 0.5525862051254495,
-    "composite_risk": 0.32897940341901905
+    "ic_risk": 0.18780619606894927,
+    "env_risk": 0.45888019353105514,
+    "func_risk": 0.5514175619322057,
+    "composite_risk": 0.3287810277168148
   },
   {
     "key": "39d19c83add21fb1649ed08f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06318085376981229,
-    "env_risk": 0.6450135445891275,
-    "func_risk": 0.5655982109541171,
-    "composite_risk": 0.30336112649152525
+    "ic_risk": 0.06283037940915205,
+    "env_risk": 0.6452024620264889,
+    "func_risk": 0.5655263070843821,
+    "composite_risk": 0.30331816264528394
   },
   {
     "key": "f4dcdcaff38105e775f867b4",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.001309313461945736,
-    "env_risk": 0.5916555414489888,
-    "func_risk": 0.4707267371950544,
-    "composite_risk": 0.3590356462075389
+    "ic_risk": 0.0008821967402370194,
+    "env_risk": 0.5925419450815574,
+    "func_risk": 0.471655587264683,
+    "composite_risk": 0.3592773191993681
   },
   {
     "key": "b82fc9a01a688fb45248df12",
     "cluster_named_id": 4,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.29163738489855046,
-    "env_risk": 0.7614845870544857,
-    "func_risk": 0.49369459498500823,
-    "composite_risk": 0.3866505877734859
+    "ic_risk": 0.2934045003678498,
+    "env_risk": 0.7617807737520591,
+    "func_risk": 0.49484863303652993,
+    "composite_risk": 0.38723818971910995
   },
   {
     "key": "fc8cb1515dd127353a875611",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6022148949226294,
-    "env_risk": 0.7747522345682035,
-    "func_risk": 0.7919922076258328,
-    "composite_risk": 0.6266398866852477
+    "ic_risk": 0.6023804351542075,
+    "env_risk": 0.7745231892882438,
+    "func_risk": 0.7947321665779636,
+    "composite_risk": 0.6270797551905358
   },
   {
     "key": "ae2eea4332f53f5ae1f0056a",
-    "cluster_named_id": 1,
+    "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18734833806588896,
-    "env_risk": 0.5157238208868027,
-    "func_risk": 0.5001302159134323,
-    "composite_risk": 0.3448528762241095
+    "ic_risk": 0.18745583118419945,
+    "env_risk": 0.5148730678454001,
+    "func_risk": 0.4975423390994339,
+    "composite_risk": 0.34428279901460457
   },
   {
     "key": "23507151068a922c21701ca9",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.45575733692566217,
-    "env_risk": 0.6565856630232442,
-    "func_risk": 0.6438352206445885,
-    "composite_risk": 0.4831688388965216
+    "ic_risk": 0.45714923264992624,
+    "env_risk": 0.6539889044287059,
+    "func_risk": 0.6469471809840083,
+    "composite_risk": 0.4834503762499981
   },
   {
     "key": "c27bdd9ca9dfeeda69a6d24b",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3756238204262502,
-    "env_risk": 0.7696280054509139,
-    "func_risk": 0.6420911751227592,
-    "composite_risk": 0.43868102037660933
+    "ic_risk": 0.37597977162411217,
+    "env_risk": 0.7720199219090942,
+    "func_risk": 0.6426773481458077,
+    "composite_risk": 0.43930670344920053
   },
   {
     "key": "542aeaf1b73a143bd425ccad",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3974906670201882,
-    "env_risk": 0.4888418071657472,
-    "func_risk": 0.4835831666379167,
-    "composite_risk": 0.40381522377604884
+    "ic_risk": 0.3963865272333813,
+    "env_risk": 0.4867889025160825,
+    "func_risk": 0.4819670556664789,
+    "composite_risk": 0.40294083441174083
   },
   {
     "key": "fdb0c7649ad4171909023034",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0856922410995368,
-    "env_risk": 0.6813516172402617,
-    "func_risk": 0.5229827804921716,
-    "composite_risk": 0.3782181015116195
+    "ic_risk": 0.08547987767725206,
+    "env_risk": 0.6811420119015454,
+    "func_risk": 0.5233302214546917,
+    "composite_risk": 0.3781942002839427
   },
   {
     "key": "c8e5f08e7781711220cc73a0",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16797689433085838,
-    "env_risk": 0.6693273643148419,
-    "func_risk": 0.597003380805616,
-    "composite_risk": 0.3818166276222239
+    "ic_risk": 0.1679112077908426,
+    "env_risk": 0.6697998730885798,
+    "func_risk": 0.599120461077338,
+    "composite_risk": 0.3822442591470495
   },
   {
     "key": "889c6c57d3eb76acaf537758",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.062318648469165926,
-    "env_risk": 0.5634090987443048,
-    "func_risk": 0.4544319406414016,
-    "composite_risk": 0.2981238615444244
+    "ic_risk": 0.062482928317155136,
+    "env_risk": 0.5594912781539162,
+    "func_risk": 0.45513304901501095,
+    "composite_risk": 0.297516987833158
   },
   {
     "key": "d3b6321c35f884bce8f207d8",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2080104686276747,
-    "env_risk": 0.536246121460885,
-    "func_risk": 0.5125146541994006,
-    "composite_risk": 0.3640943115349488
+    "ic_risk": 0.20836292565867334,
+    "env_risk": 0.5369651141940371,
+    "func_risk": 0.5116830683266562,
+    "composite_risk": 0.36416335394554505
   },
   {
     "key": "461f5ad60327f5f59deac141",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.37572511971181544,
-    "env_risk": 0.5779725067097253,
-    "func_risk": 0.6426144372955223,
-    "composite_risk": 0.3727781752399078
+    "ic_risk": 0.37591990052643476,
+    "env_risk": 0.5823795152693798,
+    "func_risk": 0.6417251308939924,
+    "composite_risk": 0.37351728413820307
   },
   {
     "key": "e2cb101460448d35cd2c62c7",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.25008675560445237,
-    "env_risk": 0.6054683609111671,
-    "func_risk": 0.5788957815623819,
-    "composite_risk": 0.33450716388704976
+    "ic_risk": 0.24986634663039425,
+    "env_risk": 0.6057555413940808,
+    "func_risk": 0.5799805011101076,
+    "composite_risk": 0.3346989961278792
   },
   {
     "key": "2a620962012d48dbccb1187f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22915414730743885,
-    "env_risk": 0.5284916953292517,
-    "func_risk": 0.5996137738219276,
-    "composite_risk": 0.386533097388181
+    "ic_risk": 0.22946585637229494,
+    "env_risk": 0.5309094014088286,
+    "func_risk": 0.6006246315140154,
+    "composite_risk": 0.38722530132267885
   },
   {
     "key": "f8f1e54448fc50e0854634aa",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14673533614824827,
-    "env_risk": 0.4378553425955939,
-    "func_risk": 0.5148388633035023,
-    "composite_risk": 0.2644871181032675
+    "ic_risk": 0.14615598682884415,
+    "env_risk": 0.4371549241735158,
+    "func_risk": 0.5187894808590074,
+    "composite_risk": 0.2648926147096905
   },
   {
     "key": "ed708711f7da19e0eb7bdb68",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12582819851973118,
-    "env_risk": 0.40672296768263194,
-    "func_risk": 0.46642483102901783,
-    "composite_risk": 0.30727619661374284
+    "ic_risk": 0.12565003605859337,
+    "env_risk": 0.40574219114633125,
+    "func_risk": 0.46540986530101364,
+    "composite_risk": 0.30688563151161524
   },
   {
     "key": "450c926e72b15f75f18e5e37",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18894164814813735,
-    "env_risk": 0.5161305978865385,
-    "func_risk": 0.5476803696351467,
-    "composite_risk": 0.2872486683514743
+    "ic_risk": 0.18830552928483318,
+    "env_risk": 0.5177964647550016,
+    "func_risk": 0.5464467618288449,
+    "composite_risk": 0.28724334955442765
   },
   {
     "key": "4985d0bf4b253a5ad114d116",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3541146799093071,
-    "env_risk": 0.4850769850579324,
-    "func_risk": 0.6466781881350264,
-    "composite_risk": 0.406261296548473
+    "ic_risk": 0.3541262826836792,
+    "env_risk": 0.48327286629990385,
+    "func_risk": 0.6479768686328469,
+    "composite_risk": 0.40613051950375945
   },
   {
     "key": "9bc8d724cc67489bb7577961",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.35428798172579634,
-    "env_risk": 0.513181765427194,
-    "func_risk": 0.6100474301400188,
-    "composite_risk": 0.4134907523000538
+    "ic_risk": 0.35410082190328007,
+    "env_risk": 0.5136149290361531,
+    "func_risk": 0.6107502779634342,
+    "composite_risk": 0.4136540779198075
   },
   {
     "key": "a5e191ba28ed286d75eea97c",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31221136354902823,
-    "env_risk": 0.5793144268838818,
-    "func_risk": 0.6270481955468886,
-    "composite_risk": 0.4618766669235719
+    "ic_risk": 0.3125713886965186,
+    "env_risk": 0.5764046378231784,
+    "func_risk": 0.6266402713006196,
+    "composite_risk": 0.46131852986964395
   },
   {
     "key": "b5cd22daf67b38259bbbb566",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29160591702685107,
-    "env_risk": 0.631229234082183,
-    "func_risk": 0.6776114824236706,
-    "composite_risk": 0.44114666118839474
+    "ic_risk": 0.2915607582187573,
+    "env_risk": 0.628396279443453,
+    "func_risk": 0.6770341991433052,
+    "composite_risk": 0.4404973726086209
   },
   {
     "key": "6d614f38c6426109ab732b1c",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.12559434709305933,
-    "env_risk": 0.7827499613830473,
-    "func_risk": 0.5648822431380341,
-    "composite_risk": 0.46561184949942613
+    "ic_risk": 0.12536840937719876,
+    "env_risk": 0.7831420030148307,
+    "func_risk": 0.5674309406797311,
+    "composite_risk": 0.4660643595976213
   },
   {
     "key": "493e88782da2215ca5bfc81b",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2708952999310068,
-    "env_risk": 0.6175056567748058,
-    "func_risk": 0.5981230489949205,
-    "composite_risk": 0.3712724872500308
+    "ic_risk": 0.2709262173677157,
+    "env_risk": 0.6161480333204511,
+    "func_risk": 0.5959993897644097,
+    "composite_risk": 0.37066669256859974
   },
   {
     "key": "f2c7146155761b63274501d5",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2515637196692989,
-    "env_risk": 0.5423640780959376,
-    "func_risk": 0.45560248951058446,
-    "composite_risk": 0.3561655118390544
+    "ic_risk": 0.25116120929099905,
+    "env_risk": 0.5426841577464661,
+    "func_risk": 0.45611435653343935,
+    "composite_risk": 0.35623410198272953
   },
   {
     "key": "fd5f12781dbecf84f94a1090",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3097317069722318,
-    "env_risk": 0.6950898125042827,
-    "func_risk": 0.6665244635912941,
-    "composite_risk": 0.5257946789917926
+    "ic_risk": 0.3103258200671418,
+    "env_risk": 0.6935415791895221,
+    "func_risk": 0.669360851360191,
+    "composite_risk": 0.5260790148313393
   },
   {
     "key": "452c3ac44ea475d8010bc027",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1442870444680847,
-    "env_risk": 0.49570347700915285,
-    "func_risk": 0.4337234160507253,
-    "composite_risk": 0.37723753903273793
+    "ic_risk": 0.14412604109596147,
+    "env_risk": 0.49508168310719164,
+    "func_risk": 0.43321096221006916,
+    "composite_risk": 0.3770022956737684
   },
   {
     "key": "14bf31e5c5559eb829b1654e",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.27036656487118316,
-    "env_risk": 0.5491635238581822,
-    "func_risk": 0.42323752966467026,
-    "composite_risk": 0.38752373447507343
+    "ic_risk": 0.26943514828317605,
+    "env_risk": 0.5477778839527535,
+    "func_risk": 0.42442336177865797,
+    "composite_risk": 0.387273363398895
   },
   {
     "key": "0908b175f66b436e901d87d0",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.37532182489518584,
-    "env_risk": 0.6256644035049757,
-    "func_risk": 0.5784813313451413,
-    "composite_risk": 0.4063092686389794
+    "ic_risk": 0.37523545035797656,
+    "env_risk": 0.6275170667605007,
+    "func_risk": 0.5777423484805125,
+    "composite_risk": 0.4065273470445914
   },
   {
     "key": "310895a4249c59af436eabce",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3117518166858564,
-    "env_risk": 0.42327905639156804,
-    "func_risk": 0.5064840743769684,
-    "composite_risk": 0.36235831533960394
+    "ic_risk": 0.3122656122498103,
+    "env_risk": 0.424203010290844,
+    "func_risk": 0.5084808335573038,
+    "composite_risk": 0.3629645473760311
   },
   {
     "key": "fc5d38a318ec60378669d2ee",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3751633774767361,
-    "env_risk": 0.6747130374999901,
-    "func_risk": 0.6509923059575248,
-    "composite_risk": 0.47232494036601136
+    "ic_risk": 0.3761273347542588,
+    "env_risk": 0.6766196653665176,
+    "func_risk": 0.6524199708991169,
+    "composite_risk": 0.47311309272160373
   },
   {
     "key": "e7e722c50373e624e23dfcf8",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4162427272786994,
-    "env_risk": 0.4654200941313676,
-    "func_risk": 0.5755367143563093,
-    "composite_risk": 0.4130036509902289
+    "ic_risk": 0.4168545200156449,
+    "env_risk": 0.462203462723908,
+    "func_risk": 0.5735730634518046,
+    "composite_risk": 0.4121782171469117
   },
   {
     "key": "0f8815d722fb6249163977b5",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14563448828749592,
-    "env_risk": 0.5751465563678796,
-    "func_risk": 0.48069699140578626,
-    "composite_risk": 0.35824035467811455
+    "ic_risk": 0.14653888343699234,
+    "env_risk": 0.5751923490636329,
+    "func_risk": 0.4824602235083838,
+    "composite_risk": 0.3587141991352537
   },
   {
     "key": "46ce2b76e3f9233eb9950667",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6707823136148006,
-    "env_risk": 0.7871008697703512,
-    "func_risk": 0.8081430141043893,
-    "composite_risk": 0.660406110128866
+    "ic_risk": 0.6719053258164691,
+    "env_risk": 0.7875213826423095,
+    "func_risk": 0.8089042205888393,
+    "composite_risk": 0.6608288377754734
   },
   {
     "key": "615e5490a06db403b7df209b",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0006388888888888872,
-    "env_risk": 0.44367341264232074,
-    "func_risk": 0.43051869703982004,
-    "composite_risk": 0.22370570305632817
+    "ic_risk": 0.0007395833333333317,
+    "env_risk": 0.4454755512231487,
+    "func_risk": 0.4319059751350648,
+    "composite_risk": 0.22430089929940847
   },
   {
     "key": "87f14b1e3716a3f104514498",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.4810373795175578,
-    "env_risk": 0.8505745473488763,
-    "func_risk": 0.6386535487903634,
-    "composite_risk": 0.6096181314721985
+    "ic_risk": 0.4813068092656173,
+    "env_risk": 0.8504990762533532,
+    "func_risk": 0.6374939867105606,
+    "composite_risk": 0.6094641407696444
   },
   {
     "key": "7dee6bb383ff831b57815480",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14403267522951385,
-    "env_risk": 0.4039295825502397,
-    "func_risk": 0.4664045653121694,
-    "composite_risk": 0.3054694878991105
+    "ic_risk": 0.14475040521270094,
+    "env_risk": 0.40152933316727457,
+    "func_risk": 0.46661393502964643,
+    "composite_risk": 0.3051801489180369
   },
   {
     "key": "e8fdf8584f30ea3b842ef9b5",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31394942868088915,
-    "env_risk": 0.5356007681225909,
-    "func_risk": 0.5609470396437873,
-    "composite_risk": 0.44279967442589485
+    "ic_risk": 0.3141402392125878,
+    "env_risk": 0.5356377557265716,
+    "func_risk": 0.560271275335612,
+    "composite_risk": 0.4427320244561642
   },
   {
     "key": "5cc5ac3a72554283c833a6b1",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.7462227549573306,
-    "env_risk": 0.8071526869950952,
-    "func_risk": 0.7417787668942795,
-    "composite_risk": 0.6499282691133981
+    "ic_risk": 0.7476415552318422,
+    "env_risk": 0.8068772865018087,
+    "func_risk": 0.7407946670289786,
+    "composite_risk": 0.6499859970935092
   },
   {
     "key": "90bcc856bc2a44c6d26eb9f6",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16581558804232502,
-    "env_risk": 0.48883962856554736,
-    "func_risk": 0.4099767109386163,
-    "composite_risk": 0.31993728650188713
+    "ic_risk": 0.1655820884352576,
+    "env_risk": 0.4901234472025585,
+    "func_risk": 0.41166596064460637,
+    "composite_risk": 0.3204181991166397
   },
   {
     "key": "1a03176b270804a2a57547ca",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06213533178640358,
-    "env_risk": 0.3579990145176304,
-    "func_risk": 0.3803829428072988,
-    "composite_risk": 0.17734404722673086
+    "ic_risk": 0.0621800626371124,
+    "env_risk": 0.3570219755717788,
+    "func_risk": 0.38275071557901824,
+    "composite_risk": 0.17755526042574954
   },
   {
     "key": "7212b936d59ca8071e469d5a",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.16656599376657946,
-    "env_risk": 0.6445768453930456,
-    "func_risk": 0.5030937404779043,
-    "composite_risk": 0.403990463717082
+    "ic_risk": 0.16671636451847646,
+    "env_risk": 0.6449376542149396,
+    "func_risk": 0.5060305054188494,
+    "composite_risk": 0.4045734320002928
   },
   {
     "key": "88c442d2d1728257ca630efc",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.24994452931952085,
-    "env_risk": 0.6268978733572911,
-    "func_risk": 0.5268039928775262,
-    "composite_risk": 0.40470982134007816
+    "ic_risk": 0.24997754686120352,
+    "env_risk": 0.6268352930773498,
+    "func_risk": 0.5280724536511476,
+    "composite_risk": 0.4049134265406109
   },
   {
     "key": "14b5b954a1508734320f9d6a",
-    "cluster_named_id": 1,
+    "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14672366092603112,
-    "env_risk": 0.5227466257035986,
-    "func_risk": 0.4766276515307441,
-    "composite_risk": 0.3364415926787765
+    "ic_risk": 0.146976341262621,
+    "env_risk": 0.5241882643807161,
+    "func_risk": 0.47495842079544204,
+    "composite_risk": 0.33649232601759027
   },
   {
     "key": "29dafefa02dec315c4538217",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3965111178136892,
-    "env_risk": 0.7085813524936374,
-    "func_risk": 0.6799499947174389,
-    "composite_risk": 0.5051470496625378
+    "ic_risk": 0.39676227602528796,
+    "env_risk": 0.7100788914843884,
+    "func_risk": 0.6788043533597676,
+    "composite_risk": 0.5052946430499744
   },
   {
     "key": "fe37ca509109512861dcbe60",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5350453679264462,
-    "env_risk": 0.6188918194821376,
-    "func_risk": 0.732636421091216,
-    "composite_risk": 0.5015529180562031
+    "ic_risk": 0.5373889426042331,
+    "env_risk": 0.6214000256947957,
+    "func_risk": 0.7335682098680987,
+    "composite_risk": 0.5026406310257994
   },
   {
     "key": "13b571b1f18bc848f7147121",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18491532378369568,
-    "env_risk": 0.5635695000568443,
-    "func_risk": 0.5131335060246305,
-    "composite_risk": 0.380355357083368
+    "ic_risk": 0.18547204053847058,
+    "env_risk": 0.5603729824143079,
+    "func_risk": 0.5136012285341026,
+    "composite_risk": 0.37992436962653675
   },
   {
     "key": "46284d3fc620a3f5acd62a08",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.20814565769999727,
-    "env_risk": 0.4505013700493012,
-    "func_risk": 0.5045096440264047,
-    "composite_risk": 0.3315786441060967
+    "ic_risk": 0.2086257247348054,
+    "env_risk": 0.4497968251715798,
+    "func_risk": 0.5020502592517332,
+    "composite_risk": 0.3311296336335151
   },
   {
     "key": "4f233183a8d69e8c9286f559",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2873095467939044,
-    "env_risk": 0.6122870222210509,
-    "func_risk": 0.6233112234070742,
-    "composite_risk": 0.4152936913975461
+    "ic_risk": 0.289237065838842,
+    "env_risk": 0.6105006083386373,
+    "func_risk": 0.6230949388624786,
+    "composite_risk": 0.4152851671914738
   },
   {
     "key": "37609c84e79cf22b1f1d7ced",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.49698849059181066,
-    "env_risk": 0.6466176525277482,
-    "func_risk": 0.7665673999483374,
-    "composite_risk": 0.5291928035419908
+    "ic_risk": 0.4961337653755335,
+    "env_risk": 0.6459216319116148,
+    "func_risk": 0.7667190505802371,
+    "composite_risk": 0.5289193073235152
   },
   {
     "key": "633198bdd34d0fb3db6e4ea8",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.24883224508016172,
-    "env_risk": 0.454602597600314,
-    "func_risk": 0.4411706900124952,
-    "composite_risk": 0.31242437106805326
+    "ic_risk": 0.24883331810026477,
+    "env_risk": 0.4583575074749996,
+    "func_risk": 0.44228938276838925,
+    "composite_risk": 0.31333198208002266
   },
   {
     "key": "8077f7f6bc4f965c8917e937",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14724894897640772,
-    "env_risk": 0.5020672711432546,
-    "func_risk": 0.38851273214713083,
-    "composite_risk": 0.3439429731773116
+    "ic_risk": 0.14616070225667904,
+    "env_risk": 0.5013885518252543,
+    "func_risk": 0.38662647148191875,
+    "composite_risk": 0.34329159920528873
   },
   {
     "key": "6c731d6dde455d79f7fa0002",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1458284475371858,
-    "env_risk": 0.5542002484520097,
-    "func_risk": 0.58888290954339,
-    "composite_risk": 0.3076562040525795
+    "ic_risk": 0.14563303047244186,
+    "env_risk": 0.5543114089568252,
+    "func_risk": 0.5858812983915026,
+    "composite_risk": 0.3071447188247319
   },
   {
     "key": "d56ec7d36632edcaa600e414",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.37549556213729846,
-    "env_risk": 0.6035327100082087,
-    "func_risk": 0.5882095095695004,
-    "composite_risk": 0.44693251146697777
+    "ic_risk": 0.37533642777602344,
+    "env_risk": 0.6010964658102527,
+    "func_risk": 0.5886721326562978,
+    "composite_risk": 0.4465092339036473
   },
   {
     "key": "44e7b92f87bdf22d6942eaaf",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4584205556061334,
-    "env_risk": 0.7031523362976831,
-    "func_risk": 0.6569708748423966,
-    "composite_risk": 0.4511629760404801
+    "ic_risk": 0.4586432824053746,
+    "env_risk": 0.7068898453269606,
+    "func_risk": 0.655487337648999,
+    "composite_risk": 0.45168053780055933
   },
   {
     "key": "378534ee89960be957ca6237",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.00039444444444444444,
-    "env_risk": 0.5315863981062077,
-    "func_risk": 0.5297466875021866,
-    "composite_risk": 0.2349045156288613
+    "ic_risk": 0.0009722222222222212,
+    "env_risk": 0.5306908270867288,
+    "func_risk": 0.5318825259230494,
+    "composite_risk": 0.2351957537692762
   },
   {
     "key": "74d9052f9b6417c2a7d46bb5",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3122048990356961,
-    "env_risk": 0.6237184913165901,
-    "func_risk": 0.6692052301067845,
-    "composite_risk": 0.3699641156104346
+    "ic_risk": 0.3129141717662734,
+    "env_risk": 0.6235430291771131,
+    "func_risk": 0.6702188173077283,
+    "composite_risk": 0.3702341160373771
   },
   {
     "key": "7236a3185c1160a43610cf54",
     "cluster_named_id": 4,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3122369737332272,
-    "env_risk": 0.6135582283979747,
-    "func_risk": 0.5617890352226125,
-    "composite_risk": 0.3873257672219874
+    "ic_risk": 0.312460067529516,
+    "env_risk": 0.6164019133992079,
+    "func_risk": 0.5607642956909193,
+    "composite_risk": 0.38774704011778105
   },
   {
     "key": "4a3b40330bd36e90199cdc92",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.023042852745586435,
-    "env_risk": 0.6455324931743297,
-    "func_risk": 0.5754739146293417,
-    "composite_risk": 0.29637395000342526
+    "ic_risk": 0.023192138460679638,
+    "env_risk": 0.6447793342088366,
+    "func_risk": 0.573013001109973,
+    "composite_risk": 0.2958516536720274
   },
   {
     "key": "aa1e800b81f87360cd5b439f",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12510045477759796,
-    "env_risk": 0.4144487135252995,
-    "func_risk": 0.4682191656510526,
-    "composite_risk": 0.22458937723073147
+    "ic_risk": 0.12459714022112461,
+    "env_risk": 0.41295196446360366,
+    "func_risk": 0.4682524796913861,
+    "composite_risk": 0.2242098618008889
   },
   {
     "key": "70e9b9be1341bb47287d2bec",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41633124796961196,
-    "env_risk": 0.6098873794012085,
-    "func_risk": 0.6609241949791653,
-    "composite_risk": 0.47800457794044515
+    "ic_risk": 0.4155288470123463,
+    "env_risk": 0.6123821222655002,
+    "func_risk": 0.6618102974464675,
+    "composite_risk": 0.4784765606646526
   },
   {
     "key": "17f1b190fc9731da7a236b6f",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41801977534983503,
-    "env_risk": 0.6796287216176397,
-    "func_risk": 0.6441288649803649,
-    "composite_risk": 0.5037435983879991
+    "ic_risk": 0.41744726693240636,
+    "env_risk": 0.6817603769651424,
+    "func_risk": 0.6450662450804902,
+    "composite_risk": 0.504198401888559
   },
   {
     "key": "61e313fde1d749f8083a055f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.04216860420725896,
-    "env_risk": 0.5770292329971892,
-    "func_risk": 0.547316876856085,
-    "composite_risk": 0.2851928683431103
+    "ic_risk": 0.042592729226932656,
+    "env_risk": 0.5758229996138986,
+    "func_risk": 0.5474665646897191,
+    "composite_risk": 0.2850670109756637
   },
   {
     "key": "eefd72e9a75fc3c8fc6293e3",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5787532369638475,
-    "env_risk": 0.7557063678721887,
-    "func_risk": 0.7086316924316254,
-    "composite_risk": 0.6227927031821552
+    "ic_risk": 0.579536297877261,
+    "env_risk": 0.7511368782765036,
+    "func_risk": 0.7088284926134406,
+    "composite_risk": 0.6220962876908174
   },
   {
     "key": "e72a189d35c8b6102c01ab5e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29126843850445516,
-    "env_risk": 0.6257585330177236,
-    "func_risk": 0.5230268264614857,
-    "composite_risk": 0.44845211838416454
+    "ic_risk": 0.2920463306528686,
+    "env_risk": 0.6250766895586403,
+    "func_risk": 0.5227909298562965,
+    "composite_risk": 0.4484316848170044
   },
   {
     "key": "300a7ea87189cc33a9fbad34",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.04225316673775121,
-    "env_risk": 0.3249538672065553,
-    "func_risk": 0.3446535768248755,
-    "composite_risk": 0.22183019421038347
+    "ic_risk": 0.042602652011712,
+    "env_risk": 0.3215000330518499,
+    "func_risk": 0.34462762589139007,
+    "composite_risk": 0.22122832514681504
   },
   {
     "key": "542e2b3aef12b626cedd09f2",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14610756630384633,
-    "env_risk": 0.3888485480982061,
-    "func_risk": 0.4139013182416127,
-    "composite_risk": 0.3296727695322612
+    "ic_risk": 0.14637989693723302,
+    "env_risk": 0.38650154547304405,
+    "func_risk": 0.4151327444294898,
+    "composite_risk": 0.32947658049484413
   },
   {
     "key": "fcdcf6c53e16ac61c9744cc6",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0010009259259259249,
-    "env_risk": 0.4591649924308787,
-    "func_risk": 0.3048857519949396,
-    "composite_risk": 0.2624580883628499
+    "ic_risk": 0.001272453703703703,
+    "env_risk": 0.45615054249893,
+    "func_risk": 0.3049432212535378,
+    "composite_risk": 0.2619395582758407
   },
   {
     "key": "fa8bb029f2cc330cf4fa3450",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3723812262436417,
-    "env_risk": 0.5139852665543917,
-    "func_risk": 0.6144157623809529,
-    "composite_risk": 0.44885415065647866
+    "ic_risk": 0.3734290396667252,
+    "env_risk": 0.5170634969704971,
+    "func_risk": 0.6137965995521818,
+    "composite_risk": 0.4495462522287753
   },
   {
     "key": "ed19e5c6cad2969f1eb2d533",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6417953122411155,
-    "env_risk": 0.6110328792183871,
-    "func_risk": 0.8017120964837297,
-    "composite_risk": 0.5560619227757697
+    "ic_risk": 0.6403660268337933,
+    "env_risk": 0.6119871592917636,
+    "func_risk": 0.8060997596469509,
+    "composite_risk": 0.5566944486709167
   },
   {
     "key": "929031aa857d3ca99bba3ec3",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.333893302397873,
-    "env_risk": 0.5667385790092927,
-    "func_risk": 0.603675243591804,
-    "composite_risk": 0.46472305236352707
+    "ic_risk": 0.33428849785234105,
+    "env_risk": 0.5652882780247979,
+    "func_risk": 0.6036950792063415,
+    "composite_risk": 0.4645232174253956
   },
   {
     "key": "35dd70c6df67821aeb5e0aaa",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5203547629465142,
-    "env_risk": 0.7049696665590404,
-    "func_risk": 0.6245698687605528,
-    "composite_risk": 0.5325639810253104
+    "ic_risk": 0.5192442788766701,
+    "env_risk": 0.7082781822485689,
+    "func_risk": 0.6237815897800572,
+    "composite_risk": 0.532857036080318
   },
   {
     "key": "a9a5391d03f39f74905fbd46",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2514177654757129,
-    "env_risk": 0.5862439983748067,
-    "func_risk": 0.39802326345477446,
-    "composite_risk": 0.3562087280112628
+    "ic_risk": 0.2529566535903941,
+    "env_risk": 0.5875225389065136,
+    "func_risk": 0.40095487744932484,
+    "composite_risk": 0.3572347993347933
   },
   {
     "key": "28c1d20b9db389fefb606e66",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41697241056299483,
-    "env_risk": 0.5993569167304935,
-    "func_risk": 0.6468367241602675,
-    "composite_risk": 0.48817645499044066
+    "ic_risk": 0.4163480079374092,
+    "env_risk": 0.5995247845075878,
+    "func_risk": 0.6463244694250192,
+    "composite_risk": 0.4880040500007901
   },
   {
     "key": "8fc625f5cf2baab4b0a0cea3",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14371796861379718,
-    "env_risk": 0.5324520761559011,
-    "func_risk": 0.4190816803791862,
-    "composite_risk": 0.30353121088073265
+    "ic_risk": 0.14471731739438579,
+    "env_risk": 0.5346820758565062,
+    "func_risk": 0.42156301746748015,
+    "composite_risk": 0.30456228108293093
   },
   {
     "key": "813d763c02c866fcb3223ce0",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5408964713510584,
-    "env_risk": 0.6838911208010212,
-    "func_risk": 0.6976641580150081,
-    "composite_risk": 0.6226411975617517
+    "ic_risk": 0.5407865116056539,
+    "env_risk": 0.6838054543451182,
+    "func_risk": 0.6965476156311914,
+    "composite_risk": 0.6224193100246702
   },
   {
     "key": "f1f56931af43fe1115a51108",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3964385011181434,
-    "env_risk": 0.564556732915012,
-    "func_risk": 0.5847423878296278,
-    "composite_risk": 0.46228407654327097
+    "ic_risk": 0.3962425793044754,
+    "env_risk": 0.5615877116316204,
+    "func_risk": 0.5832718173941833,
+    "composite_risk": 0.46143218087523874
   },
   {
     "key": "aac4e62abc0635010115e41c",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.35516528630817246,
-    "env_risk": 0.6052291559618791,
-    "func_risk": 0.684577162513502,
-    "composite_risk": 0.4513711619517128
+    "ic_risk": 0.35435784653170144,
+    "env_risk": 0.6050489460548851,
+    "func_risk": 0.6824964795929999,
+    "composite_risk": 0.4508377267057629
   },
   {
     "key": "36aa317c7af6c9dd353db9bc",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.20844654056006962,
-    "env_risk": 0.6083794244908689,
-    "func_risk": 0.6231797278636233,
-    "composite_risk": 0.42809365336980354
+    "ic_risk": 0.2085046903668051,
+    "env_risk": 0.6110128357173845,
+    "func_risk": 0.6240716110553227,
+    "composite_risk": 0.4287589395953348
   },
   {
     "key": "b9272070143bd48c28443598",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.28750188280298666,
-    "env_risk": 0.43885726471897424,
-    "func_risk": 0.45890531788021505,
-    "composite_risk": 0.34163351334821296
+    "ic_risk": 0.28792029259095087,
+    "env_risk": 0.43801883756858007,
+    "func_risk": 0.4601682116072362,
+    "composite_risk": 0.3417610374709037
   },
   {
     "key": "0b297470413600c5ae32b505",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29149800137461307,
-    "env_risk": 0.7334363403241096,
-    "func_risk": 0.5760480351835888,
-    "composite_risk": 0.5111377865822962
+    "ic_risk": 0.2920692981551741,
+    "env_risk": 0.7352683606119679,
+    "func_risk": 0.5736694461760866,
+    "composite_risk": 0.5112079579317291
   },
   {
     "key": "ca9c1ad698f569441bf2cf6f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.250185070127793,
-    "env_risk": 0.5909235326299808,
-    "func_risk": 0.6205576083384663,
-    "composite_risk": 0.35498041140671843
+    "ic_risk": 0.2499479645263678,
+    "env_risk": 0.588904812482929,
+    "func_risk": 0.6175996771113927,
+    "composite_risk": 0.35405810629766943
   },
   {
     "key": "788c653e1b446108f3589857",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22972738598689493,
-    "env_risk": 0.5563363632209346,
-    "func_risk": 0.5071042734675422,
-    "composite_risk": 0.3770994768446516
+    "ic_risk": 0.2290915154551527,
+    "env_risk": 0.5544060043349478,
+    "func_risk": 0.506523341994889,
+    "composite_risk": 0.37650962398875104
   },
   {
     "key": "bf0433c67ec40e5adce1879c",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3333458087230452,
-    "env_risk": 0.4666677388089163,
-    "func_risk": 0.49335010232750415,
-    "composite_risk": 0.3132553747839407
+    "ic_risk": 0.3334660740829513,
+    "env_risk": 0.4665729939720454,
+    "func_risk": 0.49225720119653343,
+    "composite_risk": 0.31307995879801487
   },
   {
     "key": "a75c137231da02ca56cbde80",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.1670400049110246,
-    "env_risk": 0.5587587644358791,
-    "func_risk": 0.5090491037394607,
-    "composite_risk": 0.42625436521629
+    "ic_risk": 0.1669655707585751,
+    "env_risk": 0.5593394267061983,
+    "func_risk": 0.5117347197833426,
+    "composite_risk": 0.42679494077622043
   },
   {
     "key": "ab68a31e21bf434f16ca5afb",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.14622238949135702,
-    "env_risk": 0.6118142968439835,
-    "func_risk": 0.5113608691193855,
-    "composite_risk": 0.4188016055242516
+    "ic_risk": 0.14676334175380515,
+    "env_risk": 0.6142023651489873,
+    "func_risk": 0.5107758504511193,
+    "composite_risk": 0.4192689139032223
   },
   {
     "key": "8fe4475da65239a9d1d09952",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3542240635266531,
-    "env_risk": 0.5156768481928021,
-    "func_risk": 0.5554149597339398,
-    "composite_risk": 0.3109393938620952
+    "ic_risk": 0.35410116199938524,
+    "env_risk": 0.5123898157327792,
+    "func_risk": 0.5541338317551157,
+    "composite_risk": 0.31007159545303575
   },
   {
     "key": "cb7f95ffb669c72206544c1b",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.8111200301795604,
-    "env_risk": 0.7450015004913256,
-    "func_risk": 0.8883995489563361,
-    "composite_risk": 0.6552093202319411
+    "ic_risk": 0.8111160222504661,
+    "env_risk": 0.7454615266855787,
+    "func_risk": 0.8881737221934028,
+    "composite_risk": 0.6552598423321001
   },
   {
     "key": "c03dd036ce55c6203a0da7c2",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3542981974968409,
-    "env_risk": 0.5698476036759169,
-    "func_risk": 0.5722018566249677,
-    "composite_risk": 0.48084137306887553
+    "ic_risk": 0.35471904038202473,
+    "env_risk": 0.5691565497068968,
+    "func_risk": 0.5744004874951354,
+    "composite_risk": 0.48115213152881475
   },
   {
     "key": "a4336a844625032c15492ca2",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5000431002328861,
-    "env_risk": 0.8864426826416594,
-    "func_risk": 0.792389059799552,
-    "composite_risk": 0.696892708070276
+    "ic_risk": 0.5002387643326791,
+    "env_risk": 0.8903466988624469,
+    "func_risk": 0.793086470306974,
+    "composite_risk": 0.6977969692657124
   },
   {
     "key": "1554226a5f308df3a91eed96",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.250371141006025,
-    "env_risk": 0.5958648236480644,
-    "func_risk": 0.6162241264443371,
-    "composite_risk": 0.4223474040592278
+    "ic_risk": 0.24992266841821545,
+    "env_risk": 0.596177990673428,
+    "func_risk": 0.6140796921194129,
+    "composite_risk": 0.42196752607484456
   },
   {
     "key": "22e4126ce94dfa18d9c08432",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.3547724007184065,
-    "env_risk": 0.7517332369831179,
-    "func_risk": 0.6781338748758875,
-    "composite_risk": 0.6028144246120649
+    "ic_risk": 0.3544103084753535,
+    "env_risk": 0.7498603807747262,
+    "func_risk": 0.6778356656073294,
+    "composite_risk": 0.6023349925058497
   },
   {
     "key": "f7e88a1f18ae2fb0780214fa",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3542402799523846,
-    "env_risk": 0.5474911607847128,
-    "func_risk": 0.5713444358603573,
-    "composite_risk": 0.41757013425885026
+    "ic_risk": 0.35452184844026113,
+    "env_risk": 0.548652644705893,
+    "func_risk": 0.5697333597671393,
+    "composite_risk": 0.4175820942922127
   },
   {
     "key": "034b2635b8777ad19188919f",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18884725915788997,
-    "env_risk": 0.5102208274568443,
-    "func_risk": 0.35695751323810254,
-    "composite_risk": 0.3411135963576233
+    "ic_risk": 0.18865504931825072,
+    "env_risk": 0.5091169850382871,
+    "func_risk": 0.3526251339934073,
+    "composite_risk": 0.3401492637225457
   },
   {
     "key": "04bfeda5762feb1a8b11923e",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.27291657752960885,
-    "env_risk": 0.6313472311272903,
-    "func_risk": 0.7151135711991978,
-    "composite_risk": 0.3677095224143208
+    "ic_risk": 0.27145149579149525,
+    "env_risk": 0.630329852180741,
+    "func_risk": 0.719846369670029,
+    "composite_risk": 0.3680125604802103
   },
   {
     "key": "966a9922fb2b905bec45aa51",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.35424219769353593,
-    "env_risk": 0.6053862469941367,
-    "func_risk": 0.7262149814174622,
-    "composite_risk": 0.45674394753625824
+    "ic_risk": 0.35448068940936417,
+    "env_risk": 0.6060201269142504,
+    "func_risk": 0.7244011532477137,
+    "composite_risk": 0.45661259742816857
   },
   {
     "key": "977fc000d3c8d46e6654dc88",
     "cluster_named_id": 3,
-    "overall_risk_level": "LOW",
-    "ic_risk": 0.3750462583052878,
-    "env_risk": 0.5099976174885614,
-    "func_risk": 0.5283513705177816,
-    "composite_risk": 0.38980392222574994
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.3754164910118566,
+    "env_risk": 0.5102100811349695,
+    "func_risk": 0.5290038690418617,
+    "composite_risk": 0.3900237535301712
   },
   {
     "key": "39eba5ee5c07380449f3c557",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.229553512464033,
-    "env_risk": 0.487468051270921,
-    "func_risk": 0.5916576503048893,
-    "composite_risk": 0.3926551633192854
+    "ic_risk": 0.22913375502136163,
+    "env_risk": 0.4858704752660259,
+    "func_risk": 0.5905439901147624,
+    "composite_risk": 0.3920830726992579
   },
   {
     "key": "a2e477fa575dc18cbd7bd2a3",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29280138425839264,
-    "env_risk": 0.5852055356369761,
-    "func_risk": 0.5640672001383098,
-    "composite_risk": 0.4568924201026796
+    "ic_risk": 0.2920585642050311,
+    "env_risk": 0.5855842502490468,
+    "func_risk": 0.5602127060372114,
+    "composite_risk": 0.45618633827854993
   },
   {
     "key": "936ac9c675f889fba53160e9",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5005771988425446,
-    "env_risk": 0.7956758197194344,
-    "func_risk": 0.6758922961282181,
-    "composite_risk": 0.571335934934337
+    "ic_risk": 0.49994593581061336,
+    "env_risk": 0.7948820426417665,
+    "func_risk": 0.674456946243856,
+    "composite_risk": 0.5708247819823193
   },
   {
     "key": "b57acbfbba4a6b819b550704",
-    "cluster_named_id": 4,
+    "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.291468368325745,
-    "env_risk": 0.7109981722704255,
-    "func_risk": 0.6020818748185279,
-    "composite_risk": 0.44927831840982
+    "ic_risk": 0.2915038605907391,
+    "env_risk": 0.7119565394478167,
+    "func_risk": 0.6051467560919969,
+    "composite_risk": 0.44997534176260146
   },
   {
     "key": "6fbafda8462c1b820ebfa8f9",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.000854644854523922,
-    "env_risk": 0.49964600227679445,
-    "func_risk": 0.5431276517178075,
-    "composite_risk": 0.28586243710621706
+    "ic_risk": 0.0006421838010581036,
+    "env_risk": 0.4971136140189231,
+    "func_risk": 0.5413756811901732,
+    "composite_risk": 0.28504497847672494
   },
   {
     "key": "36826450eb35eadd4cb3b01a",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3960794211814156,
-    "env_risk": 0.5544733651496255,
-    "func_risk": 0.5328450447274852,
-    "composite_risk": 0.4684958437487604
+    "ic_risk": 0.3955488629701173,
+    "env_risk": 0.5519928228174997,
+    "func_risk": 0.5346888602224327,
+    "composite_risk": 0.4682204364508177
   },
   {
     "key": "a51ceb3eba89a1bf85890ac9",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31327058619989434,
-    "env_risk": 0.7345626080047651,
-    "func_risk": 0.527680131358754,
-    "composite_risk": 0.40505511155859136
+    "ic_risk": 0.31344099193770675,
+    "env_risk": 0.7313847101309757,
+    "func_risk": 0.5304971000541905,
+    "composite_risk": 0.40494096915716277
   },
   {
     "key": "fa557cf397365a27a0b4ea37",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5215407776593638,
-    "env_risk": 0.5579747130758189,
-    "func_risk": 0.6105952808525641,
-    "composite_risk": 0.5022799533071958
+    "ic_risk": 0.5212876850778319,
+    "env_risk": 0.5599371790052498,
+    "func_risk": 0.6083259310947733,
+    "composite_risk": 0.5022345649666309
   },
   {
     "key": "2ddefa0c3e7d40deff06775f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12480905689520629,
-    "env_risk": 0.7130803439722868,
-    "func_risk": 0.6239035244252162,
-    "composite_risk": 0.33394279119715314
+    "ic_risk": 0.1257507177514788,
+    "env_risk": 0.7142574987453013,
+    "func_risk": 0.6238632914067479,
+    "composite_risk": 0.3343440247577436
   },
   {
     "key": "bd7d04540d805b9b3e8dd971",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6224231590917592,
-    "env_risk": 0.7088104193899831,
-    "func_risk": 0.6735930857145652,
-    "composite_risk": 0.5692753230006387
+    "ic_risk": 0.6218605327459518,
+    "env_risk": 0.7108823382014593,
+    "func_risk": 0.6750463387144297,
+    "composite_risk": 0.5698056485452576
   },
   {
     "key": "ddb7ed28fe7d921f8909c22d",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.001335236854491843,
-    "env_risk": 0.5058226048274441,
-    "func_risk": 0.4212279761913077,
-    "composite_risk": 0.21109550059533844
+    "ic_risk": 0.0007518518518518512,
+    "env_risk": 0.5008788519253105,
+    "func_risk": 0.4206904681208029,
+    "composite_risk": 0.20994283771703623
   },
   {
     "key": "2d3ee6c57b965c0d6d96bf28",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2913583639291482,
-    "env_risk": 0.5672484699858804,
-    "func_risk": 0.5608415307017033,
-    "composite_risk": 0.4526256680944241
+    "ic_risk": 0.2914750449289407,
+    "env_risk": 0.5634029812391896,
+    "func_risk": 0.5577194312342015,
+    "composite_risk": 0.45139272619100834
   },
   {
     "key": "d74523bfcd834a0ff0ba3640",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2678162836270185,
-    "env_risk": 0.6238864690477974,
-    "func_risk": 0.6093831057273524,
-    "composite_risk": 0.41975599233491523
+    "ic_risk": 0.2690846277897011,
+    "env_risk": 0.6203440202683708,
+    "func_risk": 0.609049437049447,
+    "composite_risk": 0.4192631718643376
   },
   {
     "key": "e1275b0a47ed66eda01860c5",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4801576602006296,
-    "env_risk": 0.6146502932581376,
-    "func_risk": 0.5681251209299406,
-    "composite_risk": 0.42221117599425284
+    "ic_risk": 0.47980878321871573,
+    "env_risk": 0.6136338710457102,
+    "func_risk": 0.5664272840674358,
+    "composite_risk": 0.42166821281702893
   },
   {
     "key": "8b50413e7e8dfe58e0b56d49",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08427215878004186,
-    "env_risk": 0.40475487982662095,
-    "func_risk": 0.45411574567284996,
-    "composite_risk": 0.2887668029678029
+    "ic_risk": 0.08376872256484763,
+    "env_risk": 0.40276668741133453,
+    "func_risk": 0.45553175962752385,
+    "composite_risk": 0.28852080675895647
   },
   {
     "key": "0e619eb0d603cd92f87d004e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.16693477028894665,
-    "env_risk": 0.6170702233333348,
-    "func_risk": 0.5218822446738879,
-    "composite_risk": 0.4014615316434807
+    "ic_risk": 0.1668339522312466,
+    "env_risk": 0.6198099223849822,
+    "func_risk": 0.5245538286171014,
+    "composite_risk": 0.4024103275854458
   },
   {
     "key": "7583f858ed4b96f2ffd11c0e",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.042636573153013155,
-    "env_risk": 0.46551727729792425,
-    "func_risk": 0.48407172090535916,
-    "composite_risk": 0.2200364501611897
+    "ic_risk": 0.04305473012054297,
+    "env_risk": 0.46463609467975076,
+    "func_risk": 0.48656338830791807,
+    "composite_risk": 0.22035844284486303
   },
   {
     "key": "5d38a3183cfcb07df6758be7",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.311035164519044,
-    "env_risk": 0.5710855474859486,
-    "func_risk": 0.5445990452739687,
-    "composite_risk": 0.4218020795311659
+    "ic_risk": 0.3117813655247764,
+    "env_risk": 0.5709448910152727,
+    "func_risk": 0.5440505288706358,
+    "composite_risk": 0.4218281416476144
   },
   {
     "key": "0c6d8a9032c9d910bb86dd07",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10408624490712562,
-    "env_risk": 0.4405474988258018,
-    "func_risk": 0.5506423135186421,
-    "composite_risk": 0.2432179773991645
+    "ic_risk": 0.10394424375074518,
+    "env_risk": 0.440798904333574,
+    "func_risk": 0.5501684558208948,
+    "composite_risk": 0.24316085121667907
   },
   {
     "key": "6b1c3f1620e405d2e5c744ac",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.22946157534268066,
-    "env_risk": 0.6342045935424704,
-    "func_risk": 0.6164331380250333,
-    "composite_risk": 0.41624220528452205
+    "ic_risk": 0.22969485403241807,
+    "env_risk": 0.6333242795198201,
+    "func_risk": 0.6161296708472089,
+    "composite_risk": 0.41606757889859536
   },
   {
     "key": "fdb20110c25b3420e4f3432b",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06399697602075159,
-    "env_risk": 0.5040793548295652,
-    "func_risk": 0.3057861522709735,
-    "composite_risk": 0.3321594088133966
+    "ic_risk": 0.06343996305949344,
+    "env_risk": 0.5027149700292886,
+    "func_risk": 0.3065376901314698,
+    "composite_risk": 0.33191354349128305
   },
   {
     "key": "6a29b760067b6e3d4217406f",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.02116301110657974,
-    "env_risk": 0.35789498454164675,
-    "func_risk": 0.29839383789091556,
-    "composite_risk": 0.2040586474142847
+    "ic_risk": 0.02096677194679425,
+    "env_risk": 0.35703839891394556,
+    "func_risk": 0.2981957893864255,
+    "composite_risk": 0.20382330063945264
   },
   {
     "key": "398d24573963434ed70410b4",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18750019959597883,
-    "env_risk": 0.46157732764964876,
-    "func_risk": 0.5015767425009798,
-    "composite_risk": 0.322952586507445
+    "ic_risk": 0.18805430100752274,
+    "env_risk": 0.46186682324722805,
+    "func_risk": 0.5027029547906464,
+    "composite_risk": 0.3233008039594962
   },
   {
     "key": "ecc0f06860f9e88394ddaf3e",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2292628219240903,
-    "env_risk": 0.5366850751236496,
-    "func_risk": 0.5422347535868584,
-    "composite_risk": 0.35607370452352155
+    "ic_risk": 0.2294128502368017,
+    "env_risk": 0.5359300382997301,
+    "func_risk": 0.5402745067953197,
+    "composite_risk": 0.35563379966451014
   },
   {
     "key": "da324bc56b539277549cf674",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08388983774759207,
-    "env_risk": 0.43402447374851927,
-    "func_risk": 0.37232456634787087,
-    "composite_risk": 0.3470270584104001
+    "ic_risk": 0.08496868206574211,
+    "env_risk": 0.43425889874278284,
+    "func_risk": 0.37025723988468695,
+    "composite_risk": 0.34693875388661444
   },
   {
     "key": "4d5af2651c32006407ef92b0",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.042226618845618666,
-    "env_risk": 0.4246465380193648,
-    "func_risk": 0.3859605124988001,
-    "composite_risk": 0.29571156725881137
+    "ic_risk": 0.04255336160852112,
+    "env_risk": 0.42434181585125375,
+    "func_risk": 0.3848891269214634,
+    "composite_risk": 0.2955390276030481
   },
   {
     "key": "0eb6a540c810fd8f121c27f0",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2720133878003682,
-    "env_risk": 0.5131702733587671,
-    "func_risk": 0.5564555091663818,
-    "composite_risk": 0.39690801378558654
+    "ic_risk": 0.271526576072237,
+    "env_risk": 0.514868852356212,
+    "func_risk": 0.5546530544362906,
+    "composite_risk": 0.3968438739544644
   },
   {
     "key": "198ec6c90f46543c2078897d",
-    "cluster_named_id": 3,
+    "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.374776474669227,
-    "env_risk": 0.616958868039027,
-    "func_risk": 0.5108657570433308,
-    "composite_risk": 0.44458190338348846
+    "ic_risk": 0.3753044967625768,
+    "env_risk": 0.6180602592075659,
+    "func_risk": 0.5130735980227602,
+    "composite_risk": 0.4452598591980079
   },
   {
     "key": "7678e2c2a5a564ffa224529d",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1257875874148057,
-    "env_risk": 0.4482327600937729,
-    "func_risk": 0.3102876562246716,
-    "composite_risk": 0.29575138017247216
+    "ic_risk": 0.12563490352720386,
+    "env_risk": 0.45039191451080085,
+    "func_risk": 0.3074335367787259,
+    "composite_risk": 0.2956666960408057
   },
   {
     "key": "f4b255e77571432976de5955",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22840222477725375,
-    "env_risk": 0.36747533285502865,
-    "func_risk": 0.4152138262587247,
-    "composite_risk": 0.3012517111769039
+    "ic_risk": 0.2277199123946843,
+    "env_risk": 0.36753597895095363,
+    "func_risk": 0.4159732910314804,
+    "composite_risk": 0.30125735210422955
   },
   {
     "key": "c0c54101caf39109158815cd",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.6187071472516306,
-    "env_risk": 0.6244435676979108,
-    "func_risk": 0.6839991973210463,
-    "composite_risk": 0.5300063801857594
+    "ic_risk": 0.6187969197352412,
+    "env_risk": 0.6267261976313908,
+    "func_risk": 0.6852317077561174,
+    "composite_risk": 0.530666431872836
   },
   {
     "key": "d35ee4753876ba14a0e38db2",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.25102654119034185,
-    "env_risk": 0.7336187647484469,
-    "func_risk": 0.6591447972366155,
-    "composite_risk": 0.41368311293725835
+    "ic_risk": 0.2507879931268422,
+    "env_risk": 0.7357095533629257,
+    "func_risk": 0.6599340720743979,
+    "composite_risk": 0.4141698995915559
   },
   {
     "key": "4568d7d1ed184510d333fb4f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.35394981803135267,
-    "env_risk": 0.5860739900594032,
-    "func_risk": 0.6414760204555278,
-    "composite_risk": 0.3864281264326326
+    "ic_risk": 0.3540505416758203,
+    "env_risk": 0.5842969953959782,
+    "func_risk": 0.6423705925791175,
+    "composite_risk": 0.3862530486618756
   },
   {
     "key": "ec2d5bd79c2a19f995a532cf",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16725522801254572,
-    "env_risk": 0.5644336602516394,
-    "func_risk": 0.5499995630771356,
-    "composite_risk": 0.289830038898583
+    "ic_risk": 0.16671830839909635,
+    "env_risk": 0.565191903389056,
+    "func_risk": 0.5501185100477441,
+    "composite_risk": 0.2898922699270971
   },
   {
     "key": "b1778e93a29354773f64df15",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.16755289670740373,
-    "env_risk": 0.6605377480541201,
-    "func_risk": 0.5592857329111213,
-    "composite_risk": 0.44464959504692836
+    "ic_risk": 0.1671943793942336,
+    "env_risk": 0.6597577481600988,
+    "func_risk": 0.5595255738127161,
+    "composite_risk": 0.4444700042333072
   },
   {
     "key": "ac59ed47d67ae3a658586fec",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.37507683716501006,
-    "env_risk": 0.47530184639807566,
-    "func_risk": 0.46139565950244077,
-    "composite_risk": 0.4200531804037968
+    "ic_risk": 0.3755156891180103,
+    "env_risk": 0.4795600547294485,
+    "func_risk": 0.4606059229762852,
+    "composite_risk": 0.42082705798172293
   },
   {
     "key": "68e02c06835518e3c04e1806",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5212325306182414,
-    "env_risk": 0.8162554127883233,
-    "func_risk": 0.6814719252942292,
-    "composite_risk": 0.5923442967793116
+    "ic_risk": 0.5209217554743293,
+    "env_risk": 0.8161498457926788,
+    "func_risk": 0.6823439610533829,
+    "composite_risk": 0.5924080368177073
   },
   {
     "key": "43e4d91a5bebb1713a9afc37",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22825412291525649,
-    "env_risk": 0.493506468320357,
-    "func_risk": 0.3958185019749222,
-    "composite_risk": 0.3528839666387178
+    "ic_risk": 0.2283560842724283,
+    "env_risk": 0.49375531302002856,
+    "func_risk": 0.39740729407474623,
+    "composite_risk": 0.35321364750113105
   },
   {
     "key": "69b7a664dc17742d5613949e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.33351014945981877,
-    "env_risk": 0.6537263982118123,
-    "func_risk": 0.7040207782455168,
-    "composite_risk": 0.47954646383729926
+    "ic_risk": 0.33322505528390167,
+    "env_risk": 0.653427554988636,
+    "func_risk": 0.7020854182548969,
+    "composite_risk": 0.4791147214895215
   },
   {
     "key": "72bb4169b965cbfa36d89153",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.39683532754062534,
-    "env_risk": 0.6797774490509201,
-    "func_risk": 0.6294645587332038,
-    "composite_risk": 0.5168946116848512
+    "ic_risk": 0.396680573273515,
+    "env_risk": 0.6799780513004803,
+    "func_risk": 0.6299012734663645,
+    "composite_risk": 0.5169754953524442
   },
   {
     "key": "820e836862f6019b28d03b08",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5214043347000935,
-    "env_risk": 0.7197566460668662,
-    "func_risk": 0.7526137095002938,
-    "composite_risk": 0.5872497508651883
+    "ic_risk": 0.5205650328278812,
+    "env_risk": 0.7193181616158885,
+    "func_risk": 0.7536468679953092,
+    "composite_risk": 0.5871742481496517
   },
   {
     "key": "e67fa7d28601db9527b05749",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06231680166367795,
-    "env_risk": 0.42360433119958335,
-    "func_risk": 0.39503263183962234,
-    "composite_risk": 0.21933520232971548
+    "ic_risk": 0.0624171957545797,
+    "env_risk": 0.42579764156797756,
+    "func_risk": 0.3953040757427882,
+    "composite_risk": 0.21982152868215235
   },
   {
     "key": "d74ffba3ce5dee99400c3be8",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2711161388687854,
-    "env_risk": 0.5225112651606723,
-    "func_risk": 0.5546324849262871,
-    "composite_risk": 0.398682635288508
+    "ic_risk": 0.2696814023849845,
+    "env_risk": 0.5203082702928773,
+    "func_risk": 0.5531086299383218,
+    "composite_risk": 0.3977309359303115
   },
   {
     "key": "f54fd7244af0fb70379920c7",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.20971590519830646,
-    "env_risk": 0.6915386142538671,
-    "func_risk": 0.4907756770521951,
-    "composite_risk": 0.38082948170815556
+    "ic_risk": 0.2091473166055279,
+    "env_risk": 0.6878435144584123,
+    "func_risk": 0.4898240978945987,
+    "composite_risk": 0.3798517111324172
   },
   {
     "key": "a7ba0ccad683e915bc4cf010",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1248354626822996,
-    "env_risk": 0.650305423857229,
-    "func_risk": 0.6210030288392848,
-    "composite_risk": 0.3875351204173413
+    "ic_risk": 0.12493173063788493,
+    "env_risk": 0.651217436443838,
+    "func_risk": 0.6194536574545858,
+    "composite_risk": 0.3874735681432383
   },
   {
     "key": "d1fc114937ea2b346099bb29",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1883590997445873,
-    "env_risk": 0.5033569144406946,
-    "func_risk": 0.4739837438486661,
-    "composite_risk": 0.3766026504656967
+    "ic_risk": 0.1880236199252343,
+    "env_risk": 0.5023499744350471,
+    "func_risk": 0.47493085584714834,
+    "composite_risk": 0.3765005081291337
   },
   {
     "key": "3988c87d9099a82982313f6d",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.375419706999678,
-    "env_risk": 0.6664941334515228,
-    "func_risk": 0.6728378619380717,
-    "composite_risk": 0.441771661506638
+    "ic_risk": 0.3749279519847447,
+    "env_risk": 0.664959067095038,
+    "func_risk": 0.6736797571990052,
+    "composite_risk": 0.441520411110694
   },
   {
     "key": "9a6612b49438bb09ffa9b1fb",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.20735894975102348,
-    "env_risk": 0.6581757976153324,
-    "func_risk": 0.4315986504652053,
-    "composite_risk": 0.3406542161947824
+    "ic_risk": 0.2080895132580573,
+    "env_risk": 0.6592922850935715,
+    "func_risk": 0.4360280313173335,
+    "composite_risk": 0.34174062135004857
   },
   {
     "key": "aed8f0768b40abe89e158dea",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2507981074107247,
-    "env_risk": 0.6301373525146874,
-    "func_risk": 0.547080460106288,
-    "composite_risk": 0.37657835195317935
+    "ic_risk": 0.2505654516790885,
+    "env_risk": 0.6312849213036654,
+    "func_risk": 0.5472597158075831,
+    "composite_risk": 0.37678404990743136
   },
   {
     "key": "212d31d3899adb2717fb31da",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3332209711981753,
-    "env_risk": 0.5910524161264135,
-    "func_risk": 0.5334381650790176,
-    "composite_risk": 0.42438492429802127
+    "ic_risk": 0.3335288326091643,
+    "env_risk": 0.5907232913882382,
+    "func_risk": 0.533674105715545,
+    "composite_risk": 0.4244197613125649
   },
   {
     "key": "9ed8da92994bff779a745936",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.45317306254465783,
-    "env_risk": 0.5964989929975634,
-    "func_risk": 0.5369715527709866,
-    "composite_risk": 0.5032871768990904
+    "ic_risk": 0.4553500851464514,
+    "env_risk": 0.5956546583818274,
+    "func_risk": 0.5342916358478422,
+    "composite_risk": 0.5031015330440877
   },
   {
     "key": "9bba88a4e7f281e693a351be",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.45818104007185834,
-    "env_risk": 0.5251908818281654,
-    "func_risk": 0.5301366640626668,
-    "composite_risk": 0.3648366445360946
+    "ic_risk": 0.45753753262901775,
+    "env_risk": 0.5292948062988546,
+    "func_risk": 0.529003310721538,
+    "composite_risk": 0.36531577151266925
   },
   {
     "key": "6b5024c610ac6247482f3027",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.18785672565849754,
-    "env_risk": 0.6358004986032051,
-    "func_risk": 0.5880200923881036,
-    "composite_risk": 0.4224373309144148
+    "ic_risk": 0.18784606580446556,
+    "env_risk": 0.6358787265711907,
+    "func_risk": 0.5907476826136527,
+    "composite_risk": 0.4229003901635665
   },
   {
     "key": "37462777363eed6877ed6698",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3539230963651948,
-    "env_risk": 0.5544589744448107,
-    "func_risk": 0.47455554205264155,
-    "composite_risk": 0.3786702130696119
+    "ic_risk": 0.3540704386895166,
+    "env_risk": 0.5540757379301438,
+    "func_risk": 0.47207093124285604,
+    "composite_risk": 0.3782148426543559
   },
   {
     "key": "6892a9fc50756cf631f271b1",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10577364495603298,
-    "env_risk": 0.5154950057256089,
-    "func_risk": 0.49231483589696556,
-    "composite_risk": 0.33996616317921535
+    "ic_risk": 0.10534900612789642,
+    "env_risk": 0.5153159266479581,
+    "func_risk": 0.49301444978800335,
+    "composite_risk": 0.3399653837743726
   },
   {
     "key": "a836579bd2db0043517def0c",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08395053252112576,
-    "env_risk": 0.49397201951498737,
-    "func_risk": 0.5363120272446487,
-    "composite_risk": 0.33415657576231883
+    "ic_risk": 0.08439082415714665,
+    "env_risk": 0.4935649397537579,
+    "func_risk": 0.5381498246218112,
+    "composite_risk": 0.334466205615448
   },
   {
     "key": "99ec454e66d949569d6bd53a",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22973092247407395,
-    "env_risk": 0.535050525508327,
-    "func_risk": 0.562306087301386,
-    "composite_risk": 0.29211093314134084
+    "ic_risk": 0.22925686528484268,
+    "env_risk": 0.5352534451780462,
+    "func_risk": 0.5616165976976637,
+    "composite_risk": 0.2919449733842206
   },
   {
     "key": "ea9863ca89b41076221f6e61",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.27126824228912616,
-    "env_risk": 0.5583372672727077,
-    "func_risk": 0.5115336211288761,
-    "composite_risk": 0.41388710807691764
+    "ic_risk": 0.2710310446316027,
+    "env_risk": 0.5615120169224259,
+    "func_risk": 0.5114857691177617,
+    "composite_risk": 0.4144446912535812
   },
   {
     "key": "94697c0ff846cd3b4df14cb5",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5211023932973489,
-    "env_risk": 0.6486790995109972,
-    "func_risk": 0.7554841627676738,
-    "composite_risk": 0.5216478242222728
+    "ic_risk": 0.5218067737242751,
+    "env_risk": 0.6459379160144134,
+    "func_risk": 0.7559088228550686,
+    "composite_risk": 0.5213258085457838
   },
   {
     "key": "9d3fba778e8f8bcc6d0351ff",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2914795111972311,
-    "env_risk": 0.6192560744780673,
-    "func_risk": 0.5720181120025492,
-    "composite_risk": 0.44807958872291553
+    "ic_risk": 0.29164821615065684,
+    "env_risk": 0.6184265694945248,
+    "func_risk": 0.5732857615778838,
+    "composite_risk": 0.4481615468970483
   },
   {
     "key": "dd2f5eeeb8c43eb31aa5160f",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3530966957904415,
-    "env_risk": 0.6868326018765277,
-    "func_risk": 0.5798407487834383,
-    "composite_risk": 0.4929151133501589
+    "ic_risk": 0.35089089122781336,
+    "env_risk": 0.6854535449892017,
+    "func_risk": 0.5792263767398758,
+    "composite_risk": 0.4921236561338549
   },
   {
     "key": "2981ca696c6f8464e566ec6a",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06532390992583763,
-    "env_risk": 0.45887220056831907,
-    "func_risk": 0.3715825698229682,
-    "composite_risk": 0.2833138752909149
+    "ic_risk": 0.06494789927891978,
+    "env_risk": 0.45779500794132566,
+    "func_risk": 0.37179523533470404,
+    "composite_risk": 0.2830692234701234
   },
   {
     "key": "688b22604d3a70add97cafdb",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41655303657090126,
-    "env_risk": 0.5162835974008493,
-    "func_risk": 0.5843366650834645,
-    "composite_risk": 0.4288966017783336
+    "ic_risk": 0.416887427920099,
+    "env_risk": 0.5147743002880597,
+    "func_risk": 0.5855903384309489,
+    "composite_risk": 0.4288772885211771
   },
   {
     "key": "030c9d21f9cdea45730fc3c9",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3556559726418315,
-    "env_risk": 0.689588374600079,
-    "func_risk": 0.5450361031564374,
-    "composite_risk": 0.47168049386488
+    "ic_risk": 0.35493533343189837,
+    "env_risk": 0.6878390110311282,
+    "func_risk": 0.5412889268970557,
+    "composite_risk": 0.4705867342471468
   },
   {
     "key": "f785327732beb6aa6b24902c",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.84880328990491,
-    "env_risk": 0.6905687098318455,
-    "func_risk": 0.927363479604788,
-    "composite_risk": 0.6573340840841155
+    "ic_risk": 0.8501486372212289,
+    "env_risk": 0.6902479195456546,
+    "func_risk": 0.9265909270972311,
+    "composite_risk": 0.6574038401486683
   },
   {
     "key": "dec8ed5cd32e7236093e84ab",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.49998887147626236,
-    "env_risk": 0.674263501587222,
-    "func_risk": 0.630910293129068,
-    "composite_risk": 0.5214837801810169
+    "ic_risk": 0.5009419791028442,
+    "env_risk": 0.6763697507318043,
+    "func_risk": 0.6275264000380691,
+    "composite_risk": 0.5215143639994513
   },
   {
     "key": "6bda43e79b9a4a05d05e2846",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.1663208462491786,
-    "env_risk": 0.5888337838464394,
-    "func_risk": 0.5302552066728474,
-    "composite_risk": 0.41047437539442627
+    "ic_risk": 0.16606766932801392,
+    "env_risk": 0.5898054859257645,
+    "func_risk": 0.5322960002706276,
+    "composite_risk": 0.41094942243100596
   },
   {
     "key": "57923913fe091873dc2cfd3e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31274772058673816,
-    "env_risk": 0.6185427648838644,
-    "func_risk": 0.7013562346970672,
-    "composite_risk": 0.46167719717810707
+    "ic_risk": 0.31213938896356874,
+    "env_risk": 0.6200507115734534,
+    "func_risk": 0.6995151070601678,
+    "composite_risk": 0.4615465870183045
   },
   {
     "key": "f5e809d7a3bea46a58eb23c6",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06270617890078672,
-    "env_risk": 0.5522408973887645,
-    "func_risk": 0.5547024384200875,
-    "composite_risk": 0.35399321452505306
+    "ic_risk": 0.062129041384140375,
+    "env_risk": 0.5521216530313239,
+    "func_risk": 0.5535431899247922,
+    "composite_risk": 0.3536678850125676
   },
   {
     "key": "b4d4ccdf692f9402abd4040c",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.43775740176373285,
-    "env_risk": 0.7907395466395687,
-    "func_risk": 0.7394259155106411,
-    "composite_risk": 0.5462309386268913
+    "ic_risk": 0.4372152752526381,
+    "env_risk": 0.7910574904239587,
+    "func_risk": 0.7397536552406478,
+    "composite_risk": 0.5462418605074518
   },
   {
     "key": "a3d30f23ee12a88b2b0b1ad3",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.249715580078806,
-    "env_risk": 0.5953155829503715,
-    "func_risk": 0.5896036093690487,
-    "composite_risk": 0.31872309442900965
+    "ic_risk": 0.24991856020811481,
+    "env_risk": 0.5972640990702256,
+    "func_risk": 0.5861489605350236,
+    "composite_risk": 0.3185672403993594
   },
   {
     "key": "f5a877496daa6bb91e07ab9e",
     "cluster_named_id": 3,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.37538801713683984,
-    "env_risk": 0.6764328008310942,
-    "func_risk": 0.7615143361086926,
-    "composite_risk": 0.5430003729167616
+    "ic_risk": 0.3753325334988364,
+    "env_risk": 0.6751155835893619,
+    "func_risk": 0.7622607175044094,
+    "composite_risk": 0.5428592809277057
   },
   {
     "key": "d165729238b824e407b6a0cd",
-    "cluster_named_id": 3,
+    "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43820880495190273,
-    "env_risk": 0.5551485500411504,
-    "func_risk": 0.6300561062365855,
-    "composite_risk": 0.47189554836519937
+    "ic_risk": 0.43782932308822875,
+    "env_risk": 0.5607744251990244,
+    "func_risk": 0.6298247067017703,
+    "composite_risk": 0.46701729815108833
   },
   {
     "key": "8b647e0a756bdbb9801d294a",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16701224875669124,
-    "env_risk": 0.5863749892321999,
-    "func_risk": 0.5687988019373857,
-    "composite_risk": 0.3069638456325302
+    "ic_risk": 0.1671039797568095,
+    "env_risk": 0.5870990203652385,
+    "func_risk": 0.5681122577130755,
+    "composite_risk": 0.30700760004615174
   },
   {
     "key": "339ca29e90ffba408d7c65c9",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.45922773318530835,
-    "env_risk": 0.6183165050494557,
-    "func_risk": 0.5824095725389957,
-    "composite_risk": 0.4882048453291264
+    "ic_risk": 0.4594343952505244,
+    "env_risk": 0.6191674958637037,
+    "func_risk": 0.5803453842432155,
+    "composite_risk": 0.4880678524396195
   },
   {
     "key": "736ff70c130c5e6df69a3408",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3760790934210019,
-    "env_risk": 0.6863139813906791,
-    "func_risk": 0.6693765911952643,
-    "composite_risk": 0.5078278044484672
+    "ic_risk": 0.3756633098929275,
+    "env_risk": 0.6854184754029249,
+    "func_risk": 0.6683348639114998,
+    "composite_risk": 0.507403496214849
   },
   {
     "key": "9d4b7e88366f1621bb7df7f0",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18719999962356043,
-    "env_risk": 0.5606988781857634,
-    "func_risk": 0.5805534776332204,
-    "composite_risk": 0.36945185778777623
+    "ic_risk": 0.18684878758477858,
+    "env_risk": 0.5601524513562884,
+    "func_risk": 0.575959043752426,
+    "composite_risk": 0.3685209807153057
   },
   {
     "key": "770e1d3fc642d59d33836a64",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.49898777952032247,
-    "env_risk": 0.7458738968510596,
-    "func_risk": 0.5884842802936203,
-    "composite_risk": 0.49837577894993845
+    "ic_risk": 0.4982509650440839,
+    "env_risk": 0.7402458919942662,
+    "func_risk": 0.5887561649003624,
+    "composite_risk": 0.4971954121884422
   },
   {
     "key": "061732f9b2748b9f9d20d16b",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.27092567031808545,
-    "env_risk": 0.5639067070406052,
-    "func_risk": 0.6634000068885557,
-    "composite_risk": 0.3913512337781596
+    "ic_risk": 0.27223942238448195,
+    "env_risk": 0.5649092482470063,
+    "func_risk": 0.6657379393646139,
+    "composite_risk": 0.3921828790917228
   },
   {
     "key": "9eef989e48bb5f8946a84c37",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06036865766394651,
-    "env_risk": 0.5223589723403728,
-    "func_risk": 0.4017242634059798,
-    "composite_risk": 0.3234495722378181
+    "ic_risk": 0.060867846088154584,
+    "env_risk": 0.524788305722024,
+    "func_risk": 0.40085533520939043,
+    "composite_risk": 0.3238699395330088
   },
   {
     "key": "8593cdc0877e1e958b455b44",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06273755782175522,
-    "env_risk": 0.4490300539287302,
-    "func_risk": 0.3846201734699687,
-    "composite_risk": 0.20832759388451327
+    "ic_risk": 0.06236576970195599,
+    "env_risk": 0.44706441516995316,
+    "func_risk": 0.3852606031141598,
+    "composite_risk": 0.2079833101016789
   },
   {
     "key": "bed9334bb45c3fa6e867fd4a",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.25037095765675904,
-    "env_risk": 0.6285936332110731,
-    "func_risk": 0.6403005906121136,
-    "composite_risk": 0.38658528119305646
+    "ic_risk": 0.24980108696743264,
+    "env_risk": 0.6314327422267488,
+    "func_risk": 0.6389359925295567,
+    "composite_risk": 0.38679695088725674
   },
   {
     "key": "c784d12a168d7b04387dfdec",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4563340662158023,
-    "env_risk": 0.6562799034961241,
-    "func_risk": 0.6287814310206754,
-    "composite_risk": 0.4970271252879572
+    "ic_risk": 0.4568813424548659,
+    "env_risk": 0.6570307687146777,
+    "func_risk": 0.6290838573844916,
+    "composite_risk": 0.4973269178685783
   },
   {
     "key": "ab25f6e0dda6be99ccba271a",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4174838937355555,
-    "env_risk": 0.6850731991967574,
-    "func_risk": 0.6685513582092895,
-    "composite_risk": 0.532118214494003
+    "ic_risk": 0.4175225047700373,
+    "env_risk": 0.6880645541536252,
+    "func_risk": 0.6671789824918458,
+    "composite_risk": 0.5324750409539596
   },
   {
     "key": "a51e859cbfdaa3bbfd4a8110",
-    "cluster_named_id": 4,
+    "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29297158205488205,
-    "env_risk": 0.606325631751721,
-    "func_risk": 0.5566710418152578,
-    "composite_risk": 0.42665043555728865
+    "ic_risk": 0.2926626127047077,
+    "env_risk": 0.6042932135481632,
+    "func_risk": 0.5570695553241212,
+    "composite_risk": 0.4262654731821577
   },
   {
     "key": "62dda7971c5970f5b52275f1",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08403942853635195,
-    "env_risk": 0.6273657224322627,
-    "func_risk": 0.44175776879533135,
-    "composite_risk": 0.293760523412688
+    "ic_risk": 0.08404913268850062,
+    "env_risk": 0.627415696771583,
+    "func_risk": 0.44137095588072817,
+    "composite_risk": 0.29370818739138627
   },
   {
     "key": "eb1f435a75d40977276b5ce2",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.47823720515112406,
-    "env_risk": 0.5075179718143831,
-    "func_risk": 0.5978505672611985,
-    "composite_risk": 0.42587821516395785
+    "ic_risk": 0.47832156830359557,
+    "env_risk": 0.5085022578588998,
+    "func_risk": 0.5947068653546814,
+    "composite_risk": 0.4255652193198028
   },
   {
     "key": "b0c7f3c3eb969c3f9af4fcf4",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14638398379815618,
-    "env_risk": 0.39813816738310026,
-    "func_risk": 0.3967060708025554,
-    "composite_risk": 0.2650020157848135
+    "ic_risk": 0.14603025172691245,
+    "env_risk": 0.39638573778404806,
+    "func_risk": 0.39423558847464935,
+    "composite_risk": 0.26418895007917703
   },
   {
     "key": "a953f812aca9d8f8cab583e9",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.27175960710784824,
-    "env_risk": 0.6917340593674283,
-    "func_risk": 0.6564494932444287,
-    "composite_risk": 0.3864866971818215
+    "ic_risk": 0.2717769096639584,
+    "env_risk": 0.6909492250559985,
+    "func_risk": 0.6581703127141169,
+    "composite_risk": 0.386622882531421
   },
   {
     "key": "24bd1078a84ada98d2680e4c",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5180508381582879,
-    "env_risk": 0.6523743563513971,
-    "func_risk": 0.6239410308624248,
-    "composite_risk": 0.5242771200354145
+    "ic_risk": 0.5190833192180131,
+    "env_risk": 0.6548207206534585,
+    "func_risk": 0.6229698536842094,
+    "composite_risk": 0.5247865535331528
   },
   {
     "key": "fe581a267a07b188b517fe43",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3754168547333616,
-    "env_risk": 0.685054155142173,
-    "func_risk": 0.6333208020168434,
-    "composite_risk": 0.4605136017338196
+    "ic_risk": 0.37513935977457635,
+    "env_risk": 0.6832904677313876,
+    "func_risk": 0.63293792532463,
+    "composite_risk": 0.460057499473462
   },
   {
     "key": "f4094768ddc0ab9e419106db",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3332465474033134,
-    "env_risk": 0.5873347200404573,
-    "func_risk": 0.562315821999239,
-    "composite_risk": 0.4324440046128003
+    "ic_risk": 0.33406901488921753,
+    "env_risk": 0.5863125495131024,
+    "func_risk": 0.5617967700264539,
+    "composite_risk": 0.4323199182018115
   },
   {
     "key": "1680c1ef39692e28f9982533",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16720441552482362,
-    "env_risk": 0.5890353840417376,
-    "func_risk": 0.47827755084956736,
-    "composite_risk": 0.33811695730674163
+    "ic_risk": 0.16623612155752449,
+    "env_risk": 0.5893798956443228,
+    "func_risk": 0.4794874134597642,
+    "composite_risk": 0.3381965065322168
   },
   {
     "key": "18f7dda537130028ffc8cf85",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.4998453798078375,
-    "env_risk": 0.7655299469898664,
-    "func_risk": 0.6396907233110817,
-    "composite_risk": 0.6010437197548865
+    "ic_risk": 0.499994313631409,
+    "env_risk": 0.7653110978292732,
+    "func_risk": 0.6413147851249318,
+    "composite_risk": 0.6012982312517952
   },
   {
     "key": "73c652245d6b6fbdf856abbb",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.021490552822452803,
-    "env_risk": 0.4437562465909569,
-    "func_risk": 0.42199277329170337,
-    "composite_risk": 0.22956881648021243
+    "ic_risk": 0.021712660462577225,
+    "env_risk": 0.44421487380649605,
+    "func_risk": 0.4234750054288547,
+    "composite_risk": 0.22994442624255768
   },
   {
     "key": "ee94e96745f5e4399c455c63",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.702419416831467,
-    "env_risk": 0.8315179392861372,
-    "func_risk": 0.7858845599585466,
-    "composite_risk": 0.6694388934457991
+    "ic_risk": 0.7027522034158291,
+    "env_risk": 0.8309487722916215,
+    "func_risk": 0.7858148814268892,
+    "composite_risk": 0.6693818932591209
   },
   {
     "key": "6b589f3e5affd09e8654f7db",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3334754594902105,
-    "env_risk": 0.6149882859782749,
-    "func_risk": 0.6286312290090137,
-    "composite_risk": 0.44047342378917076
+    "ic_risk": 0.333173833087002,
+    "env_risk": 0.6153339545742154,
+    "func_risk": 0.6301621534789488,
+    "composite_risk": 0.4407345044488109
   },
   {
     "key": "2895e565de61f354b5207e94",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18607740946856646,
-    "env_risk": 0.5869987071164271,
-    "func_risk": 0.5559020044808953,
-    "composite_risk": 0.333105983181959
+    "ic_risk": 0.18656965185458577,
+    "env_risk": 0.5858970446596142,
+    "func_risk": 0.5564386547116967,
+    "composite_risk": 0.33307721710641347
   },
   {
     "key": "3633b9fe618e89e9820d51e7",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10502893160547658,
-    "env_risk": 0.6004394194553615,
-    "func_risk": 0.48926103690721623,
-    "composite_risk": 0.324620728668902
+    "ic_risk": 0.10435935220879088,
+    "env_risk": 0.6032315083853159,
+    "func_risk": 0.48983207799740963,
+    "composite_risk": 0.32512353353393814
   },
   {
     "key": "0e2128acbec781b523263dc3",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2090711679477407,
-    "env_risk": 0.6038169477406732,
-    "func_risk": 0.6471377739307729,
-    "composite_risk": 0.43569869496859726
+    "ic_risk": 0.2089880470251252,
+    "env_risk": 0.6034403417721921,
+    "func_risk": 0.6464738637804934,
+    "composite_risk": 0.435500652367265
   },
   {
     "key": "d2b6535033c206e8fde54032",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6265152005904859,
-    "env_risk": 0.6942365488237046,
-    "func_risk": 0.7870867398274246,
-    "composite_risk": 0.5969190238337567
+    "ic_risk": 0.6277500772291473,
+    "env_risk": 0.695364879516954,
+    "func_risk": 0.7870631040011167,
+    "composite_risk": 0.5973700413338088
   },
   {
     "key": "0d6cc42d9bccf8407900cc60",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.25022624189977655,
-    "env_risk": 0.5687842894578035,
-    "func_risk": 0.5595614076873163,
-    "composite_risk": 0.36374715955474135
+    "ic_risk": 0.24992438203939235,
+    "env_risk": 0.566534895137961,
+    "func_risk": 0.557262470534954,
+    "composite_risk": 0.36287671849490793
   },
   {
     "key": "9db2b4c0ad1dc33b70f79e05",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.41946116538509703,
-    "env_risk": 0.7101789324911243,
-    "func_risk": 0.765381928437121,
-    "composite_risk": 0.5308537370332975
+    "ic_risk": 0.41863659003998566,
+    "env_risk": 0.7099449338783139,
+    "func_risk": 0.762420030128333,
+    "composite_risk": 0.5301612483254476
   },
   {
     "key": "abcb999f00ddee0b9c806c18",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.00012013888888888847,
-    "env_risk": 0.3929285531437168,
-    "func_risk": 0.43026586021138485,
-    "composite_risk": 0.25096574015115514
+    "ic_risk": 5.5305177546343614e-05,
+    "env_risk": 0.39198127794361975,
+    "func_risk": 0.4304237554612191,
+    "composite_risk": 0.25079696190192563
   },
   {
     "key": "44a0f811f6f07d627ae726ca",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3538144887130145,
-    "env_risk": 0.7595403872167719,
-    "func_risk": 0.561704972156686,
-    "composite_risk": 0.444387134022337
+    "ic_risk": 0.3542977953996115,
+    "env_risk": 0.7574512305331867,
+    "func_risk": 0.5617364483781788,
+    "composite_risk": 0.44408320147446323
   },
   {
     "key": "787860ac440c8d2d182d6718",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.774021893618308,
-    "env_risk": 0.8239955498294053,
-    "func_risk": 0.8299868515518241,
-    "composite_risk": 0.6753261883697359
+    "ic_risk": 0.7701443947569274,
+    "env_risk": 0.8228726312048802,
+    "func_risk": 0.8319768984783786,
+    "composite_risk": 0.6746919657465804
   },
   {
     "key": "7ee2006152a9fd74c5edd912",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31295930224899954,
-    "env_risk": 0.5763977078893361,
-    "func_risk": 0.6554392545832797,
-    "composite_risk": 0.4019737014578708
+    "ic_risk": 0.31261841917142486,
+    "env_risk": 0.5767080438956105,
+    "func_risk": 0.656886155160894,
+    "composite_risk": 0.40220655974195185
   },
   {
     "key": "b2a56f755ecc2d210ca297b7",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.22781889459778285,
-    "env_risk": 0.5172627052274473,
-    "func_risk": 0.5844776563438688,
-    "composite_risk": 0.34899202126309514
+    "ic_risk": 0.2285871658852313,
+    "env_risk": 0.5180778859916652,
+    "func_risk": 0.5832136449278407,
+    "composite_risk": 0.3490882738993963
   },
   {
     "key": "f37d293ad9671d2557c065c0",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2263213766993746,
-    "env_risk": 0.5495919092522314,
-    "func_risk": 0.5285962252564349,
-    "composite_risk": 0.38053668471299595
+    "ic_risk": 0.22634937784903947,
+    "env_risk": 0.5505857655892916,
+    "func_risk": 0.5273512160229211,
+    "composite_risk": 0.3805279657556607
   },
   {
     "key": "38a305d090f84816f2caa50e",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.27078002476049257,
-    "env_risk": 0.6609149997555841,
-    "func_risk": 0.744207107607994,
-    "composite_risk": 0.40438546497466377
+    "ic_risk": 0.27102011851007984,
+    "env_risk": 0.6590163394424919,
+    "func_risk": 0.74854891045674,
+    "composite_risk": 0.4047825883812322
   },
   {
     "key": "553e945c88542ef687cd239f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.272634721478574,
-    "env_risk": 0.5930788162692724,
-    "func_risk": 0.505969726890994,
-    "composite_risk": 0.36753986095347446
+    "ic_risk": 0.2723231847686287,
+    "env_risk": 0.5924506429344751,
+    "func_risk": 0.5076736126153659,
+    "composite_risk": 0.36764010791438284
   },
   {
     "key": "031335a25bbdfd2e02336e97",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5826321877820408,
-    "env_risk": 0.6980173411692866,
-    "func_risk": 0.8233181041136145,
-    "composite_risk": 0.595582521501877
+    "ic_risk": 0.5843545189007672,
+    "env_risk": 0.6966907241812603,
+    "func_risk": 0.8203553891877517,
+    "composite_risk": 0.5951698485092694
   },
   {
     "key": "0b5dbbf268848abe8a8bd04c",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4757130933692008,
-    "env_risk": 0.6988638046313668,
-    "func_risk": 0.6523602502756829,
-    "composite_risk": 0.529090494160597
+    "ic_risk": 0.4750867114370662,
+    "env_risk": 0.6990615631009527,
+    "func_risk": 0.6517977289600633,
+    "composite_risk": 0.528915168126979
   },
   {
     "key": "1d0bdda0ccbec7f12f54a8ad",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.24976556144508466,
-    "env_risk": 0.563977872769406,
-    "func_risk": 0.49676999970101904,
-    "composite_risk": 0.3183526610369576
+    "ic_risk": 0.2501148574708791,
+    "env_risk": 0.5626627346070787,
+    "func_risk": 0.49466250211758056,
+    "composite_risk": 0.3178189993244077
   },
   {
     "key": "673ce8a7ddeb1c0474d8fe10",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0015392894613270678,
-    "env_risk": 0.38176112831723263,
-    "func_risk": 0.4009010069161665,
-    "composite_risk": 0.22934899656354021
+    "ic_risk": 0.0010955420864404983,
+    "env_risk": 0.3816123516416807,
+    "func_risk": 0.4019588744892585,
+    "composite_risk": 0.229409483833391
   },
   {
     "key": "e849d3295dfdc6652676a7ec",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.04657849339693543,
-    "env_risk": 0.5445411911487743,
-    "func_risk": 0.45194117662696875,
-    "composite_risk": 0.314135833418499
+    "ic_risk": 0.045523158665245915,
+    "env_risk": 0.5429735699472945,
+    "func_risk": 0.4515742374365039,
+    "composite_risk": 0.3135703694349372
   },
   {
     "key": "8dcd255674299d2cc1a30722",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.206062186357299,
-    "env_risk": 0.7407069174994545,
-    "func_risk": 0.568447413747537,
-    "composite_risk": 0.48120187576076867
+    "ic_risk": 0.20590627759789526,
+    "env_risk": 0.7381317605919323,
+    "func_risk": 0.5680483280733178,
+    "composite_risk": 0.4806102964836393
   },
   {
     "key": "d86931799dc91c4e9ca30970",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.22965216969234412,
-    "env_risk": 0.6220935266972598,
-    "func_risk": 0.5272288252317687,
-    "composite_risk": 0.4226738027182406
+    "ic_risk": 0.22991638372531928,
+    "env_risk": 0.6211695753094015,
+    "func_risk": 0.5272529901231531,
+    "composite_risk": 0.42255079048450406
   },
   {
     "key": "53c1fcf576656a7aaeb1a1b3",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3311986413007376,
-    "env_risk": 0.708908785258354,
-    "func_risk": 0.6427447146233132,
-    "composite_risk": 0.4111235575254718
+    "ic_risk": 0.3333116419094381,
+    "env_risk": 0.7070084163093738,
+    "func_risk": 0.6445877940746084,
+    "composite_risk": 0.41146859722943174
   },
   {
     "key": "40cef65fb78597b21190a0ed",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43732811481318246,
-    "env_risk": 0.653081874867004,
-    "func_risk": 0.709558690760705,
-    "composite_risk": 0.5230011069889523
+    "ic_risk": 0.4372427589733264,
+    "env_risk": 0.6521343187456504,
+    "func_risk": 0.7090526952181431,
+    "composite_risk": 0.5227187821718966
   },
   {
     "key": "86f04a8d5e5f0355a4ffa441",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43464488200001705,
-    "env_risk": 0.6526672935554648,
-    "func_risk": 0.7601432993416976,
-    "composite_risk": 0.49826123818581036
+    "ic_risk": 0.43683963158570005,
+    "env_risk": 0.6544433986289965,
+    "func_risk": 0.760865166003698,
+    "composite_risk": 0.4991447357069393
   },
   {
     "key": "2cc85111977f264759090d19",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.39415351355227424,
-    "env_risk": 0.6756040889293762,
-    "func_risk": 0.6085672366816866,
-    "composite_risk": 0.387476932530196
+    "ic_risk": 0.3925757033465334,
+    "env_risk": 0.678565007639065,
+    "func_risk": 0.6089784163593069,
+    "composite_risk": 0.38781102556401337
   },
   {
     "key": "93d9bbb504e74c472db769af",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.39566786911005436,
-    "env_risk": 0.6354115091630176,
-    "func_risk": 0.6963820912629151,
-    "composite_risk": 0.46580082537594736
+    "ic_risk": 0.3963425143860949,
+    "env_risk": 0.6397297898907479,
+    "func_risk": 0.6976212165083833,
+    "composite_risk": 0.4669664192971754
   },
   {
     "key": "21e79d5f3c5aa42505775b96",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.31273867563576896,
-    "env_risk": 0.7859344382256291,
-    "func_risk": 0.6804380950333053,
-    "composite_risk": 0.4823018600988146
+    "ic_risk": 0.3127833850896013,
+    "env_risk": 0.7876490531958875,
+    "func_risk": 0.6787443622907854,
+    "composite_risk": 0.4823610641479362
   },
   {
     "key": "be53f6965f44a7828a91142f",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4170258571755885,
-    "env_risk": 0.7127761278886207,
-    "func_risk": 0.7256180291601405,
-    "composite_risk": 0.5029938569362834
+    "ic_risk": 0.4168124275646481,
+    "env_risk": 0.7127135722810912,
+    "func_risk": 0.727863860288789,
+    "composite_risk": 0.503311291917955
   },
   {
     "key": "cf33084d054cc81fa0258b19",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.35631695638033223,
-    "env_risk": 0.5395338396841809,
-    "func_risk": 0.7404872964487539,
-    "composite_risk": 0.4381816821564632
+    "ic_risk": 0.3548748586752577,
+    "env_risk": 0.5382233346358437,
+    "func_risk": 0.7392883663125379,
+    "composite_risk": 0.43745398265395574
   },
   {
     "key": "b073efa8318f4861e4fac8dc",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5622307824654735,
-    "env_risk": 0.42804432827525146,
-    "func_risk": 0.6295934497623096,
-    "composite_risk": 0.4622258780283707
+    "ic_risk": 0.5619032714945484,
+    "env_risk": 0.4283557191508562,
+    "func_risk": 0.6294926817415343,
+    "composite_risk": 0.46220614818659356
   },
   {
     "key": "e6d6f2cce09a3c763d90e993",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.601292425655516,
-    "env_risk": 0.6615762964645314,
-    "func_risk": 0.6271897875448498,
-    "composite_risk": 0.5426985439530094
+    "ic_risk": 0.6016022051915958,
+    "env_risk": 0.6606874816064826,
+    "func_risk": 0.6257144188395761,
+    "composite_risk": 0.5423436438171602
   },
   {
     "key": "c1f60f6434a14ee7896a2d51",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12598632793575756,
-    "env_risk": 0.5829571872040384,
-    "func_risk": 0.49995420985806516,
-    "composite_risk": 0.2839440712909915
+    "ic_risk": 0.12541591246320372,
+    "env_risk": 0.5850207430734783,
+    "func_risk": 0.495823974147207,
+    "composite_risk": 0.2835500119251005
   },
   {
     "key": "fe11a137e8bd4f1855bf35ae",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.7447136782036707,
-    "env_risk": 0.7643873633782949,
-    "func_risk": 0.7786989750568855,
-    "composite_risk": 0.6435822813889145
+    "ic_risk": 0.7460332750544914,
+    "env_risk": 0.7636322465587805,
+    "func_risk": 0.7772918587028254,
+    "composite_risk": 0.643458769596521
   },
   {
     "key": "12d6de807ec7a04f507eb39b",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.2915593742544081,
-    "env_risk": 0.5814129282944305,
-    "func_risk": 0.6526625885260302,
-    "composite_risk": 0.42999649534744644
+    "ic_risk": 0.29209016003312777,
+    "env_risk": 0.5802706576820441,
+    "func_risk": 0.6524757710657715,
+    "composite_risk": 0.4298479596360229
   },
   {
     "key": "5dcc86cb4e16b82142a9b1c5",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6894602213442306,
-    "env_risk": 0.683951840126255,
-    "func_risk": 0.7281275058626747,
-    "composite_risk": 0.5890928603004097
+    "ic_risk": 0.6884177591313378,
+    "env_risk": 0.6813274453371698,
+    "func_risk": 0.7309802774566723,
+    "composite_risk": 0.5888576976405386
   },
   {
     "key": "d59bfe6547959111646b0736",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5636434141740235,
-    "env_risk": 0.8181631688918966,
-    "func_risk": 0.8677012333849032,
-    "composite_risk": 0.6237734707486986
+    "ic_risk": 0.5634156605172964,
+    "env_risk": 0.8192204635465777,
+    "func_risk": 0.8697893858288883,
+    "composite_risk": 0.6242777025440625
   },
   {
     "key": "6e2f6db2c131de5fa8ba4824",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3331596894900053,
-    "env_risk": 0.5382208091951488,
-    "func_risk": 0.5329815484875303,
-    "composite_risk": 0.3864527014973347
+    "ic_risk": 0.3332924848537704,
+    "env_risk": 0.534853475436796,
+    "func_risk": 0.531047963485497,
+    "composite_risk": 0.38551101133104104
   },
   {
     "key": "58074d136d329bf410ebbd38",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2502886593745148,
-    "env_risk": 0.3385376892151376,
-    "func_risk": 0.4523341631549913,
-    "composite_risk": 0.3154692090240817
+    "ic_risk": 0.2499725117998183,
+    "env_risk": 0.33491634722206515,
+    "func_risk": 0.4536608555168748,
+    "composite_risk": 0.3149301465219969
   },
   {
     "key": "83c37cf45a95ce777e983e45",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.44859033428992895,
-    "env_risk": 0.5852082886895998,
-    "func_risk": 0.6474925546699108,
-    "composite_risk": 0.4733775064440946
+    "ic_risk": 0.44964424847343043,
+    "env_risk": 0.584863161896307,
+    "func_risk": 0.6477048718342072,
+    "composite_risk": 0.47354898034881865
   },
   {
     "key": "c227c73b3be0c4c693b4977a",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.27031925247180283,
-    "env_risk": 0.47648353663942233,
-    "func_risk": 0.48774353025097084,
-    "composite_risk": 0.35455721939532103
+    "ic_risk": 0.2700493014391303,
+    "env_risk": 0.4781477426852379,
+    "func_risk": 0.4878372100500142,
+    "composite_risk": 0.3548410706521933
   },
   {
     "key": "823a0b63f1351e557a06a803",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0007761357779967203,
-    "env_risk": 0.3470869525029142,
-    "func_risk": 0.32784833675153846,
-    "composite_risk": 0.22982362005807921
+    "ic_risk": 0.000923265806164346,
+    "env_risk": 0.3452358000536872,
+    "func_risk": 0.32607632892167815,
+    "composite_risk": 0.22920321445009834
   },
   {
     "key": "96141290fcf6beb8c0f035b9",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06564264909262486,
-    "env_risk": 0.3967969582267699,
-    "func_risk": 0.43595443312610016,
-    "composite_risk": 0.25356210587479006
+    "ic_risk": 0.06455725594234588,
+    "env_risk": 0.3963769620433365,
+    "func_risk": 0.43512151949183075,
+    "composite_risk": 0.253134887678396
   },
   {
     "key": "7bc6cdc3911325d57e72c7d2",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2883331058278701,
-    "env_risk": 0.38947763698883736,
-    "func_risk": 0.3860244880504658,
-    "composite_risk": 0.32323260852054303
+    "ic_risk": 0.2894954668458507,
+    "env_risk": 0.3904964663066186,
+    "func_risk": 0.38360844715915343,
+    "composite_risk": 0.32325384091311066
   },
   {
     "key": "d11150dd417e3bc7c882f941",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1874598327672067,
-    "env_risk": 0.5671587228390973,
-    "func_risk": 0.5730365205952107,
-    "composite_risk": 0.3114550978524233
+    "ic_risk": 0.1876585492438091,
+    "env_risk": 0.5674744617819814,
+    "func_risk": 0.5715280329367735,
+    "composite_risk": 0.31130523005703226
   },
   {
     "key": "5f9d9648809fbd534bc5ca55",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3584981186000109,
-    "env_risk": 0.8148764396518619,
-    "func_risk": 0.7877676172398247,
-    "composite_risk": 0.5051662593080566
+    "ic_risk": 0.35766949432159995,
+    "env_risk": 0.8150651960254038,
+    "func_risk": 0.7886506777405146,
+    "composite_risk": 0.5051887897189831
   },
   {
     "key": "0e568c6bb807780ad34935eb",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.22896256530444564,
-    "env_risk": 0.595573255375258,
-    "func_risk": 0.5782932072784497,
-    "composite_risk": 0.39719652468178723
+    "ic_risk": 0.22817736786441126,
+    "env_risk": 0.5955659705341112,
+    "func_risk": 0.5759378023065962,
+    "composite_risk": 0.3966553300223039
   },
   {
     "key": "aab87f1d7681b7a7d8392e0e",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12305227085089213,
-    "env_risk": 0.6350760858876537,
-    "func_risk": 0.4225103883518274,
-    "composite_risk": 0.3817039227502216
+    "ic_risk": 0.12305175895561225,
+    "env_risk": 0.6377339172136042,
+    "func_risk": 0.4231504282408197,
+    "composite_risk": 0.3823210633223094
   },
   {
     "key": "fe488cd082a72e9563ff043f",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3537193689765918,
-    "env_risk": 0.4932643270899522,
-    "func_risk": 0.459587170875287,
-    "composite_risk": 0.3830562446872321
+    "ic_risk": 0.35266926664932263,
+    "env_risk": 0.49024214113586306,
+    "func_risk": 0.4577545367148994,
+    "composite_risk": 0.38196994455660666
   },
   {
     "key": "52edb8d885fb5d4890d11879",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4801844169056594,
-    "env_risk": 0.6102946263556513,
-    "func_risk": 0.5944934437810308,
-    "composite_risk": 0.47657863405167245
+    "ic_risk": 0.47986089962219486,
+    "env_risk": 0.6104905255908288,
+    "func_risk": 0.5948615810904202,
+    "composite_risk": 0.4766148102334264
   },
   {
     "key": "cb13ea0409132732e306e53d",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.33402837992789475,
-    "env_risk": 0.5161649946383539,
-    "func_risk": 0.4240795697516278,
-    "composite_risk": 0.3071203536130215
+    "ic_risk": 0.3325487475833539,
+    "env_risk": 0.5175214932048188,
+    "func_risk": 0.4245853132112451,
+    "composite_risk": 0.3071800980315787
   },
   {
     "key": "38cffa42c20fffc034828f3b",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08492423772149343,
-    "env_risk": 0.5681463069768167,
-    "func_risk": 0.3356376594096262,
-    "composite_risk": 0.23149629365701302
-  },
-  {
-    "key": "da1b2afbc1ad50258e8b2e34",
-    "cluster_named_id": 2,
-    "overall_risk_level": "LOW",
-    "ic_risk": 0.3098547910450304,
-    "env_risk": 0.47411508711968564,
-    "func_risk": 0.4210923086287109,
-    "composite_risk": 0.32569443247044516
+    "ic_risk": 0.08510930537277873,
+    "env_risk": 0.5678200161761932,
+    "func_risk": 0.3341994792277081,
+    "composite_risk": 0.23123180847074895
   },
   {
     "key": "a06104a34eafa2e73454133a",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3753315930115687,
-    "env_risk": 0.5140811128542697,
-    "func_risk": 0.46473748439005913,
-    "composite_risk": 0.32506863080353365
+    "ic_risk": 0.3755024837727826,
+    "env_risk": 0.5157697852809782,
+    "func_risk": 0.4646491830383695,
+    "composite_risk": 0.3254120269941799
   },
   {
     "key": "23fd855af65b2ab66de0976d",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5234175584038507,
-    "env_risk": 0.7859151103310636,
-    "func_risk": 0.7806568630226411,
-    "composite_risk": 0.5860099211302068
+    "ic_risk": 0.5216291930918373,
+    "env_risk": 0.787189450324697,
+    "func_risk": 0.7819933374703054,
+    "composite_risk": 0.5861314895402833
   },
   {
     "key": "7e40f0a59dfb36b0c4fe73f6",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.310794005107949,
-    "env_risk": 0.563493055420031,
-    "func_risk": 0.41437516286474574,
-    "composite_risk": 0.3929571610243192
+    "ic_risk": 0.31138910364917916,
+    "env_risk": 0.5664195352814628,
+    "func_risk": 0.419821655723441,
+    "composite_risk": 0.3945337361885164
   },
   {
     "key": "028bdca414ba62e1e78bc0ba",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14566500268122345,
-    "env_risk": 0.536073319206039,
-    "func_risk": 0.39322849622096945,
-    "composite_risk": 0.324952328839758
+    "ic_risk": 0.1464190294297914,
+    "env_risk": 0.5353487991949936,
+    "func_risk": 0.39211276562815617,
+    "composite_risk": 0.3247739133389169
   },
   {
     "key": "fdba482317b71bf0cd63acf5",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6422606798203192,
-    "env_risk": 0.791982884369171,
-    "func_risk": 0.7415042002168462,
-    "composite_risk": 0.6539500791422566
+    "ic_risk": 0.6429567491998818,
+    "env_risk": 0.7948719035084875,
+    "func_risk": 0.7400220227774393,
+    "composite_risk": 0.6543956494046386
   },
   {
     "key": "1f0ebac6b7e51b584111442e",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.33290836038471305,
-    "env_risk": 0.4865909303684285,
-    "func_risk": 0.6666894253617863,
-    "composite_risk": 0.4140073686546746
+    "ic_risk": 0.33408846837779854,
+    "env_risk": 0.4848177156399216,
+    "func_risk": 0.6656014532306119,
+    "composite_risk": 0.41371368020646215
   },
   {
     "key": "679bd884e74f2db2f5e76f4b",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43392885767501443,
-    "env_risk": 0.7121129339385847,
-    "func_risk": 0.7177821930363217,
-    "composite_risk": 0.5169771067366109
+    "ic_risk": 0.4345147364729217,
+    "env_risk": 0.7124622796684058,
+    "func_risk": 0.7171886912156643,
+    "composite_risk": 0.5170592096577902
   },
   {
     "key": "3cf2af54eb768e2e1562ca98",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.39607446276728814,
-    "env_risk": 0.8227770774440946,
-    "func_risk": 0.5701997116488715,
-    "composite_risk": 0.534136873912755
+    "ic_risk": 0.39572724297009976,
+    "env_risk": 0.822138733021687,
+    "func_risk": 0.5718381473823562,
+    "composite_risk": 0.5342174946965077
   },
   {
     "key": "bc472b90ee99e6ecb6246bea",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.3503624783681349,
-    "env_risk": 0.5860875506065872,
-    "func_risk": 0.4410493126879708,
-    "composite_risk": 0.32917976717114916
+    "ic_risk": 0.3530058633600449,
+    "env_risk": 0.5818373024141075,
+    "func_risk": 0.44233524189658996,
+    "composite_risk": 0.32908262432446167
   },
   {
     "key": "4c4327100ff5fde44aa2efdc",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.559267098305668,
-    "env_risk": 0.6633757562316995,
-    "func_risk": 0.7151265655639569,
-    "composite_risk": 0.5211146328164962
+    "ic_risk": 0.5585019791793826,
+    "env_risk": 0.6630727034852019,
+    "func_risk": 0.7132359447478249,
+    "composite_risk": 0.5205970572963237
   },
   {
     "key": "feca33829c6f25ccad76ad1c",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.02132384789194132,
-    "env_risk": 0.5542669740018266,
-    "func_risk": 0.4570336055079233,
-    "composite_risk": 0.24210177812335767
+    "ic_risk": 0.021029147853386637,
+    "env_risk": 0.5534729996392477,
+    "func_risk": 0.4563535739272313,
+    "composite_risk": 0.24178000309032527
   },
   {
     "key": "cbc644f2a42942fa83c996ca",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08426307471081428,
-    "env_risk": 0.5150571419574492,
-    "func_risk": 0.5044944441460435,
-    "composite_risk": 0.2636807249927379
+    "ic_risk": 0.08338267761559277,
+    "env_risk": 0.5186351288208799,
+    "func_risk": 0.503193109673733,
+    "composite_risk": 0.26398529083518696
   },
   {
     "key": "81bcc0d4272e03b5757043eb",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.0006901068841327439,
-    "env_risk": 0.40878387443772074,
-    "func_risk": 0.38348377100547415,
-    "composite_risk": 0.19726856362036005
+    "ic_risk": 0.0003874999999999991,
+    "env_risk": 0.4074560335476123,
+    "func_risk": 0.38392904670549294,
+    "composite_risk": 0.1970281729143217
   },
   {
     "key": "43e8135fd5af9a06fc5a255c",
     "cluster_named_id": 4,
     "overall_risk_level": "CRITICAL",
-    "ic_risk": 0.8945416473693978,
-    "env_risk": 0.8904860329961429,
-    "func_risk": 0.8598484948331246,
-    "composite_risk": 0.7653478301178321
+    "ic_risk": 0.8897789104204288,
+    "env_risk": 0.8928608807059542,
+    "func_risk": 0.8584037163787845,
+    "composite_risk": 0.7646497729943282
   },
   {
     "key": "c704c612562063ef15aa1a16",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16789848475942346,
-    "env_risk": 0.6270710909753074,
-    "func_risk": 0.5709348704637259,
-    "composite_risk": 0.35402089695545047
+    "ic_risk": 0.16718187500346515,
+    "env_risk": 0.6239987701102224,
+    "func_risk": 0.5711026397238133,
+    "composite_risk": 0.35331920973881403
   },
   {
     "key": "30ceeed2582612570b01b3d9",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2913853821770055,
-    "env_risk": 0.5197855572221639,
-    "func_risk": 0.5086307308224681,
-    "composite_risk": 0.35590447642004736
+    "ic_risk": 0.2918289459730876,
+    "env_risk": 0.5189557435764078,
+    "func_risk": 0.5062759769504093,
+    "composite_risk": 0.3554415889350955
   },
   {
     "key": "71e534ddb3b53fdf85d4e494",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.29156270455271105,
-    "env_risk": 0.5344834634816645,
-    "func_risk": 0.4931074288855929,
-    "composite_risk": 0.3571516131127402
+    "ic_risk": 0.2923530560688453,
+    "env_risk": 0.5355303984881992,
+    "func_risk": 0.49168563596748305,
+    "composite_risk": 0.35727069493686575
   },
   {
     "key": "d48909debe3a271e0a0e00b3",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5005736338860053,
-    "env_risk": 0.6992681978249589,
-    "func_risk": 0.6812567686390849,
-    "composite_risk": 0.5186969194298096
+    "ic_risk": 0.5005989875493467,
+    "env_risk": 0.7015264994810907,
+    "func_risk": 0.6784082791767392,
+    "composite_risk": 0.5186665223175212
   },
   {
     "key": "74816ad624eca308a2771a63",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5832214301632878,
-    "env_risk": 0.5565962835983268,
-    "func_risk": 0.6372336250656454,
-    "composite_risk": 0.48480345803494235
+    "ic_risk": 0.5849120007627266,
+    "env_risk": 0.5581119378460081,
+    "func_risk": 0.636286304753914,
+    "composite_risk": 0.4852643484665773
   },
   {
     "key": "247cda88e9d388039f7b6879",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.20637683596084172,
-    "env_risk": 0.4854990100414248,
-    "func_risk": 0.42887227007723944,
-    "composite_risk": 0.31280502491818085
+    "ic_risk": 0.20606448411757985,
+    "env_risk": 0.4844587497115043,
+    "func_risk": 0.42959559979753914,
+    "composite_risk": 0.3126639964786927
   },
   {
     "key": "6cca8238b37f0aa8b6778d3f",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.20800231467731392,
-    "env_risk": 0.48361916941991717,
-    "func_risk": 0.5252034552534313,
-    "composite_risk": 0.26812570580553313
+    "ic_risk": 0.20878940976004448,
+    "env_risk": 0.48489093027518254,
+    "func_risk": 0.5251735771989634,
+    "composite_risk": 0.2685171056946102
   },
   {
     "key": "d2a66f7b234dd913951f20f5",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.8890273959209763,
-    "env_risk": 0.8660608911684464,
-    "func_risk": 0.8977059535220491,
-    "composite_risk": 0.699770977595852
+    "ic_risk": 0.8894983286876225,
+    "env_risk": 0.8645445102766733,
+    "func_risk": 0.8972154866543065,
+    "composite_risk": 0.6994888017985875
   },
   {
     "key": "2813dc7fc5386882c7a68b6b",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.18778712078311616,
-    "env_risk": 0.47986419225608484,
-    "func_risk": 0.5616215114635539,
-    "composite_risk": 0.2759554271515326
+    "ic_risk": 0.18697948681302978,
+    "env_risk": 0.47804278738750616,
+    "func_risk": 0.5632830788129289,
+    "composite_risk": 0.2757234957877365
   },
   {
     "key": "12f6c6fca1e80e0319b60897",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.16580568156376868,
-    "env_risk": 0.4790743251480876,
-    "func_risk": 0.47162161300574856,
-    "composite_risk": 0.22729196743798086
+    "ic_risk": 0.16645103533786204,
+    "env_risk": 0.4798659874960491,
+    "func_risk": 0.47436331139000226,
+    "composite_risk": 0.22802097327487827
   },
   {
     "key": "8eb4826aa1d4845490175d03",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.8113585964488704,
-    "env_risk": 0.5418628812997778,
-    "func_risk": 0.6637790491470101,
-    "composite_risk": 0.5955136775758715
+    "ic_risk": 0.8105382753713775,
+    "env_risk": 0.5423426183807551,
+    "func_risk": 0.6617890298124846,
+    "composite_risk": 0.5951197619663455
   },
   {
     "key": "4158daa21c03a01d0b9ccb66",
     "cluster_named_id": 4,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1463324944743462,
-    "env_risk": 0.747041936937178,
-    "func_risk": 0.5893931631694835,
-    "composite_risk": 0.3615194499696832
+    "ic_risk": 0.1462157793013511,
+    "env_risk": 0.7496104667286726,
+    "func_risk": 0.5869297232373668,
+    "composite_risk": 0.3615849566949451
   },
   {
     "key": "5b6f5a5fcb9235113697066d",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14676344628444504,
-    "env_risk": 0.45191440393087956,
-    "func_risk": 0.410437985008666,
-    "composite_risk": 0.2979877536928799
+    "ic_risk": 0.1456268801614832,
+    "env_risk": 0.450721066995119,
+    "func_risk": 0.41322203287221654,
+    "composite_risk": 0.2979986152515616
   },
   {
     "key": "fb7e48cce24225484d17e09f",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.583454168410864,
-    "env_risk": 0.6713297901858976,
-    "func_risk": 0.8685194338793302,
-    "composite_risk": 0.5748416186199661
+    "ic_risk": 0.5852741077669981,
+    "env_risk": 0.6715928817850599,
+    "func_risk": 0.8663740501545227,
+    "composite_risk": 0.5748886137642675
   },
   {
     "key": "2b0d50a41a6de24135e8dcd4",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1671977060737371,
-    "env_risk": 0.641098551550706,
-    "func_risk": 0.6767794207055523,
-    "composite_risk": 0.3316156340091214
+    "ic_risk": 0.16711701488356945,
+    "env_risk": 0.6426059911065496,
+    "func_risk": 0.6808132069098645,
+    "composite_risk": 0.3325558577932255
   },
   {
     "key": "7c50b6dde2c917cf98577c46",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.497201774844158,
-    "env_risk": 0.5678436752661404,
-    "func_risk": 0.5465927771297819,
-    "composite_risk": 0.44253905737264654
+    "ic_risk": 0.49875364096173547,
+    "env_risk": 0.5685024256830145,
+    "func_risk": 0.547731293799838,
+    "composite_risk": 0.4431524563060877
   },
   {
     "key": "4b4fcc599645961552b1a543",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3129113380403962,
-    "env_risk": 0.5132603654680644,
-    "func_risk": 0.5119984853647382,
-    "composite_risk": 0.40686780301056047
+    "ic_risk": 0.3124617655927598,
+    "env_risk": 0.5137479039094992,
+    "func_risk": 0.5128479943850845,
+    "composite_risk": 0.40701528045272384
   },
   {
     "key": "fb3a74f365a9b579edf5cef8",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3983020743150425,
-    "env_risk": 0.7595977478423128,
-    "func_risk": 0.7388568363123553,
-    "composite_risk": 0.5056370937568295
+    "ic_risk": 0.3972283759552107,
+    "env_risk": 0.7606241924261757,
+    "func_risk": 0.7383965567966065,
+    "composite_risk": 0.505552051284857
   },
   {
     "key": "ffeda78ddb5f0b1bb5beb099",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.35576511342847605,
-    "env_risk": 0.6188858447576319,
-    "func_risk": 0.6509204696181192,
-    "composite_risk": 0.48033218693781543
+    "ic_risk": 0.3549925624397891,
+    "env_risk": 0.6167304879517498,
+    "func_risk": 0.6491794372803447,
+    "composite_risk": 0.4767812943516281
   },
   {
     "key": "2802af9a6142d506ed05a078",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2080369032328447,
-    "env_risk": 0.6012689437117664,
-    "func_risk": 0.6120689116498683,
-    "composite_risk": 0.3806227459590659
+    "ic_risk": 0.20865930406065958,
+    "env_risk": 0.6005743887370363,
+    "func_risk": 0.6118641656510393,
+    "composite_risk": 0.38057507319597794
   },
   {
     "key": "d3981db017ad4568b8f11be0",
-    "cluster_named_id": 4,
+    "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.29146674639959025,
-    "env_risk": 0.6733297714826909,
-    "func_risk": 0.6329797334417163,
-    "composite_risk": 0.4486099857102223
+    "ic_risk": 0.2909218380647078,
+    "env_risk": 0.6704823097250132,
+    "func_risk": 0.6289765816837856,
+    "composite_risk": 0.4472964344273459
   },
   {
     "key": "bafdf270981b84bd9b6cd348",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.702206200220526,
-    "env_risk": 0.7966123649724517,
-    "func_risk": 0.8852191604392095,
-    "composite_risk": 0.6701137352721178
+    "ic_risk": 0.7045803728542506,
+    "env_risk": 0.7960068077414474,
+    "func_risk": 0.88233057267149,
+    "composite_risk": 0.6699775767554678
   },
   {
     "key": "dc595c376f1279f131c4ba0b",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.20813311209760985,
-    "env_risk": 0.6514688347523294,
-    "func_risk": 0.6297740282762635,
-    "composite_risk": 0.3987160894341968
+    "ic_risk": 0.20865643092973712,
+    "env_risk": 0.6507566226502701,
+    "func_risk": 0.6277446537881952,
+    "composite_risk": 0.39834488068920365
   },
   {
     "key": "fa3a6b7b2d73a1bd2fa51412",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3959378512438463,
-    "env_risk": 0.7141467993198702,
-    "func_risk": 0.6892190069437807,
-    "composite_risk": 0.4453124313792392
+    "ic_risk": 0.3961045471695913,
+    "env_risk": 0.7134822053470802,
+    "func_risk": 0.6933057083257833,
+    "composite_risk": 0.4458908917332135
   },
   {
     "key": "b00c5c0def59b01a1b16eb97",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2290020800591429,
-    "env_risk": 0.6446938062151724,
-    "func_risk": 0.6840387775135337,
-    "composite_risk": 0.3580478563975388
+    "ic_risk": 0.22962171960194394,
+    "env_risk": 0.643647621840088,
+    "func_risk": 0.6878200458667931,
+    "composite_risk": 0.358589655795612
   },
   {
     "key": "6ed77aa705b7940ee3deba52",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.3958593033541904,
-    "env_risk": 0.7176813251505392,
-    "func_risk": 0.5278176133165876,
-    "composite_risk": 0.5401714771843974
+    "ic_risk": 0.3952703268346848,
+    "env_risk": 0.7165080457711923,
+    "func_risk": 0.5322648411264397,
+    "composite_risk": 0.5405660355124939
   },
   {
     "key": "374ba995e03a7a78564ed68a",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1875571423153597,
-    "env_risk": 0.6524381471368986,
-    "func_risk": 0.5994185551560567,
-    "composite_risk": 0.31176815482030906
+    "ic_risk": 0.1874799922388751,
+    "env_risk": 0.6541394487716576,
+    "func_risk": 0.599144906204058,
+    "composite_risk": 0.31203565191819715
   },
   {
     "key": "b55245c9e54f224a5731c5d7",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4803065846628481,
-    "env_risk": 0.6738311635702873,
-    "func_risk": 0.6726949205231231,
-    "composite_risk": 0.5307611784211939
+    "ic_risk": 0.4787337319294056,
+    "env_risk": 0.6741856151364045,
+    "func_risk": 0.6763427697543156,
+    "composite_risk": 0.5311285313196306
   },
   {
     "key": "2f70d9d27947017c4cd8dd3e",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2477050457130062,
-    "env_risk": 0.5411651207793094,
-    "func_risk": 0.556795055028523,
-    "composite_risk": 0.3449336911294771
+    "ic_risk": 0.2483262620602506,
+    "env_risk": 0.5410430278170293,
+    "func_risk": 0.5550202501032266,
+    "composite_risk": 0.3447369295684088
   },
   {
     "key": "71d79e58d71b1667e82b4794",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.49726834292423167,
-    "env_risk": 0.7210556519490635,
-    "func_risk": 0.6401942599351581,
-    "composite_risk": 0.5322644219024104
+    "ic_risk": 0.4970595324356542,
+    "env_risk": 0.7215337428688892,
+    "func_risk": 0.6402901620103598,
+    "composite_risk": 0.532332082227834
   },
   {
     "key": "b5949301c6de7364e102a763",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.394215401964022,
-    "env_risk": 0.6647505115884245,
-    "func_risk": 0.6936926978201011,
-    "composite_risk": 0.4867902334991627
+    "ic_risk": 0.39379811102708673,
+    "env_risk": 0.6635340660498472,
+    "func_risk": 0.6939944697578413,
+    "composite_risk": 0.48652553159735357
   },
   {
     "key": "1a9624066663ce38f56c9872",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3520310511198287,
-    "env_risk": 0.6366139501318014,
-    "func_risk": 0.600465404454395,
-    "composite_risk": 0.490135954475914
+    "ic_risk": 0.35251358925456394,
+    "env_risk": 0.6361153548310807,
+    "func_risk": 0.6002702975089035,
+    "composite_risk": 0.4901006708254557
   },
   {
     "key": "61bd6939bf4843f040037538",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1674456726545428,
-    "env_risk": 0.6047495100227676,
-    "func_risk": 0.48918987212584314,
-    "composite_risk": 0.32728390156614634
+    "ic_risk": 0.16675821281483752,
+    "env_risk": 0.6043845149446299,
+    "func_risk": 0.48771450607152944,
+    "composite_risk": 0.32683786859549985
   },
   {
     "key": "b7d17ef296b55a66840164f1",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.5214593656078728,
-    "env_risk": 0.6272844260909273,
-    "func_risk": 0.7378570887700715,
-    "composite_risk": 0.5006945995490808
+    "ic_risk": 0.5221259512172217,
+    "env_risk": 0.6278407809690401,
+    "func_risk": 0.739480868198301,
+    "composite_risk": 0.501197939198575
   },
   {
     "key": "fbead6308fe0af3ae523db29",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.20520877227771714,
-    "env_risk": 0.6083171157709204,
-    "func_risk": 0.5499283707515562,
-    "composite_risk": 0.39786691462336954
+    "ic_risk": 0.20472992560135467,
+    "env_risk": 0.6070972099641929,
+    "func_risk": 0.5520131537640626,
+    "composite_risk": 0.3978838939674383
   },
   {
     "key": "4a82f23b899ee56d8da728c9",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10524733960905285,
-    "env_risk": 0.35873567016070984,
-    "func_risk": 0.4233383410256744,
-    "composite_risk": 0.2696425556499156
+    "ic_risk": 0.10462083252525017,
+    "env_risk": 0.3572023603355867,
+    "func_risk": 0.42276157354132926,
+    "composite_risk": 0.26913162426003046
   },
   {
     "key": "7b289751e70776cd41198808",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.10520690458154677,
-    "env_risk": 0.5371020678575618,
-    "func_risk": 0.5539144733451573,
-    "composite_risk": 0.33942036529647934
+    "ic_risk": 0.10499128306674141,
+    "env_risk": 0.5374154268176731,
+    "func_risk": 0.5539946440133303,
+    "composite_risk": 0.3394524079149493
   },
   {
     "key": "e3d89ad8b3cf16d2b529739f",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.47752947840630483,
-    "env_risk": 0.6976119167854418,
-    "func_risk": 0.6858664469168282,
-    "composite_risk": 0.5318926823156879
+    "ic_risk": 0.47758239821901355,
+    "env_risk": 0.7009218866608293,
+    "func_risk": 0.6884552281758641,
+    "composite_risk": 0.5329671874883873
   },
   {
     "key": "1d06c5ff57ea1d3d698877a3",
     "cluster_named_id": 2,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.20606223635524393,
-    "env_risk": 0.6696120856007871,
-    "func_risk": 0.5512351182527822,
-    "composite_risk": 0.418461101488245
+    "ic_risk": 0.2063105290841769,
+    "env_risk": 0.6689251323814778,
+    "func_risk": 0.5506828855366996,
+    "composite_risk": 0.4182855409456939
   },
   {
     "key": "39c6746b2d789a0059fd8290",
-    "cluster_named_id": 4,
+    "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.3963453894193784,
-    "env_risk": 0.6748838566155104,
-    "func_risk": 0.6893130219840289,
-    "composite_risk": 0.4920732784890809
+    "ic_risk": 0.3966686837592655,
+    "env_risk": 0.6743404487947969,
+    "func_risk": 0.689951039214644,
+    "composite_risk": 0.49213617948707333
   },
   {
     "key": "5380a831aa79427686de6cb0",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.06268262870687828,
-    "env_risk": 0.5168848792678602,
-    "func_risk": 0.47410782796124235,
-    "composite_risk": 0.32146453689874216
+    "ic_risk": 0.062442222396751956,
+    "env_risk": 0.5177695433190616,
+    "func_risk": 0.478464421421644,
+    "composite_risk": 0.32230739443486534
   },
   {
     "key": "4a7e140d431e507659da33cd",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14544452617464623,
-    "env_risk": 0.45289124085310617,
-    "func_risk": 0.43530738223384513,
-    "composite_risk": 0.3336603532214268
+    "ic_risk": 0.146408277097817,
+    "env_risk": 0.45276206248519246,
+    "func_risk": 0.4364623521634361,
+    "composite_risk": 0.33401157847669627
   },
   {
     "key": "fd68fc9fc9441baac6fba628",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1253609442591858,
-    "env_risk": 0.4406499187678414,
-    "func_risk": 0.46376239359863375,
-    "composite_risk": 0.29095788607647727
+    "ic_risk": 0.12492363099891036,
+    "env_risk": 0.44246786876223,
+    "func_risk": 0.4627185957414459,
+    "composite_risk": 0.29105143200135813
   },
   {
     "key": "ff060d3925a8d7524d038081",
     "cluster_named_id": 3,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.1673321678955019,
-    "env_risk": 0.6095082639028294,
-    "func_risk": 0.6168466388768619,
-    "composite_risk": 0.399731478535861
+    "ic_risk": 0.16673206955688397,
+    "env_risk": 0.6085449187781053,
+    "func_risk": 0.6176401049603711,
+    "composite_risk": 0.39956143757294665
   },
   {
     "key": "d97dea889b3fa7a26f10ca5b",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.2920426569155029,
-    "env_risk": 0.5715639294594422,
-    "func_risk": 0.5175663841716254,
-    "composite_risk": 0.30469772126549516
+    "ic_risk": 0.29198401879600266,
+    "env_risk": 0.571209189157176,
+    "func_risk": 0.5201724159432568,
+    "composite_risk": 0.3050481411616243
   },
   {
     "key": "31e78e4d9cf359d4fea82f72",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.14569562968870478,
-    "env_risk": 0.5679619680559385,
-    "func_risk": 0.6216158341841129,
-    "composite_risk": 0.37665570020622247
+    "ic_risk": 0.14559503469951324,
+    "env_risk": 0.567915523093517,
+    "func_risk": 0.6216806642907694,
+    "composite_risk": 0.37663809198313525
   },
   {
     "key": "a06fd6dfde707c6c825e1158",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4995230266865048,
-    "env_risk": 0.6868751164198292,
-    "func_risk": 0.6784351002044988,
-    "composite_risk": 0.5199184340817117
+    "ic_risk": 0.5000295131356811,
+    "env_risk": 0.6861514911204877,
+    "func_risk": 0.680849117983521,
+    "composite_risk": 0.5175749477865934
   },
   {
     "key": "e4649acc7d1fd2569dbbfbb4",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.12376289112868748,
-    "env_risk": 0.5775047050891098,
-    "func_risk": 0.35734744944912195,
-    "composite_risk": 0.26001634143103114
+    "ic_risk": 0.12447010609716204,
+    "env_risk": 0.574644601801646,
+    "func_risk": 0.36001028729711404,
+    "composite_risk": 0.2600412786745444
   },
   {
     "key": "3dccfe73bb05e544fc06ae8f",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.6453274718968195,
-    "env_risk": 0.7442119991447926,
-    "func_risk": 0.7601127122898358,
-    "composite_risk": 0.6318549457033332
+    "ic_risk": 0.6467822819406674,
+    "env_risk": 0.743467052602875,
+    "func_risk": 0.7632975263440672,
+    "composite_risk": 0.6325170887464031
   },
   {
     "key": "87baeb5064d5d2dfc6a0fdfd",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43762582060047145,
-    "env_risk": 0.6566809490776369,
-    "func_risk": 0.6144143157121051,
-    "composite_risk": 0.5026974152555332
+    "ic_risk": 0.43842579398866094,
+    "env_risk": 0.6536946072836788,
+    "func_risk": 0.612200683800522,
+    "composite_risk": 0.5019112900720115
   },
   {
     "key": "b3c4bf5242d7cfba55477019",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.33374746346617684,
-    "env_risk": 0.5721603481659308,
-    "func_risk": 0.5476459780419943,
-    "composite_risk": 0.4118538401161098
+    "ic_risk": 0.3351953050618093,
+    "env_risk": 0.5708977456648733,
+    "func_risk": 0.5478663936898223,
+    "composite_risk": 0.41192586722370705
   },
   {
     "key": "4a6009e005d6a09955cc81e2",
     "cluster_named_id": 2,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.5368223081279393,
-    "env_risk": 0.7490581835943335,
-    "func_risk": 0.6456171765397302,
-    "composite_risk": 0.577078828785593
+    "ic_risk": 0.5382387914742746,
+    "env_risk": 0.7486043054286623,
+    "func_risk": 0.6419035437220911,
+    "composite_risk": 0.5766513808679603
   },
   {
     "key": "9bf55ae2b60d6168f9271d88",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.08270860883463216,
-    "env_risk": 0.5102669050862237,
-    "func_risk": 0.38371893028003967,
-    "composite_risk": 0.2496864099259713
+    "ic_risk": 0.08369586860285363,
+    "env_risk": 0.5114483534727712,
+    "func_risk": 0.3858410253053529,
+    "composite_risk": 0.250454031924941
   },
   {
     "key": "940d571cf16060a23c342715",
     "cluster_named_id": 1,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1871148321183209,
-    "env_risk": 0.5220752025355994,
-    "func_risk": 0.5006197254541908,
-    "composite_risk": 0.3679363363708211
+    "ic_risk": 0.18728754358002625,
+    "env_risk": 0.5200941660968049,
+    "func_risk": 0.5027240384618603,
+    "composite_risk": 0.367935445458997
   },
   {
     "key": "af1c2f96b8f18bda41b530b3",
     "cluster_named_id": 2,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.021906746809515924,
-    "env_risk": 0.4799613703018983,
-    "func_risk": 0.3011487475526594,
-    "composite_risk": 0.19723915589013608
+    "ic_risk": 0.02267545132845033,
+    "env_risk": 0.48179381678555905,
+    "func_risk": 0.30200851778853144,
+    "composite_risk": 0.1978817395470545
   },
   {
     "key": "310bcb4d3bd022291b75dfaa",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.43820341967533966,
-    "env_risk": 0.5352612644108077,
-    "func_risk": 0.5278694012520544,
-    "composite_risk": 0.4255104028931723
+    "ic_risk": 0.4380366513187034,
+    "env_risk": 0.5401912102571889,
+    "func_risk": 0.5238602885982812,
+    "composite_risk": 0.42576581097207566
   },
   {
     "key": "39830ef7f402ba217d4b78ea",
     "cluster_named_id": 4,
     "overall_risk_level": "MODERATE",
-    "ic_risk": 0.4807353174943402,
-    "env_risk": 0.5305023556358176,
-    "func_risk": 0.5663021469675009,
-    "composite_risk": 0.444073106327193
+    "ic_risk": 0.4805564915602189,
+    "env_risk": 0.5270167851780583,
+    "func_risk": 0.5640129522787658,
+    "composite_risk": 0.4429899928981148
   },
   {
     "key": "2ed400ac782cbf68af2a18db",
     "cluster_named_id": 4,
     "overall_risk_level": "HIGH",
-    "ic_risk": 0.8055204301614705,
-    "env_risk": 0.7130352164122427,
-    "func_risk": 0.725232528808547,
-    "composite_risk": 0.6518803292188501
+    "ic_risk": 0.8034106674699395,
+    "env_risk": 0.7124166470098539,
+    "func_risk": 0.7236657745937107,
+    "composite_risk": 0.6483966108453225
   },
   {
     "key": "bd54bf69f8312b29d6a62379",
     "cluster_named_id": 3,
     "overall_risk_level": "LOW",
-    "ic_risk": 0.1458418901125556,
-    "env_risk": 0.7068037449391982,
-    "func_risk": 0.5921386083756017,
-    "composite_risk": 0.3348271551294369
+    "ic_risk": 0.14617907190734492,
+    "env_risk": 0.7062978361204632,
+    "func_risk": 0.5898389399677928,
+    "composite_risk": 0.33441522989003886
+  },
+  {
+    "key": "b77ecb1c3d4afd2277b6902e",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.10456072472777227,
+    "env_risk": 0.4813844079171572,
+    "func_risk": 0.520195606807919,
+    "composite_risk": 0.2611767131574556
+  },
+  {
+    "key": "9c9576cf72f0238717f18adc",
+    "cluster_named_id": 4,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.4376059936399359,
+    "env_risk": 0.5058760002185619,
+    "func_risk": 0.5652403635900518,
+    "composite_risk": 0.41433994381011935
+  },
+  {
+    "key": "4645f69bd6499e027d460c87",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.10473031308896415,
+    "env_risk": 0.5094970580436611,
+    "func_risk": 0.4528154916845183,
+    "composite_risk": 0.2431283250709759
+  },
+  {
+    "key": "da1b2afbc1ad50258e8b2e34",
+    "cluster_named_id": 2,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.27047374124974,
+    "env_risk": 0.34895427118902944,
+    "func_risk": 0.35125359772732256,
+    "composite_risk": 0.31917173601947135
+  },
+  {
+    "key": "20c9d2346bbbbfcb7b1b0657",
+    "cluster_named_id": 4,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.4995377652975245,
+    "env_risk": 0.5833484591659492,
+    "func_risk": 0.6540657161316009,
+    "composite_risk": 0.46334644137093284
+  },
+  {
+    "key": "727f68f65254e3438ba4d802",
+    "cluster_named_id": 2,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.43640506983146454,
+    "env_risk": 0.6750437338392892,
+    "func_risk": 0.5619353027993526,
+    "composite_risk": 0.4567482196685133
+  },
+  {
+    "key": "b7481f9b01ebe774bce9edf0",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.2934891489635134,
+    "env_risk": 0.6376701325659009,
+    "func_risk": 0.7098145835082312,
+    "composite_risk": 0.44995256797327043
+  },
+  {
+    "key": "10dbdd45ac82e1b76c667534",
+    "cluster_named_id": 4,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.3545227752733899,
+    "env_risk": 0.648043567856001,
+    "func_risk": 0.5996950337875484,
+    "composite_risk": 0.5158187016273532
+  },
+  {
+    "key": "11a55ae591ab85ed05e7eaa6",
+    "cluster_named_id": 4,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.3545008135423867,
+    "env_risk": 0.646972865480748,
+    "func_risk": 0.5865014517485831,
+    "composite_risk": 0.5023614227504696
+  },
+  {
+    "key": "692236a6d8bdfafd0b783984",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.312734226784954,
+    "env_risk": 0.5880504774544157,
+    "func_risk": 0.5993792120792248,
+    "composite_risk": 0.4399686255591508
+  },
+  {
+    "key": "9cfcda83a3fe364162eb73bf",
+    "cluster_named_id": 2,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.5191254017854372,
+    "env_risk": 0.532317139266024,
+    "func_risk": 0.4999843247782036,
+    "composite_risk": 0.4410051027408099
+  },
+  {
+    "key": "2192a668ea4a037d486d8f48",
+    "cluster_named_id": 2,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.27143597730594543,
+    "env_risk": 0.5586160159209914,
+    "func_risk": 0.4543343843269161,
+    "composite_risk": 0.35319018211012654
+  },
+  {
+    "key": "51ae1e458ba4fbad79a9183f",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.33349783796909116,
+    "env_risk": 0.5354023834195805,
+    "func_risk": 0.5322444887979659,
+    "composite_risk": 0.3967886332689837
+  },
+  {
+    "key": "b6c9480b13b3a9410910dd0f",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.2921106624659941,
+    "env_risk": 0.43703875328721,
+    "func_risk": 0.5160290963277893,
+    "composite_risk": 0.351146063426577
+  },
+  {
+    "key": "faec86bc75d31a0364afb315",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.0004606481481481478,
+    "env_risk": 0.5689766612301227,
+    "func_risk": 0.5837909588441249,
+    "composite_risk": 0.25238219026459774
+  },
+  {
+    "key": "63dac3cd72abdbdc5a4bda02",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.04364740694904821,
+    "env_risk": 0.39498716277395224,
+    "func_risk": 0.4786766903700725,
+    "composite_risk": 0.20157880858273955
+  },
+  {
+    "key": "a9408322ed59a7accf69413e",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.2921487382567869,
+    "env_risk": 0.5542529172089603,
+    "func_risk": 0.5281398975973939,
+    "composite_risk": 0.4440704017807263
+  },
+  {
+    "key": "6f545d99f81f4d89527952e2",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.14583919329399195,
+    "env_risk": 0.5521765558263254,
+    "func_risk": 0.570554153720463,
+    "composite_risk": 0.30905946706953746
+  },
+  {
+    "key": "eb873a5c36214fe56fe84dec",
+    "cluster_named_id": 4,
+    "overall_risk_level": "HIGH",
+    "ic_risk": 0.7524949193222609,
+    "env_risk": 0.7250548893856965,
+    "func_risk": 0.7773527705267671,
+    "composite_risk": 0.6341815453131983
+  },
+  {
+    "key": "4e89d9f83f339c0a3e9264db",
+    "cluster_named_id": 1,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.10464233502188564,
+    "env_risk": 0.5242587143491765,
+    "func_risk": 0.38490744801346777,
+    "composite_risk": 0.26741818092615166
+  },
+  {
+    "key": "e48638d1117396f9e021fc18",
+    "cluster_named_id": 3,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.14552651508095585,
+    "env_risk": 0.6151119819360851,
+    "func_risk": 0.5868822088233684,
+    "composite_risk": 0.2945584751316362
+  },
+  {
+    "key": "a73613c6d969f1df9a58db50",
+    "cluster_named_id": 2,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.33229454837757966,
+    "env_risk": 0.49112351619308914,
+    "func_risk": 0.45721127195731154,
+    "composite_risk": 0.36075783730281014
+  },
+  {
+    "key": "5aadcef7a8f231a88506bc7c",
+    "cluster_named_id": 4,
+    "overall_risk_level": "HIGH",
+    "ic_risk": 0.5018661104445711,
+    "env_risk": 0.7562013333762909,
+    "func_risk": 0.6946405393182573,
+    "composite_risk": 0.5418786719230284
+  },
+  {
+    "key": "d9332c7bd94a2ee7b653f5d8",
+    "cluster_named_id": 4,
+    "overall_risk_level": "HIGH",
+    "ic_risk": 0.7724239561313453,
+    "env_risk": 0.7324018662563196,
+    "func_risk": 0.7987002568593093,
+    "composite_risk": 0.6349445131914115
+  },
+  {
+    "key": "d9b250809666b31bd43ed876",
+    "cluster_named_id": 3,
+    "overall_risk_level": "LOW",
+    "ic_risk": 0.20847082499890718,
+    "env_risk": 0.6630168266264682,
+    "func_risk": 0.6806822911682884,
+    "composite_risk": 0.3408689509806523
+  },
+  {
+    "key": "e5ada3f093453a31d55beecd",
+    "cluster_named_id": 4,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.33372266963774727,
+    "env_risk": 0.5707316203438263,
+    "func_risk": 0.6025931553075945,
+    "composite_risk": 0.448360321447206
+  },
+  {
+    "key": "7363157bbc0e3da006eec4c2",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.18714870894864324,
+    "env_risk": 0.5981239622897017,
+    "func_risk": 0.546468754347847,
+    "composite_risk": 0.4037373336807762
+  },
+  {
+    "key": "c8db2a6e50500dd1833fb7b1",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.18930185995547347,
+    "env_risk": 0.5535812254798375,
+    "func_risk": 0.666418450478774,
+    "composite_risk": 0.4351690382752951
+  },
+  {
+    "key": "1f30c16eba12caece67702db",
+    "cluster_named_id": 3,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.2510130267873829,
+    "env_risk": 0.6288006367454155,
+    "func_risk": 0.7803061815910004,
+    "composite_risk": 0.41542965019257877
+  },
+  {
+    "key": "bba671771af1e2337f9d7a26",
+    "cluster_named_id": 2,
+    "overall_risk_level": "MODERATE",
+    "ic_risk": 0.43640506983146454,
+    "env_risk": 0.6750437338392892,
+    "func_risk": 0.5619353027993526,
+    "composite_risk": 0.4567482196685133
   }
 ]

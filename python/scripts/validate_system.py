@@ -66,7 +66,8 @@ TOL_UNIT  = 0.02   # 0-1 section/risk scores
 # ── helpers ───────────────────────────────────────────────────────────────────
 def _norm(s):
     s = unicodedata.normalize("NFC", str(s or ""))
-    s = s.replace("\xf1", "n").replace("\xd1", "n")
+    s = s.replace(chr(0xc3) + chr(0xb1), "n").replace(chr(0xc3) + chr(0x91), "n")
+    s = s.replace(chr(0xf1), "n").replace(chr(0xd1), "n")
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", "", s.lower())
@@ -219,6 +220,15 @@ cent_feats = cdoc["feature_names"]
 scaler_names = list(scaler.feature_names_in_)
 scaler_idx = {fn: i for i, fn in enumerate(scaler_names)}
 
+with open(os.path.join(MODEL_DIR, "cluster_metadata.json"), encoding="utf-8-sig") as f:
+    cluster_meta = json.load(f)
+
+def cluster_name(cid):
+    return cluster_meta.get(str(cid), {}).get("name", f"Cluster {cid}")
+
+CSV_EXPORT_DIR = os.path.join(REPO_ROOT, "storage", "app", "ml_validation")
+CSV_EXPORT_PATH = os.path.join(CSV_EXPORT_DIR, "cache_vs_live_model_comparison.csv")
+
 def margin(feature_map):
     """Return (nearest_id, 2nd_id, margin) using same scaled-31 nearest-centroid logic."""
     srow = [_f(feature_map.get(fn, 0.0)) for fn in scaler_names]
@@ -258,6 +268,9 @@ for row in db_rows:
                 pass
         res.append({
             "id": row["id"], "key": k,
+            "full_name": f"{row['first_name']} {row['last_name']}".strip(),
+            "barangay": row["barangay"],
+            "age": _age(row["date_of_birth"], row.get("survey_date")),
             "live_cluster": int(inf["cluster"]["named_id"]),
             "nb_cluster": int(_f(g["cluster_id"])),
             "live_risklvl": str(inf["risk_levels"]["overall"]).upper(),
@@ -415,3 +428,35 @@ print(f"  XAI coverage                 : {xai_ok/n*100:.1f}%")
 print(f"  Recommendation coverage      : {rec_ok/n*100:.1f}%")
 print(f"  Determinism                  : {'PASS' if det_ok else 'FAIL'}")
 print("=" * 72)
+
+# ── Export cache_vs_live_model_comparison.csv (System Validation Pillar 5) ────
+os.makedirs(CSV_EXPORT_DIR, exist_ok=True)
+MARGIN_BOUNDARY = 0.10  # relative gap nearest-vs-2nd-nearest centroid below this = "boundary case"
+with open(CSV_EXPORT_PATH, "w", newline="", encoding="utf-8") as fh:
+    writer = csv.writer(fh)
+    writer.writerow([
+        "full_name", "barangay", "age",
+        "notebook_cluster_id", "notebook_cluster_name",
+        "live_cluster_id", "live_cluster_name", "cluster_match",
+        "notebook_risk_level", "live_risk_level", "risk_match",
+        "risk_difference", "likely_reason",
+    ])
+    for r in res:
+        c_match = r["live_cluster"] == r["nb_cluster"]
+        r_match = r["live_risklvl"] == r["nb_risklvl"]
+        if c_match and r_match:
+            reason = "match"
+        elif not c_match and r["margin"] is not None and r["margin"] < MARGIN_BOUNDARY:
+            reason = "boundary case (tight centroid margin)"
+        elif not c_match:
+            reason = "cluster mismatch"
+        else:
+            reason = "risk variance (out-of-sample)"
+        writer.writerow([
+            r["full_name"], r["barangay"], r["age"],
+            r["nb_cluster"], cluster_name(r["nb_cluster"]),
+            r["live_cluster"], cluster_name(r["live_cluster"]), "YES" if c_match else "NO",
+            r["nb_risklvl"], r["live_risklvl"], "YES" if r_match else "NO",
+            f"{r['d_comp']:.6f}", reason,
+        ])
+print(f"\nWrote {n} rows -> {CSV_EXPORT_PATH}")

@@ -101,8 +101,8 @@
     "k": 5,
     "metric": "euclidean",
     "cv_folds": 5,
-    "cv_accuracy": 0.9333,
-    "cv_std": 0.0269,
+    "cv_accuracy": 0.9383,
+    "cv_std": 0.0221,
     "label_space": "cluster_named_id (1-4)",
     "n_features": 30,
     "note": "Primary inference path. Nearest-centroid is fallback when artifact is absent."
