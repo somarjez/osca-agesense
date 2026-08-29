@@ -1,6 +1,6 @@
 K,Silhouette,Davies_Bouldin,Calinski_Harabasz,N_Features,UMAP_Source
-2,0.8726,0.1649,5949.1,30,30-feature ablated set
-3,0.5903,0.5303,5807.1,30,30-feature ablated set
-4,0.5577,0.6492,6048.7,30,30-feature ablated set
-5,0.4944,0.6961,5854.0,30,30-feature ablated set
-6,0.4679,0.779,5973.6,30,30-feature ablated set
+2,0.8662,0.1679,5570.1,30,30-feature ablated set
+3,0.6328,0.4106,5836.0,30,30-feature ablated set
+4,0.5498,0.6713,6074.9,30,30-feature ablated set
+5,0.4804,0.7311,5521.4,30,30-feature ablated set
+6,0.454,0.8349,5552.2,30,30-feature ablated set

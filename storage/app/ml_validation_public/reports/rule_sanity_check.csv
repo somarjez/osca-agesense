@@ -1,9 +1,9 @@
 Domain,Low_Mean,High_Mean,MWU_pvalue,Pass_p005
-Composite,0.192,0.444,0.0,True
-Medical,0.208,0.839,0.0,True
-Financial,0.012,0.32,0.0,True
-Social,0.106,0.396,0.0,True
-Functional,0.135,0.398,0.0,True
-Housing,0.058,0.336,0.0,True
-HC Access,0.168,0.479,0.0,True
+Composite,0.19,0.443,0.0,True
+Medical,0.202,0.836,0.0,True
+Financial,0.013,0.313,0.0,True
+Social,0.105,0.393,0.0,True
+Functional,0.135,0.396,0.0,True
+Housing,0.056,0.335,0.0,True
+HC Access,0.17,0.487,0.0,True
 Sensory,0.117,0.412,0.0,True

@@ -71,7 +71,10 @@ def _abort(msg: str):
 def _norm_name(s: str) -> str:
     """Lowercase, NFC, strip accents, collapse non-alphanum."""
     s = unicodedata.normalize("NFC", str(s or ""))
-    s = s.replace("\xf1", "n").replace("\xd1", "n")   # n-tilde
+    # Recover n-tilde mojibake (UTF-8 bytes of the letter misread as Latin-1
+    # then re-encoded again) present in osca_normalized.csv for ~12 seniors.
+    s = s.replace(chr(0xc3) + chr(0xb1), "n").replace(chr(0xc3) + chr(0x91), "n")
+    s = s.replace(chr(0xf1), "n").replace(chr(0xd1), "n")   # n-tilde
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", "", s.lower())
