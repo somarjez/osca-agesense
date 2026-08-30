@@ -225,6 +225,25 @@ document.addEventListener('alpine:init', () => {
         },
     }))
 
+    // ── Income source cross-field guard (ProfileSurvey Step 5) ───────────────
+    // "Spouse salary"/"Spouse pension" require an actual spouse — grayed out
+    // and disabled when Marital Status (Step 1) is Single, same
+    // not-already-checked deadlock guard as dependencyCrossGuard above so a
+    // legacy bulk-imported contradictory record stays editable.
+    // ProfileSurvey::spouseIncomeSourceRule() is the server-side enforcement
+    // authority.
+    Alpine.data('incomeSourceGuard', () => ({
+        spouseOptions: ['Spouse salary', 'Spouse pension'],
+        get spouseIncomeBlocked() {
+            return this.$wire.maritalStatus === 'Single'
+        },
+        incomeOptionDisabled(option) {
+            return this.spouseOptions.includes(option)
+                && !(this.$wire.incomeSource ?? []).includes(option)
+                && this.spouseIncomeBlocked
+        },
+    }))
+
     // ── Real-time name field validation (ProfileSurvey: New Profile / Edit) ──
     // Client-side mirror of App\Support\NameRules — the ONE source of truth
     // for the pattern strings, seeded in via @js($this->nameGuardConfig()).

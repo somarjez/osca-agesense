@@ -465,16 +465,19 @@
                 <x-survey-section-head :step="5" title="Economic Profile"
                     desc="Income sources, assets, and common problems or needs." />
                 <div class="space-y-5">
-                    <div>
+                    <div x-data="incomeSourceGuard()">
                         <label class="block text-xs font-medium text-ink-600 mb-2">Source of Income and Assistance</label>
                         <div class="grid grid-cols-3 gap-2">
                             @foreach ($this->incomeSourceOptions() as $opt)
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" wire:model="incomeSource" value="{{ $opt }}" class="accent-forest-700 rounded">
+                            <label class="flex items-center gap-2 cursor-pointer"
+                                   :class="{ 'opacity-50 cursor-not-allowed': incomeOptionDisabled('{{ $opt }}') }">
+                                <input type="checkbox" wire:model="incomeSource" value="{{ $opt }}" class="accent-forest-700 rounded"
+                                       :disabled="incomeOptionDisabled('{{ $opt }}')">
                                 <span class="text-xs text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseIncomeBlocked" x-cloak>"Spouse salary"/"Spouse pension" are unavailable when marital status is Single.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Monthly Income Range <span class="text-critical-700" aria-hidden="true">*</span></label>

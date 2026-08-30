@@ -539,6 +539,51 @@ class ProfileSurveyValidationTest extends TestCase
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
     }
 
+    #[Test]
+    public function spouse_income_source_with_single_marital_status_is_rejected_on_step_5(): void
+    {
+        foreach (['Spouse salary', 'Spouse pension'] as $value) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Single')
+                ->set('spouseWorking', 'N/A')
+                ->set('step', 5)
+                ->set('incomeSource', [$value])
+                ->set('realAssets', ['House'])
+                ->set('movableAssets', ['Vehicle'])
+                ->set('problemsNeeds', ['Limited problems encountered'])
+                ->call('nextStep')
+                ->assertHasErrors(['incomeSource']);
+        }
+    }
+
+    #[Test]
+    public function spouse_income_source_with_married_status_is_accepted(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Married')
+            ->set('spouseWorking', 'Yes')
+            ->set('step', 5)
+            ->set('incomeSource', ['Spouse salary', 'Spouse pension'])
+            ->set('realAssets', ['House'])
+            ->set('movableAssets', ['Vehicle'])
+            ->set('problemsNeeds', ['Limited problems encountered'])
+            ->call('nextStep')
+            ->assertHasNoErrors(['incomeSource']);
+    }
+
+    #[Test]
+    public function direct_save_rejects_spouse_income_source_with_single_marital_status(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Single')
+            ->set('spouseWorking', 'N/A')
+            ->set('incomeSource', ['Spouse pension'])
+            ->call('save')
+            ->assertHasErrors(['incomeSource']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
     private function makeSenior(array $overrides = []): SeniorCitizen
     {
         return SeniorCitizen::create(array_merge([

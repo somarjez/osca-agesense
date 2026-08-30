@@ -314,6 +314,11 @@ class ProfileSurvey extends Component
             $violations[] = 'living with spouse conflicts with marital status or spouse employment status';
         }
 
+        if ($this->maritalStatus === 'Single'
+            && (in_array('Spouse salary', $this->incomeSource, true) || in_array('Spouse pension', $this->incomeSource, true))) {
+            $violations[] = 'spouse income source conflicts with single marital status';
+        }
+
         return $violations;
     }
 
@@ -548,6 +553,10 @@ class ProfileSurvey extends Component
                 : 'array';
             $rules["{$field}.*"] = 'string|max:255';
         }
+        // The enum-whitelist relaxation above still must not swallow the
+        // marital-status contradiction check — that's a business rule, not
+        // taxonomy drift (see spouseIncomeSourceRule() docblock).
+        $rules['incomeSource'] = ['array', $this->spouseIncomeSourceRule()];
 
         // Same legacy-data risk applies to barangay: it's a plain `string`
         // column (not an enum) and both BulkUploadController::upload() and
@@ -763,10 +772,29 @@ class ProfileSurvey extends Component
     }
 
     // ── V. Economic Profile ───────────────────────────────────────────────────
+    /**
+     * "Spouse salary"/"Spouse pension" require an actual spouse to exist —
+     * unlike the enum-whitelist relaxation below (which tolerates legacy
+     * taxonomy drift), this is a marital-status contradiction, the same
+     * class of business rule as spouseWorking/livingWith above, so it must
+     * keep enforcing on the full-record save() safety net too, not just
+     * per-step navigation.
+     */
+    private function spouseIncomeSourceRule(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            $value = (array) $value;
+            if ($this->maritalStatus === 'Single'
+                && (in_array('Spouse salary', $value, true) || in_array('Spouse pension', $value, true))) {
+                $fail('Source of income cannot include "Spouse salary" or "Spouse pension" when marital status is Single.');
+            }
+        };
+    }
+
     private function step5Rules(): array
     {
         return [
-            'incomeSource' => 'array',
+            'incomeSource' => ['array', $this->spouseIncomeSourceRule()],
             'incomeSource.*' => ['string', ValidationRule::in(self::incomeSourceOptions())],
             'realAssets' => 'required|array|min:1',
             'realAssets.*' => 'string|max:255',
