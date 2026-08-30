@@ -54,7 +54,7 @@ class ProfileSurveyDefaultsTest extends TestCase
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
             'household_size' => 1,
-            'num_children' => 0,
+            'num_children' => 2,
             'num_working_children' => 0,
         ], $overrides));
     }
@@ -69,6 +69,7 @@ class ProfileSurveyDefaultsTest extends TestCase
             ->set('dateOfBirth', '1948-05-02')
             ->set('gender', 'Female')
             ->set('maritalStatus', 'Widowed')
+            ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
             ->set('spouseWorking', 'N/A')
             ->set('educationalAttainment', 'High School Graduate')

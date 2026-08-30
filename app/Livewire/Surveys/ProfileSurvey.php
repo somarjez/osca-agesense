@@ -267,16 +267,59 @@ class ProfileSurvey extends Component
         return match (true) {
             $filled === 0 => "Let's get started.",
             $filled < $total => 'In progress. Missing: '.implode(', ', array_map('ucfirst', $missing)).'.',
+            $this->crossFieldViolations() !== [] => 'Fix conflicting answers: '.implode(', ', $this->crossFieldViolations()).'.',
             default => 'Ready to submit.',
         };
     }
 
-    /** Whether every required field is filled, so Save can be enabled from any step. */
+    /** Whether every required field is filled and no contradictory answers remain, so Save can be enabled from any step. */
     public function canSave(): bool
     {
         [$filled, $total] = $this->requiredFieldStatus();
 
-        return $filled === $total;
+        return $filled === $total && $this->crossFieldViolations() === [];
+    }
+
+    /**
+     * Cross-field contradictions that Laravel's per-field rules can't express
+     * on their own (each check here mirrors a validation closure in
+     * step2Rules()/step4Rules() etc. — this is purely for driving the
+     * "ready to submit" UI, the closures remain the actual enforcement).
+     *
+     * @return array<int, string>
+     */
+    private function crossFieldViolations(): array
+    {
+        $violations = [];
+
+        if ($this->numWorkingChildren > $this->numChildren) {
+            $violations[] = 'working children cannot exceed number of children';
+        }
+
+        if ((int) $this->numChildren === 0 && in_array($this->childFinancialSupport, ['Yes', 'Occasional'], true)) {
+            $violations[] = 'child financial support conflicts with 0 children';
+        }
+
+        if (in_array('Alone', $this->livingWith, true)
+            && (in_array('Overcrowded in home', $this->householdCondition, true) || in_array('Shared with relatives', $this->householdCondition, true))) {
+            $violations[] = 'living alone conflicts with household condition';
+        }
+
+        if ($this->maritalStatus === 'Single' && $this->spouseWorking !== '' && $this->spouseWorking !== 'N/A') {
+            $violations[] = 'spouse employment status conflicts with single marital status';
+        }
+
+        if (in_array('Spouse', $this->livingWith, true)
+            && ($this->maritalStatus === 'Single' || $this->spouseWorking === 'Deceased')) {
+            $violations[] = 'living with spouse conflicts with marital status or spouse employment status';
+        }
+
+        if ($this->maritalStatus === 'Single'
+            && (in_array('Spouse salary', $this->incomeSource, true) || in_array('Spouse pension', $this->incomeSource, true))) {
+            $violations[] = 'spouse income source conflicts with single marital status';
+        }
+
+        return $violations;
     }
 
     /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels]. */
@@ -472,7 +515,7 @@ class ProfileSurvey extends Component
     {
         match ($this->step) {
             1 => $this->validate($this->step1Rules(), $this->step1Messages()),
-            2 => $this->validate($this->step2Rules()),
+            2 => $this->validate($this->step2Rules(), $this->step2Messages()),
             3 => $this->validate($this->step3Rules()),
             4 => $this->validate($this->step4Rules()),
             5 => $this->validate($this->step5Rules()),
@@ -510,6 +553,10 @@ class ProfileSurvey extends Component
                 : 'array';
             $rules["{$field}.*"] = 'string|max:255';
         }
+        // The enum-whitelist relaxation above still must not swallow the
+        // marital-status contradiction check — that's a business rule, not
+        // taxonomy drift (see spouseIncomeSourceRule() docblock).
+        $rules['incomeSource'] = ['array', $this->spouseIncomeSourceRule()];
 
         // Same legacy-data risk applies to barangay: it's a plain `string`
         // column (not an enum) and both BulkUploadController::upload() and
@@ -525,7 +572,7 @@ class ProfileSurvey extends Component
 
     private function allStepsMessages(): array
     {
-        return $this->step1Messages();
+        return array_merge($this->step1Messages(), $this->step2Messages());
     }
 
     /** Latest date of birth that makes someone SeniorCitizen::MINIMUM_AGE today. */
@@ -549,11 +596,11 @@ class ProfileSurvey extends Component
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today|before_or_equal:'.$this->minimumBirthDate(),
             'gender' => 'required|string|max:255',
             'maritalStatus' => 'required|string|max:255',
-            'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today',
+            'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|after_or_equal:dateOfBirth',
             'contactNumber' => ['nullable', 'regex:/^\d{7,20}$/'],
-            'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital',
+            'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital|after_or_equal:dateOfBirth',
             'status' => ['required', ValidationRule::in(['active', 'deceased'])],
-            'dateOfDeath' => 'nullable|required_if:status,deceased|date|after_or_equal:1900-01-01|before_or_equal:today',
+            'dateOfDeath' => 'nullable|required_if:status,deceased|date|after_or_equal:1900-01-01|before_or_equal:today|after:dateOfBirth',
             'deceasedNote' => 'nullable|string|max:500',
         ];
     }
@@ -568,12 +615,13 @@ class ProfileSurvey extends Component
             'dateOfBirth.after_or_equal' => 'Date of birth must be in the year 1900 or later.',
             'dateOfBirth.before' => 'Date of birth must be in the past.',
             'dateOfBirth.before_or_equal' => 'This senior must be at least '.SeniorCitizen::MINIMUM_AGE.' years old to be registered.',
-            'registrationDate.after_or_equal' => 'Registration date must be in the year 1900 or later.',
+            'registrationDate.after_or_equal' => 'Registration date must be on or after the date of birth (and in the year 1900 or later).',
             'registrationDate.before_or_equal' => 'Registration date cannot be in the future.',
             'contactNumber.regex' => 'Contact number must contain 7 to 20 digits only.',
-            'consentGivenAt.after_or_equal' => 'Consent date must be in the year 1900 or later.',
+            'consentGivenAt.after_or_equal' => 'Consent date must be on or after the date of birth (and in the year 1900 or later).',
             'consentGivenAt.before_or_equal' => 'Consent date cannot be in the future.',
             'dateOfDeath.after_or_equal' => 'Date of death must be in the year 1900 or later.',
+            'dateOfDeath.after' => 'Date of death must be after the date of birth.',
             'dateOfDeath.before_or_equal' => 'Date of death cannot be in the future.',
             'dateOfDeath.required_if' => 'Date of death is required when the senior is deceased.',
             'officialOscaId.unique' => self::OFFICIAL_OSCA_ID_UNIQUE_MESSAGE,
@@ -658,10 +706,33 @@ class ProfileSurvey extends Component
     {
         return [
             'numChildren' => 'required|integer|min:0|max:50',
-            'numWorkingChildren' => 'required|integer|min:0|max:50',
+            'numWorkingChildren' => 'required|integer|min:0|max:50|lte:numChildren',
             'householdSize' => 'required|integer|min:1|max:50',
-            'childFinancialSupport' => ['required', ValidationRule::in(['Yes', 'No', 'Occasional', 'N/A'])],
-            'spouseWorking' => ['required', ValidationRule::in(['Yes', 'No', 'Deceased', 'N/A'])],
+            'childFinancialSupport' => [
+                'required',
+                ValidationRule::in(['Yes', 'No', 'Occasional', 'N/A']),
+                function ($attribute, $value, $fail) {
+                    if ((int) $this->numChildren === 0 && in_array($value, ['Yes', 'Occasional'], true)) {
+                        $fail('Financial support from children cannot be "Yes" or "Occasional" when the number of children is 0.');
+                    }
+                },
+            ],
+            'spouseWorking' => [
+                'required',
+                ValidationRule::in(['Yes', 'No', 'Deceased', 'N/A']),
+                function ($attribute, $value, $fail) {
+                    if ($this->maritalStatus === 'Single' && $value !== 'N/A') {
+                        $fail('Spouse/Partner Working must be "N/A" when marital status is Single.');
+                    }
+                },
+            ],
+        ];
+    }
+
+    private function step2Messages(): array
+    {
+        return [
+            'numWorkingChildren.lte' => 'Number of working children cannot exceed the number of children.',
         ];
     }
 
@@ -681,18 +752,49 @@ class ProfileSurvey extends Component
     private function step4Rules(): array
     {
         return [
-            'livingWith' => 'required|array|min:1',
+            'livingWith' => ['required', 'array', 'min:1', function ($attribute, $value, $fail) {
+                $value = (array) $value;
+                if (in_array('Spouse', $value, true)
+                    && ($this->maritalStatus === 'Single' || $this->spouseWorking === 'Deceased')) {
+                    $fail('Living arrangement cannot include "Spouse" when marital status is Single or Spouse/Partner Working is "Deceased".');
+                }
+            }],
             'livingWith.*' => 'string|max:255',
-            'householdCondition' => 'array',
+            'householdCondition' => ['array', function ($attribute, $value, $fail) {
+                $value = (array) $value;
+                if (in_array('Alone', $this->livingWith, true)
+                    && (in_array('Overcrowded in home', $value, true) || in_array('Shared with relatives', $value, true))) {
+                    $fail('Household condition cannot include "Overcrowded in home" or "Shared with relatives" while living arrangement is "Alone".');
+                }
+            }],
             'householdCondition.*' => 'string|max:255',
         ];
     }
 
     // ── V. Economic Profile ───────────────────────────────────────────────────
+    /**
+     * "Spouse salary"/"Spouse pension" require an actual spouse to exist —
+     * unlike the enum-whitelist relaxation below (which tolerates legacy
+     * taxonomy drift), this is a marital-status contradiction, the same
+     * class of business rule as spouseWorking/livingWith above, so it must
+     * keep enforcing on the full-record save() safety net too, not just
+     * per-step navigation.
+     */
+    private function spouseIncomeSourceRule(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            $value = (array) $value;
+            if ($this->maritalStatus === 'Single'
+                && (in_array('Spouse salary', $value, true) || in_array('Spouse pension', $value, true))) {
+                $fail('Source of income cannot include "Spouse salary" or "Spouse pension" when marital status is Single.');
+            }
+        };
+    }
+
     private function step5Rules(): array
     {
         return [
-            'incomeSource' => 'array',
+            'incomeSource' => ['array', $this->spouseIncomeSourceRule()],
             'incomeSource.*' => ['string', ValidationRule::in(self::incomeSourceOptions())],
             'realAssets' => 'required|array|min:1',
             'realAssets.*' => 'string|max:255',

@@ -218,6 +218,7 @@ class PolicyAuthorizationTest extends TestCase
             ->set('dateOfBirth', '1948-05-02')
             ->set('gender', 'Female')
             ->set('maritalStatus', 'Widowed')
+            ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
             ->set('spouseWorking', 'N/A')
             ->set('educationalAttainment', 'High School Graduate')

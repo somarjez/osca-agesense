@@ -54,6 +54,7 @@ class OfficialOscaIdTest extends TestCase
             ->set('dateOfBirth', '1948-05-02')
             ->set('gender', 'Female')
             ->set('maritalStatus', 'Widowed')
+            ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
             ->set('spouseWorking', 'N/A')
             ->set('educationalAttainment', 'High School Graduate')
@@ -66,7 +67,7 @@ class OfficialOscaIdTest extends TestCase
         return [
             'gender' => 'Female',
             'marital_status' => 'Widowed',
-            'num_children' => 0,
+            'num_children' => 2,
             'num_working_children' => 0,
             'child_financial_support' => 'Yes',
             'spouse_working' => 'N/A',

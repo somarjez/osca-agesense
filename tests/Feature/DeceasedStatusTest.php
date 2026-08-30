@@ -64,7 +64,7 @@ class DeceasedStatusTest extends TestCase
             'child_financial_support' => 'Yes',
             'spouse_working' => 'N/A',
             'household_size' => 1,
-            'num_children' => 0,
+            'num_children' => 2,
             'num_working_children' => 0,
             'educational_attainment' => 'High School Graduate',
             'living_with' => ['Children'],
@@ -92,6 +92,7 @@ class DeceasedStatusTest extends TestCase
             ->set('dateOfBirth', '1950-01-01')
             ->set('gender', 'Female')
             ->set('maritalStatus', 'Widowed')
+            ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
             ->set('spouseWorking', 'N/A')
             ->set('educationalAttainment', 'High School Graduate')
