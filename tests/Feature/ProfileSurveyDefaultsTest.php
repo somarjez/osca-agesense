@@ -173,6 +173,10 @@ class ProfileSurveyDefaultsTest extends TestCase
     public function saving_a_completed_create_persists_the_neutral_defaults(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            // Non-1 so it's consistent with the fillRequired() baseline's
+            // livingWith=['Children'] under the reverse householdSize===1
+            // rule (step4Rules()).
+            ->set('householdSize', 3)
             ->call('save')
             ->assertSet('saved', true);
 
@@ -215,6 +219,7 @@ class ProfileSurveyDefaultsTest extends TestCase
     public function exclusive_token_alone_survives_save_unchanged(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('householdSize', 3)
             ->set('dentalConcern', ['Healthy Teeth'])
             ->call('save')
             ->assertSet('saved', true);
@@ -228,6 +233,7 @@ class ProfileSurveyDefaultsTest extends TestCase
     public function problems_needs_others_free_text_still_works_after_sanitizing(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('householdSize', 3)
             ->set('problemsNeeds', ['Limited problems encountered', 'Others'])
             ->set('problemsNeedsOther', 'roof leak')
             ->call('save')

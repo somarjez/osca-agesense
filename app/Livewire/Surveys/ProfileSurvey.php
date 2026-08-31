@@ -235,23 +235,18 @@ class ProfileSurvey extends Component
     }
 
     /**
-     * Progress through the multi-step wizard (previously labeled "Required
-     * Fields" and computed as a required-fields-filled ratio — see git
-     * history). That framing was wrong in both directions: it hit 100% the
-     * instant Step 1's identity fields were done, even while sitting on
-     * Step 2 of 6 ("Required Fields: 100% / Step 2 of 6" contradicting each
-     * other — the reported bug); and for a senior with genuinely nothing to
-     * report in every later, optional section (no assets, no medical
-     * concerns), a fields-filled ratio could never reach 100% at all, since
-     * "no concerns" is a complete, valid answer, not a gap. Wizard position
-     * is honest in both directions and matches the "Step X of 6" caption
-     * shown right next to it — see the rail's "Progress" label
-     * (survey-guide.blade.php) and stepStatusText() below, which now tracks
-     * submit-readiness separately rather than reusing this percentage.
+     * Required-fields-filled ratio across the entire profile — requiredFieldStatus()'s
+     * denominator spans every step's required fields, not just the current one, so this
+     * does not reproduce the old "Step 1 alone hits 100% while on Step 2" symptom.
+     * Previously this was wizard step position ((step-1)/(totalSteps-1)), which could
+     * reach 100% via goToStep() jumping straight to the final step with every required
+     * field still blank — the reported bug.
      */
     public function completionPercent(): int
     {
-        return (int) round((($this->step - 1) / max(1, $this->totalSteps - 1)) * 100);
+        [$filled, $total] = $this->requiredFieldStatus();
+
+        return $total === 0 ? 0 : (int) round(($filled / $total) * 100);
     }
 
     /**
@@ -322,6 +317,14 @@ class ProfileSurvey extends Component
 
         if (in_array('Alone', $this->livingWith, true) && (int) $this->householdSize !== 1) {
             $violations[] = 'living alone conflicts with household size greater than 1';
+        }
+
+        if ((int) $this->householdSize === 1 && $this->livingWith !== [] && ! in_array('Alone', $this->livingWith, true)) {
+            $violations[] = 'household size of 1 conflicts with living arrangement other than alone';
+        }
+
+        if ($this->houseAndLotOwnershipConflict() && in_array('House and Lot', $this->realAssets, true)) {
+            $violations[] = 'house and lot asset conflicts with household condition (house owned, land not owned)';
         }
 
         return $violations;
@@ -725,6 +728,18 @@ class ProfileSurvey extends Component
         };
     }
 
+    /**
+     * "House and Lot" under Real Assets (step5) contradicts Household
+     * Condition (step4) indicating the house is owned but the land it sits
+     * on isn't — single source of truth shared by step5Rules()'s closure
+     * and crossFieldViolations(), same pattern as spouseWorkingAllowedValues().
+     */
+    private function houseAndLotOwnershipConflict(): bool
+    {
+        return in_array('House is owned', $this->householdCondition, true)
+            && in_array('Land is not owned', $this->householdCondition, true);
+    }
+
     // ── II. Family Composition ────────────────────────────────────────────────
     private function step2Rules(): array
     {
@@ -789,8 +804,13 @@ class ProfileSurvey extends Component
                     && (in_array($this->maritalStatus, ['Single', 'Widowed'], true) || $this->spouseWorking === 'Deceased')) {
                     $fail('Living arrangement cannot include "Spouse" when marital status is Single/Widowed or Spouse/Partner Working is "Deceased".');
                 }
-                if (in_array('Alone', $value, true) && (int) $this->householdSize !== 1) {
+                $hasAlone = in_array('Alone', $value, true);
+                $sizeIsOne = (int) $this->householdSize === 1;
+                if ($hasAlone && ! $sizeIsOne) {
                     $fail('Household size must be 1 when living arrangement is "Alone".');
+                }
+                if ($sizeIsOne && $value !== [] && ! $hasAlone) {
+                    $fail('Living arrangement must be "Alone" when household size is 1.');
                 }
             }],
             'livingWith.*' => 'string|max:255',
@@ -830,7 +850,11 @@ class ProfileSurvey extends Component
         return [
             'incomeSource' => ['array', $this->spouseIncomeSourceRule()],
             'incomeSource.*' => ['string', ValidationRule::in(self::incomeSourceOptions())],
-            'realAssets' => 'required|array|min:1',
+            'realAssets' => ['required', 'array', 'min:1', function ($attribute, $value, $fail) {
+                if ($this->houseAndLotOwnershipConflict() && in_array('House and Lot', (array) $value, true)) {
+                    $fail('Real assets cannot include "House and Lot" when Household Condition indicates the house is owned but the land is not.');
+                }
+            }],
             'realAssets.*' => 'string|max:255',
             'movableAssets' => 'required|array|min:1',
             'movableAssets.*' => 'string|max:255',

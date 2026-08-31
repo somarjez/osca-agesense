@@ -9,10 +9,8 @@
       intro        string|null
       percent      int          0-100, caller-computed (see completionPercent())
       label        string       eyebrow above the ring — default "Required Fields"
-                                 fits a caller whose percent genuinely tracks
-                                 required-field completion (QolSurveyForm); a
-                                 caller whose percent instead tracks wizard
-                                 position (ProfileSurvey) should pass "Progress"
+                                 fits any caller whose percent tracks required-field
+                                 completion (both QolSurveyForm and ProfileSurvey)
       stepCaption  string|null  e.g. "Step 2 of 6"
       statusText   string|null  e.g. "In progress."
       tips         array<string>

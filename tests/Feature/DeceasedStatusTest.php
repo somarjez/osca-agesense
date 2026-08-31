@@ -64,7 +64,9 @@ class DeceasedStatusTest extends TestCase
             'child_financial_support' => 'Yes',
             // Widowed requires spouse_working = 'Deceased' (see spouseWorkingAllowedValues()).
             'spouse_working' => 'Deceased',
-            'household_size' => 1,
+            // Non-1 so it's consistent with 'living_with' => ['Children']
+            // below under the reverse householdSize===1-forces-Alone rule.
+            'household_size' => 3,
             'num_children' => 2,
             'num_working_children' => 0,
             'educational_attainment' => 'High School Graduate',
@@ -99,6 +101,9 @@ class DeceasedStatusTest extends TestCase
             ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
+            // Non-1 so it's consistent with 'Children' above under the
+            // reverse householdSize===1-forces-Alone rule (step4Rules()).
+            ->set('householdSize', 3)
             ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
@@ -186,6 +191,38 @@ class DeceasedStatusTest extends TestCase
         $this->assertSame('Passed peacefully.', $senior->deceased_note);
         $this->assertSame($this->admin->name, $senior->status_changed_by);
         $this->assertNotNull($senior->status_changed_at);
+    }
+
+    #[Test]
+    public function marking_a_senior_deceased_hides_the_qol_survey_prompt(): void
+    {
+        $senior = $this->makeSenior();
+
+        $this->actingAs($this->admin);
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('status', 'deceased')
+            ->set('dateOfDeath', '2026-06-01')
+            ->call('save')
+            ->assertSet('saved', true)
+            ->assertDontSee('Take QoL Survey');
+
+        $this->get(route('seniors.show', $senior->fresh()))
+            ->assertOk()
+            ->assertDontSee('New QoL Survey')
+            ->assertDontSee('+ New survey');
+    }
+
+    #[Test]
+    public function an_active_senior_still_shows_the_qol_survey_prompt(): void
+    {
+        $senior = $this->makeSenior();
+
+        $this->actingAs($this->admin);
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->set('contactNumber', '09171234567')
+            ->call('save')
+            ->assertSet('saved', true)
+            ->assertSee('Take QoL Survey');
     }
 
     #[Test]

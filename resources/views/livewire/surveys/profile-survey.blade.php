@@ -54,10 +54,13 @@
                     {{ $senior->osca_id }}
                 </p>
                 <div class="flex flex-col gap-2">
+                    {{-- Deceased seniors are outside the QoL survey workflow — see seniors/show.blade.php's matching guard. --}}
+                    @if ($senior->status !== 'deceased')
                     <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening survey…" class="btn btn-primary justify-center">
                         + Take QoL Survey →
                     </a>
-                    <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn btn-secondary justify-center">
+                    @endif
+                    <a href="{{ route('seniors.show', $senior) }}" wire:navigate data-loading="Opening profile…" class="btn {{ $senior->status !== 'deceased' ? 'btn-secondary' : 'btn-primary' }} justify-center">
                         ← Back to Profile
                     </a>
                 </div>
@@ -430,17 +433,16 @@
                              x-data="exclusiveGroup('livingWith', @js($xt['livingWith']))" @change="onChange($event)">
                             @foreach (['Alone','Spouse','Children','Grandchildren','Relative(s)','Friend(s)','Care Institution'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer p-2 border border-paper-rule rounded-lg hover:bg-paper"
-                                   @if ($opt === 'Alone') :class="{ 'opacity-50 cursor-not-allowed': aloneDisabled() }"
-                                   @elseif ($opt === 'Spouse') :class="{ 'opacity-50 cursor-not-allowed': spouseOptionDisabled() }" @endif>
+                                   :class="{ 'opacity-50 cursor-not-allowed': livingWithDisabled('{{ $opt }}') }">
                                 <input type="checkbox" wire:model="livingWith" value="{{ $opt }}" class="accent-forest-700 rounded"
-                                       @if ($opt === 'Alone') :disabled="aloneDisabled()"
-                                       @elseif ($opt === 'Spouse') :disabled="spouseOptionDisabled()" @endif>
+                                       :disabled="livingWithDisabled('{{ $opt }}')">
                                 <span class="text-xs text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
                         <p class="mt-1 text-xs text-critical-700" x-show="spouseLivingBlocked" x-cloak>"Spouse" is unavailable when marital status is Single/Widowed or Spouse/Partner Working is "Deceased".</p>
                         <p class="mt-1 text-xs text-ink-500" x-show="aloneRequiresSingleHousehold" x-cloak>Household size will be fixed to 1 while "Alone" is selected.</p>
+                        <p class="mt-1 text-xs text-ink-500" x-show="householdSizeIsOne" x-cloak>Only "Alone" is available while household size is 1.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Household Condition (check all applicable)</label>
@@ -497,14 +499,19 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-ink-600 mb-2">Real / Immovable Assets <span class="text-critical-700" aria-hidden="true">*</span></label>
-                            <div class="space-y-1"
-                                 x-data="exclusiveGroup('realAssets', @js($xt['realAssets']))" @change="onChange($event)">
-                                @foreach (['House','Lot/Farmland','House and Lot','Commercial Building','Apartment/Rental Unit','Fishpond/Resort','Agricultural Land/Farm','No known assets'] as $opt)
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" wire:model="realAssets" value="{{ $opt }}" class="accent-forest-700 rounded">
-                                    <span class="text-xs text-ink-700">{{ $opt }}</span>
-                                </label>
-                                @endforeach
+                            <div x-data="assetOwnershipGuard()">
+                                <div class="space-y-1"
+                                     x-data="exclusiveGroup('realAssets', @js($xt['realAssets']))" @change="onChange($event)">
+                                    @foreach (['House','Lot/Farmland','House and Lot','Commercial Building','Apartment/Rental Unit','Fishpond/Resort','Agricultural Land/Farm','No known assets'] as $opt)
+                                    <label class="flex items-center gap-2 cursor-pointer"
+                                           @if ($opt === 'House and Lot') :class="{ 'opacity-50 cursor-not-allowed': houseAndLotDisabled() }" @endif>
+                                        <input type="checkbox" wire:model="realAssets" value="{{ $opt }}" class="accent-forest-700 rounded"
+                                               @if ($opt === 'House and Lot') :disabled="houseAndLotDisabled()" @endif>
+                                        <span class="text-xs text-ink-700">{{ $opt }}</span>
+                                    </label>
+                                    @endforeach
+                                </div>
+                                <p class="mt-1 text-xs text-ink-500" x-show="ownershipConflict" x-cloak>"House and Lot" is unavailable — Household Condition indicates the house is owned but the land is not.</p>
                             </div>
                         </div>
                         <div>
@@ -753,7 +760,6 @@
             title="Registration Guide"
             :intro="$registrationIntro"
             :percent="$this->completionPercent()"
-            label="Progress"
             :stepCaption="'Step ' . $step . ' of ' . $totalSteps"
             :statusText="$this->stepStatusText()"
             :tips="$registrationTips"
