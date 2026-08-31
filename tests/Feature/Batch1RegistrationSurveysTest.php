@@ -69,6 +69,9 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
+            // Non-1 so it's consistent with 'Children' above under the
+            // reverse householdSize===1-forces-Alone rule (step4Rules()).
+            ->set('householdSize', 3)
             ->set('monthlyIncomeRange', '5,000 - 10,000')
             ->call('save')
             ->assertSet('saved', true)

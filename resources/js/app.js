@@ -241,9 +241,6 @@ document.addEventListener('alpine:init', () => {
             const hc = this.$wire.householdCondition ?? []
             return this.conflictingConditions.some((c) => hc.includes(c))
         },
-        aloneDisabled() {
-            return !this.aloneSelected && this.conflictingConditionSelected
-        },
         conditionDisabled(option) {
             return this.conflictingConditions.includes(option)
                 && !(this.$wire.householdCondition ?? []).includes(option)
@@ -251,18 +248,52 @@ document.addEventListener('alpine:init', () => {
         },
         // "Spouse" can't be a living arrangement when there's no spouse
         // (Single/Widowed) or the spouse is deceased. Same not-already-checked
-        // deadlock guard as aloneDisabled()/conditionDisabled() above.
+        // deadlock guard as conditionDisabled() above.
         get spouseLivingBlocked() {
             return ['Single', 'Widowed'].includes(this.$wire.maritalStatus) || this.$wire.spouseWorking === 'Deceased'
         },
-        spouseOptionDisabled() {
-            return !(this.$wire.livingWith ?? []).includes('Spouse') && this.spouseLivingBlocked
+        // Household Size = 1 makes every living arrangement besides "Alone" a
+        // contradiction — mirrors the reverse direction of the closure in
+        // step4Rules()'s livingWith rule (the forward direction, Alone
+        // forcing size to 1, is enforced by familyCompositionGuard() on
+        // Step 2's Household Size input).
+        get householdSizeIsOne() {
+            return Number(this.$wire.householdSize) === 1
+        },
+        // Single method for every option in the Living/Residing With foreach,
+        // replacing separate per-option methods so the household-size rule
+        // applies uniformly without duplicating the not-already-checked
+        // deadlock guard in three places.
+        livingWithDisabled(option) {
+            if ((this.$wire.livingWith ?? []).includes(option)) return false
+            if (option === 'Alone') return this.conflictingConditionSelected
+            if (option === 'Spouse') return this.spouseLivingBlocked || this.householdSizeIsOne
+            return this.householdSizeIsOne
         },
         // Informational note only (the actual clamp lives on Household Size
         // in familyCompositionGuard(), Step 2) — lets Step 4 explain why
         // Household Size will be forced to 1 once "Alone" is checked.
         get aloneRequiresSingleHousehold() {
             return (this.$wire.livingWith ?? []).includes('Alone')
+        },
+    }))
+
+    // ── Asset ownership cross-field guard (ProfileSurvey Step 4 → Step 5) ────
+    // "House and Lot" under Real/Immovable Assets is a contradiction when
+    // Household Condition (Step 4) says the house is owned but the land under
+    // it isn't. Reads $wire.householdCondition directly — same cross-step
+    // pattern as dependencyCrossGuard's spouseOptionDisabled() reading
+    // maritalStatus from Step 1 — Step 4 and Step 5 are sibling blade blocks,
+    // not nested, so this gets its own x-data. ProfileSurvey::step5Rules() is
+    // the server-side enforcement authority.
+    Alpine.data('assetOwnershipGuard', () => ({
+        get ownershipConflict() {
+            const hc = this.$wire.householdCondition ?? []
+            return hc.includes('House is owned') && hc.includes('Land is not owned')
+        },
+        // Same not-already-checked deadlock guard used elsewhere in this file.
+        houseAndLotDisabled() {
+            return this.ownershipConflict && !(this.$wire.realAssets ?? []).includes('House and Lot')
         },
     }))
 

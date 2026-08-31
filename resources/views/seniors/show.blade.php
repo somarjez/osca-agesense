@@ -31,6 +31,8 @@
         </a>
         <div class="ml-auto flex flex-wrap gap-2">
             @can('update', $senior)
+            {{-- Deceased seniors are outside the QoL survey workflow — see profile-survey.blade.php's matching guard. --}}
+            @if ($senior->status !== 'deceased')
             @if (!empty($draftSurvey))
             <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" wire:navigate data-loading="Opening survey…" class="btn btn-primary">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> Continue draft
@@ -39,6 +41,7 @@
             <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening survey…" class="btn">
                 <x-heroicon-o-clipboard-document-list class="w-3.5 h-3.5" /> New QoL Survey
             </a>
+            @endif
             @endif
 
             <div x-data="{
@@ -712,10 +715,12 @@
             <x-card title="QoL Survey History">
                 <x-slot name="actions">
                     @can('update', $senior)
+                    @if ($senior->status !== 'deceased')
                     @if (!empty($draftSurvey))
                     <a href="{{ route('surveys.qol.edit', $draftSurvey) }}" wire:navigate data-loading="Opening…" class="text-xs text-forest-700 font-semibold hover:text-forest-900">Continue draft →</a>
                     @else
                     <a href="{{ route('surveys.qol.create', $senior) }}" wire:navigate data-loading="Opening…" class="text-xs text-forest-700 font-semibold hover:text-forest-900">+ New survey</a>
+                    @endif
                     @endif
                     @endcan
                 </x-slot>

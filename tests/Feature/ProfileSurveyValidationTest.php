@@ -63,6 +63,9 @@ class ProfileSurveyValidationTest extends TestCase
             ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
+            // Non-1 so it's consistent with 'Children' above under the
+            // reverse householdSize===1-forces-Alone rule (step4Rules()).
+            ->set('householdSize', 3)
             ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
@@ -790,7 +793,9 @@ class ProfileSurveyValidationTest extends TestCase
             'last_name' => 'Dela Cruz',
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
-            'household_size' => 1,
+            // Non-1 so it's consistent with 'living_with' => ['Children']
+            // below under the reverse householdSize===1-forces-Alone rule.
+            'household_size' => 3,
             // Non-zero so the default child_financial_support of 'Yes' below
             // doesn't itself violate the "no support without children" rule.
             'num_children' => 2,

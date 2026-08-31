@@ -60,6 +60,9 @@ class OfficialOscaIdTest extends TestCase
             ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
+            // Non-1 so it's consistent with 'Children' above under the
+            // reverse householdSize===1-forces-Alone rule (step4Rules()).
+            ->set('householdSize', 3)
             ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
@@ -73,7 +76,9 @@ class OfficialOscaIdTest extends TestCase
             'child_financial_support' => 'Yes',
             // Widowed requires spouse_working = 'Deceased' (see spouseWorkingAllowedValues()).
             'spouse_working' => 'Deceased',
-            'household_size' => 1,
+            // Non-1 so it's consistent with 'living_with' => ['Children']
+            // below under the reverse householdSize===1-forces-Alone rule.
+            'household_size' => 3,
             'educational_attainment' => 'High School Graduate',
             'living_with' => ['Children'],
             'real_assets' => ['No known assets'],
@@ -139,7 +144,6 @@ class OfficialOscaIdTest extends TestCase
             'last_name' => 'Dela Cruz',
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
-            'household_size' => 1,
         ]));
         $this->assertNull($senior->official_osca_id);
 
@@ -196,7 +200,6 @@ class OfficialOscaIdTest extends TestCase
             'last_name' => 'Dela Cruz',
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
-            'household_size' => 1,
         ]));
 
         Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
@@ -230,7 +233,6 @@ class OfficialOscaIdTest extends TestCase
             'last_name' => 'Senior',
             'barangay' => 'Anibong',
             'date_of_birth' => '1950-01-01',
-            'household_size' => 1,
         ]));
 
         Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
