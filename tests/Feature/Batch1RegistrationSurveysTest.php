@@ -65,7 +65,8 @@ class Batch1RegistrationSurveysTest extends TestCase
             ->set('maritalStatus', 'Widowed')
             ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
-            ->set('spouseWorking', 'N/A')
+            // Widowed requires spouseWorking = 'Deceased' (see spouseWorkingAllowedValues()).
+            ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
             ->set('monthlyIncomeRange', '5,000 - 10,000')

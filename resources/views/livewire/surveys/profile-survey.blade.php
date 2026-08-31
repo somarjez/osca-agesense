@@ -347,7 +347,10 @@
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Household Size (total members) <span class="text-critical-700" aria-hidden="true">*</span></label>
                         <input type="number" wire:model="householdSize" min="1"
+                               :disabled="aloneRequiresSingleHousehold"
+                               @input="clampHouseholdSize($event)"
                                class="form-input">
+                        <p class="mt-1 text-xs text-critical-700" x-show="aloneRequiresSingleHousehold" x-cloak>Household size is fixed to 1 while living arrangement is "Alone".</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Financially Supported by Children? <span class="text-critical-700" aria-hidden="true">*</span></label>
@@ -363,14 +366,14 @@
                         <div class="flex gap-3">
                             @foreach (['Yes','No','Deceased','N/A'] as $opt)
                             <label class="flex items-center gap-2 cursor-pointer"
-                                   @if ($opt !== 'N/A') :class="{ 'opacity-50 cursor-not-allowed': spouseWorkingBlockedBySingle }" @endif>
+                                   :class="{ 'opacity-50 cursor-not-allowed': spouseWorkingOptionDisabled('{{ $opt }}') }">
                                 <input type="radio" wire:model="spouseWorking" value="{{ $opt }}" class="accent-forest-700"
-                                       @if ($opt !== 'N/A') :disabled="spouseWorkingBlockedBySingle" @endif>
+                                       :disabled="spouseWorkingOptionDisabled('{{ $opt }}')">
                                 <span class="text-sm text-ink-700">{{ $opt }}</span>
                             </label>
                             @endforeach
                         </div>
-                        <p class="mt-1 text-xs text-critical-700" x-show="spouseWorkingBlockedBySingle" x-cloak>Only "N/A" applies when marital status is Single.</p>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseWorkingBlockedMessage" x-cloak x-text="spouseWorkingBlockedMessage"></p>
                     </div>
                 </div>
                 @endif
@@ -436,7 +439,8 @@
                             </label>
                             @endforeach
                         </div>
-                        <p class="mt-1 text-xs text-critical-700" x-show="spouseLivingBlocked" x-cloak>"Spouse" is unavailable when marital status is Single or Spouse/Partner Working is "Deceased".</p>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseLivingBlocked" x-cloak>"Spouse" is unavailable when marital status is Single/Widowed or Spouse/Partner Working is "Deceased".</p>
+                        <p class="mt-1 text-xs text-ink-500" x-show="aloneRequiresSingleHousehold" x-cloak>Household size will be fixed to 1 while "Alone" is selected.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Household Condition (check all applicable)</label>
@@ -477,7 +481,7 @@
                             </label>
                             @endforeach
                         </div>
-                        <p class="mt-1 text-xs text-critical-700" x-show="spouseIncomeBlocked" x-cloak>"Spouse salary"/"Spouse pension" are unavailable when marital status is Single.</p>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseIncomeBlocked" x-cloak>"Spouse salary"/"Spouse pension" are unavailable when marital status is Single or Widowed.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Monthly Income Range <span class="text-critical-700" aria-hidden="true">*</span></label>

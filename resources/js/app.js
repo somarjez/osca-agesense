@@ -169,12 +169,36 @@ document.addEventListener('alpine:init', () => {
         get supportBlockedByZeroChildren() {
             return this.numChildren === 0
         },
-        // Spouse/Partner Working only makes sense with an actual spouse — "N/A"
-        // stays selectable when Marital Status (Step 1) is Single. maritalStatus
-        // lives on Step 1 but $wire is shared across the whole component, so it's
-        // readable here even while viewing Step 2.
-        get spouseWorkingBlockedBySingle() {
-            return this.$wire.maritalStatus === 'Single'
+        // Spouse/Partner Working's valid options depend on Marital Status
+        // (Step 1) — every status now has its own allowed set, not just
+        // Single. maritalStatus lives on Step 1 but $wire is shared across
+        // the whole component, so it's readable here even while viewing
+        // Step 2. Mirrors ProfileSurvey::spouseWorkingAllowedValues() (the
+        // server-side enforcement authority) exactly.
+        spouseWorkingAllowed() {
+            switch (this.$wire.maritalStatus) {
+                case 'Single': return ['N/A']
+                case 'Widowed': return ['Deceased']
+                case 'Married': return ['Yes', 'No', 'Deceased']
+                case 'Separated': return ['Yes', 'No', 'N/A']
+                default: return null
+            }
+        },
+        // Same not-already-selected deadlock guard as dependencyCrossGuard
+        // below: an option currently selected is never force-disabled, so a
+        // legacy bulk-imported contradictory record stays editable.
+        spouseWorkingOptionDisabled(option) {
+            const allowed = this.spouseWorkingAllowed()
+            return allowed !== null && !allowed.includes(option) && this.$wire.spouseWorking !== option
+        },
+        get spouseWorkingBlockedMessage() {
+            switch (this.$wire.maritalStatus) {
+                case 'Single': return 'Only "N/A" applies when marital status is Single.'
+                case 'Widowed': return 'Only "Deceased" applies when marital status is Widowed.'
+                case 'Married': return '"N/A" is unavailable when marital status is Married.'
+                case 'Separated': return '"Deceased" is unavailable when marital status is Separated.'
+                default: return ''
+            }
         },
         clampWorkingChildren(e) {
             const max = this.numChildren
@@ -182,6 +206,17 @@ document.addEventListener('alpine:init', () => {
             if (v > max) {
                 e.target.value = max
                 this.$wire.numWorkingChildren = max
+            }
+        },
+        // Household Size must be 1 while Living With (Step 4) is "Alone" —
+        // same cross-step $wire read as spouseWorkingAllowed() above.
+        get aloneRequiresSingleHousehold() {
+            return (this.$wire.livingWith ?? []).includes('Alone')
+        },
+        clampHouseholdSize(e) {
+            if (this.aloneRequiresSingleHousehold) {
+                e.target.value = 1
+                this.$wire.householdSize = 1
             }
         },
     }))
@@ -214,14 +249,20 @@ document.addEventListener('alpine:init', () => {
                 && !(this.$wire.householdCondition ?? []).includes(option)
                 && this.aloneSelected
         },
-        // "Spouse" can't be a living arrangement when there's no spouse (Single)
-        // or the spouse is deceased. Same not-already-checked deadlock guard as
-        // aloneDisabled()/conditionDisabled() above.
+        // "Spouse" can't be a living arrangement when there's no spouse
+        // (Single/Widowed) or the spouse is deceased. Same not-already-checked
+        // deadlock guard as aloneDisabled()/conditionDisabled() above.
         get spouseLivingBlocked() {
-            return this.$wire.maritalStatus === 'Single' || this.$wire.spouseWorking === 'Deceased'
+            return ['Single', 'Widowed'].includes(this.$wire.maritalStatus) || this.$wire.spouseWorking === 'Deceased'
         },
         spouseOptionDisabled() {
             return !(this.$wire.livingWith ?? []).includes('Spouse') && this.spouseLivingBlocked
+        },
+        // Informational note only (the actual clamp lives on Household Size
+        // in familyCompositionGuard(), Step 2) — lets Step 4 explain why
+        // Household Size will be forced to 1 once "Alone" is checked.
+        get aloneRequiresSingleHousehold() {
+            return (this.$wire.livingWith ?? []).includes('Alone')
         },
     }))
 
@@ -235,7 +276,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('incomeSourceGuard', () => ({
         spouseOptions: ['Spouse salary', 'Spouse pension'],
         get spouseIncomeBlocked() {
-            return this.$wire.maritalStatus === 'Single'
+            return ['Single', 'Widowed'].includes(this.$wire.maritalStatus)
         },
         incomeOptionDisabled(option) {
             return this.spouseOptions.includes(option)
