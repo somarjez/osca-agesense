@@ -56,7 +56,8 @@ class OfficialOscaIdTest extends TestCase
             ->set('maritalStatus', 'Widowed')
             ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
-            ->set('spouseWorking', 'N/A')
+            // Widowed requires spouseWorking = 'Deceased' (see spouseWorkingAllowedValues()).
+            ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
             ->set('monthlyIncomeRange', '5,000 - 10,000');
@@ -70,7 +71,8 @@ class OfficialOscaIdTest extends TestCase
             'num_children' => 2,
             'num_working_children' => 0,
             'child_financial_support' => 'Yes',
-            'spouse_working' => 'N/A',
+            // Widowed requires spouse_working = 'Deceased' (see spouseWorkingAllowedValues()).
+            'spouse_working' => 'Deceased',
             'household_size' => 1,
             'educational_attainment' => 'High School Graduate',
             'living_with' => ['Children'],

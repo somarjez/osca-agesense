@@ -59,7 +59,8 @@ class ProfileSurveyValidationTest extends TestCase
             // rule (step2Rules()) for every test using this baseline.
             ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
-            ->set('spouseWorking', 'N/A')
+            // Widowed requires spouseWorking = 'Deceased' (see spouseWorkingAllowedValues()).
+            ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
             ->set('monthlyIncomeRange', '5,000 - 10,000');
@@ -262,6 +263,9 @@ class ProfileSurveyValidationTest extends TestCase
     public function fully_valid_submission_across_all_steps_still_succeeds(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            // Married (not the Widowed baseline) so spouseWorking='No' + living
+            // with 'Spouse' stay compatible with marital status.
+            ->set('maritalStatus', 'Married')
             ->set('numChildren', 2)
             ->set('numWorkingChildren', 1)
             ->set('householdSize', 3)
@@ -584,6 +588,200 @@ class ProfileSurveyValidationTest extends TestCase
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
     }
 
+    #[Test]
+    public function invalid_marital_status_value_is_rejected(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Divorced')
+            ->set('step', 1)
+            ->call('nextStep')
+            ->assertHasErrors(['maritalStatus']);
+    }
+
+    #[Test]
+    public function direct_save_rejects_invalid_marital_status_value(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Divorced')
+            ->call('save')
+            ->assertHasErrors(['maritalStatus']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function spouse_working_yes_or_no_with_widowed_marital_status_is_rejected_on_step_2(): void
+    {
+        foreach (['Yes', 'No'] as $value) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Widowed')
+                ->set('step', 2)
+                ->set('spouseWorking', $value)
+                ->call('nextStep')
+                ->assertHasErrors(['spouseWorking']);
+        }
+    }
+
+    #[Test]
+    public function spouse_working_deceased_with_widowed_marital_status_is_accepted(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('step', 2)
+            ->set('spouseWorking', 'Deceased')
+            ->call('nextStep')
+            ->assertHasNoErrors(['spouseWorking']);
+    }
+
+    #[Test]
+    public function direct_save_rejects_spouse_working_yes_with_widowed_marital_status(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('spouseWorking', 'Yes')
+            ->call('save')
+            ->assertHasErrors(['spouseWorking']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function spouse_working_na_with_married_marital_status_is_rejected_on_step_2(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Married')
+            ->set('step', 2)
+            ->set('spouseWorking', 'N/A')
+            ->call('nextStep')
+            ->assertHasErrors(['spouseWorking']);
+    }
+
+    #[Test]
+    public function spouse_working_yes_no_or_deceased_with_married_marital_status_is_accepted(): void
+    {
+        foreach (['Yes', 'No', 'Deceased'] as $value) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Married')
+                ->set('step', 2)
+                ->set('spouseWorking', $value)
+                ->call('nextStep')
+                ->assertHasNoErrors(['spouseWorking']);
+        }
+    }
+
+    #[Test]
+    public function spouse_working_deceased_with_separated_marital_status_is_rejected_on_step_2(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Separated')
+            ->set('step', 2)
+            ->set('spouseWorking', 'Deceased')
+            ->call('nextStep')
+            ->assertHasErrors(['spouseWorking']);
+    }
+
+    #[Test]
+    public function spouse_working_yes_no_or_na_with_separated_marital_status_is_accepted(): void
+    {
+        foreach (['Yes', 'No', 'N/A'] as $value) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Separated')
+                ->set('step', 2)
+                ->set('spouseWorking', $value)
+                ->call('nextStep')
+                ->assertHasNoErrors(['spouseWorking']);
+        }
+    }
+
+    #[Test]
+    public function living_with_spouse_and_widowed_marital_status_is_rejected_on_step_4(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('spouseWorking', 'Deceased')
+            ->set('step', 4)
+            ->set('livingWith', ['Spouse'])
+            ->call('nextStep')
+            ->assertHasErrors(['livingWith']);
+    }
+
+    #[Test]
+    public function direct_save_rejects_living_with_spouse_and_widowed_marital_status(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('spouseWorking', 'Deceased')
+            ->set('livingWith', ['Spouse'])
+            ->call('save')
+            ->assertHasErrors(['livingWith']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function spouse_income_source_with_widowed_marital_status_is_rejected_on_step_5(): void
+    {
+        foreach (['Spouse salary', 'Spouse pension'] as $value) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Widowed')
+                ->set('spouseWorking', 'Deceased')
+                ->set('step', 5)
+                ->set('incomeSource', [$value])
+                ->set('realAssets', ['House'])
+                ->set('movableAssets', ['Vehicle'])
+                ->set('problemsNeeds', ['Limited problems encountered'])
+                ->call('nextStep')
+                ->assertHasErrors(['incomeSource']);
+        }
+    }
+
+    #[Test]
+    public function direct_save_rejects_spouse_income_source_with_widowed_marital_status(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('spouseWorking', 'Deceased')
+            ->set('incomeSource', ['Spouse pension'])
+            ->call('save')
+            ->assertHasErrors(['incomeSource']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function living_alone_with_household_size_greater_than_one_is_rejected_on_step_4(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('householdSize', 3)
+            ->set('step', 4)
+            ->set('livingWith', ['Alone'])
+            ->call('nextStep')
+            ->assertHasErrors(['livingWith']);
+    }
+
+    #[Test]
+    public function living_alone_with_household_size_of_one_is_accepted(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('householdSize', 1)
+            ->set('step', 4)
+            ->set('livingWith', ['Alone'])
+            ->call('nextStep')
+            ->assertHasNoErrors(['livingWith']);
+    }
+
+    #[Test]
+    public function direct_save_rejects_living_alone_with_household_size_greater_than_one(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('householdSize', 2)
+            ->set('livingWith', ['Alone'])
+            ->call('save')
+            ->assertHasErrors(['livingWith']);
+
+        $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
     private function makeSenior(array $overrides = []): SeniorCitizen
     {
         return SeniorCitizen::create(array_merge([
@@ -600,7 +798,8 @@ class ProfileSurveyValidationTest extends TestCase
             'gender' => 'Female',
             'marital_status' => 'Widowed',
             'child_financial_support' => 'Yes',
-            'spouse_working' => 'N/A',
+            // Widowed requires spouse_working = 'Deceased' (see spouseWorkingAllowedValues()).
+            'spouse_working' => 'Deceased',
             'educational_attainment' => 'High School Graduate',
             'living_with' => ['Children'],
             'real_assets' => ['No known assets'],

@@ -71,7 +71,8 @@ class ProfileSurveyDefaultsTest extends TestCase
             ->set('maritalStatus', 'Widowed')
             ->set('numChildren', 2)
             ->set('childFinancialSupport', 'Yes')
-            ->set('spouseWorking', 'N/A')
+            // Widowed requires spouseWorking = 'Deceased' (see spouseWorkingAllowedValues()).
+            ->set('spouseWorking', 'Deceased')
             ->set('educationalAttainment', 'High School Graduate')
             ->set('livingWith', ['Children'])
             ->set('monthlyIncomeRange', '5,000 - 10,000');
@@ -193,6 +194,10 @@ class ProfileSurveyDefaultsTest extends TestCase
     public function save_drops_the_exclusive_token_when_mixed_with_real_answers(): void
     {
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            // Married (not the Widowed baseline) so living with 'Spouse' stays
+            // compatible with marital status once 'Alone' is normalized away.
+            ->set('maritalStatus', 'Married')
+            ->set('spouseWorking', 'Yes')
             ->set('medicalConcern', ['Physically Healthy', 'Diabetes'])
             ->set('livingWith', ['Alone', 'Spouse'])
             ->set('realAssets', ['No known assets', 'House'])

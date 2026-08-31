@@ -305,18 +305,23 @@ class ProfileSurvey extends Component
             $violations[] = 'living alone conflicts with household condition';
         }
 
-        if ($this->maritalStatus === 'Single' && $this->spouseWorking !== '' && $this->spouseWorking !== 'N/A') {
-            $violations[] = 'spouse employment status conflicts with single marital status';
+        $spouseWorkingAllowed = $this->spouseWorkingAllowedValues();
+        if ($spouseWorkingAllowed !== null && $this->spouseWorking !== '' && ! in_array($this->spouseWorking, $spouseWorkingAllowed, true)) {
+            $violations[] = 'spouse employment status conflicts with marital status';
         }
 
         if (in_array('Spouse', $this->livingWith, true)
-            && ($this->maritalStatus === 'Single' || $this->spouseWorking === 'Deceased')) {
+            && (in_array($this->maritalStatus, ['Single', 'Widowed'], true) || $this->spouseWorking === 'Deceased')) {
             $violations[] = 'living with spouse conflicts with marital status or spouse employment status';
         }
 
-        if ($this->maritalStatus === 'Single'
+        if (in_array($this->maritalStatus, ['Single', 'Widowed'], true)
             && (in_array('Spouse salary', $this->incomeSource, true) || in_array('Spouse pension', $this->incomeSource, true))) {
-            $violations[] = 'spouse income source conflicts with single marital status';
+            $violations[] = 'spouse income source conflicts with marital status';
+        }
+
+        if (in_array('Alone', $this->livingWith, true) && (int) $this->householdSize !== 1) {
+            $violations[] = 'living alone conflicts with household size greater than 1';
         }
 
         return $violations;
@@ -595,7 +600,7 @@ class ProfileSurvey extends Component
             ],
             'dateOfBirth' => 'required|date|after_or_equal:1900-01-01|before:today|before_or_equal:'.$this->minimumBirthDate(),
             'gender' => 'required|string|max:255',
-            'maritalStatus' => 'required|string|max:255',
+            'maritalStatus' => ['required', 'string', ValidationRule::in(['Single', 'Married', 'Widowed', 'Separated'])],
             'registrationDate' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|after_or_equal:dateOfBirth',
             'contactNumber' => ['nullable', 'regex:/^\d{7,20}$/'],
             'consentGivenAt' => 'nullable|date|after_or_equal:1900-01-01|before_or_equal:today|required_if:consentMethod,verbal,written,digital|after_or_equal:dateOfBirth',
@@ -701,6 +706,25 @@ class ProfileSurvey extends Component
         ];
     }
 
+    /**
+     * The set of spouseWorking values consistent with each maritalStatus —
+     * single source of truth shared by step2Rules()'s closure and
+     * crossFieldViolations(). Null means "no restriction" (blank/unrecognized
+     * status — the field's own `required` rule handles emptiness).
+     *
+     * @return array<int, string>|null
+     */
+    private function spouseWorkingAllowedValues(): ?array
+    {
+        return match ($this->maritalStatus) {
+            'Single' => ['N/A'],
+            'Widowed' => ['Deceased'],
+            'Married' => ['Yes', 'No', 'Deceased'],
+            'Separated' => ['Yes', 'No', 'N/A'],
+            default => null,
+        };
+    }
+
     // ── II. Family Composition ────────────────────────────────────────────────
     private function step2Rules(): array
     {
@@ -721,8 +745,15 @@ class ProfileSurvey extends Component
                 'required',
                 ValidationRule::in(['Yes', 'No', 'Deceased', 'N/A']),
                 function ($attribute, $value, $fail) {
-                    if ($this->maritalStatus === 'Single' && $value !== 'N/A') {
-                        $fail('Spouse/Partner Working must be "N/A" when marital status is Single.');
+                    $allowed = $this->spouseWorkingAllowedValues();
+                    if ($allowed !== null && ! in_array($value, $allowed, true)) {
+                        $fail(match ($this->maritalStatus) {
+                            'Single' => 'Spouse/Partner Working must be "N/A" when marital status is Single.',
+                            'Widowed' => 'Spouse/Partner Working must be "Deceased" when marital status is Widowed.',
+                            'Married' => 'Spouse/Partner Working cannot be "N/A" when marital status is Married.',
+                            'Separated' => 'Spouse/Partner Working cannot be "Deceased" when marital status is Separated.',
+                            default => 'Spouse/Partner Working is inconsistent with marital status.',
+                        });
                     }
                 },
             ],
@@ -755,8 +786,11 @@ class ProfileSurvey extends Component
             'livingWith' => ['required', 'array', 'min:1', function ($attribute, $value, $fail) {
                 $value = (array) $value;
                 if (in_array('Spouse', $value, true)
-                    && ($this->maritalStatus === 'Single' || $this->spouseWorking === 'Deceased')) {
-                    $fail('Living arrangement cannot include "Spouse" when marital status is Single or Spouse/Partner Working is "Deceased".');
+                    && (in_array($this->maritalStatus, ['Single', 'Widowed'], true) || $this->spouseWorking === 'Deceased')) {
+                    $fail('Living arrangement cannot include "Spouse" when marital status is Single/Widowed or Spouse/Partner Working is "Deceased".');
+                }
+                if (in_array('Alone', $value, true) && (int) $this->householdSize !== 1) {
+                    $fail('Household size must be 1 when living arrangement is "Alone".');
                 }
             }],
             'livingWith.*' => 'string|max:255',
@@ -784,9 +818,9 @@ class ProfileSurvey extends Component
     {
         return function ($attribute, $value, $fail) {
             $value = (array) $value;
-            if ($this->maritalStatus === 'Single'
+            if (in_array($this->maritalStatus, ['Single', 'Widowed'], true)
                 && (in_array('Spouse salary', $value, true) || in_array('Spouse pension', $value, true))) {
-                $fail('Source of income cannot include "Spouse salary" or "Spouse pension" when marital status is Single.');
+                $fail('Source of income cannot include "Spouse salary" or "Spouse pension" when marital status is Single or Widowed.');
             }
         };
     }
