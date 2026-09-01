@@ -113,6 +113,16 @@ class ProfileSurveyProgressTest extends TestCase
     }
 
     #[Test]
+    public function profile_guide_displays_the_current_section_number_instead_of_a_percentage(): void
+    {
+        Livewire::test(ProfileSurvey::class)
+            ->set('step', 4)
+            ->assertSee('Current Section')
+            ->assertSeeHtml('aria-label="Section 4 of 6"')
+            ->assertSeeHtml('>4</span>');
+    }
+
+    #[Test]
     public function submit_readiness_text_reflects_required_fields_not_step_position(): void
     {
         // Required fields done, but only on Step 1 (haven't stepped
