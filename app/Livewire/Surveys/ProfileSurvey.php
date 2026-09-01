@@ -363,6 +363,21 @@ class ProfileSurvey extends Component
         $this->touchedFields['householdSize'] = true;
     }
 
+    /**
+     * The 9 CREATE_DEFAULT_GROUPS checkbox arrays are pre-seeded with an exclusive
+     * "none/healthy" token on mount (applyCreateDefaults()) — indistinguishable from
+     * a real checked box once rendered, same class of bug as the numeric defaults
+     * above. Livewire fires this generic hook for every property change including
+     * these arrays, whether from a checkbox's wire:model or the exclusiveGroup()
+     * Alpine helper's direct $wire[prop] write, alongside the specific hooks above.
+     */
+    public function updated(string $property): void
+    {
+        if (in_array($property, self::CREATE_DEFAULT_GROUPS, true)) {
+            $this->touchedFields[$property] = true;
+        }
+    }
+
     /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels]. */
     private function requiredFieldStatus(): array
     {
@@ -370,7 +385,10 @@ class ProfileSurvey extends Component
         $total = 0;
         $missing = [];
         $labels = $this->validationAttributes();
-        $ambiguousCreateDefaults = ['numChildren', 'numWorkingChildren', 'householdSize'];
+        $ambiguousCreateDefaults = array_merge(
+            ['numChildren', 'numWorkingChildren', 'householdSize'],
+            self::CREATE_DEFAULT_GROUPS,
+        );
         foreach ($this->allStepsRules() as $field => $rule) {
             $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
             if (! in_array('required', $tokens, true)) {
