@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Surveys\ProfileSurvey;
+use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
@@ -162,9 +163,9 @@ class ProfileSurveyProgressTest extends TestCase
         $this->assertNotContains('household size', $missing);
     }
 
-    private function makeSenior(array $overrides = []): \App\Models\SeniorCitizen
+    private function makeSenior(array $overrides = []): SeniorCitizen
     {
-        return \App\Models\SeniorCitizen::create(array_merge([
+        return SeniorCitizen::create(array_merge([
             'osca_id' => 'TST-'.uniqid(),
             'first_name' => 'Progress',
             'last_name' => 'TestSenior',
