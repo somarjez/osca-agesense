@@ -759,7 +759,10 @@
         <x-survey-guide
             title="Registration Guide"
             :intro="$registrationIntro"
-            :percent="$this->completionPercent()"
+            :percent="(int) round((($step - 1) / max(1, $totalSteps - 1)) * 100)"
+            label="Current Section"
+            :value="$step"
+            :progressLabel="'Section ' . $step . ' of ' . $totalSteps"
             :stepCaption="'Step ' . $step . ' of ' . $totalSteps"
             :statusText="$this->stepStatusText()"
             :tips="$registrationTips"
