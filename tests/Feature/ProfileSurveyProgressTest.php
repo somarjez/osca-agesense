@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Surveys\ProfileSurvey;
+use App\Models\SeniorCitizen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
@@ -54,6 +55,7 @@ class ProfileSurveyProgressTest extends TestCase
             ->set('gender', 'Female')
             ->set('maritalStatus', 'Widowed')
             ->set('numChildren', 2)
+            ->set('numWorkingChildren', 0)
             ->set('childFinancialSupport', 'Yes')
             // Widowed requires spouseWorking = 'Deceased' (see spouseWorkingAllowedValues()).
             ->set('spouseWorking', 'Deceased')
@@ -110,6 +112,87 @@ class ProfileSurveyProgressTest extends TestCase
         $this->assertSame($this->expectedPercent($component), $percent);
         $this->assertGreaterThan(0, $percent);
         $this->assertLessThan(100, $percent);
+    }
+
+    #[Test]
+    public function fresh_profile_progress_does_not_count_untouched_status_or_numeric_defaults_as_filled(): void
+    {
+        // Regression test: status/numChildren/numWorkingChildren/householdSize
+        // default to 'active'/0/0/1 — values indistinguishable from a real
+        // answer — and were previously counted as "filled" on mount, pushing
+        // a brand-new, untouched profile to 54% instead of reflecting only
+        // the genuine concern-group defaults from applyCreateDefaults().
+        $component = Livewire::test(ProfileSurvey::class);
+
+        $percent = $component->instance()->completionPercent();
+        [, , $missing] = (new \ReflectionMethod($component->instance(), 'requiredFieldStatus'))
+            ->invoke($component->instance());
+
+        $this->assertLessThan(54, $percent, 'A fresh profile must not count status/numeric defaults as answered.');
+        $this->assertContains('number of children', $missing);
+        $this->assertContains('number of working children', $missing);
+        $this->assertContains('household size', $missing);
+        $this->assertNotContains('status', $missing, 'status is edit-only and should not be tracked at all for a new profile.');
+    }
+
+    #[Test]
+    public function touching_a_numeric_field_with_its_default_looking_value_counts_it_as_filled(): void
+    {
+        $before = Livewire::test(ProfileSurvey::class);
+        $beforePercent = $before->instance()->completionPercent();
+
+        // Explicitly setting householdSize to 1 — the same value as its
+        // untouched default — must still register as a real answer.
+        $after = Livewire::test(ProfileSurvey::class)->set('householdSize', 1);
+        $afterPercent = $after->instance()->completionPercent();
+
+        $this->assertGreaterThan($beforePercent, $afterPercent);
+    }
+
+    #[Test]
+    public function editing_an_existing_senior_counts_status_and_numeric_defaults_immediately(): void
+    {
+        $senior = $this->makeSenior();
+
+        $component = Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id]);
+        [, , $missing] = (new \ReflectionMethod($component->instance(), 'requiredFieldStatus'))
+            ->invoke($component->instance());
+
+        $this->assertNotContains('number of children', $missing);
+        $this->assertNotContains('number of working children', $missing);
+        $this->assertNotContains('household size', $missing);
+    }
+
+    private function makeSenior(array $overrides = []): SeniorCitizen
+    {
+        return SeniorCitizen::create(array_merge([
+            'osca_id' => 'TST-'.uniqid(),
+            'first_name' => 'Progress',
+            'last_name' => 'TestSenior',
+            'barangay' => 'Anibong',
+            'date_of_birth' => '1945-03-10',
+            'gender' => 'Male',
+            'marital_status' => 'Widowed',
+            'child_financial_support' => 'Yes',
+            'spouse_working' => 'Deceased',
+            'household_size' => 3,
+            'num_children' => 2,
+            'num_working_children' => 0,
+            'educational_attainment' => 'High School Graduate',
+            'living_with' => ['Children'],
+            'real_assets' => ['No known assets'],
+            'movable_assets' => ['No known assets'],
+            'monthly_income_range' => '5,000 - 10,000',
+            'problems_needs' => ['Limited problems encountered'],
+            'medical_concern' => ['Physically Healthy'],
+            'social_emotional_concern' => ['Living in a healthy environment'],
+            'dental_concern' => ['Healthy Teeth'],
+            'optical_concern' => ['Healthy Eyes'],
+            'hearing_concern' => ['Healthy Hearing'],
+            'healthcare_difficulty' => ['Healthcare is accessible'],
+            'status' => 'active',
+            'encoded_by' => 'Test',
+        ], $overrides));
     }
 
     #[Test]
