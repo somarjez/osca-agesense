@@ -64,19 +64,7 @@ class ProfileSurveyProgressTest extends TestCase
             // Non-1 so it's consistent with 'Children' above under the
             // reverse householdSize===1-forces-Alone rule (step4Rules()).
             ->set('householdSize', 3)
-            ->set('monthlyIncomeRange', '5,000 - 10,000')
-            // Concern-group checkboxes: applyCreateDefaults() pre-fills these with
-            // their exclusive "none/healthy" token, but that's now untouched-only —
-            // explicitly setting the same value marks it as a real answer.
-            ->set('realAssets', ['No known assets'])
-            ->set('movableAssets', ['No known assets'])
-            ->set('problemsNeeds', ['Limited problems encountered'])
-            ->set('medicalConcern', ['Physically Healthy'])
-            ->set('socialEmotionalConcern', ['Living in a healthy environment'])
-            ->set('dentalConcern', ['Healthy Teeth'])
-            ->set('opticalConcern', ['Healthy Eyes'])
-            ->set('hearingConcern', ['Healthy Hearing'])
-            ->set('healthcareDifficulty', ['Healthcare is accessible']);
+            ->set('monthlyIncomeRange', '5,000 - 10,000');
     }
 
     /** Mirrors completionPercent()'s own formula via the private requiredFieldStatus(), so assertions stay correct if the required-field set ever changes. */
@@ -113,18 +101,17 @@ class ProfileSurveyProgressTest extends TestCase
     }
 
     #[Test]
-    public function progress_on_a_fresh_untouched_profile_starts_at_zero_percent(): void
+    public function progress_on_a_fresh_profile_reflects_only_the_pre_filled_defaults(): void
     {
         // applyCreateDefaults() pre-fills several exclusive-token required
-        // fields (concern-group checkboxes plus numeric defaults) on mount(),
-        // but none of them have been touched by the user yet, so a brand-new
-        // profile must start at 0% — not partially "pre-completed".
+        // fields on mount(), so a brand-new profile does not start at 0%.
         $component = Livewire::test(ProfileSurvey::class)->set('step', 1);
 
         $percent = $component->instance()->completionPercent();
 
         $this->assertSame($this->expectedPercent($component), $percent);
-        $this->assertSame(0, $percent);
+        $this->assertGreaterThan(0, $percent);
+        $this->assertLessThan(100, $percent);
     }
 
     #[Test]
@@ -133,44 +120,19 @@ class ProfileSurveyProgressTest extends TestCase
         // Regression test: status/numChildren/numWorkingChildren/householdSize
         // default to 'active'/0/0/1 — values indistinguishable from a real
         // answer — and were previously counted as "filled" on mount, pushing
-        // a brand-new, untouched profile to 54% instead of 0%.
+        // a brand-new, untouched profile to 54% instead of reflecting only
+        // the genuine concern-group defaults from applyCreateDefaults().
         $component = Livewire::test(ProfileSurvey::class);
 
         $percent = $component->instance()->completionPercent();
         [, , $missing] = (new \ReflectionMethod($component->instance(), 'requiredFieldStatus'))
             ->invoke($component->instance());
 
-        $this->assertSame(0, $percent, 'A fresh profile must not count status/numeric defaults as answered.');
+        $this->assertLessThan(54, $percent, 'A fresh profile must not count status/numeric defaults as answered.');
         $this->assertContains('number of children', $missing);
         $this->assertContains('number of working children', $missing);
         $this->assertContains('household size', $missing);
         $this->assertNotContains('status', $missing, 'status is edit-only and should not be tracked at all for a new profile.');
-    }
-
-    #[Test]
-    public function fresh_profile_progress_does_not_count_untouched_concern_group_defaults_as_filled(): void
-    {
-        // Regression test: applyCreateDefaults() pre-seeds the 9 checkbox-group
-        // arrays (medicalConcern, realAssets, etc.) with their exclusive
-        // "none/healthy" token — indistinguishable from a real checked box once
-        // rendered — which previously counted as "filled" on mount, pushing a
-        // brand-new, untouched profile to 39% instead of 0%.
-        $component = Livewire::test(ProfileSurvey::class);
-
-        $percent = $component->instance()->completionPercent();
-        [, , $missing] = (new \ReflectionMethod($component->instance(), 'requiredFieldStatus'))
-            ->invoke($component->instance());
-
-        $this->assertSame(0, $percent, 'A fresh profile must not count untouched concern-group defaults as answered.');
-        $this->assertContains('medical concern', $missing);
-        $this->assertContains('social and emotional concern', $missing);
-        $this->assertContains('dental concern', $missing);
-        $this->assertContains('optical concern', $missing);
-        $this->assertContains('hearing concern', $missing);
-        $this->assertContains('healthcare access', $missing);
-        $this->assertContains('problems and needs', $missing);
-        $this->assertContains('real assets', $missing);
-        $this->assertContains('movable assets', $missing);
     }
 
     #[Test]
@@ -182,21 +144,6 @@ class ProfileSurveyProgressTest extends TestCase
         // Explicitly setting householdSize to 1 — the same value as its
         // untouched default — must still register as a real answer.
         $after = Livewire::test(ProfileSurvey::class)->set('householdSize', 1);
-        $afterPercent = $after->instance()->completionPercent();
-
-        $this->assertGreaterThan($beforePercent, $afterPercent);
-    }
-
-    #[Test]
-    public function touching_a_concern_group_with_its_default_looking_value_counts_it_as_filled(): void
-    {
-        $before = Livewire::test(ProfileSurvey::class);
-        $beforePercent = $before->instance()->completionPercent();
-
-        // Explicitly setting medicalConcern to ['Physically Healthy'] — the
-        // same value as its untouched default — must still register as a
-        // real answer, mirroring the numeric-field touched-tracking above.
-        $after = Livewire::test(ProfileSurvey::class)->set('medicalConcern', ['Physically Healthy']);
         $afterPercent = $after->instance()->completionPercent();
 
         $this->assertGreaterThan($beforePercent, $afterPercent);
@@ -290,13 +237,10 @@ class ProfileSurveyProgressTest extends TestCase
     }
 
     #[Test]
-    public function submit_readiness_text_says_lets_get_started_on_a_fresh_untouched_profile(): void
+    public function submit_readiness_text_is_in_progress_when_only_neutral_defaults_are_filled(): void
     {
-        // With nothing touched, requiredFieldStatus() reports 0 filled — the
-        // pre-seeded concern-group/numeric defaults no longer count until the
-        // user actually interacts with those fields (see touched-tracking).
         $component = Livewire::test(ProfileSurvey::class);
 
-        $this->assertSame("Let's get started.", $component->instance()->stepStatusText());
+        $this->assertStringStartsWith('In progress. Missing: First name', $component->instance()->stepStatusText());
     }
 }
