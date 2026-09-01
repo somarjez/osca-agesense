@@ -11,6 +11,8 @@
       label        string       eyebrow above the ring — default "Required Fields"
                                  fits any caller whose percent tracks required-field
                                  completion (both QolSurveyForm and ProfileSurvey)
+      value        string|int|null  optional value displayed inside the ring
+      progressLabel string|null accessible description of the ring value
       stepCaption  string|null  e.g. "Step 2 of 6"
       statusText   string|null  e.g. "In progress."
       tips         array<string>
@@ -20,6 +22,8 @@
     'intro' => null,
     'percent' => 0,
     'label' => 'Required Fields',
+    'value' => null,
+    'progressLabel' => null,
     'stepCaption' => null,
     'statusText' => null,
     'tips' => [],
@@ -29,6 +33,8 @@
     $radius = 26;
     $circumference = 2 * M_PI * $radius;
     $offset = $circumference * (1 - $pct / 100);
+    $displayValue = $value ?? $pct.'%';
+    $indicatorLabel = $progressLabel ?? $pct.'% — '.$label;
 @endphp
 <aside class="card xl:sticky xl:top-6 h-fit" aria-label="{{ $title }}">
     <div class="card-body space-y-5">
@@ -45,7 +51,7 @@
         <div class="pt-4 border-t border-paper-rule dark:border-[#2b3530]">
             <p class="eyebrow mb-3">{{ $label }}</p>
             <div class="flex items-center gap-4">
-                <div class="relative w-16 h-16 flex-shrink-0" role="img" aria-label="{{ $pct }}% — {{ $label }}">
+                <div class="relative w-16 h-16 flex-shrink-0" role="img" aria-label="{{ $indicatorLabel }}">
                     <svg viewBox="0 0 60 60" class="w-16 h-16 -rotate-90">
                         <circle cx="30" cy="30" r="{{ $radius }}" fill="none" stroke-width="5"
                                 stroke="currentColor" class="text-paper-2 dark:text-[#202a26]" />
@@ -53,7 +59,7 @@
                                 stroke="currentColor" class="text-accent-600 dark:text-accent-400 transition-[stroke-dashoffset] duration-500 motion-reduce:transition-none"
                                 stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $offset }}" />
                     </svg>
-                    <span class="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $pct }}%</span>
+                    <span class="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-ink-900 dark:text-[#e4e1d8] tnum">{{ $displayValue }}</span>
                 </div>
                 <div class="min-w-0">
                     @if ($stepCaption)
