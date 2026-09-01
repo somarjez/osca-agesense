@@ -20,18 +20,6 @@ class ProfileSurvey extends Component
 
     public ?ProfileDraft $draft = null;
 
-    /**
-     * Fields the user has actually interacted with, keyed by property name.
-     * Must be public so Livewire persists it across requests (a protected
-     * property isn't part of the component snapshot and would reset on
-     * every round-trip). Used so a class-default value that merely looks
-     * like a real answer (numChildren=0, householdSize=1) isn't counted as
-     * "filled" by requiredFieldStatus() until the user touches it.
-     *
-     * @var array<string, bool>
-     */
-    public array $touchedFields = [];
-
     public int $step = 1;
 
     public int $totalSteps = 6;
@@ -342,27 +330,6 @@ class ProfileSurvey extends Component
         return $violations;
     }
 
-    /**
-     * numChildren/numWorkingChildren/householdSize default to 0/0/1 — values
-     * indistinguishable from a real answer once rendered in their <input
-     * type="number"> fields. On a new profile (no $senior loaded) they must
-     * not count as "filled" until the user actually edits them.
-     */
-    public function updatedNumChildren(): void
-    {
-        $this->touchedFields['numChildren'] = true;
-    }
-
-    public function updatedNumWorkingChildren(): void
-    {
-        $this->touchedFields['numWorkingChildren'] = true;
-    }
-
-    public function updatedHouseholdSize(): void
-    {
-        $this->touchedFields['householdSize'] = true;
-    }
-
     /** @return array{0: int, 1: int, 2: array<int, string>} [required fields filled, required fields total, missing field labels]. */
     private function requiredFieldStatus(): array
     {
@@ -370,23 +337,14 @@ class ProfileSurvey extends Component
         $total = 0;
         $missing = [];
         $labels = $this->validationAttributes();
-        $ambiguousCreateDefaults = ['numChildren', 'numWorkingChildren', 'householdSize'];
         foreach ($this->allStepsRules() as $field => $rule) {
             $tokens = is_array($rule) ? $rule : explode('|', (string) $rule);
             if (! in_array('required', $tokens, true)) {
                 continue;
             }
-            if ($field === 'status' && ! $this->senior) {
-                // Edit-only field (see property declaration above): not rendered on
-                // create, so it shouldn't affect the create wizard's progress.
-                continue;
-            }
             $total++;
             $value = $this->{$field} ?? null;
             $isFilled = is_array($value) ? count($value) > 0 : ($value !== null && $value !== '');
-            if ($isFilled && ! $this->senior && in_array($field, $ambiguousCreateDefaults, true) && empty($this->touchedFields[$field])) {
-                $isFilled = false;
-            }
             if ($isFilled) {
                 $filled++;
             } else {
