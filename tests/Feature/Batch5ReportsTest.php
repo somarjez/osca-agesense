@@ -172,4 +172,35 @@ class Batch5ReportsTest extends TestCase
             ->assertSee('Aniceta Rosterhit')
             ->assertDontSee('Bartolome Rostermiss');
     }
+
+    #[Test]
+    public function barangay_export_returns_a_pdf_and_logs_the_export(): void
+    {
+        $this->makeSeniorWithRisk('HIGH', 'Export', 'Target', 'Anibong');
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('reports.barangay.export', ['brgy' => 'Anibong']))
+            ->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('content-type'));
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'exported',
+            'subject_type' => User::class,
+            'subject_id' => $this->admin->id,
+        ]);
+    }
+
+    #[Test]
+    public function barangay_export_is_forbidden_for_non_admin_roles(): void
+    {
+        $encoder = User::firstOrCreate(
+            ['email' => 'encoder@osca.local'],
+            ['name' => 'OSCA Encoder', 'password' => Hash::make('password')]
+        );
+        $encoder->syncRoles(['encoder']);
+
+        $this->actingAs($encoder)
+            ->get(route('reports.barangay.export', ['brgy' => 'Anibong']))
+            ->assertForbidden();
+    }
 }

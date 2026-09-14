@@ -38,6 +38,9 @@
   "income_sources": {
     "own pension": 1.0,
     "spouse pension": 0.85,
+    "sss pension": 1.0,
+    "social pension (national)": 0.55,
+    "local pension": 0.55,
     "own earnings": 0.75,
     "own earnings / salary": 0.75,
     "insurance": 0.7,

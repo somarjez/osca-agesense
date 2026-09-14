@@ -278,7 +278,7 @@ class ProfileSurveyValidationTest extends TestCase
             ->set('communityService', ['Barangay Volunteer'])
             ->set('livingWith', ['Spouse'])
             ->set('householdCondition', ['Owned House'])
-            ->set('incomeSource', ['Own pension'])
+            ->set('incomeSource', ['SSS Pension'])
             ->set('realAssets', ['House'])
             ->set('movableAssets', ['Vehicle'])
             ->set('monthlyIncomeRange', 'Below 5,000')
@@ -549,18 +549,16 @@ class ProfileSurveyValidationTest extends TestCase
     #[Test]
     public function spouse_income_source_with_single_marital_status_is_rejected_on_step_5(): void
     {
-        foreach (['Spouse salary', 'Spouse pension'] as $value) {
-            $this->fillRequired(Livewire::test(ProfileSurvey::class))
-                ->set('maritalStatus', 'Single')
-                ->set('spouseWorking', 'N/A')
-                ->set('step', 5)
-                ->set('incomeSource', [$value])
-                ->set('realAssets', ['House'])
-                ->set('movableAssets', ['Vehicle'])
-                ->set('problemsNeeds', ['Limited problems encountered'])
-                ->call('nextStep')
-                ->assertHasErrors(['incomeSource']);
-        }
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Single')
+            ->set('spouseWorking', 'N/A')
+            ->set('step', 5)
+            ->set('incomeSource', ['Spouse salary'])
+            ->set('realAssets', ['House'])
+            ->set('movableAssets', ['Vehicle'])
+            ->set('problemsNeeds', ['Limited problems encountered'])
+            ->call('nextStep')
+            ->assertHasErrors(['incomeSource']);
     }
 
     #[Test]
@@ -570,7 +568,7 @@ class ProfileSurveyValidationTest extends TestCase
             ->set('maritalStatus', 'Married')
             ->set('spouseWorking', 'Yes')
             ->set('step', 5)
-            ->set('incomeSource', ['Spouse salary', 'Spouse pension'])
+            ->set('incomeSource', ['Spouse salary', 'SSS Pension'])
             ->set('realAssets', ['House'])
             ->set('movableAssets', ['Vehicle'])
             ->set('problemsNeeds', ['Limited problems encountered'])
@@ -584,11 +582,28 @@ class ProfileSurveyValidationTest extends TestCase
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->set('maritalStatus', 'Single')
             ->set('spouseWorking', 'N/A')
-            ->set('incomeSource', ['Spouse pension'])
+            ->set('incomeSource', ['Spouse salary'])
             ->call('save')
             ->assertHasErrors(['incomeSource']);
 
         $this->assertDatabaseMissing('senior_citizens', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    }
+
+    #[Test]
+    public function pension_subtype_options_are_independently_selectable(): void
+    {
+        foreach (['SSS Pension', 'Social Pension (National)', 'Local Pension'] as $option) {
+            $this->fillRequired(Livewire::test(ProfileSurvey::class))
+                ->set('maritalStatus', 'Married')
+                ->set('spouseWorking', 'Yes')
+                ->set('step', 5)
+                ->set('incomeSource', [$option])
+                ->set('realAssets', ['House'])
+                ->set('movableAssets', ['Vehicle'])
+                ->set('problemsNeeds', ['Limited problems encountered'])
+                ->call('nextStep')
+                ->assertHasNoErrors(['incomeSource']);
+        }
     }
 
     #[Test]
@@ -724,18 +739,16 @@ class ProfileSurveyValidationTest extends TestCase
     #[Test]
     public function spouse_income_source_with_widowed_marital_status_is_rejected_on_step_5(): void
     {
-        foreach (['Spouse salary', 'Spouse pension'] as $value) {
-            $this->fillRequired(Livewire::test(ProfileSurvey::class))
-                ->set('maritalStatus', 'Widowed')
-                ->set('spouseWorking', 'Deceased')
-                ->set('step', 5)
-                ->set('incomeSource', [$value])
-                ->set('realAssets', ['House'])
-                ->set('movableAssets', ['Vehicle'])
-                ->set('problemsNeeds', ['Limited problems encountered'])
-                ->call('nextStep')
-                ->assertHasErrors(['incomeSource']);
-        }
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Widowed')
+            ->set('spouseWorking', 'Deceased')
+            ->set('step', 5)
+            ->set('incomeSource', ['Spouse salary'])
+            ->set('realAssets', ['House'])
+            ->set('movableAssets', ['Vehicle'])
+            ->set('problemsNeeds', ['Limited problems encountered'])
+            ->call('nextStep')
+            ->assertHasErrors(['incomeSource']);
     }
 
     #[Test]
@@ -744,7 +757,7 @@ class ProfileSurveyValidationTest extends TestCase
         $this->fillRequired(Livewire::test(ProfileSurvey::class))
             ->set('maritalStatus', 'Widowed')
             ->set('spouseWorking', 'Deceased')
-            ->set('incomeSource', ['Spouse pension'])
+            ->set('incomeSource', ['Spouse salary'])
             ->call('save')
             ->assertHasErrors(['incomeSource']);
 
@@ -1056,5 +1069,95 @@ class ProfileSurveyValidationTest extends TestCase
 
         $this->assertDatabaseHas('senior_citizens', ['id' => $senior->id, 'first_name' => 'Juan']);
         $this->assertDatabaseMissing('senior_citizens', ['id' => $senior->id, 'first_name' => 'Juan99']);
+    }
+
+    #[Test]
+    public function increasing_num_children_grows_the_children_array_with_blank_rows(): void
+    {
+        $component = Livewire::test(ProfileSurvey::class)
+            ->set('numChildren', 3);
+
+        $children = $component->get('children');
+        $this->assertCount(3, $children);
+        $this->assertSame('', $children[0]['full_name']);
+    }
+
+    #[Test]
+    public function decreasing_num_children_truncates_trailing_children_rows(): void
+    {
+        $component = Livewire::test(ProfileSurvey::class)
+            ->set('numChildren', 3)
+            ->set('children.0.full_name', 'Ana')
+            ->set('children.1.full_name', 'Ben')
+            ->set('children.2.full_name', 'Cia')
+            ->set('numChildren', 1);
+
+        $children = $component->get('children');
+        $this->assertCount(1, $children);
+        $this->assertSame('Ana', $children[0]['full_name']);
+    }
+
+    #[Test]
+    public function invalid_child_gender_is_rejected(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('numChildren', 1)
+            ->set('children.0.gender', 'Not A Real Gender')
+            ->set('step', 2)
+            ->call('nextStep')
+            ->assertHasErrors(['children.0.gender']);
+    }
+
+    #[Test]
+    public function invalid_child_employment_status_is_rejected(): void
+    {
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('numChildren', 1)
+            ->set('children.0.employment_status', 'Not A Real Status')
+            ->set('step', 2)
+            ->call('nextStep')
+            ->assertHasErrors(['children.0.employment_status']);
+    }
+
+    #[Test]
+    public function children_details_round_trip_through_create_and_edit(): void
+    {
+        $child = [
+            'full_name' => 'Ana Dela Cruz', 'age' => 20, 'gender' => 'Female',
+            'employment_status' => 'Student', 'occupation' => '', 'marital_status' => 'Single',
+            'address' => 'Barangay Anibong',
+        ];
+
+        $this->fillRequired(Livewire::test(ProfileSurvey::class))
+            ->set('maritalStatus', 'Married')
+            ->set('spouseWorking', 'No')
+            ->set('numChildren', 1)
+            ->set('children.0.full_name', $child['full_name'])
+            ->set('children.0.age', $child['age'])
+            ->set('children.0.gender', $child['gender'])
+            ->set('children.0.employment_status', $child['employment_status'])
+            ->set('children.0.marital_status', $child['marital_status'])
+            ->set('children.0.address', $child['address'])
+            ->set('realAssets', ['House'])
+            ->set('movableAssets', ['Vehicle'])
+            ->set('problemsNeeds', ['Limited problems encountered'])
+            ->set('medicalConcern', ['Hypertension'])
+            ->set('socialEmotionalConcern', ['Living in a healthy environment'])
+            ->set('dentalConcern', ['Healthy Teeth'])
+            ->set('opticalConcern', ['Healthy Eyes'])
+            ->set('hearingConcern', ['Healthy Hearing'])
+            ->set('healthcareDifficulty', ['Healthcare is accessible'])
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $senior = SeniorCitizen::where('first_name', 'Maria')->where('last_name', 'Santos')->firstOrFail();
+        $this->assertCount(1, $senior->children_details);
+        $this->assertSame('Ana Dela Cruz', $senior->children_details[0]['full_name']);
+        $this->assertSame('Student', $senior->children_details[0]['employment_status']);
+
+        Livewire::test(ProfileSurvey::class, ['seniorId' => $senior->id])
+            ->assertSet('children.0.full_name', 'Ana Dela Cruz')
+            ->assertSet('children.0.employment_status', 'Student');
     }
 }

@@ -298,14 +298,14 @@ document.addEventListener('alpine:init', () => {
     }))
 
     // ── Income source cross-field guard (ProfileSurvey Step 5) ───────────────
-    // "Spouse salary"/"Spouse pension" require an actual spouse — grayed out
-    // and disabled when Marital Status (Step 1) is Single, same
-    // not-already-checked deadlock guard as dependencyCrossGuard above so a
-    // legacy bulk-imported contradictory record stays editable.
+    // "Spouse salary" requires an actual spouse — grayed out and disabled
+    // when Marital Status (Step 1) is Single, same not-already-checked
+    // deadlock guard as dependencyCrossGuard above so a legacy
+    // bulk-imported contradictory record stays editable.
     // ProfileSurvey::spouseIncomeSourceRule() is the server-side enforcement
     // authority.
     Alpine.data('incomeSourceGuard', () => ({
-        spouseOptions: ['Spouse salary', 'Spouse pension'],
+        spouseOptions: ['Spouse salary'],
         get spouseIncomeBlocked() {
             return ['Single', 'Widowed'].includes(this.$wire.maritalStatus)
         },
