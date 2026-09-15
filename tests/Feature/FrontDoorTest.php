@@ -11,10 +11,10 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
- * Coverage for the app's entry point, `GET /` — previously untested (see
- * docs/plans front-door-polish). `/` is a single auth-aware redirect
- * (routes/web.php) so guests reach /login in one hop instead of bouncing
- * through /dashboard first; `/login` itself must stay out of search indexes.
+ * Coverage for the app's entry point, `GET /` (routes/web.php). Guests now
+ * see the public landing page (the system's public front door) instead of
+ * an immediate redirect; authenticated users still bypass it straight to
+ * /dashboard. `/login` itself must stay out of search indexes.
  */
 class FrontDoorTest extends TestCase
 {
@@ -32,10 +32,11 @@ class FrontDoorTest extends TestCase
     }
 
     #[Test]
-    public function guest_root_redirects_straight_to_login(): void
+    public function guest_root_renders_landing_page(): void
     {
         $this->get('/')
-            ->assertRedirect(route('login'));
+            ->assertOk()
+            ->assertViewIs('landing');
     }
 
     #[Test]
