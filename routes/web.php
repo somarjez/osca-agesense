@@ -10,9 +10,12 @@ use App\Support\SingleSession;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
-// Guests skip the /dashboard bounce and land straight on the sign-in screen —
-// one 302 instead of two, which matters on cold starts.
-Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'))
+// Authenticated users still bypass the marketing page and land straight on
+// the dashboard. Guests now see the public landing page instead of an
+// immediate redirect to /login — it's the system's public front door.
+Route::get('/', fn () => auth()->check()
+    ? redirect()->route('dashboard')
+    : view('landing'))
     ->name('home');
 
 Route::middleware(['auth'])->group(function () {
