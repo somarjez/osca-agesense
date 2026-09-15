@@ -337,7 +337,7 @@
                 <div class="grid grid-cols-2 gap-4" x-data="familyCompositionGuard()">
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-1">Number of Children <span class="text-critical-700" aria-hidden="true">*</span></label>
-                        <input type="number" wire:model="numChildren" min="0"
+                        <input type="number" wire:model.live.debounce.500ms="numChildren" min="0"
                                class="form-input">
                     </div>
                     <div>
@@ -379,6 +379,59 @@
                         <p class="mt-1 text-xs text-critical-700" x-show="spouseWorkingBlockedMessage" x-cloak x-text="spouseWorkingBlockedMessage"></p>
                     </div>
                 </div>
+                @if ($numChildren > 0)
+                <div class="mt-4">
+                    <label class="block text-xs font-medium text-ink-600 mb-2">Children Details</label>
+                    <div class="space-y-3">
+                        @foreach ($children as $i => $child)
+                        <div wire:key="child-{{ $i }}" class="border border-paper-rule rounded-lg p-3 grid grid-cols-2 gap-3">
+                            <div class="col-span-2 text-[11px] font-semibold text-ink-500">Child {{ $i + 1 }}</div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Full Name</label>
+                                <input type="text" wire:model="children.{{ $i }}.full_name" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Age</label>
+                                <input type="number" min="0" wire:model="children.{{ $i }}.age" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Gender</label>
+                                <select wire:model="children.{{ $i }}.gender" class="form-input">
+                                    <option value="">Select…</option>
+                                    <option>Male</option><option>Female</option><option>Prefer not to say</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Employment Status</label>
+                                <select wire:model="children.{{ $i }}.employment_status" class="form-input">
+                                    <option value="">Select…</option>
+                                    @foreach (['Employed','Unemployed','Self-Employed','OFW','Student','Retired'] as $es)
+                                        <option>{{ $es }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Occupation</label>
+                                <input type="text" wire:model="children.{{ $i }}.occupation" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-ink-500 mb-1">Marital Status</label>
+                                <select wire:model="children.{{ $i }}.marital_status" class="form-input">
+                                    <option value="">Select…</option>
+                                    @foreach (['Single','Married','Widowed','Separated'] as $ms)
+                                        <option>{{ $ms }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[11px] text-ink-500 mb-1">Address</label>
+                                <input type="text" wire:model="children.{{ $i }}.address" class="form-input">
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
                 @endif
 
                 {{-- ─── STEP 3: Education / HR ─── --}}
@@ -483,7 +536,7 @@
                             </label>
                             @endforeach
                         </div>
-                        <p class="mt-1 text-xs text-critical-700" x-show="spouseIncomeBlocked" x-cloak>"Spouse salary"/"Spouse pension" are unavailable when marital status is Single or Widowed.</p>
+                        <p class="mt-1 text-xs text-critical-700" x-show="spouseIncomeBlocked" x-cloak>"Spouse salary" is unavailable when marital status is Single or Widowed.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-ink-600 mb-2">Monthly Income Range <span class="text-critical-700" aria-hidden="true">*</span></label>

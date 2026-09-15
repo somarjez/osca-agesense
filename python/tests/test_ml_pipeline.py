@@ -342,6 +342,27 @@ def test_asset_weights_dynamic():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_pension_subtypes():
+    print("\n[Test 7] SSS/Social/Local pension subtypes score and flag correctly")
+    import preprocess_service
+
+    weights = preprocess_service._runtime_weights()["income_source"]
+    for key in ("sss pension", "social pension (national)", "local pension"):
+        _check(f'INCOME_SOURCE_WEIGHTS has "{key}"', weights.get(key, 0.0) > 0.0,
+               f"weight={weights.get(key)}")
+
+    for label in ("SSS Pension", "Social Pension (National)", "Local Pension"):
+        senior = copy.deepcopy(SAMPLE_SENIOR)
+        senior["income_source"] = [label]
+        pre = preprocess_service.preprocess(senior)
+        score = pre["feature_map"].get("income_source_score", 0.0)
+        _check(f'"{label}" contributes a positive income_source_score',
+               score > 0.0, f"score={score}")
+
+        has_pension = pre["feature_map"].get("has_pension")
+        _check(f'"{label}" sets has_pension=1', has_pension == 1, f"has_pension={has_pension}")
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -356,6 +377,7 @@ if __name__ == "__main__":
     test_missing_cluster_metadata()
     test_cluster_metadata_dynamic()
     test_asset_weights_dynamic()
+    test_pension_subtypes()
 
     print("\n" + "=" * 60)
     if _failures:

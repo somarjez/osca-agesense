@@ -247,6 +247,30 @@ table.exec-table td.val { width: 30%; }
     </tr>
 </table>
 
+@if(!empty($senior->children_details))
+<table class="col-table">
+    <thead>
+        <tr>
+            <th>Full Name</th><th>Age</th><th>Gender</th>
+            <th>Employment Status</th><th>Occupation</th><th>Marital Status</th><th>Address</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($senior->children_details as $child)
+        <tr>
+            <td>{{ $child['full_name'] ?? '—' }}</td>
+            <td>{{ $child['age'] ?? '—' }}</td>
+            <td>{{ $child['gender'] ?? '—' }}</td>
+            <td>{{ $child['employment_status'] ?? '—' }}</td>
+            <td>{{ $child['occupation'] ?? '—' }}</td>
+            <td>{{ $child['marital_status'] ?? '—' }}</td>
+            <td>{{ $child['address'] ?? '—' }}</td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+@endif
+
 {{-- III. Education, Skills & Community --}}
 <div class="section-head">III. EDUCATION, SKILLS &amp; COMMUNITY</div>
 <table class="data-table">

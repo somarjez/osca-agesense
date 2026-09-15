@@ -24,8 +24,14 @@
             <span class="items-center gap-1.5 text-[12px] text-ink-500 dark:text-[#8a9087]" style="display: none;">
                 <span class="btn-spinner" aria-hidden="true"></span> Loading…
             </span>
+            @role('admin')
+            <a href="{{ route('reports.barangay.export', ['brgy' => $brgy]) }}"
+               class="btn btn-secondary text-[12.5px] gap-1.5 ml-auto" data-loading="Generating PDF…">
+                <x-heroicon-o-arrow-down-tray class="w-3.5 h-3.5" /> Export PDF
+            </a>
+            @endrole
             <a href="{{ route('reports.risk') }}"
-               class="btn btn-ghost text-[12.5px] gap-1.5 ml-auto">
+               class="btn btn-ghost text-[12.5px] gap-1.5 {{ auth()->user()->hasRole('admin') ? '' : 'ml-auto' }}">
                 <x-heroicon-o-arrow-left class="w-3.5 h-3.5" /> All Barangays
             </a>
         </div>

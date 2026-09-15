@@ -81,7 +81,11 @@ MOVABLE_ASSET_WEIGHTS = {
 }
 
 INCOME_SOURCE_WEIGHTS = {
-    "own pension": 1.00, "spouse pension": 0.85, "own earnings": 0.75,
+    # "own pension"/"spouse pension" kept for legacy records saved before the
+    # pension-subtype split; new records use the three keys below instead.
+    "own pension": 1.00, "spouse pension": 0.85,
+    "sss pension": 1.00, "social pension (national)": 0.55, "local pension": 0.55,
+    "own earnings": 0.75,
     "own earnings / salary": 0.75, "own earnings/salary": 0.75,
     "insurance": 0.70, "stocks": 0.65,
     "dividends": 0.65, "rentals": 0.65, "rentals/sharecrops": 0.60,

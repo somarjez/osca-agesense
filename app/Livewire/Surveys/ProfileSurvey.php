@@ -73,6 +73,9 @@ class ProfileSurvey extends Component
     // ── II. Family Composition ────────────────────────────────────────────────
     public int $numChildren = 0;
 
+    /** Per-child detail rows, kept in sync with $numChildren via updatedNumChildren(). */
+    public array $children = [];
+
     public int $numWorkingChildren = 0;
 
     public string $childFinancialSupport = '';
@@ -311,7 +314,7 @@ class ProfileSurvey extends Component
         }
 
         if (in_array($this->maritalStatus, ['Single', 'Widowed'], true)
-            && (in_array('Spouse salary', $this->incomeSource, true) || in_array('Spouse pension', $this->incomeSource, true))) {
+            && in_array('Spouse salary', $this->incomeSource, true)) {
             $violations[] = 'spouse income source conflicts with marital status';
         }
 
@@ -422,6 +425,7 @@ class ProfileSurvey extends Component
             'ethnic_origin' => $this->ethnicOrigin ?: null,
             'blood_type' => $this->bloodType ?: null,
             'num_children' => $this->numChildren,
+            'children_details' => $this->children ?: null,
             'num_working_children' => $this->numWorkingChildren,
             'child_financial_support' => $this->childFinancialSupport ?: null,
             'spouse_working' => $this->spouseWorking ?: null,
@@ -745,6 +749,16 @@ class ProfileSurvey extends Component
     {
         return [
             'numChildren' => 'required|integer|min:0|max:50',
+            'children' => 'array',
+            'children.*.full_name' => 'nullable|string|max:255',
+            'children.*.age' => 'nullable|integer|min:0|max:130',
+            'children.*.gender' => ['nullable', 'string', ValidationRule::in(['Male', 'Female', 'Prefer not to say'])],
+            'children.*.employment_status' => ['nullable', 'string', ValidationRule::in([
+                'Employed', 'Unemployed', 'Self-Employed', 'OFW', 'Student', 'Retired',
+            ])],
+            'children.*.occupation' => 'nullable|string|max:255',
+            'children.*.marital_status' => ['nullable', 'string', ValidationRule::in(['Single', 'Married', 'Widowed', 'Separated'])],
+            'children.*.address' => 'nullable|string|max:255',
             'numWorkingChildren' => 'required|integer|min:0|max:50|lte:numChildren',
             'householdSize' => 'required|integer|min:1|max:50',
             'childFinancialSupport' => [
@@ -827,11 +841,11 @@ class ProfileSurvey extends Component
 
     // ── V. Economic Profile ───────────────────────────────────────────────────
     /**
-     * "Spouse salary"/"Spouse pension" require an actual spouse to exist —
-     * unlike the enum-whitelist relaxation below (which tolerates legacy
-     * taxonomy drift), this is a marital-status contradiction, the same
-     * class of business rule as spouseWorking/livingWith above, so it must
-     * keep enforcing on the full-record save() safety net too, not just
+     * "Spouse salary" requires an actual spouse to exist — unlike the
+     * enum-whitelist relaxation below (which tolerates legacy taxonomy
+     * drift), this is a marital-status contradiction, the same class of
+     * business rule as spouseWorking/livingWith above, so it must keep
+     * enforcing on the full-record save() safety net too, not just
      * per-step navigation.
      */
     private function spouseIncomeSourceRule(): \Closure
@@ -839,8 +853,8 @@ class ProfileSurvey extends Component
         return function ($attribute, $value, $fail) {
             $value = (array) $value;
             if (in_array($this->maritalStatus, ['Single', 'Widowed'], true)
-                && (in_array('Spouse salary', $value, true) || in_array('Spouse pension', $value, true))) {
-                $fail('Source of income cannot include "Spouse salary" or "Spouse pension" when marital status is Single or Widowed.');
+                && in_array('Spouse salary', $value, true)) {
+                $fail('Source of income cannot include "Spouse salary" when marital status is Single or Widowed.');
             }
         };
     }
@@ -903,6 +917,27 @@ class ProfileSurvey extends Component
         $this->validateOnly('dateOfDeath', $this->step1Rules(), $this->step1Messages());
     }
 
+    /** Keeps $children in lockstep with $numChildren — grows with blank rows,
+     * shrinks by dropping trailing rows (any data already entered in a
+     * truncated row is discarded, matching this form's general lack of
+     * confirmation prompts elsewhere). */
+    public function updatedNumChildren($value): void
+    {
+        $count = max(0, (int) $value);
+        $blank = [
+            'full_name' => '', 'age' => '', 'gender' => '', 'employment_status' => '',
+            'occupation' => '', 'marital_status' => '', 'address' => '',
+        ];
+
+        if ($count > count($this->children)) {
+            while (count($this->children) < $count) {
+                $this->children[] = $blank;
+            }
+        } elseif ($count < count($this->children)) {
+            $this->children = array_slice($this->children, 0, $count);
+        }
+    }
+
     private function populateFromModel(SeniorCitizen $s): void
     {
         $this->firstName = $s->first_name;
@@ -924,6 +959,7 @@ class ProfileSurvey extends Component
         $this->dateOfDeath = $s->date_of_death?->format('Y-m-d') ?? '';
         $this->deceasedNote = $s->deceased_note ?? '';
         $this->numChildren = $s->num_children;
+        $this->children = $s->children_details ?? [];
         $this->numWorkingChildren = $s->num_working_children;
         $this->childFinancialSupport = $s->child_financial_support ?? '';
         $this->spouseWorking = $s->spouse_working ?? '';
@@ -962,7 +998,8 @@ class ProfileSurvey extends Component
             'religion' => $this->religion, 'ethnicOrigin' => $this->ethnicOrigin,
             'bloodType' => $this->bloodType,
             'status' => $this->status, 'dateOfDeath' => $this->dateOfDeath, 'deceasedNote' => $this->deceasedNote,
-            'numChildren' => $this->numChildren, 'numWorkingChildren' => $this->numWorkingChildren,
+            'numChildren' => $this->numChildren, 'children' => $this->children,
+            'numWorkingChildren' => $this->numWorkingChildren,
             'childFinancialSupport' => $this->childFinancialSupport, 'spouseWorking' => $this->spouseWorking,
             'householdSize' => $this->householdSize,
             'educationalAttainment' => $this->educationalAttainment,
@@ -1067,8 +1104,8 @@ class ProfileSurvey extends Component
     public static function incomeSourceOptions(): array
     {
         return [
-            'Own earnings/salary', 'Own pension', 'Dependent on children/relatives',
-            'Spouse salary', 'Spouse pension', 'Rentals/Sharecrops', 'Savings',
+            'Own earnings/salary', 'SSS Pension', 'Social Pension (National)', 'Local Pension',
+            'Dependent on children/relatives', 'Spouse salary', 'Rentals/Sharecrops', 'Savings',
             'Livestock/Farm', 'Fishing', 'Insurance', 'Business',
         ];
     }
